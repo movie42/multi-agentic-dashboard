@@ -18,7 +18,60 @@ export interface FlowTaskSummary {
     testTotal: number;
   } | null;
   verify: { status: FlowStageStatus; done: number; total: number } | null;
+  featureDoc: string | null;
   updatedAt: number;
+}
+
+export interface FeatureRowSummary {
+  id: string;
+  title: string;
+  issue: string | null;
+  branch: string | null;
+  worktree: string | null;
+  jiraStatus: string | null;
+  jiraTodo: string | null;
+}
+
+export type SharedWaitReason =
+  | { kind: "pr"; pullRequest: PullRequestInfo; branch: string }
+  | { kind: "unresolved"; buildIn: string };
+
+export interface SharedWait {
+  item: string;
+  usedBy: string[];
+  reason: SharedWaitReason;
+}
+
+export interface FileOverlap {
+  file: string;
+  worktree: string;
+  otherWorktree: string;
+  otherBranch: string | null;
+}
+
+export type FeatureCheck =
+  | { kind: "idle" }
+  | { kind: "running"; startedAt: number }
+  | { kind: "failed"; at: number; error: string }
+  | {
+      kind: "done";
+      at: number;
+      root: string;
+      behind: { worktree: string; commits: number }[];
+      overlaps: FileOverlap[];
+    };
+
+export interface FeatureSummary {
+  id: string;
+  title: string;
+  root: string | null;
+  docPath: string;
+  repo: string | null;
+  pageIndex: string | null;
+  repoPath: string | null;
+  rows: FeatureRowSummary[];
+  sharedWaits: SharedWait[];
+  check: FeatureCheck;
 }
 
 export type PullRequestInfo =

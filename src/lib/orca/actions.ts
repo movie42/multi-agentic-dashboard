@@ -8,6 +8,8 @@ export type ActionRequest =
   | { type: "send-prompt"; terminalHandle: string; text: string }
   | { type: "choose-option"; terminalHandle: string; option: number }
   | { type: "launch-agent"; worktreePath: string; prompt: string }
+  | { type: "open-terminal"; worktreePath: string }
+  | { type: "check-feature"; featureId: string }
   | { type: "answer-permission"; requestId: string; answer: PermissionAnswer };
 
 export type ActionResponse = { ok: true } | { ok: false; error: string };

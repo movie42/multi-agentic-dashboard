@@ -1,5 +1,5 @@
 import type { PendingPermission } from "@/lib/permissions/types";
-import type { FlowTaskSummary, PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
+import type { FeatureSummary, FlowTaskSummary, PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
 
 export type AgentState = "working" | "done" | "blocked" | "waiting" | "idle";
 
@@ -92,6 +92,7 @@ export interface WorktreeSummary {
   flowTasks: FlowTaskSummary[];
   otherFlowTasks: FlowTaskSummary[];
   pullRequest: PullRequestInfo;
+  featureId: string | null;
 }
 
 export interface ProjectSummary {
@@ -104,6 +105,7 @@ export interface BoardSnapshot {
   projects: ProjectSummary[];
   worktrees: WorktreeSummary[];
   agents: AgentCard[];
+  features: FeatureSummary[];
 }
 
 export type BoardResponse =

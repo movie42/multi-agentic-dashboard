@@ -4,13 +4,14 @@ import { useState } from "react";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, WorktreeSummary } from "@/lib/orca/types";
 import { buildSteps } from "@/lib/workflow/steps";
-import type { PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
+import type { FeatureRowSummary, PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
 import type { BoardGroups } from "./classify";
 import { AgentList } from "./AgentList";
 import { Stepper } from "./Stepper";
 
 interface WorktreePanelProps {
   worktree: WorktreeSummary;
+  featureRow: FeatureRowSummary | null;
   mode: WorkflowMode;
   groups: BoardGroups;
   now: number;
@@ -26,11 +27,19 @@ const FILTER_OPTIONS: { key: PanelFilter; label: string; tone: string }[] = [
   { key: "working", label: "작업 중", tone: "text-now" },
 ];
 
-export function WorktreePanel({ worktree, mode, groups, now, renderCard, expandedId, onAction }: WorktreePanelProps) {
+export function WorktreePanel({ worktree, featureRow, mode, groups, now, renderCard, expandedId, onAction }: WorktreePanelProps) {
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
-  const listed = activeFilter ? groups[activeFilter] : [...groups.needsMe, ...groups.working, ...groups.resting];
+  const all = [...groups.needsMe, ...groups.working, ...groups.resting];
+  const listed = activeFilter ? groups[activeFilter] : all;
+  const terminalHandle = all.find((agent) => agent.terminalHandle)?.terminalHandle ?? null;
+  const toTerminal = () =>
+    onAction(
+      terminalHandle
+        ? { type: "focus-terminal", terminalHandle }
+        : { type: "open-terminal", worktreePath: worktree.path },
+    );
   const open = (target: string) =>
     onAction({ type: "open-artifact", target, via: "system", worktreePath: worktree.path });
 
@@ -68,6 +77,30 @@ export function WorktreePanel({ worktree, mode, groups, now, renderCard, expande
             PR #{pr.number} 열기
           </button>
         )}
+        {featureRow && (featureRow.issue || featureRow.jiraStatus || featureRow.jiraTodo) && (
+          <p className="mt-2 text-[12px]">
+            {featureRow.issue && <span className="font-mono text-muted">{featureRow.issue} </span>}
+            <span>{featureRow.jiraStatus ?? "Jira 상태 기록 없음"}</span>
+            {featureRow.jiraTodo && <span className="block text-ask">사람이 옮길 것 · {featureRow.jiraTodo}</span>}
+          </p>
+        )}
+        <p className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
+          <button
+            type="button"
+            onClick={() => onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" })}
+            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+          >
+            새 세션
+          </button>
+          <button
+            type="button"
+            onClick={toTerminal}
+            title={terminalHandle ? "에이전트 터미널로 이동해요" : "이 워크트리에 새 터미널을 열어요"}
+            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+          >
+            터미널로
+          </button>
+        </p>
       </div>
 
       <div className="flex min-w-0 flex-col gap-6 lg:col-span-9">

@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, ProjectSummary, WorktreeSummary } from "@/lib/orca/types";
 import { buildSteps } from "@/lib/workflow/steps";
-import type { WorkflowMode } from "@/lib/workflow/types";
+import type { FeatureSummary, WorkflowMode } from "@/lib/workflow/types";
 import { postAction } from "./actions";
 import { AgentCardView, type CardProgress } from "./AgentCardView";
 import { groupAgents } from "./classify";
 import { CommandPalette } from "./CommandPalette";
+import { FeatureGroup } from "./FeatureGroup";
 import { LaunchAgent } from "./LaunchAgent";
 import { ProjectSidebar, type ProjectCounts } from "./ProjectSidebar";
 import { AgentList } from "./AgentList";
@@ -303,6 +304,7 @@ export function Dashboard() {
           <ProjectView
             repo={selectedRepo}
             worktrees={board.worktrees.filter((worktree) => worktree.repo === selectedRepo)}
+            features={board.features}
             agents={board.agents.filter((agent) => agent.repo === selectedRepo)}
             mode={modeOfRepo(selectedRepo)}
             now={now}
@@ -317,9 +319,18 @@ export function Dashboard() {
   );
 }
 
+function rowOf(feature: FeatureSummary, worktree: WorktreeSummary) {
+  return (
+    feature.rows.find((row) => row.worktree === worktree.path) ??
+    feature.rows.find((row) => worktree.branch !== null && row.branch === worktree.branch) ??
+    null
+  );
+}
+
 interface ProjectViewProps {
   repo: string;
   worktrees: WorktreeSummary[];
+  features: FeatureSummary[];
   agents: AgentCard[];
   mode: WorkflowMode;
   now: number;
@@ -329,7 +340,7 @@ interface ProjectViewProps {
   onAction: (action: ActionRequest) => void;
 }
 
-function ProjectView({ repo, worktrees, agents, mode, now, isDismissed, renderCard, expandedId, onAction }: ProjectViewProps) {
+function ProjectView({ repo, worktrees, features, agents, mode, now, isDismissed, renderCard, expandedId, onAction }: ProjectViewProps) {
   const panels = worktrees.map((worktree) => ({
     worktree,
     groups: groupAgents(
@@ -343,6 +354,16 @@ function ProjectView({ repo, worktrees, agents, mode, now, isDismissed, renderCa
       b.groups.working.length - a.groups.working.length ||
       (b.worktree.lastActivityAt ?? 0) - (a.worktree.lastActivityAt ?? 0),
   );
+  const featureById = new Map(features.map((feature) => [feature.id, feature]));
+  const sections: { feature: FeatureSummary | null; panels: typeof panels }[] = [];
+  for (const panel of panels) {
+    const feature = panel.worktree.featureId ? (featureById.get(panel.worktree.featureId) ?? null) : null;
+    const section = sections.find((entry) => entry.feature === feature);
+    if (section) section.panels.push(panel);
+    else sections.push({ feature, panels: [panel] });
+  }
+  sections.sort((a, b) => Number(a.feature === null) - Number(b.feature === null));
+  const hasFeatures = sections.some((section) => section.feature !== null);
 
   return (
     <>
@@ -355,20 +376,34 @@ function ProjectView({ repo, worktrees, agents, mode, now, isDismissed, renderCa
           <LaunchAgent key={repo} worktrees={worktrees} showRepo={false} />
         </div>
       </header>
-      <div>
-      {panels.map(({ worktree, groups }) => (
-        <WorktreePanel
-          key={worktree.worktreeId}
-          worktree={worktree}
-          mode={mode}
-          groups={groups}
-          now={now}
-          renderCard={renderCard}
-          expandedId={expandedId}
-          onAction={onAction}
-        />
-      ))}
-      </div>
+      {sections.map(({ feature, panels: sectionPanels }) => {
+        const rendered = sectionPanels.map(({ worktree, groups }) => (
+          <WorktreePanel
+            key={worktree.worktreeId}
+            worktree={worktree}
+            featureRow={feature ? rowOf(feature, worktree) : null}
+            mode={mode}
+            groups={groups}
+            now={now}
+            renderCard={renderCard}
+            expandedId={expandedId}
+            onAction={onAction}
+          />
+        ));
+        if (feature) {
+          return (
+            <FeatureGroup key={feature.id} feature={feature} onAction={onAction}>
+              {rendered}
+            </FeatureGroup>
+          );
+        }
+        return (
+          <section key="no-feature" className={hasFeatures ? "border-t-2 border-fg pt-6" : undefined}>
+            {hasFeatures && <h2 className="text-[22px] leading-[1.3] font-bold tracking-[-0.015em]">기능 문서 없음</h2>}
+            <div className={hasFeatures ? "mt-2" : undefined}>{rendered}</div>
+          </section>
+        );
+      })}
     </>
   );
 }

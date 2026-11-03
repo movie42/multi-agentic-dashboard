@@ -1,6 +1,8 @@
 import { stat } from "node:fs/promises";
 import { extractArtifacts } from "./artifacts";
+import { featureDocsIn, featureOfWorktree, loadFeatures } from "@/lib/workflow/featureDocs";
 import { loadFlowTasks } from "@/lib/workflow/flowDocs";
+import type { CheckInput } from "@/lib/workflow/remoteCheck";
 import { detectMode, getPullRequest } from "@/lib/workflow/git";
 import { findFullMessage } from "@/lib/sessions/fullMessage";
 import { pendingByPane, settleStale } from "@/lib/permissions/store";
@@ -73,6 +75,9 @@ export async function loadBoard(): Promise<BoardSnapshot> {
   const agents: AgentCard[] = [];
   const worktrees: WorktreeSummary[] = [];
   const repoPaths = new Map<string, string>();
+  const repoOfPath = new Map<string, string>();
+  const featureDocs = new Set<string>();
+  const taskFeatureDocs = new Map<string, (string | null)[]>();
 
   for (const worktree of ps.worktrees) {
     if (worktree.isArchived) continue;
@@ -81,6 +86,11 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       repoPaths.set(worktree.repo, worktree.path);
     }
     const flow = await loadFlowTasks(worktree.path, branch);
+    repoOfPath.set(worktree.path, worktree.repo);
+    const pointers = [...flow.current, ...flow.other].map((task) => task.featureDoc);
+    taskFeatureDocs.set(worktree.worktreeId, flow.current.map((task) => task.featureDoc));
+    for (const doc of pointers) if (doc) featureDocs.add(doc);
+    for (const doc of await featureDocsIn(worktree.path)) featureDocs.add(doc);
     worktrees.push({
       worktreeId: worktree.worktreeId,
       repo: worktree.repo,
@@ -92,6 +102,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       flowTasks: flow.current,
       otherFlowTasks: flow.other,
       pullRequest: getPullRequest(worktree.path, branch),
+      featureId: null,
     });
     for (const agent of worktree.agents) {
       if (agent.parentPaneKey) continue;
@@ -132,5 +143,36 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       .map(async ([repo, repoPath]) => ({ repo, autoMode: await detectMode(repoPath) })),
   );
 
-  return { fetchedAt: Date.now(), projects, worktrees, agents };
+  const features = await loadFeatures(featureDocs);
+  for (const feature of features) {
+    const paths = [feature.repoPath, ...feature.rows.map((row) => row.worktree)];
+    feature.repo = paths.map((target) => (target ? repoOfPath.get(target) : undefined)).find(Boolean) ?? null;
+  }
+  for (const worktree of worktrees) {
+    worktree.featureId =
+      featureOfWorktree(features, worktree.repo, worktree.path, worktree.branch, taskFeatureDocs.get(worktree.worktreeId) ?? [])
+        ?.id ?? null;
+  }
+
+  const board = { fetchedAt: Date.now(), projects, worktrees, agents, features };
+  lastBoard = board;
+  return board;
+}
+
+let lastBoard: BoardSnapshot | null = null;
+
+export async function featureCheckInput(featureId: string): Promise<CheckInput> {
+  const board = lastBoard ?? (await loadBoard());
+  const feature = board.features.find((entry) => entry.id === featureId);
+  if (!feature) throw new Error("기능 문서를 찾지 못했어요");
+  if (!feature.root) throw new Error("기능 문서에 루트 브랜치(root)가 없어요");
+  const repoWorktrees = board.worktrees
+    .filter((worktree) => worktree.repo === feature.repo)
+    .map((worktree) => ({ path: worktree.path, name: worktree.name, branch: worktree.branch }));
+  const featureWorktrees = board.worktrees
+    .filter((worktree) => worktree.featureId === featureId)
+    .map((worktree) => ({ path: worktree.path, name: worktree.name, branch: worktree.branch }));
+  const repoPath = feature.repoPath ?? featureWorktrees[0]?.path;
+  if (!repoPath) throw new Error("기능의 워크트리를 찾지 못했어요");
+  return { featureId, root: feature.root, repoPath, featureWorktrees, repoWorktrees };
 }

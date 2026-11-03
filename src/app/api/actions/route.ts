@@ -3,7 +3,9 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { featureCheckInput } from "@/lib/orca/board";
 import { runOrca } from "@/lib/orca/cli";
+import { startFeatureCheck } from "@/lib/workflow/remoteCheck";
 import type { ActionRequest, ActionResponse } from "@/lib/orca/actions";
 import { answerPermission } from "@/lib/permissions/store";
 import type { PermissionAnswer } from "@/lib/permissions/types";
@@ -68,6 +70,12 @@ function isActionRequest(value: unknown): value is ActionRequest {
       typeof body.prompt === "string" &&
       body.prompt.length <= MAX_PROMPT
     );
+  }
+  if (body.type === "open-terminal") {
+    return typeof body.worktreePath === "string" && path.isAbsolute(body.worktreePath);
+  }
+  if (body.type === "check-feature") {
+    return typeof body.featureId === "string" && body.featureId.length > 0;
   }
   if (body.type === "answer-permission") {
     return typeof body.requestId === "string" && isPermissionAnswer(body.answer);
@@ -156,6 +164,12 @@ export async function POST(request: Request) {
         "terminal",
         ...(prompt ? ["--prompt", prompt] : []),
       ]);
+    } else if (body.type === "open-terminal") {
+      await requireAppWindow();
+      await runOrca(["terminal", "create", "--worktree", `path:${body.worktreePath}`, "--focus"]);
+      await bringOrcaForward();
+    } else if (body.type === "check-feature") {
+      startFeatureCheck(await featureCheckInput(body.featureId));
     } else {
       const info = await stat(body.cwd);
       if (!info.isDirectory()) throw new Error("session folder no longer exists");

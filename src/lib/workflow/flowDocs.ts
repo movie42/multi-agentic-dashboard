@@ -18,6 +18,7 @@ interface TaskJson {
   title?: string;
   branch?: string;
   links?: { label?: string }[];
+  feature?: { id?: string; doc?: string };
   stages?: Record<string, StageJson | undefined>;
 }
 
@@ -103,6 +104,7 @@ function summarize(
           total: verifyItems.length,
         }
       : null,
+    featureDoc: typeof json.feature?.doc === "string" && path.isAbsolute(json.feature.doc) ? json.feature.doc : null,
     updatedAt: mtimeMs,
   };
 }
