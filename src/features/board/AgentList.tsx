@@ -68,6 +68,7 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump 
           )}
           {agent.unread && <span className="size-2 shrink-0 rounded-full bg-accent" title="새 결과" />}
           <span className="min-w-0 flex-1 truncate text-muted">
+            {agent.session?.title && <span className="font-semibold text-fg">{agent.session.title} · </span>}
             {parseMessage(agent.lastMessage)?.lead ?? agent.prompt}
           </span>
           {files > 0 && <span className="text-[12px] text-muted">산출물 {files}</span>}

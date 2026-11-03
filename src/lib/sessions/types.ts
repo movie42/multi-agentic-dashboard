@@ -22,3 +22,9 @@ export interface SessionSummary {
 export type SessionsResponse =
   | { ok: true; sessions: SessionSummary[]; scannedAt: number }
   | { ok: false; error: string };
+
+export interface SessionRef {
+  id: string;
+  title: string | null;
+  titleSource: TitleSource;
+}

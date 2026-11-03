@@ -5,6 +5,7 @@ export type ActionRequest =
   | { type: "focus-terminal"; terminalHandle: string }
   | { type: "close-terminal"; terminalHandle: string }
   | { type: "resume-session"; sessionId: string; cwd: string; title: string }
+  | { type: "rename-session"; sessionId: string; title: string }
   | { type: "send-prompt"; terminalHandle: string; text: string }
   | { type: "choose-option"; terminalHandle: string; option: number }
   | { type: "launch-agent"; worktreePath: string; prompt: string }

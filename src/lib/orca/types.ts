@@ -1,4 +1,5 @@
 import type { PendingPermission } from "@/lib/permissions/types";
+import type { SessionRef } from "@/lib/sessions/types";
 import type { FeatureSummary, FlowTaskSummary, PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
 
 export type AgentState = "working" | "done" | "blocked" | "waiting" | "idle";
@@ -69,6 +70,7 @@ export interface AgentCard {
   state: AgentState;
   prompt: string | null;
   title: string | null;
+  session: SessionRef | null;
   lastMessage: string | null;
   toolName: string | null;
   backgroundRunning: boolean;

@@ -10,6 +10,7 @@ import type { ActionRequest, ActionResponse } from "@/lib/orca/actions";
 import { answerPermission } from "@/lib/permissions/store";
 import type { PermissionAnswer } from "@/lib/permissions/types";
 import { ORCA_BUNDLE_ID, readRuntime } from "@/lib/orca/runtime";
+import { renameSession, TITLE_LIMIT } from "@/lib/sessions/sessionTitle";
 
 const execFileAsync = promisify(execFile);
 const MAX_PROMPT = 8000;
@@ -79,6 +80,16 @@ function isActionRequest(value: unknown): value is ActionRequest {
   }
   if (body.type === "answer-permission") {
     return typeof body.requestId === "string" && isPermissionAnswer(body.answer);
+  }
+  if (body.type === "rename-session") {
+    return (
+      typeof body.sessionId === "string" &&
+      SESSION_ID.test(body.sessionId) &&
+      typeof body.title === "string" &&
+      body.title.trim().length > 0 &&
+      body.title.length <= TITLE_LIMIT &&
+      !/[\r\n]/.test(body.title)
+    );
   }
   if (body.type === "resume-session") {
     return (
@@ -168,6 +179,8 @@ export async function POST(request: Request) {
       await requireAppWindow();
       await runOrca(["terminal", "create", "--worktree", `path:${body.worktreePath}`, "--focus"]);
       await bringOrcaForward();
+    } else if (body.type === "rename-session") {
+      await renameSession(body.sessionId, body.title.trim());
     } else if (body.type === "check-feature") {
       startFeatureCheck(await featureCheckInput(body.featureId));
     } else {

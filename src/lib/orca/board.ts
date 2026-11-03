@@ -4,7 +4,9 @@ import { featureDocsIn, featureOfWorktree, loadFeatures } from "@/lib/workflow/f
 import { loadFlowTasks } from "@/lib/workflow/flowDocs";
 import type { CheckInput } from "@/lib/workflow/remoteCheck";
 import { detectMode, getPullRequest } from "@/lib/workflow/git";
-import { findFullMessage } from "@/lib/sessions/fullMessage";
+import { findSession } from "@/lib/sessions/fullMessage";
+import { sessionRefOf } from "@/lib/sessions/sessionTitle";
+import type { SessionRef } from "@/lib/sessions/types";
 import { pendingByPane, settleStale } from "@/lib/permissions/store";
 import { runOrca } from "./cli";
 import { reattachOrphans } from "./orphans";
@@ -21,10 +23,22 @@ import type {
 
 const PREVIEW_LIMIT = 200;
 
-async function fullMessageOf(message: string | null, agentType: string | null, cwd: string): Promise<string | null> {
-  if (!message || agentType !== "claude") return message;
-  if (message.includes("\n") || message.length > PREVIEW_LIMIT) return message;
-  return (await findFullMessage(cwd, message).catch(() => null)) ?? message;
+function isPreview(message: string | null): message is string {
+  return message !== null && !message.includes("\n") && message.length <= PREVIEW_LIMIT;
+}
+
+async function sessionOf(
+  agent: OrcaWorktreeRaw["agents"][number],
+  cwd: string,
+): Promise<{ lastMessage: string | null; session: SessionRef | null }> {
+  const message = agent.lastAssistantMessage;
+  if (agent.agentType !== "claude") return { lastMessage: message, session: null };
+  const located = await findSession(agent.paneKey, cwd, message, agent.prompt).catch(() => null);
+  if (!located) return { lastMessage: message, session: null };
+  const full = located.lastAssistant;
+  const expands = isPreview(message) && full !== null && full.replace(/\s+/g, " ").startsWith(message.replace(/\s+/g, " ").trim().slice(0, 60));
+  const session = await sessionRefOf(located.file, located.size).catch(() => null);
+  return { lastMessage: expands ? full : message, session };
 }
 
 const KNOWN_STATES: readonly AgentState[] = ["working", "done", "blocked", "waiting", "idle"];
@@ -109,7 +123,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       const backgroundRunning =
         agent.workingMode === "monitoring" && agent.mainAgent != null && agent.mainAgent.state !== "working";
       const effectiveState = backgroundRunning && agent.mainAgent ? agent.mainAgent.state : agent.state;
-      const lastMessage = await fullMessageOf(agent.lastAssistantMessage, agent.agentType, worktree.path);
+      const { lastMessage, session } = await sessionOf(agent, worktree.path);
       const effectiveSince =
         backgroundRunning && agent.mainAgent ? agent.mainAgent.stateStartedAt : agent.stateStartedAt;
       agents.push({
@@ -123,6 +137,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
         state: toAgentState(effectiveState),
         prompt: agent.prompt,
         title: agent.taskTitle ?? agent.displayName,
+        session,
         lastMessage,
         toolName: agent.toolName,
         backgroundRunning,

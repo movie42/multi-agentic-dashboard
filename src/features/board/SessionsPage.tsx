@@ -5,6 +5,7 @@ import type { ActionRequest } from "@/lib/orca/actions";
 import type { SessionSummary, SessionsResponse, TitleSource } from "@/lib/sessions/types";
 import { formatElapsed } from "./format";
 import { parseMessage } from "./message";
+import { SessionTitle } from "./SessionTitle";
 
 type TitleFilter = "all" | "not-custom" | "none";
 
@@ -77,6 +78,12 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  const renameLocally = (sessionId: string, title: string) => {
+    const rename = (list: SessionSummary[]) =>
+      list.map((entry) => (entry.sessionId === sessionId ? { ...entry, title, titleSource: "custom" as const } : entry));
+    setState((previous) => ({ ...previous, sessions: previous.sessions ? rename(previous.sessions) : null }));
+  };
 
   const reload = () => {
     setState((previous) => ({ ...previous, loading: true }));
@@ -200,7 +207,14 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                   >
                     {badge.label}
                   </span>
-                  <span className="truncate text-[16px] font-bold tracking-[-0.01em]">{session.title}</span>
+                  <SessionTitle
+                    sessionId={session.sessionId}
+                    title={session.titleSource === "none" ? null : session.title}
+                    titleSource={session.titleSource}
+                    fallback={session.title}
+                    textClassName="text-[16px] font-bold tracking-[-0.01em]"
+                    onRenamed={(title) => renameLocally(session.sessionId, title)}
+                  />
                   {session.origin !== "human" && (
                     <span className="shrink-0 text-[11px] text-muted">
                       {session.origin === "headless" ? "자동 호출" : "다른 세션이 시작"}

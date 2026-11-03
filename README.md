@@ -116,13 +116,27 @@ bun run dev
 
 http://127.0.0.1:3100 에서 열립니다.
 
-### 데스크톱 앱으로 설치
+### 데스크톱 앱으로 빌드 · 설치
+
+빌드와 설치를 한 번에 하려면:
 
 ```bash
 bun run desktop
 ```
 
-`~/Applications/Agent Control.app`을 만들고 Dock에 고정합니다. 앱은 내부 서버를 `127.0.0.1:3199`에서 띄웁니다. 코드를 고친 뒤에는 이 명령을 다시 실행해야 앱에 반영됩니다.
+단계를 나눠 실행할 수도 있습니다.
+
+```bash
+bun run desktop:build    # .app 빌드만
+bun run desktop:install  # 빌드된 .app을 설치하고 Dock에 고정
+```
+
+| 명령 | 하는 일 | 결과물 |
+|---|---|---|
+| `desktop:build` | `next build`로 서버를 단독 실행 가능한 형태로 빌드한 뒤, Electron으로 감싸 macOS 앱을 만듭니다. 앱 아이콘도 이때 생성합니다. | `dist/Agent Control-darwin-<arch>/Agent Control.app` (`<arch>`는 `arm64` 또는 `x64`) |
+| `desktop:install` | 실행 중인 앱을 종료하고, 빌드된 앱을 복사한 뒤 Dock에 고정합니다. 이미 고정돼 있으면 그대로 둡니다. | `~/Applications/Agent Control.app` |
+
+앱을 실행하면 내부 서버가 `127.0.0.1:3199`에서 뜹니다. 포트를 바꾸려면 `AGENT_CONTROL_PORT` 환경 변수를 지정합니다. 코드를 고친 뒤에는 `bun run desktop`을 다시 실행해야 앱에 반영됩니다.
 
 ### 권한 요청 훅 연결
 

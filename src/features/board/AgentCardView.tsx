@@ -9,6 +9,7 @@ import { ChoicePanel } from "./ChoicePanel";
 import { MessageView } from "./MessageView";
 import { PermissionPanel } from "./PermissionPanel";
 import { QuickReply } from "./QuickReply";
+import { SessionTitle } from "./SessionTitle";
 import { Stepper } from "./Stepper";
 
 export interface CardProgress {
@@ -197,6 +198,17 @@ export function AgentCardView({
           </p>
           <Stepper steps={progress.steps} size="compact" />
         </div>
+      )}
+
+      {agent.session && (
+        <SessionTitle
+          key={agent.session.id}
+          sessionId={agent.session.id}
+          title={agent.session.title}
+          titleSource={agent.session.titleSource}
+          fallback={agent.prompt?.replace(/\s+/g, " ").slice(0, 80) ?? "제목 없음"}
+          textClassName="text-[15px] leading-snug font-semibold"
+        />
       )}
 
       {agent.prompt && (

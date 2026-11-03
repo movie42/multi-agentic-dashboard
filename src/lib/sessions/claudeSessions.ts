@@ -132,14 +132,19 @@ async function readRange(file: string, start: number, length: number): Promise<s
   }
 }
 
-async function readTitles(file: string, size: number): Promise<{ custom: string | null; ai: string | null }> {
+export interface SessionTitles {
+  custom: string | null;
+  ai: string | null;
+}
+
+export async function readTitles(file: string, size: number, start = 0): Promise<SessionTitles> {
   const handle = await open(file, "r");
   let custom: string | null = null;
   let ai: string | null = null;
   try {
     const chunkSize = 4 * 1024 * 1024;
     let carry = "";
-    for (let offset = 0; offset < size; offset += chunkSize) {
+    for (let offset = start; offset < size; offset += chunkSize) {
       const buffer = Buffer.alloc(Math.min(chunkSize, size - offset));
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, offset);
       const text = carry + buffer.subarray(0, bytesRead).toString("utf8");

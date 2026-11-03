@@ -6,15 +6,28 @@ const PROJECTS_DIR = process.env.CLAUDE_PROJECTS_DIR ?? path.join(homedir(), ".c
 const TAIL_BYTES = 512 * 1024;
 const CANDIDATE_FILES = 8;
 const MATCH_CHARS = 60;
+const RECENT_USER = 20;
 
 interface TailEntry {
   mtimeMs: number;
   lastAssistant: string | null;
+  recentUser: string[];
 }
 
-const globalCache = globalThis as typeof globalThis & { __agentControlTails?: Map<string, TailEntry> };
+export interface LocatedSession {
+  file: string;
+  size: number;
+  lastAssistant: string | null;
+}
+
+const globalCache = globalThis as typeof globalThis & {
+  __agentControlTails?: Map<string, TailEntry>;
+  __agentControlPaneFiles?: Map<string, string>;
+};
 globalCache.__agentControlTails ??= new Map();
 const tails = globalCache.__agentControlTails;
+globalCache.__agentControlPaneFiles ??= new Map();
+const paneFiles = globalCache.__agentControlPaneFiles;
 
 function projectDirOf(cwd: string): string {
   return path.join(PROJECTS_DIR, cwd.replace(/[^A-Za-z0-9]/g, "-"));
@@ -50,27 +63,67 @@ async function readTail(file: string, size: number): Promise<string> {
   }
 }
 
-async function lastAssistantOf(file: string, size: number, mtimeMs: number): Promise<string | null> {
+async function tailOf(file: string, size: number, mtimeMs: number): Promise<TailEntry> {
   const cached = tails.get(file);
-  if (cached && cached.mtimeMs === mtimeMs) return cached.lastAssistant;
+  if (cached && cached.mtimeMs === mtimeMs) return cached;
   let lastAssistant: string | null = null;
+  const recentUser: string[] = [];
   const lines = (await readTail(file, size)).split("\n").reverse();
   for (const line of lines) {
     if (!line.startsWith("{")) continue;
     try {
-      const entry = JSON.parse(line) as { type?: string; isSidechain?: boolean; message?: { content?: unknown } };
-      if (entry.type !== "assistant" || entry.isSidechain) continue;
-      lastAssistant = textOf(entry.message?.content);
-      if (lastAssistant) break;
+      const entry = JSON.parse(line) as {
+        type?: string;
+        isSidechain?: boolean;
+        content?: unknown;
+        message?: { content?: unknown };
+      };
+      if (entry.isSidechain) continue;
+      if (entry.type === "assistant" && !lastAssistant) lastAssistant = textOf(entry.message?.content);
+      // Prompts typed while the agent is mid-turn are recorded as queue-operation lines.
+      const prompt = entry.type === "user" ? entry.message?.content : entry.type === "queue-operation" ? entry.content : null;
+      if (prompt && recentUser.length < RECENT_USER) {
+        const text = textOf(prompt);
+        if (text) recentUser.push(flatten(text));
+      }
+      if (lastAssistant && recentUser.length >= RECENT_USER) break;
     } catch {}
   }
-  tails.set(file, { mtimeMs, lastAssistant });
-  return lastAssistant;
+  const entry = { mtimeMs, lastAssistant, recentUser };
+  tails.set(file, entry);
+  return entry;
 }
 
-export async function findFullMessage(cwd: string, preview: string): Promise<string | null> {
-  const needle = flatten(preview).slice(0, MATCH_CHARS);
-  if (needle.length < 10) return null;
+function needleOf(text: string | null): string | null {
+  const needle = text ? flatten(text).slice(0, MATCH_CHARS) : "";
+  return needle.length >= 10 ? needle : null;
+}
+
+// Orca reports a live pane's last reply and prompt but not its Claude session id,
+// so the transcript is found by matching those texts against recent files in the worktree.
+// A pane keeps its last matched transcript, because a long turn can push both texts out of the tail read.
+export async function findSession(
+  paneKey: string,
+  cwd: string,
+  preview: string | null,
+  prompt: string | null,
+): Promise<LocatedSession | null> {
+  const located = await matchSession(cwd, preview, prompt);
+  if (located) {
+    paneFiles.set(paneKey, located.file);
+    return located;
+  }
+  const remembered = paneFiles.get(paneKey);
+  const info = remembered ? await stat(remembered).catch(() => null) : null;
+  if (!remembered || !info) return null;
+  const tail = await tailOf(remembered, info.size, info.mtimeMs).catch(() => null);
+  return { file: remembered, size: info.size, lastAssistant: tail?.lastAssistant ?? null };
+}
+
+async function matchSession(cwd: string, preview: string | null, prompt: string | null): Promise<LocatedSession | null> {
+  const replyNeedle = needleOf(preview);
+  const promptNeedle = needleOf(prompt);
+  if (!replyNeedle && !promptNeedle) return null;
   const dir = projectDirOf(cwd);
   const names = await readdir(dir).catch(() => []);
   const files = await Promise.all(
@@ -86,9 +139,21 @@ export async function findFullMessage(cwd: string, preview: string): Promise<str
     .filter((entry): entry is { file: string; size: number; mtimeMs: number } => entry !== null)
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
     .slice(0, CANDIDATE_FILES);
-  for (const candidate of candidates) {
-    const message = await lastAssistantOf(candidate.file, candidate.size, candidate.mtimeMs).catch(() => null);
-    if (message && flatten(message).startsWith(needle)) return message;
+  const tailsOf = await Promise.all(
+    candidates.map((candidate) => tailOf(candidate.file, candidate.size, candidate.mtimeMs).catch(() => null)),
+  );
+  const pick = (index: number): LocatedSession => ({
+    file: candidates[index].file,
+    size: candidates[index].size,
+    lastAssistant: tailsOf[index]?.lastAssistant ?? null,
+  });
+  if (replyNeedle) {
+    const index = tailsOf.findIndex((tail) => tail?.lastAssistant && flatten(tail.lastAssistant).startsWith(replyNeedle));
+    if (index >= 0) return pick(index);
+  }
+  if (promptNeedle) {
+    const index = tailsOf.findIndex((tail) => tail?.recentUser.some((text) => text.includes(promptNeedle)));
+    if (index >= 0) return pick(index);
   }
   return null;
 }
