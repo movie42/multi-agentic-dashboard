@@ -79,6 +79,7 @@ function summarize(
     taskId: json.id ?? path.basename(domainDir),
     title: json.title ?? json.id ?? "",
     domain,
+    branch: json.branch ?? null,
     pageIndex,
     prdExists: prdExists || linksPrd || Boolean(stages.plan),
     grill: grillStage
@@ -113,8 +114,12 @@ function isFinished(task: FlowTaskSummary): boolean {
   return statuses.length > 0 && statuses.every((status) => status === "done") && (task.grill?.open ?? 0) === 0;
 }
 
-export async function loadFlowTasks(worktreePath: string, branch: string | null): Promise<FlowTaskSummary[]> {
-  if (!branch) return [];
+export interface WorktreeFlowTasks {
+  current: FlowTaskSummary[];
+  other: FlowTaskSummary[];
+}
+
+export async function loadFlowTasks(worktreePath: string, branch: string | null): Promise<WorktreeFlowTasks> {
   const docs = path.join(worktreePath, "docs");
   const domains = await readdir(docs, { withFileTypes: true }).catch(() => []);
   const found: FlowTaskSummary[] = [];
@@ -130,7 +135,7 @@ export async function loadFlowTasks(worktreePath: string, branch: string | null)
     for (const file of taskFiles) {
       if (!file.endsWith(".json")) continue;
       const { json, mtimeMs } = await readTask(path.join(domainDir, "tasks", file));
-      if (!json || json.branch !== branch) continue;
+      if (!json) continue;
       const taskId = json.id ?? file.replace(/\.json$/, "");
       const index = path.join(domainDir, taskId, "index.html");
       found.push(
@@ -140,6 +145,13 @@ export async function loadFlowTasks(worktreePath: string, branch: string | null)
   }
 
   found.sort((a, b) => b.updatedAt - a.updatedAt);
-  const active = found.filter((task) => !isFinished(task));
-  return active.length > 0 ? active : found.slice(0, 1);
+  const matched = branch ? found.filter((task) => task.branch === branch) : [];
+  const activeMatched = matched.filter((task) => !isFinished(task));
+  const current =
+    activeMatched.length > 0
+      ? activeMatched
+      : matched.length > 0
+        ? matched.slice(0, 1)
+        : found.filter((task) => !isFinished(task));
+  return { current, other: found.filter((task) => !current.includes(task)) };
 }

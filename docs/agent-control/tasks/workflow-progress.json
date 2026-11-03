@@ -2,7 +2,7 @@
   "id": "workflow-progress",
   "title": "워크플로 단계별 진척도 · 프로젝트 사이드바",
   "type": "기능 개발",
-  "branch": "main",
+  "branch": "feat/agent-control",
   "links": [],
   "stages": {
     "tasks": {
@@ -686,6 +686,12 @@
         "desktop/main.mjs"
       ],
       "sha": "b1c5d3c"
+    },
+    {
+      "date": "2026-11-03",
+      "text": "src/lib/workflow/flowDocs.ts, src/lib/orca/board.ts, src/features/board/WorktreePanel.tsx: 브랜치가 맞는 문서가 없으면 끝나지 않은 문서를 대신 보여주고, 나머지 문서는 '다른 flow 문서'로 접어 둠 (미커밋)",
+      "files": [],
+      "sha": "8c56e70"
     }
   ]
 }

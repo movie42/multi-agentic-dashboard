@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { questionsOf } from "./questions";
 import type {
   PendingPermission,
   PermissionAnswer,
@@ -89,6 +90,17 @@ export function answerPermission(id: string, answer: PermissionAnswer): boolean 
       hookSpecificOutput: {
         hookEventName: "PermissionRequest",
         decision: { behavior: "deny", message: answer.message },
+      },
+    });
+  }
+  if (answer.behavior === "answer") {
+    const asked = new Set(questionsOf(held.request.toolInput).map((question) => question.question));
+    const keys = Object.keys(answer.answers);
+    if (asked.size === 0 || keys.length === 0 || keys.some((key) => !asked.has(key))) return false;
+    return releasePermission(id, {
+      hookSpecificOutput: {
+        hookEventName: "PermissionRequest",
+        decision: { behavior: "allow", updatedInput: { ...held.request.toolInput, answers: answer.answers } },
       },
     });
   }

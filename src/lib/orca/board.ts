@@ -5,6 +5,7 @@ import { detectMode, getPullRequest } from "@/lib/workflow/git";
 import { findFullMessage } from "@/lib/sessions/fullMessage";
 import { pendingByPane, settleStale } from "@/lib/permissions/store";
 import { runOrca } from "./cli";
+import { reattachOrphans } from "./orphans";
 import type {
   AgentCard,
   Artifact,
@@ -58,7 +59,11 @@ export async function loadBoard(): Promise<BoardSnapshot> {
   const handleByPane = new Map<string, string>();
   for (const terminal of terminals.terminals) {
     handleByPane.set(`${terminal.tabId}:${terminal.leafId}`, terminal.handle);
+    if (terminal.recordedPaneKey && !handleByPane.has(terminal.recordedPaneKey)) {
+      handleByPane.set(terminal.recordedPaneKey, terminal.handle);
+    }
   }
+  reattachOrphans(terminals.terminals);
 
   for (const worktree of ps.worktrees) {
     for (const agent of worktree.agents) settleStale(agent.paneKey, agent.state, agent.stateStartedAt);
@@ -75,6 +80,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
     if (!repoPaths.has(worktree.repo) || worktree.isMainWorktree) {
       repoPaths.set(worktree.repo, worktree.path);
     }
+    const flow = await loadFlowTasks(worktree.path, branch);
     worktrees.push({
       worktreeId: worktree.worktreeId,
       repo: worktree.repo,
@@ -83,7 +89,8 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       path: worktree.path,
       unread: worktree.unread,
       lastActivityAt: worktree.lastActivityAt,
-      flowTasks: await loadFlowTasks(worktree.path, branch),
+      flowTasks: flow.current,
+      otherFlowTasks: flow.other,
       pullRequest: getPullRequest(worktree.path, branch),
     });
     for (const agent of worktree.agents) {

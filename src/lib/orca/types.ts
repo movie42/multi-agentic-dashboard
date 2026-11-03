@@ -45,6 +45,9 @@ export interface OrcaTerminalRaw {
   worktreeId: string;
   title: string | null;
   connected: boolean;
+  orphaned?: boolean;
+  recordedPaneKey?: string | null;
+  agentIdentity?: string | null;
 }
 
 export type ArtifactKind = "html" | "markdown" | "file" | "artifact" | "pr";
@@ -87,6 +90,7 @@ export interface WorktreeSummary {
   unread: boolean;
   lastActivityAt: number | null;
   flowTasks: FlowTaskSummary[];
+  otherFlowTasks: FlowTaskSummary[];
   pullRequest: PullRequestInfo;
 }
 

@@ -30,12 +30,25 @@ export interface PendingPermission {
   transcriptPath: string;
 }
 
+export interface QuestionOption {
+  label: string;
+  description?: string;
+}
+
+export interface UserQuestion {
+  question: string;
+  header?: string;
+  options: QuestionOption[];
+  multiSelect?: boolean;
+}
+
 export type PermissionAnswer =
   | { behavior: "allow"; suggestionIndex: number | null }
+  | { behavior: "answer"; answers: Record<string, string> }
   | { behavior: "deny"; message: string };
 
 export type PermissionHookDecision =
-  | { behavior: "allow"; updatedPermissions?: PermissionSuggestion[] }
+  | { behavior: "allow"; updatedPermissions?: PermissionSuggestion[]; updatedInput?: Record<string, unknown> }
   | { behavior: "deny"; message: string };
 
 export interface PermissionHookOutput {

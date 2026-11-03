@@ -4,6 +4,7 @@ export interface FlowTaskSummary {
   taskId: string;
   title: string;
   domain: string;
+  branch: string | null;
   pageIndex: string | null;
   prdExists: boolean;
   grill: { open: number; total: number } | null;

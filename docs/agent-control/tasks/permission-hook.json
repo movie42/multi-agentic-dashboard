@@ -2,7 +2,7 @@
   "id": "permission-hook",
   "title": "선택지·권한 응답을 훅 기반 구조화 데이터로",
   "type": "기능 수정",
-  "branch": "main",
+  "branch": "feat/agent-control",
   "links": [
     {
       "label": "Claude Code 훅 문서",
@@ -269,8 +269,8 @@
                 "followUp": "",
                 "copy": ""
               },
-              "decision": "AskUserQuestion은 이번 범위에서 빼요. 훅이 답을 넣어 줄 수 있는지 문서에 없어서, 지금처럼 화면 파싱 패널로 보여요.",
-              "appliedTo": "[[X6]]"
+              "decision": "처음에는 AskUserQuestion을 빼기로 했지만 뒤집었어요. 오르카 세션이 모두 <code>--dangerously-skip-permissions</code>로 떠서 일반 권한 요청은 오지 않고, 사람 입력을 기다리는 것은 사실상 AskUserQuestion뿐이에요. 실험해 보니 이 모드에서도 훅이 불리고, 허용 결정에 <code>updatedInput.answers</code>를 실으면 답이 들어가서 이번 범위에 넣었어요.",
+              "appliedTo": "[[X6]] · [[P6-1]] [[P6-2]]"
             },
             {
               "id": "Q5",
@@ -316,10 +316,10 @@
       "status": "ask",
       "summary": "구현 완료 · 전역 훅 설치 대기",
       "conclusion": [
-        "실험 결과 대화상자와 대시보드가 동시에 답을 받을 수 있고, 먼저 답한 쪽이 적용돼요. [[P1]]",
-        "권한 요청은 Next 서버 메모리에 붙잡아 두고 기존 보드 응답에 카드별로 실어요. 터미널에서 먼저 답하면 오르카 상태 변화로 정리해요. [[P2]] [[P3]]",
-        "권한 카드는 허용 · 제안 항목별 허용 · 사유 있는 거부로 나뉘고, 훅 요청이 없으면 기존 선택지 패널이 그대로 나와요. [[P4]]",
-        "실제 Claude 세션으로 허용 · 터미널 선답 · 대시보드 닫힘을 확인했어요. 전역 설정 설치와 데스크톱 앱 재빌드만 남았어요. [[P5-V]]"
+        "오르카 세션은 모두 <code>--dangerously-skip-permissions</code>로 떠서, 대시보드가 실제로 받는 것은 대부분 AskUserQuestion이에요. 이 질문을 훅으로 받아 질문 카드에서 답해요. [[P6]]",
+        "권한 카드(일반 도구)는 권한 모드가 default인 세션을 위해 남겨 두고, 누를 수 있게 보이도록 버튼 모양을 고쳤어요. [[B1]]",
+        "대시보드와 터미널 중 먼저 답한 쪽이 적용되고, 터미널에서 먼저 답하면 오르카 상태 변화로 카드를 내려요. [[P1]] [[P3]]",
+        "전역 설정 설치와 데스크톱 앱 재빌드만 남았어요. [[P5-V]]"
       ],
       "blocks": [
         {
@@ -598,8 +598,114 @@
                   "대시보드 요청이 10초 넘게 없으면 훅이 62ms 만에 <code>{}</code>를 돌려줘 평소 대화상자로 넘어가요. [[X8]]"
                 ],
                 [
+                  "결과",
+                  "11/03 전역 훅 설치(<code>bun run hook:install</code>) 뒤 데스크톱 앱(3199)으로 새 오르카 세션의 AskUserQuestion이 질문 카드로 떴고, 대시보드에서 답이 들어갔어요."
+                ],
+                [
                   "남은 것",
-                  "전역 설정 설치(<code>yarn hook:install</code>)와 데스크톱 앱 재빌드(<code>yarn desktop</code>) 후 3199로 한 번 확인 — 사용자 실행 필요"
+                  "복수 선택 · 직접 입력 질문, default 모드 세션의 권한 카드(허용 · 규칙 저장 · 거부), 대시보드 종료 상태의 터미널 대화상자"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · AskUserQuestion 질문 카드와 권한 카드 모양 수정",
+          "items": [
+            {
+              "id": "P6-0",
+              "title": "실험: bypass 모드에서 AskUserQuestion이 훅을 부르고 훅이 답할 수 있는지",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "<code>--dangerously-skip-permissions</code> 세션에서도 AskUserQuestion은 <code>PreToolUse</code>와 <code>PermissionRequest</code>를 불러요. 입력에 <code>questions[]</code>(질문 · <code>header</code> · 선택지 라벨/설명 · <code>multiSelect</code>)가 들어와요."
+                ],
+                [
+                  "결과",
+                  "허용 결정에 <code>updatedInput: {questions, answers: {질문: 라벨}}</code>을 실으면 터미널에 '→ B · Allowed by PermissionRequest hook'이 찍히고 Claude가 그 답으로 이어가요."
+                ]
+              ]
+            },
+            {
+              "id": "P6-1",
+              "title": "질문 답을 훅 응답으로 돌려주는 경로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/permissions/types.ts</code> <code>PermissionAnswer</code>에 <code>answer</code> 추가 · <code>src/lib/permissions/questions.ts</code> · <code>src/lib/permissions/store.ts</code> · <code>src/app/api/actions/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "답의 키가 받은 질문과 다르면 거절해요. 복수 선택은 라벨을 ', '로 이어 보내요."
+                ],
+                [
+                  "결정",
+                  "<code>questionsOf</code>는 화면에서도 써서 서버 전용 모듈(<code>store.ts</code>) 밖 <code>questions.ts</code>에 둬요."
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "질문 카드 UI",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/PermissionPanel.tsx</code> <code>QuestionPermission</code>"
+                ],
+                [
+                  "SOT",
+                  "[[X6]]"
+                ],
+                [
+                  "문구",
+                  "직접 입력칸 '직접 입력' · 버튼 '보내기'"
+                ],
+                [
+                  "결정",
+                  "질문이 하나이고 단일 선택이면 누르는 즉시 보내요. 그 밖에는 고른 뒤 '보내기'를 눌러요."
+                ]
+              ]
+            },
+            {
+              "id": "B1",
+              "title": "권한 카드 버튼이 누를 수 없어 보임",
+              "done": true,
+              "rows": [
+                [
+                  "증상",
+                  "사용자가 '선택을 할 수 없어 보인다'고 함"
+                ],
+                [
+                  "원인",
+                  "클릭은 됐어요. 버튼에 손가락 커서가 없고(Tailwind v4 기본값), 꽉 찬 검은 막대 '허용'이 터미널의 '선택된 줄'처럼, 테두리만 있는 '거부'가 입력칸처럼 보였어요."
+                ],
+                [
+                  "수정",
+                  "허용 · 거부를 한 줄의 둥근 버튼으로, 제안 항목을 작은 칩으로 바꾸고 모든 버튼에 <code>cursor-pointer</code>를 넣었어요. 거부는 누르면 사유 입력칸과 '취소' · '거부' 버튼으로 바뀌어요."
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: 실제 마우스 클릭과 bypass 모드 실제 세션",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "/browse 실제 클릭으로 질문 카드 단일 · 복수 선택 → <code>answers</code> 확인, 권한 카드 제안 칩 → <code>updatedPermissions</code> 확인. 커서는 <code>pointer</code>."
+                ],
+                [
+                  "결과",
+                  "<code>--dangerously-skip-permissions</code> 실제 Claude 세션의 질문에 대시보드에서 'Blue'를 누르자 '→ Blue · Allowed by PermissionRequest hook' 후 'You picked Blue.'"
+                ],
+                [
+                  "결과",
+                  "<code>tsc --noEmit</code> · <code>eslint</code> 통과 (패키지 매니저가 bun으로 바뀌어 <code>node_modules/.bin</code>으로 실행)"
                 ]
               ]
             }

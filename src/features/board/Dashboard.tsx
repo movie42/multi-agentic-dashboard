@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, ProjectSummary, WorktreeSummary } from "@/lib/orca/types";
 import { buildSteps } from "@/lib/workflow/steps";
@@ -11,7 +11,7 @@ import { groupAgents } from "./classify";
 import { CommandPalette } from "./CommandPalette";
 import { LaunchAgent } from "./LaunchAgent";
 import { ProjectSidebar, type ProjectCounts } from "./ProjectSidebar";
-import { RestingList } from "./RestingList";
+import { AgentList } from "./AgentList";
 import { RuntimeSwitch } from "./RuntimeSwitch";
 import { SessionsPage } from "./SessionsPage";
 import { StageBoard } from "./StageBoard";
@@ -65,6 +65,11 @@ const VIEW_OPTIONS: { key: OverviewView; label: string }[] = [
   { key: "stage", label: "단계별" },
 ];
 
+interface JumpTarget {
+  repo: string;
+  targets: string[];
+}
+
 const FALLBACK_PROJECT: ProjectSummary = { repo: "", autoMode: "company" };
 
 export function Dashboard() {
@@ -75,6 +80,23 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [viewKeys, writeView] = useStoredList("agent-control:overview-view");
   const view: OverviewView = viewKeys[0] === "stage" ? "stage" : "turn";
+  const [jump, setJump] = useState<JumpTarget | null>(null);
+  const handledJump = useRef<JumpTarget | null>(null);
+
+  const jumpTo = (repo: string, targets: string[]) => {
+    setJump({ repo, targets });
+    prefs.selectRepo(repo);
+  };
+
+  useEffect(() => {
+    if (!jump || handledJump.current === jump || prefs.selectedRepo !== jump.repo) return;
+    handledJump.current = jump;
+    const element = jump.targets
+      .map((target) => document.querySelector<HTMLElement>(`[data-jump="${CSS.escape(target)}"]`))
+      .find((found) => found !== null);
+    element?.scrollIntoView({ block: "start" });
+    element?.querySelector<HTMLElement>("[data-card]")?.focus({ preventScroll: true });
+  }, [jump, prefs.selectedRepo]);
 
   const runAction = async (action: ActionRequest) => {
     setNotice(null);
@@ -130,6 +152,7 @@ export function Dashboard() {
   );
 
   const withProgressCard = (agent: AgentCard) => renderCard(agent, true);
+  const jumpToAgent = (agent: AgentCard) => jumpTo(agent.repo, [agent.id, agent.worktreeId]);
   const withoutProgressCard = (agent: AgentCard) => renderCard(agent, false);
 
   const needle = query.trim().toLowerCase();
@@ -238,7 +261,7 @@ export function Dashboard() {
                 agents={visibleAgents}
                 modeOfRepo={modeOfRepo}
                 isDismissed={dismissed.isDismissed}
-                onSelectRepo={prefs.selectRepo}
+                onJump={(repo, worktreeId) => jumpTo(repo, [worktreeId])}
               />
             ) : (
             <>
@@ -253,13 +276,13 @@ export function Dashboard() {
               {visibleGroups.needsMe.length === 0 ? (
                 <p className="text-[15px] text-muted">지금 확인할 에이전트가 없어요.</p>
               ) : (
-                <div className="grid gap-4 2xl:grid-cols-2">{visibleGroups.needsMe.map(withProgressCard)}</div>
+                <AgentList agents={visibleGroups.needsMe} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} />
               )}
             </Section>
 
             {visibleGroups.working.length > 0 && (
-              <Section title="에이전트 작업 중" count={visibleGroups.working.length} status="now" hint="에이전트가 아직 답을 쓰는 중. 오래 돈 순">
-                <div className="grid gap-4 2xl:grid-cols-2">{visibleGroups.working.map(withProgressCard)}</div>
+              <Section title="에이전트 작업 중" count={visibleGroups.working.length} status="now" hint="에이전트가 아직 답을 쓰는 중. 오래 돈 순. 줄을 누르면 펼쳐져요">
+                <AgentList agents={visibleGroups.working} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} />
               </Section>
             )}
 
@@ -270,7 +293,7 @@ export function Dashboard() {
                 status="wait"
                 hint="정리한 것과 쉬는 세션. 줄을 누르면 펼쳐져요"
               >
-                <RestingList agents={visibleGroups.resting} now={now} showRepo renderCard={withProgressCard} />
+                <AgentList agents={visibleGroups.resting} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} />
               </Section>
             )}
             </>
@@ -285,6 +308,7 @@ export function Dashboard() {
             now={now}
             isDismissed={dismissed.isDismissed}
             renderCard={withoutProgressCard}
+            expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
           />
         )}
@@ -301,10 +325,11 @@ interface ProjectViewProps {
   now: number;
   isDismissed: (agent: AgentCard) => boolean;
   renderCard: (agent: AgentCard) => React.ReactNode;
+  expandedId: string | null;
   onAction: (action: ActionRequest) => void;
 }
 
-function ProjectView({ repo, worktrees, agents, mode, now, isDismissed, renderCard, onAction }: ProjectViewProps) {
+function ProjectView({ repo, worktrees, agents, mode, now, isDismissed, renderCard, expandedId, onAction }: ProjectViewProps) {
   const panels = worktrees.map((worktree) => ({
     worktree,
     groups: groupAgents(
@@ -339,6 +364,7 @@ function ProjectView({ repo, worktrees, agents, mode, now, isDismissed, renderCa
           groups={groups}
           now={now}
           renderCard={renderCard}
+          expandedId={expandedId}
           onAction={onAction}
         />
       ))}

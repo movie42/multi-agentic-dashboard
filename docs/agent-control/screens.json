@@ -27,6 +27,10 @@
       "title": "바뀐 후: 권한 요청에 답하는 흐름",
       "rows": [
         [
+          "사용자의 기본 실행이 <code>--dangerously-skip-permissions</code>",
+          "일반 도구 권한 요청은 오지 않고, AskUserQuestion만 훅으로 들어와요. 권한 카드는 권한 모드가 default인 세션에서만 보여요."
+        ],
+        [
           "Claude가 권한을 요청함",
           "전역 설정의 HTTP 훅이 요청 JSON을 대시보드 <code>/api/hooks/permission</code>으로 보내요. 헤더에 오르카 카드 ID(<code>ORCA_PANE_KEY</code>)가 실려요."
         ],
@@ -237,8 +241,8 @@
         {
           "id": "X6",
           "state": "Claude가 묻는 선택지 (AskUserQuestion)",
-          "when": "권한이 아니라 Claude가 질문을 던질 때",
-          "shows": "이번 범위에서 제외해요. 지금처럼 화면 파싱 패널로 보여요. [[permission-hook#R1-Q4]]"
+          "when": "Claude가 질문을 던질 때 — <code>--dangerously-skip-permissions</code>에서도 훅이 불려요",
+          "shows": "질문 카드로 그려요. 질문별 선택지 버튼, 복수 선택(☐/☑), 직접 입력이 있고, 질문이 하나뿐인 단일 선택은 누르는 즉시 보내요. 답은 <code>updatedInput.answers</code>로 돌려줘요. [[permission-hook#R1-Q4]]"
         },
         {
           "id": "X7",

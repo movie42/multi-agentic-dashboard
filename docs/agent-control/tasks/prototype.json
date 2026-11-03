@@ -2,7 +2,7 @@
   "id": "prototype",
   "title": "Orca 에이전트 관제 보드 프로토타입",
   "type": "기능 개발",
-  "branch": "main",
+  "branch": "feat/agent-control",
   "links": [
     {
       "label": "로컬 실행: yarn dev → http://127.0.0.1:3100",

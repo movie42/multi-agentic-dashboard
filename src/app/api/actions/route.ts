@@ -17,6 +17,14 @@ function isPermissionAnswer(value: unknown): value is PermissionAnswer {
   if (typeof value !== "object" || value === null || !("behavior" in value)) return false;
   const answer = value as Record<string, unknown>;
   if (answer.behavior === "deny") return typeof answer.message === "string" && answer.message.length <= MAX_PROMPT;
+  if (answer.behavior === "answer") {
+    const answers = answer.answers;
+    return (
+      typeof answers === "object" &&
+      answers !== null &&
+      Object.values(answers).every((text) => typeof text === "string" && text.length <= MAX_PROMPT)
+    );
+  }
   return (
     answer.behavior === "allow" &&
     (answer.suggestionIndex === null || (typeof answer.suggestionIndex === "number" && Number.isInteger(answer.suggestionIndex)))

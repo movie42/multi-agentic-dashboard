@@ -4,9 +4,9 @@ import { useState } from "react";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, WorktreeSummary } from "@/lib/orca/types";
 import { buildSteps } from "@/lib/workflow/steps";
-import type { WorkflowMode } from "@/lib/workflow/types";
+import type { PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
 import type { BoardGroups } from "./classify";
-import { RestingList } from "./RestingList";
+import { AgentList } from "./AgentList";
 import { Stepper } from "./Stepper";
 
 interface WorktreePanelProps {
@@ -15,6 +15,7 @@ interface WorktreePanelProps {
   groups: BoardGroups;
   now: number;
   renderCard: (agent: AgentCard) => React.ReactNode;
+  expandedId: string | null;
   onAction: (action: ActionRequest) => void;
 }
 
@@ -25,7 +26,7 @@ const FILTER_OPTIONS: { key: PanelFilter; label: string; tone: string }[] = [
   { key: "working", label: "작업 중", tone: "text-now" },
 ];
 
-export function WorktreePanel({ worktree, mode, groups, now, renderCard, onAction }: WorktreePanelProps) {
+export function WorktreePanel({ worktree, mode, groups, now, renderCard, expandedId, onAction }: WorktreePanelProps) {
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
@@ -34,7 +35,10 @@ export function WorktreePanel({ worktree, mode, groups, now, renderCard, onActio
     onAction({ type: "open-artifact", target, via: "system", worktreePath: worktree.path });
 
   return (
-    <section className="grid grid-cols-1 gap-x-6 gap-y-4 border-t border-hair pt-6 pb-10 lg:grid-cols-12">
+    <section
+      data-jump={worktree.worktreeId}
+      className="grid scroll-mt-6 grid-cols-1 gap-x-6 gap-y-4 border-t border-hair pt-6 pb-10 lg:grid-cols-12"
+    >
       <div className="lg:col-span-3">
         <h3 className="text-[17px] leading-[1.35] font-bold tracking-[-0.01em]">{worktree.name}</h3>
         {worktree.branch && worktree.branch !== worktree.name && (
@@ -68,7 +72,7 @@ export function WorktreePanel({ worktree, mode, groups, now, renderCard, onActio
 
       <div className="flex min-w-0 flex-col gap-6 lg:col-span-9">
         {worktree.flowTasks.length === 0 ? (
-          <p className="text-[14px] text-muted">이 브랜치를 가리키는 flow 작업 문서가 없어요.</p>
+          <p className="text-[14px] text-muted">진행 중인 flow 작업 문서가 없어요.</p>
         ) : (
           worktree.flowTasks.map((task) => {
             const pageIndex = task.pageIndex;
@@ -89,13 +93,55 @@ export function WorktreePanel({ worktree, mode, groups, now, renderCard, onActio
                     </button>
                   )}
                 </p>
+                {task.branch !== worktree.branch && (
+                  <p className="-mt-2 text-[12px] text-muted">
+                    문서에 기록된 브랜치는 <span className="font-mono">{task.branch ?? "없음"}</span>이에요
+                  </p>
+                )}
                 <Stepper steps={buildSteps(mode, task, pr)} size="full" />
               </div>
             );
           })
         )}
 
-        {listed.length > 0 && <RestingList agents={listed} now={now} showRepo={false} renderCard={renderCard} />}
+        {worktree.otherFlowTasks.length > 0 && (
+          <details className="text-[13px]">
+            <summary className="cursor-pointer text-muted hover:text-current">
+              다른 flow 문서 {worktree.otherFlowTasks.length}
+            </summary>
+            <ul className="mt-3 flex flex-col gap-4">
+              {worktree.otherFlowTasks.map((task) => {
+                const pageIndex = task.pageIndex;
+                const taskPr: PullRequestInfo = task.branch === worktree.branch ? pr : { kind: "not-applicable" };
+                return (
+                  <li key={`${task.domain}/${task.taskId}`} className="flex flex-col gap-1.5">
+                    <p className="flex items-baseline gap-2">
+                      <span>{task.title}</span>
+                      <span className="font-mono text-[12px] text-muted">
+                        {task.domain}/{task.taskId}
+                        {task.branch && ` · ${task.branch}`}
+                      </span>
+                      {pageIndex ? (
+                        <button
+                          type="button"
+                          onClick={() => open(pageIndex)}
+                          className="ml-auto shrink-0 underline decoration-faint underline-offset-[3px] hover:decoration-current"
+                        >
+                          열기
+                        </button>
+                      ) : (
+                        <span className="ml-auto shrink-0 text-muted">빌드 필요</span>
+                      )}
+                    </p>
+                    <Stepper steps={buildSteps(mode, task, taskPr)} size="compact" />
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        )}
+
+        {listed.length > 0 && <AgentList agents={listed} now={now} showRepo={false} renderCard={renderCard} expandedId={expandedId} />}
       </div>
     </section>
   );
