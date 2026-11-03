@@ -3,6 +3,7 @@ import { extractArtifacts } from "./artifacts";
 import { loadFlowTasks } from "@/lib/workflow/flowDocs";
 import { detectMode, getPullRequest } from "@/lib/workflow/git";
 import { findFullMessage } from "@/lib/sessions/fullMessage";
+import { pendingByPane, settleStale } from "@/lib/permissions/store";
 import { runOrca } from "./cli";
 import type {
   AgentCard,
@@ -59,6 +60,11 @@ export async function loadBoard(): Promise<BoardSnapshot> {
     handleByPane.set(`${terminal.tabId}:${terminal.leafId}`, terminal.handle);
   }
 
+  for (const worktree of ps.worktrees) {
+    for (const agent of worktree.agents) settleStale(agent.paneKey, agent.state, agent.stateStartedAt);
+  }
+  const permissions = pendingByPane();
+
   const agents: AgentCard[] = [];
   const worktrees: WorktreeSummary[] = [];
   const repoPaths = new Map<string, string>();
@@ -108,6 +114,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
         unread: worktree.unread,
         terminalHandle: handleByPane.get(agent.paneKey) ?? null,
         artifacts: await existing(extractArtifacts(lastMessage, worktree.path)),
+        permission: permissions.get(agent.paneKey) ?? null,
       });
     }
   }

@@ -1,5 +1,4 @@
-import { app, BrowserWindow, dialog, globalShortcut, shell } from "electron";
-import { spawn } from "node:child_process";
+import { app, BrowserWindow, dialog, globalShortcut, shell, utilityProcess } from "electron";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -41,18 +40,18 @@ function startServer() {
   fs.mkdirSync(userData, { recursive: true });
   const log = fs.createWriteStream(path.join(userData, "server.log"), { flags: "a" });
 
-  serverProcess = spawn(process.execPath, [path.join(serverDir, "server.js")], {
+  serverProcess = utilityProcess.fork(path.join(serverDir, "server.js"), [], {
     cwd: serverDir,
+    serviceName: "Agent Control Server",
     env: {
       ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
       NODE_ENV: "production",
       PORT: String(PORT),
       HOSTNAME: "127.0.0.1",
       PATH: [...EXTRA_PATH, process.env.PATH ?? ""].join(":"),
       AGENT_CONTROL_CACHE_DIR: userData,
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: "pipe",
   });
   serverProcess.stdout.pipe(log);
   serverProcess.stderr.pipe(log);
@@ -82,6 +81,7 @@ function createWindow() {
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (!isInternal(url)) {
       event.preventDefault();
+      if (url.startsWith("file:")) return;
       shell.openExternal(url);
     }
   });

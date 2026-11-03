@@ -1,10 +1,12 @@
 import { connection } from "next/server";
 import { loadBoard } from "@/lib/orca/board";
+import { markBoardSeen } from "@/lib/permissions/store";
 import type { BoardResponse } from "@/lib/orca/types";
 import { warmClaudeSessions } from "@/lib/sessions/claudeSessions";
 
 export async function GET() {
   await connection();
+  markBoardSeen();
   warmClaudeSessions();
   try {
     const board = await loadBoard();

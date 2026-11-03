@@ -49,12 +49,26 @@ async function waitFor(check: () => Promise<boolean> | boolean, timeoutMs: numbe
   return false;
 }
 
+const APP_EXECUTABLE = path.join(path.dirname(ORCA_BIN), "..", "..", "MacOS", "Orca");
+
+async function commandOf(pid: number): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("ps", ["-o", "command=", "-p", String(pid)]);
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function readRuntime(): Promise<RuntimeStatus> {
   const status = await runOrca<OrcaStatusRaw>(["status"]).catch(() => null);
-  if (!status || !status.app.running || !status.runtime.reachable) {
+  if (!status || !status.app.running || !status.runtime.reachable || status.app.pid === null) {
     return { mode: "off", pid: status?.app.pid ?? null };
   }
-  const mode = status.app.desktopWindowStatus === "available" ? "app" : "headless";
+  const command = await commandOf(status.app.pid);
+  if (command === null) return { mode: "off", pid: null };
+  const mode = command === path.resolve(APP_EXECUTABLE) ? "app" : "headless";
+  if (mode === "headless") console.log("[runtime] headless process", status.app.pid, command);
   return { mode, pid: status.app.pid };
 }
 

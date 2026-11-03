@@ -1,3 +1,4 @@
+import type { PendingPermission } from "@/lib/permissions/types";
 import type { FlowTaskSummary, PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
 
 export type AgentState = "working" | "done" | "blocked" | "waiting" | "idle";
@@ -74,6 +75,7 @@ export interface AgentCard {
   unread: boolean;
   terminalHandle: string | null;
   artifacts: Artifact[];
+  permission: PendingPermission | null;
 }
 
 export interface WorktreeSummary {

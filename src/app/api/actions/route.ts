@@ -5,11 +5,23 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { runOrca } from "@/lib/orca/cli";
 import type { ActionRequest, ActionResponse } from "@/lib/orca/actions";
+import { answerPermission } from "@/lib/permissions/store";
+import type { PermissionAnswer } from "@/lib/permissions/types";
 import { ORCA_BUNDLE_ID, readRuntime } from "@/lib/orca/runtime";
 
 const execFileAsync = promisify(execFile);
 const MAX_PROMPT = 8000;
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function isPermissionAnswer(value: unknown): value is PermissionAnswer {
+  if (typeof value !== "object" || value === null || !("behavior" in value)) return false;
+  const answer = value as Record<string, unknown>;
+  if (answer.behavior === "deny") return typeof answer.message === "string" && answer.message.length <= MAX_PROMPT;
+  return (
+    answer.behavior === "allow" &&
+    (answer.suggestionIndex === null || (typeof answer.suggestionIndex === "number" && Number.isInteger(answer.suggestionIndex)))
+  );
+}
 
 function isActionRequest(value: unknown): value is ActionRequest {
   if (typeof value !== "object" || value === null || !("type" in value)) return false;
@@ -21,7 +33,7 @@ function isActionRequest(value: unknown): value is ActionRequest {
       typeof body.worktreePath === "string"
     );
   }
-  if (body.type === "focus-terminal") {
+  if (body.type === "focus-terminal" || body.type === "close-terminal") {
     return typeof body.terminalHandle === "string";
   }
   if (body.type === "send-prompt") {
@@ -48,6 +60,9 @@ function isActionRequest(value: unknown): value is ActionRequest {
       typeof body.prompt === "string" &&
       body.prompt.length <= MAX_PROMPT
     );
+  }
+  if (body.type === "answer-permission") {
+    return typeof body.requestId === "string" && isPermissionAnswer(body.answer);
   }
   if (body.type === "resume-session") {
     return (
@@ -102,6 +117,8 @@ export async function POST(request: Request) {
       await requireAppWindow();
       await runOrca(["terminal", "switch", "--terminal", body.terminalHandle]);
       await bringOrcaForward();
+    } else if (body.type === "close-terminal") {
+      await runOrca(["terminal", "close", "--terminal", body.terminalHandle]);
     } else if (body.type === "send-prompt") {
       await runOrca([
         "terminal",
@@ -116,6 +133,8 @@ export async function POST(request: Request) {
       ]);
     } else if (body.type === "choose-option") {
       await runOrca(["terminal", "send", "--terminal", body.terminalHandle, "--text", String(body.option)]);
+    } else if (body.type === "answer-permission") {
+      if (!answerPermission(body.requestId, body.answer)) throw new Error("이미 끝난 요청이에요");
     } else if (body.type === "launch-agent") {
       const prompt = body.prompt.trim();
       await runOrca([

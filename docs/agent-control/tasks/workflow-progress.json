@@ -630,6 +630,21 @@
                   "단축키는 <code>event.key</code> 대신 <code>event.code</code>(물리 키 위치)로 판정해요. 한글 입력 상태에서 j가 ㅓ로 들어와도 먹게 하려는 거예요. 전체 화면의 검색창은 이 화면 거르기로 남겨요."
                 ]
               ]
+            },
+            {
+              "id": "P7-10",
+              "title": "2026-11-03 Dock에 함께 뜨던 서버 <code>exec</code> 아이콘 제거, 패키지 매니저 yarn → bun",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>desktop/main.mjs</code>, <code>package.json</code>, <code>bun.lock</code>, <code>scripts/install-desktop.mjs</code>, <code>README.md</code>"
+                ],
+                [
+                  "결정",
+                  "서버를 Electron <code>utilityProcess.fork</code>로 띄워요(Helper 실행 파일이라 Dock 아이콘이 안 생겨요). 재빌드 명령은 이제 <code>bun run desktop</code>이에요."
+                ]
+              ]
             }
           ]
         }

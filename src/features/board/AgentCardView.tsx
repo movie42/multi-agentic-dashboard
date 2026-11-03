@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, AgentState, Artifact } from "@/lib/orca/types";
 import type { PullRequestInfo, WorkflowStep } from "@/lib/workflow/types";
 import { formatElapsed } from "./format";
 import { ChoicePanel } from "./ChoicePanel";
 import { MessageView } from "./MessageView";
+import { PermissionPanel } from "./PermissionPanel";
 import { QuickReply } from "./QuickReply";
 import { Stepper } from "./Stepper";
 
@@ -111,6 +113,7 @@ export function AgentCardView({
   onAction,
 }: AgentCardViewProps) {
   const terminalHandle = agent.terminalHandle;
+  const [confirmingClose, setConfirmingClose] = useState(false);
   const openUrl = (target: string) =>
     onAction({ type: "open-artifact", target, via: "system", worktreePath: agent.worktreePath });
   const pullRequests = collectPullRequests(agent, worktreePr);
@@ -202,8 +205,11 @@ export function AgentCardView({
 
       <MessageView message={agent.lastMessage} />
 
-      {terminalHandle && (agent.state === "blocked" || agent.state === "waiting") && (
-        <ChoicePanel terminalHandle={terminalHandle} />
+      {agent.permission ? (
+        <PermissionPanel key={agent.permission.id} permission={agent.permission} />
+      ) : (
+        terminalHandle &&
+        (agent.state === "blocked" || agent.state === "waiting") && <ChoicePanel terminalHandle={terminalHandle} />
       )}
 
       {terminalHandle && <QuickReply terminalHandle={terminalHandle} working={agent.state === "working"} />}
@@ -230,12 +236,44 @@ export function AgentCardView({
               <span className="truncate">{artifact.label}</span>
             </button>
           ))}
+          {terminalHandle &&
+            (confirmingClose ? (
+              <span className="ml-auto flex items-center gap-1.5 text-[13px]">
+                <span className="text-muted">이 세션을 닫을까요?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingClose(false);
+                    onAction({ type: "close-terminal", terminalHandle });
+                  }}
+                  className="rounded-full bg-accent px-3 py-1 leading-none font-semibold text-accent-ink hover:opacity-85"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingClose(false)}
+                  className="rounded-full px-3 py-1 leading-none text-muted hover:text-fg"
+                >
+                  취소
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingClose(true)}
+                title="Orca 터미널을 닫아요. 세션 기록은 남아서 세션 목록에서 다시 열 수 있어요"
+                className="ml-auto rounded-full px-3 py-1.5 text-[13px] leading-none text-muted hover:text-fg"
+              >
+                세션 닫기
+              </button>
+            ))}
           {terminalHandle && (
             <button
               type="button"
               data-continue
               onClick={() => onAction({ type: "focus-terminal", terminalHandle })}
-              className="ml-auto rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-none font-semibold text-bg hover:opacity-85"
+              className="rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-none font-semibold text-bg hover:opacity-85"
             >
               Orca에서 이어가기 →
             </button>
