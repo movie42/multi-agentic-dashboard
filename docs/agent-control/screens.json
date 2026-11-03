@@ -1,0 +1,270 @@
+{
+  "api": "Orca CLI <code>orca worktree ps --json</code> · <code>orca terminal read --screen --json</code> → <code>/api/board</code> · <code>/api/terminal</code>",
+  "base": "app 7873de2 (작업 트리 미커밋)",
+  "flows": [
+    {
+      "title": "지금: 선택지에 답하는 흐름",
+      "rows": [
+        [
+          "Claude가 터미널에 선택지를 띄움",
+          "Orca가 에이전트 상태를 <code>waiting</code> 또는 <code>blocked</code>로 바꾸고, 보드가 3초마다 받아 카드에 '내 입력 대기'를 띄워요."
+        ],
+        [
+          "카드가 대기 상태가 됨",
+          "선택지 패널이 2초마다 <code>/api/terminal</code>로 터미널 화면 글자를 받아, 정규식으로 번호 붙은 줄을 찾아 선택지로 그려요."
+        ],
+        [
+          "사용자가 선택지를 누름",
+          "<code>/api/actions</code>가 <code>orca terminal send --text \"2\"</code>로 숫자 키 하나를 터미널에 보내요. 어떤 요청에 대한 답인지는 확인하지 않아요."
+        ],
+        [
+          "터미널에서 직접 답함",
+          "다음 폴링(최대 2초)에 화면에서 선택지가 사라지면 패널도 사라져요."
+        ]
+      ]
+    },
+    {
+      "title": "바뀐 후: 권한 요청에 답하는 흐름",
+      "rows": [
+        [
+          "Claude가 권한을 요청함",
+          "전역 설정의 HTTP 훅이 요청 JSON을 대시보드 <code>/api/hooks/permission</code>으로 보내요. 헤더에 오르카 카드 ID(<code>ORCA_PANE_KEY</code>)가 실려요."
+        ],
+        [
+          "대시보드가 꺼져 있음",
+          "연결 실패로 넘어가 평소처럼 터미널 대화상자가 떠요."
+        ],
+        [
+          "대시보드 화면이 열려 있음",
+          "요청을 대기 목록에 넣고 응답을 붙잡아 둬요. 다음 보드 갱신에서 해당 카드에 권한 카드가 떠요."
+        ],
+        [
+          "사용자가 카드에서 답함",
+          "대기 중인 응답에 결정을 실어 돌려주고, Claude가 바로 이어서 실행해요."
+        ],
+        [
+          "10분 동안 답이 없거나 화면이 닫힘",
+          "결정 없이 응답을 끝내 터미널 대화상자로 넘겨요."
+        ]
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "agent-card-choice",
+      "title": "에이전트 카드 · 선택지 대기",
+      "figma": "Figma 없음 · 구현된 화면 캡처 (샘플 데이터)",
+      "image": "images/agent-card-choice.png",
+      "metadata": "images/agent-card-choice.xml",
+      "markers": [
+        {
+          "id": "S1",
+          "section": "카드 머리",
+          "node": "state-badge",
+          "side": "left",
+          "kind": "format",
+          "title": "상태 배지",
+          "field": "<code>agents[].state</code> · <code>interrupted</code>",
+          "rule": "Orca가 준 상태 문자열을 다섯 가지 상태로 좁히고 한국어 이름으로 바꿔요. <code>waiting</code>·<code>blocked</code>면 '내 입력 대기'·'막힘'이에요.",
+          "note": "<code>src/lib/orca/board.ts:28</code> · <code>src/features/board/AgentCardView.tsx:89</code>"
+        },
+        {
+          "id": "S2",
+          "section": "카드 머리",
+          "node": "repo",
+          "kind": "server",
+          "title": "저장소 이름 · 새 결과 점",
+          "field": "<code>worktrees[].repo</code> · <code>unread</code>",
+          "rule": "Orca 값을 그대로 보여요. 읽지 않은 결과가 있으면 주황 점이 붙어요.",
+          "note": "<code>src/lib/orca/board.ts:78</code>"
+        },
+        {
+          "id": "S3",
+          "section": "카드 머리",
+          "node": "elapsed",
+          "side": "bottom",
+          "kind": "format",
+          "title": "상태 경과 시간",
+          "field": "<code>agents[].stateStartedAt</code>",
+          "rule": "상태가 시작된 시각부터 지금까지를 '1분 전'처럼 보여요. 작업 중이면 '경과'를 붙여요.",
+          "note": "<code>src/features/board/AgentCardView.tsx:136</code>"
+        },
+        {
+          "id": "S4",
+          "section": "카드 머리",
+          "node": "branch",
+          "side": "bottom",
+          "kind": "format",
+          "title": "브랜치",
+          "field": "<code>worktrees[].branch</code>",
+          "rule": "<code>refs/heads/</code> 앞부분을 떼고 보여요.",
+          "note": "<code>src/lib/orca/board.ts:68</code>"
+        },
+        {
+          "id": "S5",
+          "section": "카드 머리",
+          "node": "agent-tool",
+          "kind": "format",
+          "title": "에이전트 종류 · 도구",
+          "field": "<code>agents[].agentType</code> · <code>toolName</code>",
+          "rule": "도구 이름은 작업 중일 때만 붙어요. 대기 중에는 어떤 도구가 권한을 기다리는지 카드에 나오지 않아요.",
+          "note": "<code>src/features/board/AgentCardView.tsx</code> 머리 줄"
+        },
+        {
+          "id": "S6",
+          "section": "본문",
+          "node": "prompt",
+          "kind": "server",
+          "title": "마지막 요청",
+          "field": "<code>agents[].prompt</code>",
+          "rule": "Orca 값을 따옴표로 감싸 두 줄까지 보여요.",
+          "note": "<code>src/features/board/AgentCardView.tsx:199</code>"
+        },
+        {
+          "id": "S7",
+          "section": "본문",
+          "node": "message",
+          "kind": "calc",
+          "title": "마지막 답변",
+          "field": "<code>agents[].lastAssistantMessage</code> + 대화 기록 파일",
+          "rule": "Orca는 앞 200자만 줘요. 그래서 앱이 그 문구로 <code>~/.claude/projects</code>의 대화 기록 파일(jsonl)을 검색해 원문을 찾아요. 못 찾으면 미리보기 안내가 붙어요.",
+          "note": "<code>src/lib/orca/board.ts:20</code> · <code>src/lib/sessions/fullMessage.ts</code>. 훅이 대화 기록 파일 경로를 직접 주면 검색이 필요 없어져요."
+        },
+        {
+          "id": "S8",
+          "section": "선택지 패널",
+          "node": "choice-context",
+          "kind": "server",
+          "title": "요청 맥락 · 도구와 입력값",
+          "field": "훅 입력 <code>tool_name</code> · <code>tool_input</code>",
+          "rule": "권한 요청이 훅으로 들어오면 도구 이름과 입력값을 그대로 보여요. Bash는 <code>command</code>와 <code>description</code>, 파일 도구는 <code>file_path</code>, 그 밖의 도구는 입력값 JSON을 보여요. 훅 요청이 없을 때만 지금의 화면 글자를 대신 보여요.",
+          "note": "[[permission-hook#R1-Q1]] · 화면 파싱 대체 경로는 <code>src/lib/orca/screen.ts</code> 유지"
+        },
+        {
+          "id": "S9",
+          "section": "선택지 패널",
+          "node": "choice-question",
+          "kind": "format",
+          "title": "질문",
+          "field": "훅 입력 <code>tool_name</code>",
+          "rule": "훅 요청이면 '{도구} 실행 허락이 필요해요'로 보여요. 화면 파싱 대체 경로에서는 지금처럼 화면의 질문 줄을 보여요.",
+          "note": "[[permission-hook#R1-Q1]]"
+        },
+        {
+          "id": "S10",
+          "section": "선택지 패널",
+          "node": "choice-option-1",
+          "kind": "action",
+          "title": "허용",
+          "field": "훅 출력 <code>decision.behavior: \"allow\"</code>",
+          "rule": "누르면 대기 중인 훅 요청에 허용 결정을 돌려줘요. 요청 ID로 답하므로 다른 질문에 잘못 들어가지 않아요.",
+          "note": "[[permission-hook#R1-Q1]] [[permission-hook#R1-Q3]]"
+        },
+        {
+          "id": "S11",
+          "section": "선택지 패널",
+          "node": "choice-option-2",
+          "kind": "action",
+          "title": "다시 묻지 않기 (규칙 저장 후 허용)",
+          "field": "훅 입력 <code>permission_suggestions[]</code> → 출력 <code>updatedPermissions</code>",
+          "rule": "Claude Code가 제안한 규칙마다 버튼 하나를 그리고, 저장될 규칙(예: <code>Bash(yarn test:*)</code>)과 범위를 버튼에 보여요. 제안이 없으면 버튼이 없어요.",
+          "note": "[[permission-hook#R1-Q3]]"
+        },
+        {
+          "id": "S12",
+          "section": "선택지 패널",
+          "node": "choice-option-3",
+          "kind": "action",
+          "title": "거부 (사유와 함께)",
+          "field": "훅 출력 <code>decision.behavior: \"deny\"</code> · <code>message</code>",
+          "rule": "누르면 사유 입력칸이 열리고, 보내면 거부 결정과 사유를 함께 돌려줘요. 사유를 비워도 보낼 수 있어요.",
+          "note": "[[permission-hook#R1-Q3]]"
+        },
+        {
+          "id": "S13",
+          "section": "카드 아래",
+          "node": "quick-reply",
+          "kind": "action",
+          "title": "빠른 답장",
+          "field": "—",
+          "rule": "입력한 글을 <code>orca terminal send --enter</code>로 터미널에 보내요. 이번 작업에서 바꾸지 않아요.",
+          "note": "<code>src/app/api/actions/route.ts:96</code>"
+        },
+        {
+          "id": "S14",
+          "section": "카드 아래",
+          "node": "continue",
+          "side": "left",
+          "kind": "action",
+          "title": "Orca에서 이어가기",
+          "field": "—",
+          "rule": "Orca의 해당 터미널 탭으로 전환하고 Orca를 앞으로 가져와요.",
+          "note": "<code>src/features/board/AgentCardView.tsx:236</code>"
+        }
+      ],
+      "offscreenIntro": "선택지 패널은 상태가 '내 입력 대기'·'막힘'이고 터미널 핸들이 있을 때만 나와요.",
+      "offscreen": [
+        {
+          "id": "X1",
+          "state": "화면에서 선택지를 못 찾음",
+          "when": "번호 줄이 2개 미만이거나 선택 표시(❯)가 없을 때",
+          "shows": "패널이 아예 안 보여요. 사용자는 'Orca에서 이어가기'로 넘어가야 해요."
+        },
+        {
+          "id": "X2",
+          "state": "터미널 읽기 실패",
+          "when": "<code>orca terminal read</code> 오류",
+          "shows": "'터미널 화면을 읽지 못했어요: {오류}'"
+        },
+        {
+          "id": "X3",
+          "state": "보낸 직후",
+          "when": "숫자 키 전송 성공",
+          "shows": "'{n}번을 보냈어요. 상태가 곧 바뀌어요.' 버튼은 모두 비활성화돼요."
+        },
+        {
+          "id": "X4",
+          "state": "보내기 실패",
+          "when": "<code>/api/actions</code> 오류",
+          "shows": "'못 보냈어요: {오류}'"
+        },
+        {
+          "id": "X5",
+          "state": "터미널에서 먼저 답함",
+          "when": "사용자가 Orca 터미널에서 직접 고름",
+          "shows": "최대 2초 뒤 다음 폴링에서 패널이 사라져요."
+        },
+        {
+          "id": "X6",
+          "state": "Claude가 묻는 선택지 (AskUserQuestion)",
+          "when": "권한이 아니라 Claude가 질문을 던질 때",
+          "shows": "이번 범위에서 제외해요. 지금처럼 화면 파싱 패널로 보여요. [[permission-hook#R1-Q4]]"
+        },
+        {
+          "id": "X7",
+          "state": "터미널 핸들 없음",
+          "when": "Orca 터미널과 연결이 안 된 에이전트",
+          "shows": "선택지 패널·빠른 답장·이어가기가 모두 빠져요."
+        },
+        {
+          "id": "X8",
+          "state": "훅 요청 대기 중 대시보드 탭이 닫힘",
+          "when": "대시보드가 10초 넘게 보드를 가져가지 않음",
+          "shows": "훅이 결정 없이 끝나고 터미널에 평소 대화상자가 떠요. [[permission-hook#R1-Q2]]"
+        },
+        {
+          "id": "X9",
+          "state": "훅 요청이 터미널 쪽에서 먼저 끝남",
+          "when": "Claude가 요청을 취소했거나 연결이 끊김",
+          "shows": "다음 보드 갱신(최대 3초)에서 권한 카드가 사라지고, 늦게 누른 답은 '이미 끝난 요청이에요'로 막혀요. [[permission-hook#R1-Q2]]"
+        },
+        {
+          "id": "X10",
+          "state": "오르카 밖에서 띄운 Claude 세션",
+          "when": "훅 요청에 <code>X-Orca-Pane</code> 헤더가 비어 있음",
+          "shows": "대시보드가 바로 '결정 없음'으로 돌려보내 터미널 대화상자가 떠요. [[permission-hook#R1-Q5]]"
+        }
+      ]
+    }
+  ]
+}

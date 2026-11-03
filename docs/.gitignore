@@ -1,0 +1,10 @@
+# flow:begin — flow.py build writes these; never committed
+/index.html
+/agent-control/index.html
+/agent-control/*/
+!/agent-control/tasks/
+!/agent-control/images/
+!/agent-control/diagrams/
+/agent-control/diagrams/.receipts/
+/features/*/index.html
+# flow:end

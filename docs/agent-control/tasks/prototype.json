@@ -1,0 +1,335 @@
+{
+  "id": "prototype",
+  "title": "Orca 에이전트 관제 보드 프로토타입",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [
+    {
+      "label": "로컬 실행: yarn dev → http://127.0.0.1:3100",
+      "url": "http://127.0.0.1:3100"
+    }
+  ],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "프로토타입 구현 완료",
+      "conclusion": [
+        "에이전트를 여러 개 띄워 두면 무엇을 이어서 해야 하는지, 보고 싶은 worktree가 어디 있는지, 산출물이 어디 있는지 찾기 어려웠어요. 이 세 가지를 한 화면에서 해결하는 로컬 웹앱을 만들었어요.",
+        "데이터는 Orca CLI <code>orca … --json</code>만 사용해요. Orca 내부 WebSocket 프로토콜은 문서가 없어 업데이트 때 깨질 수 있어서 쓰지 않았어요. [[P1]]",
+        "완료·막힘·응답 대기·중단된 에이전트는 모두 '내 차례'에 올라가요. 처리한 항목은 '정리'로 내리고, 에이전트 상태가 바뀌면 다시 올라와요. [[P3-2]]",
+        "산출물은 에이전트 마지막 답변에 있는 링크와 경로에서 뽑아요. 버튼을 한 번 누르면 기본 브라우저로 열리고, 옆의 'Orca' 버튼을 누르면 Orca 브라우저 탭으로 열려요. [[P2-2]]",
+        "Orca에 쓰는 동작은 터미널 전환과 브라우저 탭 생성 두 가지뿐이에요. 에이전트에 입력을 보내거나 게이트를 승인하는 기능은 이번 범위에서 뺐어요."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "문제와 해결",
+          "columns": [
+            "문제",
+            "화면에서 해결한 방식",
+            "쓰는 Orca 데이터"
+          ],
+          "rows": [
+            [
+              "이어서 할 작업이 안 보임",
+              "'내 차례' 섹션: 막힘·응답 대기 → 중단 → 새 결과 → 완료 순, 같은 순위는 오래 기다린 순",
+              "<code>worktree ps</code>의 <code>agents[].state</code>, <code>interrupted</code>, <code>stateStartedAt</code>, 워크트리 <code>unread</code>"
+            ],
+            [
+              "집중할 worktree·프로젝트를 따라가기 어려움",
+              "상단 프로젝트 칩과 카드의 '포커스' 버튼. 켜면 포커스한 것만 보여요",
+              "<code>repo</code>, <code>worktreeId</code> (포커스 목록은 이 앱의 localStorage에만 저장)"
+            ],
+            [
+              "산출물을 열려면 두 번 눌러야 함",
+              "카드 하단 산출물 버튼 한 번으로 바로 열림",
+              "<code>agents[].lastAssistantMessage</code> 안의 링크·경로"
+            ],
+            [
+              "해당 에이전트로 돌아가기",
+              "'Orca에서 이어가기' 버튼",
+              "<code>terminal list</code>의 <code>handle</code> → <code>terminal switch</code>"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "데이터 흐름",
+          "sub": "브라우저가 3초마다 서버에 묻고, 서버가 그때마다 Orca CLI를 실행해요",
+          "columns": [
+            "단계",
+            "주체",
+            "하는 일"
+          ],
+          "rows": [
+            [
+              "1",
+              "브라우저 → 우리 서버",
+              "<code>GET /api/board</code>를 3초마다 호출"
+            ],
+            [
+              "2",
+              "우리 서버 → Orca CLI",
+              "<code>orca worktree ps --limit 500 --json</code>과 <code>orca terminal list --json</code>을 동시에 실행"
+            ],
+            [
+              "3",
+              "우리 서버",
+              "에이전트 카드로 바꾸고, 패널 키 <code>paneKey</code>(=<code>tabId:leafId</code>)로 터미널 핸들을 붙이고, 산출물을 뽑아 실제로 있는 파일만 남김"
+            ],
+            [
+              "4",
+              "브라우저 → 우리 서버",
+              "버튼을 누르면 <code>POST /api/actions</code>: 산출물 열기는 macOS <code>open</code> 또는 <code>orca tab create</code>, 이어가기는 <code>orca terminal switch</code> 후 Orca 창을 앞으로"
+            ]
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · Orca CLI 연결",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "Orca 응답 타입과 화면용 카드 타입",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/types.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Orca 에이전트 상태는 <code>working</code>·<code>done</code>·<code>blocked</code>·<code>waiting</code>·<code>idle</code> 다섯 가지예요(Orca 번들 <code>out/shared/agent-status*.js</code>에서 확인). 모르는 값은 <code>idle</code>로 취급해요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "CLI 실행기: <code>--json</code>을 붙여 실행하고 응답 래퍼 <code>{ok, result}</code>를 벗김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/cli.ts</code>"
+                ],
+                [
+                  "결정",
+                  "바이너리 경로는 환경변수 <code>ORCA_BIN</code>, 없으면 <code>/Applications/Orca.app/Contents/Resources/bin/orca</code>. 셸을 거치지 않는 <code>execFile</code>로 실행해요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "보드 조립: 워크트리·에이전트·터미널 합치기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/board.ts</code>"
+                ],
+                [
+                  "결정",
+                  "보관된 워크트리와 서브에이전트(부모 패널이 있는 것)는 빼요. 터미널 목록 조회가 실패해도 보드는 내려주고, 이어가기 버튼만 사라져요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>curl 127.0.0.1:3100/api/board</code>가 실제 에이전트 12개를 돌려줌",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · API",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "<code>GET /api/board</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/api/board/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Next 16은 <code>cacheComponents</code>가 켜져 있어 <code>export const dynamic</code>을 쓸 수 없어요. 대신 <code>await connection()</code>으로 매 요청 실행되게 했어요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "산출물 추출",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/artifacts.ts</code>"
+                ],
+                [
+                  "결정",
+                  "마크다운 링크, 맨 URL, 맨 절대경로(.html .md .pdf 이미지)를 뽑아요. 상대경로는 워크트리 경로 기준으로 풀어요. 로컬 파일은 실제로 있는 것만 남기고, <code>*</code>가 든 경로는 버려요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "<code>POST /api/actions</code>: 산출물 열기, 터미널로 이동",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/api/actions/route.ts</code>, <code>src/lib/orca/actions.ts</code>"
+                ],
+                [
+                  "결정",
+                  "이 API는 Mac에서 파일을 열기 때문에 서버를 <code>127.0.0.1</code>에만 띄워요(<code>package.json</code> <code>dev</code>·<code>start</code>, 포트 3100). 열 대상은 http(s) URL이나 실제로 있는 절대경로 파일만 받아요. Orca 탭은 워크트리 선택자 <code>path:<경로></code>로 엽니다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 잘못된 액션은 400, 없는 파일은 500과 <code>ENOENT</code> 메시지",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "분류와 정렬",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/classify.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "'정리' 기록과 포커스 목록을 브라우저에 저장",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/useStoredList.ts</code>, <code>useDismissed.ts</code>, <code>useFocus.ts</code>"
+                ],
+                [
+                  "결정",
+                  "정리 키는 <code>paneKey@stateStartedAt</code>예요. 에이전트가 새 일을 시작하면 키가 바뀌어 자동으로 '내 차례'에 다시 올라와요. 저장은 최근 300개까지예요."
+                ],
+                [
+                  "패턴",
+                  "React 훅 <code>useSyncExternalStore</code>로 localStorage를 구독 (effect 안 setState를 린트가 막아서)"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "카드, 포커스 바, 대시보드",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>AgentCardView.tsx</code>, <code>FocusBar.tsx</code>, <code>Dashboard.tsx</code>, <code>useBoard.ts</code>"
+                ],
+                [
+                  "결정",
+                  "3초 폴링이고, 실패해도 마지막 성공 화면을 유지한 채 상단에 '갱신 실패'를 표시해요. 경과 시간은 응답 시각 기준이라 별도 타이머가 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "색 토큰과 다크 모드",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/globals.css</code>, <code>src/app/layout.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>tsc --noEmit</code>, <code>yarn lint</code> 통과",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "verify": {
+      "status": "done",
+      "summary": "확인 완료",
+      "conclusion": [
+        "보드 표시, 포커스 필터, 정리, 잘못된 요청 거부는 헤드리스 브라우저와 curl로 확인했어요. [[V1]] [[V2]] [[V3]] [[V4]]",
+        "산출물 열기와 'Orca에서 이어가기'는 누르면 사용 중인 Mac에 창이 뜨고 Orca 화면이 바뀌어서 직접 누르지 않았어요. 직접 눌러 확인이 필요해요. [[V5]] [[V6]] [[V7]]",
+        "<code>blocked</code>·<code>waiting</code> 상태의 에이전트는 확인 당시 없어서 화면에서 보지 못했어요. [[V8]]",
+        "실제 열기·이어가기 동작은 2026-11-03 사용자가 데스크톱 앱에서 직접 써 보고 확인했어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "화면 확인",
+          "items": [
+            {
+              "id": "V1",
+              "title": "실제 Orca 데이터로 '내 차례' 9개, '진행 중' 3개가 그려짐",
+              "done": true
+            },
+            {
+              "id": "V2",
+              "title": "프로젝트 칩 <code>sample-admin</code>를 켜면 그 프로젝트 카드 3개만 남고 '포커스만 보기'가 나타남",
+              "done": true
+            },
+            {
+              "id": "V3",
+              "title": "'정리'를 누르면 '내 차례'에서 '쉬는 중'으로 내려가고 localStorage에 남음",
+              "done": true
+            },
+            {
+              "id": "V4",
+              "title": "잘못된 액션은 400, 없는 파일 경로는 500으로 거부됨",
+              "done": true
+            },
+            {
+              "id": "V5",
+              "title": "HTML 산출물 버튼 → 기본 브라우저에서 바로 열림",
+              "done": false
+            },
+            {
+              "id": "V6",
+              "title": "산출물 옆 'Orca' 버튼 → 해당 워크트리에 Orca 브라우저 탭으로 열리고 Orca가 앞으로 옴",
+              "done": false
+            },
+            {
+              "id": "V7",
+              "title": "'Orca에서 이어가기' → Orca가 그 에이전트 터미널로 전환됨",
+              "done": false
+            },
+            {
+              "id": "V8",
+              "title": "권한 요청 중(<code>blocked</code>/<code>waiting</code>)인 에이전트가 '내 차례' 맨 위에 '막힘'/'응답 대기'로 뜸",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "title": "버그",
+          "items": []
+        }
+      ]
+    }
+  }
+}

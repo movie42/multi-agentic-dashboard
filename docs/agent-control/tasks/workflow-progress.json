@@ -1,0 +1,681 @@
+{
+  "id": "workflow-progress",
+  "title": "워크플로 단계별 진척도 · 프로젝트 사이드바",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료",
+      "conclusion": [
+        "worktree마다 flow 작업 문서를 찾아 단계별 진척도를 보여줘요. 브랜치가 같은 문서를 그 worktree의 작업으로 봐요. [[P1-2]]",
+        "단계 구성은 회사와 개인이 달라요. 회사는 기획서가 이미 있어서 질문·기획·화면을 '기획·질문' 한 칸으로 묶고, 개인은 PRD부터 질문·기획을 따로 보여줘요. [[P1-3]]",
+        "회사/개인은 git remote 소유자로 자동 추정하고, 사이드바의 회사/개인 칩을 눌러 프로젝트별로 바꿀 수 있어요. [[P1-4]]",
+        "레이아웃은 왼쪽 프로젝트 목록, 오른쪽 에이전트 영역이에요. 프로젝트를 고르면 worktree별로 단계와 에이전트를 묶어 보여줘요. 프로토타입의 포커스 바와 카드의 '포커스' 버튼은 이 사이드바로 대체했어요. [[P2]]",
+        "'정리' 버튼은 그대로 두었어요. 처리한 완료 카드를 '내 차례'에서 내리는 기능이고, 에이전트가 새 일을 시작하면 다시 올라와요.",
+        "에이전트의 마지막 메시지는 첫 문단을 결론으로 보여주고, 나머지는 마크다운으로 렌더링해 접어 둬요. 화면 전체는 flow 페이지와 같은 색·폰트·레이아웃이에요. [[P3]]",
+        "에이전트 상태는 '내 차례 / 에이전트 작업 중'처럼 누구 차례인지로 부르고, 전체 화면에서 단계별로 모아 보기와 검색을 할 수 있어요. [[P4]]",
+        "'지난 세션' 화면에서 닫은 Claude Code 세션을 제목 상태·프로젝트·검색으로 찾고 Orca 터미널로 다시 열 수 있어요. [[P5]]",
+        "대시보드는 Dock에 등록된 'Agent Control' 앱으로 따로 실행돼요. 코드를 고친 뒤에는 yarn desktop으로 다시 빌드·설치해요. [[P6]]",
+        "마무리 점검(2026-11-03): 남은 계산 행·서버 요청 0개, <code>tsc --noEmit</code>·<code>yarn lint</code> 통과. <code>/code-review low</code> 지적 4건은 코드를 확인해 보니 모두 실제 버그가 아니어서 고친 코드는 없어요.",
+        "카드에서 바로 답장하고, 막힌 에이전트의 선택지에 번호로 답하고, worktree를 골라 새 Claude 세션을 열 수 있어요. 세 가지 모두 Orca 터미널로 보내는 방식이라 채팅 화면 세션에서는 쓸 수 없어요. [[P7]]",
+        "Orca가 앞 200자만 주는 답변은 Claude 대화 기록에서 찾아 전체를 보여줘요. 에이전트가 끝나거나 막히면 macOS 알림이 뜨고, Dock 아이콘에 내 차례 개수가 붙어요. [[P7]]",
+        "단축키: 어디서든 ⌃⌥Space로 앱 열기, / 또는 ⌘K로 검색 팔레트, j/k·r·o·e로 카드 조작. 2026-11-03 사용자가 직접 써 보고 확인했어요. [[P7]]"
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "단계와 근거",
+          "sub": "flow 작업 JSON에서 읽는 값",
+          "columns": [
+            "단계",
+            "회사",
+            "개인",
+            "근거"
+          ],
+          "rows": [
+            [
+              "PRD",
+              "—",
+              "PRD",
+              "도메인 폴더의 <code>prd.md</code>·<code>prd/</code>, PRD 링크, 또는 <code>plan</code> 단계가 있으면 완료"
+            ],
+            [
+              "질문",
+              "기획·질문 (묶음)",
+              "질문",
+              "<code>grill</code> 라운드에서 <code>decision</code>이 없는 질문 수. 하나라도 있으면 내 차례"
+            ],
+            [
+              "기획",
+              "〃",
+              "기획",
+              "<code>plan</code> + <code>screen</code> 단계 상태"
+            ],
+            [
+              "계획",
+              "계획",
+              "계획",
+              "<code>tasks</code>가 <code>ask</code>이고 체크 0개면 승인 대기"
+            ],
+            [
+              "구현",
+              "구현",
+              "구현",
+              "<code>tasks</code>의 <code>-V</code>로 끝나지 않는 항목 체크 수"
+            ],
+            [
+              "검증",
+              "검증",
+              "검증",
+              "<code>verify</code> 체크 수. 단계가 없으면 건너뜀"
+            ],
+            [
+              "테스트",
+              "테스트",
+              "테스트",
+              "각 Phase의 <code>P<n>-V</code> 검증 항목 체크 수"
+            ],
+            [
+              "PR",
+              "PR",
+              "PR",
+              "<code>gh pr list --head <branch></code> (60초 캐시). <code>main</code>·<code>develop</code>·<code>release/*</code> 같은 공용 브랜치는 건너뜀"
+            ]
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 진척도 데이터",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "진척도 타입",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/workflow/types.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "worktree의 flow 작업 문서 읽기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/workflow/flowDocs.ts</code>"
+                ],
+                [
+                  "결정",
+                  "같은 브랜치 문서가 여럿이면 끝나지 않은 것만 최근 수정 순으로 보여주고, 모두 끝났으면 가장 최근 하나만 보여줘요. 파일 수정 시각이 같으면 다시 파싱하지 않아요."
+                ],
+                [
+                  "결정",
+                  "예전 /task-plan 문서(<code>plans/tasks.md</code>)는 읽지 않아요(사용자 결정). 문서가 없는 worktree는 'flow 작업 문서가 없어요'로 표시해요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "단계 계산: 회사·개인 두 벌",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/workflow/steps.ts</code>"
+                ],
+                [
+                  "결정",
+                  "'테스트'는 Phase 검증 항목(<code>P<n>-V</code>)으로 판단해요(사용자 결정). flow에 별도 테스트 단계가 없어서예요."
+                ],
+                [
+                  "결정",
+                  "개인 워크플로에서 기획 뒤에 질문이 다시 열리면 '질문' 칸이 다시 내 차례로 바뀌어요. 지금 단계는 내 차례·진행 중인 칸 중 가장 앞의 것이에요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "회사/개인 자동 추정, PR 조회",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/workflow/git.ts</code>"
+                ],
+                [
+                  "결정",
+                  "<code>origin</code> 소유자가 <code>gh</code> 로그인 계정과 같거나 remote가 없으면 개인, 아니면 회사예요. 10분 캐시."
+                ],
+                [
+                  "결정",
+                  "PR 조회는 응답을 막지 않아요. 첫 응답은 '확인 중'이고 다음 갱신부터 결과가 보여요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-5",
+              "title": "보드 응답에 worktree 요약·프로젝트 목록 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/board.ts</code>, <code>src/lib/orca/types.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>/api/board</code>가 <code>feat/COMP-485</code>에 작업 2개(질문 4개 대기 / 구현 20/21)를, <code>ai-skills</code>에 PR #10을 돌려줌",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 화면",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "단계 표시 컴포넌트 (카드용 작은 것, worktree용 큰 것)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/Stepper.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "왼쪽 프로젝트 사이드바와 회사/개인 칩",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>ProjectSidebar.tsx</code>, <code>useWorkspacePrefs.ts</code>"
+                ],
+                [
+                  "결정",
+                  "선택한 프로젝트와 회사/개인 지정은 브라우저 localStorage에만 저장해요. 자동 추정과 같은 값으로 되돌리면 지정 기록을 지워요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "프로젝트 화면: worktree별 단계 + 에이전트",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>WorktreePanel.tsx</code>, <code>Dashboard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "worktree 순서는 내 차례 수 → 진행 중 수 → 최근 활동 순이에요. PR과 flow 문서는 패널 헤더에서 한 번에 열려요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-4",
+              "title": "전체 화면 카드에 그 worktree의 단계 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>AgentCardView.tsx</code>, <code>RestingList.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-5",
+              "title": "포커스 바·포커스 버튼 제거",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "사이드바에서 프로젝트를 고르는 것으로 대체했어요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>tsc --noEmit</code>, <code>yarn lint</code> 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 메시지 정리 · flow 스타일",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "마지막 메시지: 첫 문단을 결론으로 보여주고 나머지는 '전체 보기'로 접음, 마크다운 렌더링",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/message.ts</code>, <code>MessageView.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "요약은 AI 호출 없이 첫 문단으로 대신해요. 렌더러는 <code>react-markdown</code> + <code>remark-gfm</code>(표)."
+                ],
+                [
+                  "결정",
+                  "오래된 세션은 Orca가 줄바꿈을 지운 200자 미리보기만 줘요. 원문을 얻는 경로를 찾지 못했어요(대화 기록 파일 위치 불명, <code>orca search</code>는 이 Mac에서 꺼져 있음). 그래서 <code>- </code>·<code>## </code> 앞의 줄바꿈만 되살리고 '미리보기' 표시를 붙여요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "flow 페이지 디자인 적용: 색 토큰, Pretendard, 왼쪽 회색 내비, 12칸 그리드(라벨 3 · 내용 9), 번호 원 단계 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>globals.css</code>, <code>layout.tsx</code>, <code>ProjectSidebar.tsx</code>, <code>Stepper.tsx</code>, <code>AgentCardView.tsx</code>, <code>WorktreePanel.tsx</code>, <code>Dashboard.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "flow 스킬 <code>assets/page.css</code>의 토큰·<code>.nav</code>·<code>.step</code>·<code>.conclusion</code>·<code>.k</code>를 Tailwind 토큰으로 옮김"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>tsc --noEmit</code>, <code>yarn lint</code> 통과, 전체·프로젝트 화면 헤드리스 확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 상태 이름 · 단계별 보기 · 검색",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "에이전트 상태 이름 변경: <code>done</code> → '내 차례', <code>working</code> → '에이전트 작업 중', <code>waiting</code> → '내 입력 대기', <code>idle</code> → '쉬는 중'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>AgentCardView.tsx</code>, <code>Dashboard.tsx</code>, <code>ProjectSidebar.tsx</code>, <code>WorktreePanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "Orca의 <code>done</code>은 '답변을 끝냈다'는 뜻이라 '완료'로 번역하면 작업이 끝난 것으로 읽혀요. '완료'는 워크플로 단계에만 써요."
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "전체 화면 '차례별 / 단계별' 전환. 단계별은 각 작업을 지금 단계(기획·질문 · 계획 · 구현 · 검증 · 테스트 · PR · 끝남 · 문서 없음) 아래로 모음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/StageBoard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "줄을 누르면 그 프로젝트 화면으로 가요. 고른 보기는 localStorage에 남아요."
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "검색: 저장소·worktree·브랜치·작업 제목·내 요청·답변에서 대소문자 없이 찾음, 두 보기 모두에 적용",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-4",
+              "title": "카드 헤더 정리, 산출물 범위 축소",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>AgentCardView.tsx</code>, <code>src/lib/orca/artifacts.ts</code>, <code>globals.css</code>"
+                ],
+                [
+                  "결정",
+                  "저장소는 굵은 제목, worktree는 회색 칩, 브랜치는 파란 고정폭 칩, PR은 보라 칩으로 나눴어요(토큰 <code>--st-pr</code> 추가). 산출물은 로컬 파일과 claude.ai artifact만 남기고, GitHub PR 주소는 PR 칩으로 바꾸고, 그 밖의 웹 링크는 버려요."
+                ]
+              ]
+            },
+            {
+              "id": "P4-5",
+              "title": "'작업 중'으로 잘못 보이던 상태 수정",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/board.ts</code>, <code>AgentCardView.tsx</code>"
+                ],
+                [
+                  "원인",
+                  "에이전트가 백그라운드 명령을 띄워 두면 Orca는 <code>state: working</code>, <code>workingMode: monitoring</code>을 주지만 본체 <code>mainAgent.state</code>는 <code>done</code>이에요."
+                ],
+                [
+                  "결정",
+                  "<code>monitoring</code>일 때는 <code>mainAgent.state</code>와 그 시작 시각을 쓰고, 카드에 '백그라운드 실행 중'을 붙여요."
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: <code>tsc --noEmit</code>, <code>yarn lint</code> 통과, 단계별 보기·검색 헤드리스 확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 지난 세션 찾기",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "Claude Code 대화 기록(<code>~/.claude/projects/*/*.jsonl</code>)에서 세션 목록 만들기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/sessions/claudeSessions.ts</code>, <code>src/app/api/sessions/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "제목은 <code>custom-title</code> → <code>ai-title</code> → 첫 요청 순. 파일 앞 256KB·뒤 512KB만 읽고 제목 줄만 전체에서 찾아요. 수정 시각·크기가 같으면 다시 읽지 않아요(처음 약 7초, 이후 0.3초)."
+                ],
+                [
+                  "결정",
+                  "<code>entrypoint: sdk-cli</code>(제목 생성 같은 자동 호출)과 다른 세션이 시작한 세션은 기본으로 숨겨요. <code>/clear</code> 같은 관리 명령과 스킬 본문은 제목 후보에서 빼요."
+                ],
+                [
+                  "결정",
+                  "Orca 에이전트 정보에 Claude 세션 ID가 없어서 '지금 열려 있음'은 표시하지 않아요."
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "'지난 세션' 화면: 제목 상태 필터, 프로젝트 선택, 검색, Orca에서 다시 열기, resume 명령 복사",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>SessionsPage.tsx</code>, <code>ProjectSidebar.tsx</code>, <code>useWorkspacePrefs.ts</code>, <code>src/app/api/actions/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "다시 열기는 <code>orca terminal create --worktree path:<cwd> --command \"claude --resume <id>\" --focus</code>. 폴더가 지워진 세션은 버튼 대신 '폴더 없음'을 보여줘요."
+                ]
+              ]
+            },
+            {
+              "id": "P5-3",
+              "title": "세션 목록 캐시 보강",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>claudeSessions.ts</code>, <code>src/app/api/board/route.ts</code>, <code>SessionsPage.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "캐시를 <code>.next/cache/agent-control/claude-sessions.json</code>에 저장해 서버를 다시 켜도 이어 써요(재시작 직후 7.5초 → 0.36초). 보드 첫 요청 때 백그라운드로 미리 읽고, 동시에 온 요청은 한 번의 스캔을 같이 기다려요. 화면은 마지막 목록을 먼저 보여주고 뒤에서 갱신해요."
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: <code>tsc --noEmit</code>, <code>yarn lint</code> 통과, 세션 화면 헤드리스 확인(사람이 시작한 세션 439 · 제목 없음 12)",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · macOS 데스크톱 앱",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "Electron으로 감싼 'Agent Control.app': 앱 안의 Next 서버를 3199 포트로 띄우고 전용 창에 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>desktop/main.mjs</code>, <code>scripts/build-desktop.mjs</code>, <code>scripts/install-desktop.mjs</code>, <code>next.config.ts</code>, <code>package.json</code>"
+                ],
+                [
+                  "결정",
+                  "Electron <code>44.4.0</code>(나온 지 2주 넘은 버전), Next <code>output: standalone</code>. 서버는 Electron의 Node로 실행(<code>ELECTRON_RUN_AS_NODE</code>)해서 따로 Node를 깔 필요가 없어요. Dock에서 켜면 PATH가 짧아서 <code>/opt/homebrew/bin</code> 등을 앱이 넣어줘요."
+                ],
+                [
+                  "결정",
+                  "세션 캐시와 서버 로그는 <code>~/Library/Application Support/Agent Control/</code>. 외부 링크는 기본 브라우저로 열어요. 앱을 끄면 서버도 같이 꺼져요."
+                ],
+                [
+                  "결정",
+                  "standalone 추적이 API 라우트 런타임(<code>app-route-turbo.runtime.prod.js</code>)을 빠뜨려서, 빌드 스크립트가 <code>*.runtime.prod.js</code>를 직접 복사해요. 아이콘은 <code>globals.css</code> 토큰 값으로 그려요."
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "설치: <code>~/Applications</code>에 복사하고 Dock에 추가",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<code>yarn desktop</code> = 빌드 + 설치. 코드를 고친 뒤 이 명령을 다시 실행하면 앱이 갱신돼요."
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: 설치된 앱 실행 2초 안에 서버 응답, 보드(에이전트 12)·PR 조회·세션(591) API 정상, 앱 종료 시 서버 종료 확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "Phase 7 · 대시보드에서 바로 조작",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "2026-11-03 카드에서 터미널 에이전트에게 바로 답장 보내기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/QuickReply.tsx</code>, <code>src/features/board/AgentCardView.tsx</code>, <code>src/lib/orca/actions.ts</code>, <code>src/app/api/actions/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Orca CLI <code>orca terminal send --enter --wait-submit 3</code>로 보내요. Orca 창은 앞으로 띄우지 않아요. 채팅 화면 세션은 터미널이 없어서 입력창이 안 보여요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "2026-11-03 Orca가 200자만 준 답변을 Claude 대화 기록에서 찾아 전체로 보여 주기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/sessions/fullMessage.ts</code>, <code>src/lib/orca/board.ts</code>"
+                ],
+                [
+                  "결정",
+                  "worktree 폴더의 최근 대화 기록 8개 중 마지막 답변이 미리보기 앞 60자로 시작하는 것을 고르고, 파일 수정 시각으로 캐시해요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-3",
+              "title": "2026-11-03 막힘 카드에서 권한 질문을 보고 번호로 답하기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/orca/screen.ts</code>, <code>src/app/api/terminal/route.ts</code>, <code>src/features/board/ChoicePanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "<code>orca terminal read --screen</code>을 2초마다 읽고, 맨 아래에 ❯ 표시가 있는 번호 목록이 있을 때만 버튼을 띄워요. 누르면 그 번호를 터미널에 입력해요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-4",
+              "title": "2026-11-03 worktree를 골라 새 Claude 세션 시작",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/LaunchAgent.tsx</code>, <code>src/app/api/actions/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "<code>orca agent launch --surface terminal</code>로 열어요. 터미널로 열어야 빠른 답장과 승인 버튼을 쓸 수 있어요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-5",
+              "title": "2026-11-03 에이전트가 끝나거나 막히면 macOS 알림, Dock 아이콘에 내 차례 개수",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/useAttention.ts</code>, <code>desktop/main.mjs</code>"
+                ],
+                [
+                  "결정",
+                  "페이지 제목 앞에 <code>(n)</code>을 붙이고, 앱이 제목을 보고 Dock 숫자를 바꿔요. 알림은 작업 중이던 카드가 내 차례·막힘·입력 대기로 바뀔 때만 떠요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-6",
+              "title": "2026-11-03 키보드 단축키 j/k·r·o·e·/·esc",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/useKeyboardNav.ts</code>, <code>src/features/board/AgentCardView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P7-7",
+              "title": "2026-11-03 사이드바 색 범례·워크플로 설명 제거, 결과물 칩의 Orca 버튼을 ⌥클릭으로 대체",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/ProjectSidebar.tsx</code>, <code>src/features/board/AgentCardView.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "워크플로 단계는 회사/개인 칩에 마우스를 올리면 보여요. 정리 버튼은 며칠 써 보고 정해요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-8",
+              "title": "2026-11-03 어디서든 ⌃⌥Space로 앱 열기·숨기기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>desktop/main.mjs</code>, <code>src/features/board/ProjectSidebar.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "j/k 같은 글자 단축키는 앱 창 안에서만 동작해요. 전역으로 걸면 다른 앱에서 그 글자를 칠 수 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "P7-9",
+              "title": "2026-11-03 어느 화면에서든 / 또는 ⌘K로 검색 팔레트, 단축키는 한글 입력 상태에서도 동작",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/CommandPalette.tsx</code>, <code>src/features/board/useKeyboardNav.ts</code>"
+                ],
+                [
+                  "결정",
+                  "단축키는 <code>event.key</code> 대신 <code>event.code</code>(물리 키 위치)로 판정해요. 한글 입력 상태에서 j가 ㅓ로 들어와도 먹게 하려는 거예요. 전체 화면의 검색창은 이 화면 거르기로 남겨요."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "verify": {
+      "status": "done",
+      "summary": "확인 완료",
+      "conclusion": [
+        "전체 화면, 프로젝트 화면, 회사/개인 전환을 헤드리스 브라우저로 확인했어요. [[V1]] [[V2]] [[V3]]",
+        "'PR #n 열기'와 '문서 열기'가 기본 브라우저로 열리는 것은 사용자가 직접 확인했어요. [[V4]]"
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "화면 확인",
+          "items": [
+            {
+              "id": "V1",
+              "title": "전체 화면: 왼쪽에 프로젝트 10개와 내 차례·진행 중 수, 카드에 작은 단계 표시",
+              "done": true
+            },
+            {
+              "id": "V2",
+              "title": "<code>sample-app</code> 선택: worktree 3개, <code>feat-sample</code>에 작업 2개의 단계가 큰 표시로 나옴",
+              "done": true
+            },
+            {
+              "id": "V3",
+              "title": "회사 칩을 누르면 개인으로 바뀌고 단계가 PRD → 질문 → 기획 → 계획 …으로 바뀜",
+              "done": true
+            },
+            {
+              "id": "V4",
+              "title": "'PR #n 열기', '문서 열기' 버튼이 기본 브라우저로 열림",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "title": "버그",
+          "items": []
+        }
+      ]
+    }
+  },
+  "pulledAt": 1793673124461
+}

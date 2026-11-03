@@ -1,0 +1,12 @@
+{
+  "title": "에이전트 관제 보드",
+  "kind": "screens",
+  "figma": "",
+  "nodes": [],
+  "paths": [
+    "src/features/board",
+    "src/lib/orca",
+    "src/app/api"
+  ],
+  "links": []
+}

@@ -1,0 +1,41 @@
+import type { AgentCard } from "@/lib/orca/types";
+
+export interface BoardGroups {
+  needsMe: AgentCard[];
+  working: AgentCard[];
+  resting: AgentCard[];
+}
+
+function urgency(agent: AgentCard): number {
+  if (agent.state === "blocked" || agent.state === "waiting") return 0;
+  if (agent.interrupted) return 1;
+  if (agent.unread) return 2;
+  return 3;
+}
+
+export function awaitsUser(agent: AgentCard): boolean {
+  if (agent.state === "working") return false;
+  if (agent.state === "idle") return agent.interrupted;
+  return true;
+}
+
+const byOldestState = (a: AgentCard, b: AgentCard) =>
+  (a.stateSince ?? Number.MAX_SAFE_INTEGER) - (b.stateSince ?? Number.MAX_SAFE_INTEGER);
+
+const byRecentUpdate = (a: AgentCard, b: AgentCard) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+
+export function groupAgents(
+  agents: AgentCard[],
+  isDismissed: (agent: AgentCard) => boolean,
+): BoardGroups {
+  const groups: BoardGroups = { needsMe: [], working: [], resting: [] };
+  for (const agent of agents) {
+    if (agent.state === "working") groups.working.push(agent);
+    else if (awaitsUser(agent) && !isDismissed(agent)) groups.needsMe.push(agent);
+    else groups.resting.push(agent);
+  }
+  groups.needsMe.sort((a, b) => urgency(a) - urgency(b) || byOldestState(a, b));
+  groups.working.sort(byOldestState);
+  groups.resting.sort(byRecentUpdate);
+  return groups;
+}
