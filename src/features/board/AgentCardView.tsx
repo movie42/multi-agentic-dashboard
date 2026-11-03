@@ -34,6 +34,8 @@ const STATE_PILL: Record<AgentState, string> = {
   idle: "text-muted shadow-[inset_0_0_0_1px_var(--hair)]",
 };
 
+const TITLE_TEXT = "text-[16px] leading-snug font-bold tracking-[-0.01em]";
+
 const ARTIFACT_LABEL: Record<Artifact["kind"], string> = {
   html: "HTML",
   markdown: "MD",
@@ -120,6 +122,7 @@ export function AgentCardView({
   const pullRequests = collectPullRequests(agent, worktreePr);
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr");
   const showWorktree = agent.worktreeName !== agent.branch;
+  const fallbackTitle = agent.prompt?.replace(/\s+/g, " ").slice(0, 80) ?? "제목 없음";
 
   return (
     <article
@@ -131,12 +134,19 @@ export function AgentCardView({
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2.5">
           <StateBadge agent={agent} />
-          <p className="min-w-0 flex-1 truncate text-[16px] leading-snug font-bold tracking-[-0.01em]">
-            {agent.repo}
-            {agent.unread && (
-              <span className="ml-2 inline-block size-2 rounded-full bg-accent align-middle" title="새 결과" />
-            )}
-          </p>
+          {agent.session ? (
+            <SessionTitle
+              key={agent.session.id}
+              sessionId={agent.session.id}
+              title={agent.session.title}
+              titleSource={agent.session.titleSource}
+              fallback={fallbackTitle}
+              textClassName={TITLE_TEXT}
+            />
+          ) : (
+            <p className={`min-w-0 flex-1 truncate ${TITLE_TEXT}`}>{fallbackTitle}</p>
+          )}
+          {agent.unread && <span className="size-2 shrink-0 rounded-full bg-accent" title="새 결과" />}
           <span className="shrink-0 text-[12px] text-muted">
             {formatElapsed(agent.stateSince, now)}
             {agent.state === "working" ? " 경과" : " 전"}
@@ -153,8 +163,11 @@ export function AgentCardView({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-none">
+          <span className="rounded-md bg-tint-2 px-2 py-1 font-semibold" title="프로젝트">
+            {agent.repo}
+          </span>
           {showWorktree && (
-            <span className="rounded-md bg-tint-2 px-2 py-1 font-semibold" title="worktree">
+            <span className="rounded-md px-2 py-1 font-semibold shadow-[inset_0_0_0_1px_var(--hair)]" title="worktree">
               {agent.worktreeName}
             </span>
           )}
@@ -198,17 +211,6 @@ export function AgentCardView({
           </p>
           <Stepper steps={progress.steps} size="compact" />
         </div>
-      )}
-
-      {agent.session && (
-        <SessionTitle
-          key={agent.session.id}
-          sessionId={agent.session.id}
-          title={agent.session.title}
-          titleSource={agent.session.titleSource}
-          fallback={agent.prompt?.replace(/\s+/g, " ").slice(0, 80) ?? "제목 없음"}
-          textClassName="text-[15px] leading-snug font-semibold"
-        />
       )}
 
       {agent.prompt && (
