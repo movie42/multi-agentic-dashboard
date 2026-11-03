@@ -14,9 +14,10 @@ interface AgentListProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   expandedId?: string | null;
   onJump?: (agent: AgentCard) => void;
+  workersOf?: (agent: AgentCard) => AgentCard[];
 }
 
-export function AgentList({ agents, now, showRepo, renderCard, expandedId = null, onJump }: AgentListProps) {
+export function AgentList({ agents, now, showRepo, renderCard, expandedId = null, onJump, workersOf }: AgentListProps) {
   return (
     <ul className="border-t border-hair">
       {agents.map((agent) => (
@@ -28,6 +29,7 @@ export function AgentList({ agents, now, showRepo, renderCard, expandedId = null
           renderCard={renderCard}
           initiallyExpanded={agent.id === expandedId}
           onJump={onJump}
+          workers={workersOf?.(agent) ?? []}
         />
       ))}
     </ul>
@@ -41,14 +43,16 @@ interface AgentRowProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   initiallyExpanded: boolean;
   onJump?: (agent: AgentCard) => void;
+  workers: AgentCard[];
 }
 
-function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump }: AgentRowProps) {
+function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump, workers }: AgentRowProps) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [replying, setReplying] = useState(false);
   const working = agent.state === "working";
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr").length;
   const terminalHandle = agent.terminalHandle;
+  const workersBusy = workers.filter((worker) => worker.state === "working").length;
 
   return (
     <li data-jump={agent.id} className="scroll-mt-6 border-b border-hair">
@@ -71,6 +75,12 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump 
             {agent.session?.title && <span className="font-semibold text-fg">{agent.session.title} · </span>}
             {parseMessage(agent.lastMessage)?.lead ?? agent.prompt}
           </span>
+          {workers.length > 0 && (
+            <span className="shrink-0 text-[12px] text-muted" title="이 세션이 오케스트레이션으로 띄운 작업 세션">
+              작업 세션 {workers.length}
+              {workersBusy > 0 && <span className="text-now"> · 작업 중 {workersBusy}</span>}
+            </span>
+          )}
           {files > 0 && <span className="text-[12px] text-muted">산출물 {files}</span>}
           <span className="w-20 shrink-0 text-right text-[12px] text-muted">
             {working ? `${formatElapsed(agent.stateSince, now)} 경과` : `${formatElapsed(agent.updatedAt, now)} 전`}
@@ -105,6 +115,11 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump 
         </div>
       )}
       {expanded && <div className="pb-4">{renderCard(agent)}</div>}
+      {expanded && workers.length > 0 && (
+        <div className="mb-4 ml-6">
+          <AgentList agents={workers} now={now} showRepo={showRepo} renderCard={renderCard} />
+        </div>
+      )}
     </li>
   );
 }

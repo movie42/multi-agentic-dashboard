@@ -32,6 +32,7 @@ export interface OrcaWorktreeRaw {
   isArchived: boolean;
   isMainWorktree: boolean;
   isPinned: boolean;
+  parentWorktreeId?: string | null;
   unread: boolean;
   status: string;
   lastActivityAt: number | null;
@@ -81,6 +82,7 @@ export interface AgentCard {
   terminalHandle: string | null;
   artifacts: Artifact[];
   permission: PendingPermission | null;
+  parentId: string | null;
 }
 
 export interface WorktreeSummary {
@@ -89,6 +91,7 @@ export interface WorktreeSummary {
   name: string;
   branch: string | null;
   path: string;
+  parentWorktreeId: string | null;
   unread: boolean;
   lastActivityAt: number | null;
   flowTasks: FlowTaskSummary[];

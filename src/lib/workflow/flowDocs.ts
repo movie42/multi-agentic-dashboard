@@ -121,7 +121,16 @@ export interface WorktreeFlowTasks {
   other: FlowTaskSummary[];
 }
 
-export async function loadFlowTasks(worktreePath: string, branch: string | null): Promise<WorktreeFlowTasks> {
+export interface WorktreeFlowScan {
+  branch: string | null;
+  tasks: FlowTaskSummary[];
+}
+
+export function flowTaskKey(task: FlowTaskSummary): string {
+  return `${task.domain}/${task.taskId}`;
+}
+
+export async function scanFlowTasks(worktreePath: string, branch: string | null): Promise<WorktreeFlowScan> {
   const docs = path.join(worktreePath, "docs");
   const domains = await readdir(docs, { withFileTypes: true }).catch(() => []);
   const found: FlowTaskSummary[] = [];
@@ -146,14 +155,47 @@ export async function loadFlowTasks(worktreePath: string, branch: string | null)
     }
   }
 
-  found.sort((a, b) => b.updatedAt - a.updatedAt);
-  const matched = branch ? found.filter((task) => task.branch === branch) : [];
+  return { branch, tasks: found };
+}
+
+/**
+ * One copy per task across a repo's worktrees. A task file only exists in the checkout that
+ * wrote it until it is merged, so each worktree alone misses its siblings' documents. When
+ * several checkouts hold the same task, the copy in the worktree on the task's own branch wins,
+ * then the most recently written one.
+ */
+export function mergeRepoFlowTasks(scans: WorktreeFlowScan[]): FlowTaskSummary[] {
+  const picked = new Map<string, { task: FlowTaskSummary; owner: boolean }>();
+  for (const scan of scans) {
+    for (const task of scan.tasks) {
+      const key = flowTaskKey(task);
+      const owner = task.branch !== null && task.branch === scan.branch;
+      const held = picked.get(key);
+      if (!held || (owner && !held.owner) || (owner === held.owner && task.updatedAt > held.task.updatedAt)) {
+        picked.set(key, { task, owner });
+      }
+    }
+  }
+  return [...picked.values()].map((entry) => entry.task).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/**
+ * current — tasks whose recorded branch is this worktree's branch; with none, the unfinished
+ * tasks in this worktree's own checkout. other — every remaining task in the repo.
+ */
+export function splitFlowTasks(
+  repoTasks: FlowTaskSummary[],
+  own: WorktreeFlowScan,
+): WorktreeFlowTasks {
+  const ownKeys = new Set(own.tasks.map(flowTaskKey));
+  const branch = own.branch;
+  const matched = branch ? repoTasks.filter((task) => task.branch === branch) : [];
   const activeMatched = matched.filter((task) => !isFinished(task));
   const current =
     activeMatched.length > 0
       ? activeMatched
       : matched.length > 0
         ? matched.slice(0, 1)
-        : found.filter((task) => !isFinished(task));
-  return { current, other: found.filter((task) => !current.includes(task)) };
+        : repoTasks.filter((task) => ownKeys.has(flowTaskKey(task)) && !isFinished(task));
+  return { current, other: repoTasks.filter((task) => !current.includes(task)) };
 }

@@ -22,7 +22,7 @@ function notify(agent: AgentCard, label: string) {
   notification.onclick = () => window.focus();
 }
 
-export function useAttention(agents: AgentCard[] | null, needsMeCount: number) {
+export function useAttention(agents: AgentCard[] | null, needsMeCount: number, folded: ReadonlySet<string>) {
   const previous = useRef<Map<string, AgentState> | null>(null);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function useAttention(agents: AgentCard[] | null, needsMeCount: number) {
     if (seen) {
       for (const agent of agents) {
         const label = ARRIVAL_LABEL[agent.state];
-        if (label && seen.get(agent.id) === "working") notify(agent, label);
+        if (label && seen.get(agent.id) === "working" && !folded.has(agent.id)) notify(agent, label);
       }
     }
     previous.current = new Map(agents.map((agent) => [agent.id, agent.state]));

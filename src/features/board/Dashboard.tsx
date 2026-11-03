@@ -7,7 +7,7 @@ import { buildSteps } from "@/lib/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/lib/workflow/types";
 import { postAction } from "./actions";
 import { AgentCardView, type CardProgress } from "./AgentCardView";
-import { groupAgents } from "./classify";
+import { foldWorkers, groupAgents, type FoldedAgents } from "./classify";
 import { CommandPalette } from "./CommandPalette";
 import { FeatureGroup } from "./FeatureGroup";
 import { LaunchAgent } from "./LaunchAgent";
@@ -108,8 +108,9 @@ export function Dashboard() {
     }
   };
 
-  const needsMeCount = board ? groupAgents(board.agents, dismissed.isDismissed).needsMe.length : 0;
-  useAttention(board?.agents ?? null, needsMeCount);
+  const folded = foldWorkers(board?.agents ?? []);
+  const needsMeCount = groupAgents(folded.top, dismissed.isDismissed).needsMe.length;
+  useAttention(board?.agents ?? null, needsMeCount, folded.foldedIds);
   useKeyboardNav();
 
   if (!board) {
@@ -176,9 +177,10 @@ export function Dashboard() {
           worktreeMatches(worktree) || visibleAgents.some((agent) => agent.worktreeId === worktree.worktreeId),
       )
     : board.worktrees;
-  const visibleGroups = groupAgents(visibleAgents, dismissed.isDismissed);
+  const visibleFold = foldWorkers(visibleAgents);
+  const visibleGroups = groupAgents(visibleFold.top, dismissed.isDismissed);
 
-  const allGroups = groupAgents(board.agents, dismissed.isDismissed);
+  const allGroups = groupAgents(folded.top, dismissed.isDismissed);
   const countsByRepo = new Map<string, ProjectCounts>();
   const bump = (repo: string, key: keyof ProjectCounts) => {
     const counts = countsByRepo.get(repo) ?? { needsMe: 0, working: 0, worktrees: 0 };
@@ -277,13 +279,13 @@ export function Dashboard() {
               {visibleGroups.needsMe.length === 0 ? (
                 <p className="text-[15px] text-muted">지금 확인할 에이전트가 없어요.</p>
               ) : (
-                <AgentList agents={visibleGroups.needsMe} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} />
+                <AgentList agents={visibleGroups.needsMe} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} workersOf={visibleFold.workersOf} />
               )}
             </Section>
 
             {visibleGroups.working.length > 0 && (
               <Section title="에이전트 작업 중" count={visibleGroups.working.length} status="now" hint="에이전트가 아직 답을 쓰는 중. 오래 돈 순. 줄을 누르면 펼쳐져요">
-                <AgentList agents={visibleGroups.working} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} />
+                <AgentList agents={visibleGroups.working} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} workersOf={visibleFold.workersOf} />
               </Section>
             )}
 
@@ -294,7 +296,7 @@ export function Dashboard() {
                 status="wait"
                 hint="정리한 것과 쉬는 세션. 줄을 누르면 펼쳐져요"
               >
-                <AgentList agents={visibleGroups.resting} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} />
+                <AgentList agents={visibleGroups.resting} now={now} showRepo renderCard={withProgressCard} onJump={jumpToAgent} workersOf={visibleFold.workersOf} />
               </Section>
             )}
             </>
@@ -305,7 +307,7 @@ export function Dashboard() {
             repo={selectedRepo}
             worktrees={board.worktrees.filter((worktree) => worktree.repo === selectedRepo)}
             features={board.features}
-            agents={board.agents.filter((agent) => agent.repo === selectedRepo)}
+            agents={foldWorkers(board.agents.filter((agent) => agent.repo === selectedRepo))}
             mode={modeOfRepo(selectedRepo)}
             now={now}
             isDismissed={dismissed.isDismissed}
@@ -331,7 +333,7 @@ interface ProjectViewProps {
   repo: string;
   worktrees: WorktreeSummary[];
   features: FeatureSummary[];
-  agents: AgentCard[];
+  agents: FoldedAgents;
   mode: WorkflowMode;
   now: number;
   isDismissed: (agent: AgentCard) => boolean;
@@ -341,19 +343,25 @@ interface ProjectViewProps {
 }
 
 function ProjectView({ repo, worktrees, features, agents, mode, now, isDismissed, renderCard, expandedId, onAction }: ProjectViewProps) {
-  const panels = worktrees.map((worktree) => ({
+  const allPanels = worktrees.map((worktree) => ({
     worktree,
     groups: groupAgents(
-      agents.filter((agent) => agent.worktreeId === worktree.worktreeId),
+      agents.top.filter((agent) => agent.worktreeId === worktree.worktreeId),
       isDismissed,
     ),
   }));
-  panels.sort(
+  allPanels.sort(
     (a, b) =>
       b.groups.needsMe.length - a.groups.needsMe.length ||
       b.groups.working.length - a.groups.working.length ||
       (b.worktree.lastActivityAt ?? 0) - (a.worktree.lastActivityAt ?? 0),
   );
+  const ids = new Set(worktrees.map((worktree) => worktree.worktreeId));
+  const isChild = (worktree: WorktreeSummary) =>
+    worktree.parentWorktreeId !== null && ids.has(worktree.parentWorktreeId);
+  const panels = allPanels.filter((panel) => !isChild(panel.worktree));
+  const childrenOf = (worktree: WorktreeSummary) =>
+    allPanels.filter((panel) => panel.worktree.parentWorktreeId === worktree.worktreeId);
   const featureById = new Map(features.map((feature) => [feature.id, feature]));
   const sections: { feature: FeatureSummary | null; panels: typeof panels }[] = [];
   for (const panel of panels) {
@@ -377,7 +385,7 @@ function ProjectView({ repo, worktrees, features, agents, mode, now, isDismissed
         </div>
       </header>
       {sections.map(({ feature, panels: sectionPanels }) => {
-        const rendered = sectionPanels.map(({ worktree, groups }) => (
+        const renderPanel = ({ worktree, groups }: (typeof panels)[number]): React.ReactNode => (
           <WorktreePanel
             key={worktree.worktreeId}
             worktree={worktree}
@@ -386,10 +394,13 @@ function ProjectView({ repo, worktrees, features, agents, mode, now, isDismissed
             groups={groups}
             now={now}
             renderCard={renderCard}
+            workersOf={agents.workersOf}
+            childPanels={childrenOf(worktree).map(renderPanel)}
             expandedId={expandedId}
             onAction={onAction}
           />
-        ));
+        );
+        const rendered = sectionPanels.map(renderPanel);
         if (feature) {
           return (
             <FeatureGroup key={feature.id} feature={feature} onAction={onAction}>

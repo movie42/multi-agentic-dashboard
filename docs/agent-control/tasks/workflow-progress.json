@@ -692,6 +692,15 @@
       "text": "src/lib/workflow/flowDocs.ts, src/lib/orca/board.ts, src/features/board/WorktreePanel.tsx: 브랜치가 맞는 문서가 없으면 끝나지 않은 문서를 대신 보여주고, 나머지 문서는 '다른 flow 문서'로 접어 둠 (미커밋)",
       "files": [],
       "sha": "8c56e70"
+    },
+    {
+      "date": "2026-11-03",
+      "text": "'다른 flow 문서'를 저장소의 모든 워크트리에서 모아 보여줌 — 커밋 전 문서가 다른 워크트리 패널에서 안 보이던 버그",
+      "files": [
+        "src/lib/workflow/flowDocs.ts",
+        "src/lib/orca/board.ts"
+      ],
+      "sha": "3314abe"
     }
   ]
 }

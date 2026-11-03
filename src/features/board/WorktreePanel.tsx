@@ -16,6 +16,8 @@ interface WorktreePanelProps {
   groups: BoardGroups;
   now: number;
   renderCard: (agent: AgentCard) => React.ReactNode;
+  workersOf: (agent: AgentCard) => AgentCard[];
+  childPanels: React.ReactNode[];
   expandedId: string | null;
   onAction: (action: ActionRequest) => void;
 }
@@ -27,7 +29,18 @@ const FILTER_OPTIONS: { key: PanelFilter; label: string; tone: string }[] = [
   { key: "working", label: "작업 중", tone: "text-now" },
 ];
 
-export function WorktreePanel({ worktree, featureRow, mode, groups, now, renderCard, expandedId, onAction }: WorktreePanelProps) {
+export function WorktreePanel({
+  worktree,
+  featureRow,
+  mode,
+  groups,
+  now,
+  renderCard,
+  workersOf,
+  childPanels,
+  expandedId,
+  onAction,
+}: WorktreePanelProps) {
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
@@ -174,7 +187,25 @@ export function WorktreePanel({ worktree, featureRow, mode, groups, now, renderC
           </details>
         )}
 
-        {listed.length > 0 && <AgentList agents={listed} now={now} showRepo={false} renderCard={renderCard} expandedId={expandedId} />}
+        {listed.length > 0 && (
+          <AgentList
+            agents={listed}
+            now={now}
+            showRepo={false}
+            renderCard={renderCard}
+            expandedId={expandedId}
+            workersOf={workersOf}
+          />
+        )}
+
+        {childPanels.length > 0 && (
+          <details className="text-[13px]">
+            <summary className="cursor-pointer text-muted hover:text-current" title="Orca에서 이 워크트리 아래로 만든 워크트리">
+              하위 워크트리 {childPanels.length}
+            </summary>
+            <div className="mt-3">{childPanels}</div>
+          </details>
+        )}
       </div>
     </section>
   );

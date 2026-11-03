@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import { extractArtifacts } from "./artifacts";
 import { featureDocsIn, featureOfWorktree, loadFeatures } from "@/lib/workflow/featureDocs";
-import { loadFlowTasks } from "@/lib/workflow/flowDocs";
+import { mergeRepoFlowTasks, scanFlowTasks, splitFlowTasks, type WorktreeFlowScan } from "@/lib/workflow/flowDocs";
 import type { CheckInput } from "@/lib/workflow/remoteCheck";
 import { detectMode, getPullRequest } from "@/lib/workflow/git";
 import { findSession } from "@/lib/sessions/fullMessage";
@@ -93,13 +93,26 @@ export async function loadBoard(): Promise<BoardSnapshot> {
   const featureDocs = new Set<string>();
   const taskFeatureDocs = new Map<string, (string | null)[]>();
 
-  for (const worktree of ps.worktrees) {
-    if (worktree.isArchived) continue;
+  const live = ps.worktrees.filter((worktree) => !worktree.isArchived);
+  const liveIds = new Set(live.map((worktree) => worktree.worktreeId));
+  const scans = new Map<string, WorktreeFlowScan>();
+  const scansByRepo = new Map<string, WorktreeFlowScan[]>();
+  for (const worktree of live) {
+    const scan = await scanFlowTasks(worktree.path, shortBranch(worktree.branch));
+    scans.set(worktree.worktreeId, scan);
+    scansByRepo.set(worktree.repo, [...(scansByRepo.get(worktree.repo) ?? []), scan]);
+  }
+  const repoFlowTasks = new Map(
+    [...scansByRepo.entries()].map(([repo, repoScans]) => [repo, mergeRepoFlowTasks(repoScans)]),
+  );
+
+  for (const worktree of live) {
     const branch = shortBranch(worktree.branch);
     if (!repoPaths.has(worktree.repo) || worktree.isMainWorktree) {
       repoPaths.set(worktree.repo, worktree.path);
     }
-    const flow = await loadFlowTasks(worktree.path, branch);
+    const ownScan = scans.get(worktree.worktreeId) ?? { branch, tasks: [] };
+    const flow = splitFlowTasks(repoFlowTasks.get(worktree.repo) ?? [], ownScan);
     repoOfPath.set(worktree.path, worktree.repo);
     const pointers = [...flow.current, ...flow.other].map((task) => task.featureDoc);
     taskFeatureDocs.set(worktree.worktreeId, flow.current.map((task) => task.featureDoc));
@@ -111,6 +124,8 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       name: worktree.displayName ?? branch ?? worktree.path,
       branch,
       path: worktree.path,
+      parentWorktreeId:
+        worktree.parentWorktreeId && liveIds.has(worktree.parentWorktreeId) ? worktree.parentWorktreeId : null,
       unread: worktree.unread,
       lastActivityAt: worktree.lastActivityAt,
       flowTasks: flow.current,
@@ -119,7 +134,6 @@ export async function loadBoard(): Promise<BoardSnapshot> {
       featureId: null,
     });
     for (const agent of worktree.agents) {
-      if (agent.parentPaneKey) continue;
       const backgroundRunning =
         agent.workingMode === "monitoring" && agent.mainAgent != null && agent.mainAgent.state !== "working";
       const effectiveState = backgroundRunning && agent.mainAgent ? agent.mainAgent.state : agent.state;
@@ -148,6 +162,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
         terminalHandle: handleByPane.get(agent.paneKey) ?? null,
         artifacts: await existing(extractArtifacts(lastMessage, worktree.path)),
         permission: permissions.get(agent.paneKey) ?? null,
+        parentId: agent.parentPaneKey ?? null,
       });
     }
   }
