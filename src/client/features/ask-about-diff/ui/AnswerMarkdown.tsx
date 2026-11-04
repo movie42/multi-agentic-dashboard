@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { HighlightResponse } from "@/lib/intentDiff/types";
+import type { HighlightResponse } from "@/common/intentDiff/types";
 
 // Same type, size and token colors as the diff table in CodeLines; box and spacing come from `.md pre`.
 const CODE_BLOCK =

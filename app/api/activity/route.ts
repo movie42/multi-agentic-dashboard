@@ -1,6 +1,6 @@
 import { connection } from "next/server";
-import { readActivity } from "@/lib/sessions/activity";
-import type { ActivityResponse } from "@/lib/sessions/types";
+import type { ActivityResponse } from "@/common/sessions/types";
+import { services } from "@/server/container";
 
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "invalid session" } satisfies ActivityResponse, { status: 400 });
   }
   try {
-    const { steps, updatedAt } = await readActivity(sessionId);
+    const { steps, updatedAt } = await services().activity.read(sessionId);
     return Response.json({ ok: true, steps, updatedAt } satisfies ActivityResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

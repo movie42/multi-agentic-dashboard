@@ -3,7 +3,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
 import ts from "typescript";
-import type { SymbolLocation, SymbolLookup } from "@/lib/intentDiff/types";
+import type { SymbolLocation, SymbolLookup } from "@/common/intentDiff/types";
 
 const REFERENCE_LIMIT = 200;
 const SNIPPET_AROUND = 3;

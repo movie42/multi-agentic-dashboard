@@ -6,7 +6,7 @@ import { open, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import type { AskAnchor, AskContext, AskEvent, AskThread, AskTurn } from "@/lib/intentDiff/types";
+import type { AskAnchor, AskContext, AskEvent, AskThread, AskTurn } from "@/common/intentDiff/types";
 import type { AskStore } from "./AskStore";
 import { isMissing, parseJson, type Warn } from "./report";
 

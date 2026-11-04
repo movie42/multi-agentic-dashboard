@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { BoardSnapshot } from "@/lib/orca/types";
+import type { BoardSnapshot } from "@/common/orca/types";
 import { StateBadge } from "@/client/entities/agent";
 
 type PaletteItem =

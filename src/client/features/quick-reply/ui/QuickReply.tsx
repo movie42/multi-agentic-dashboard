@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { postAction } from "@/client/shared/api/actions";
-import { AttachButton, AttachmentList } from "@/client/features/attach-files";
-import { appendPaths, useAttachments } from "@/client/features/attach-files";
+import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
+import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 
 type SendStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string };
 

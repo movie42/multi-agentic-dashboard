@@ -1,8 +1,8 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { createWorktree } from "@/lib/worktreeWizard/create";
-import { answerWizard, startWizard } from "@/lib/worktreeWizard/run";
-import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/lib/worktreeWizard/types";
+import { createWorktree } from "@/server/worktreeWizard/create";
+import { answerWizard, startWizard } from "@/server/worktreeWizard/run";
+import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
 
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ANSWER = 2000;

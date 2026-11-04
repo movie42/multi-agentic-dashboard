@@ -1,5 +1,5 @@
 import "server-only";
-import type { FeatureRowSummary, FeatureSummary, PullRequestInfo, SharedWait } from "@/lib/workflow/types";
+import type { FeatureRowSummary, FeatureSummary, PullRequestInfo, SharedWait } from "@/common/workflow/types";
 import type { FeatureRowJson, FeatureSharedJson } from "./schema";
 
 export type PullRequestLookup = (worktreePath: string, branch: string) => PullRequestInfo;

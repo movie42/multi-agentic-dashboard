@@ -2,8 +2,8 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import { parseUnifiedDiff } from "@/lib/intentDiff/gitDiff";
-import type { LineChange } from "@/lib/intentDiff/types";
+import { parseUnifiedDiff } from "@/server/intentDiff/gitDiff";
+import type { LineChange } from "@/common/intentDiff/types";
 import { isMissing, parseJson, type Warn } from "./report";
 import { type SnapshotRecord, snapshotRecordSchema } from "./schema";
 

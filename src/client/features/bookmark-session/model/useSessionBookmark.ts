@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { SessionBookmark } from "@/lib/sessions/types";
+import type { SessionBookmark } from "@/common/sessions/types";
 import { postAction } from "@/client/shared/api/actions";
 
 // A saved change is shown on every screen until the server's copy (board poll or session list)

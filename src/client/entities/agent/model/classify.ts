@@ -1,4 +1,4 @@
-import type { AgentCard } from "@/lib/orca/types";
+import type { AgentCard } from "@/common/orca/types";
 
 export interface BoardGroups {
   needsMe: AgentCard[];

@@ -1,4 +1,4 @@
-import type { ActionRequest, ActionResponse, AttachmentResponse } from "@/lib/orca/actions";
+import type { ActionRequest, ActionResponse, AttachmentResponse } from "@/common/actions/schema";
 
 export async function postAction(action: ActionRequest): Promise<void> {
   const response = await fetch("/api/actions", {

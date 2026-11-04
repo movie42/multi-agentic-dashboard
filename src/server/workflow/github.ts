@@ -1,5 +1,5 @@
 import "server-only";
-import type { PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
+import type { PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
 import { pullRequestListSchema } from "./schema";
 
 const SHARED_BRANCH = /^(main|master|develop|staging|release\/.+|main-.+|develop-.+)$/;

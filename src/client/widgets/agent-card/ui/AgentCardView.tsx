@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { ActionRequest } from "@/lib/orca/actions";
-import type { AgentCard, Artifact } from "@/lib/orca/types";
-import type { PullRequestInfo, WorkflowStep } from "@/lib/workflow/types";
+import type { ActionRequest } from "@/common/actions/schema";
+import type { AgentCard, Artifact } from "@/common/orca/types";
+import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { ChoicePanel } from "@/client/features/choose-option";

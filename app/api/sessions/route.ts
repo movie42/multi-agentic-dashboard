@@ -1,12 +1,11 @@
 import { connection } from "next/server";
-import { readBookmarks } from "@/lib/sessions/bookmarks";
-import { listClaudeSessions } from "@/lib/sessions/claudeSessions";
-import type { SessionsResponse } from "@/lib/sessions/types";
+import type { SessionsResponse } from "@/common/sessions/types";
+import { services } from "@/server/container";
 
 export async function GET() {
   await connection();
   try {
-    const [summaries, bookmarks] = await Promise.all([listClaudeSessions(), readBookmarks()]);
+    const [summaries, bookmarks] = await Promise.all([services().sessionIndex.list(), services().bookmarks.read()]);
     const sessions = summaries.map((session) => ({ ...session, bookmark: bookmarks.get(session.sessionId) ?? null }));
     return Response.json({ ok: true, sessions, scannedAt: Date.now() } satisfies SessionsResponse);
   } catch (error) {

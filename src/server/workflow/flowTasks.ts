@@ -1,6 +1,6 @@
 import "server-only";
 import path from "node:path";
-import type { FlowStageStatus, FlowTaskSummary } from "@/lib/workflow/types";
+import type { FlowStageStatus, FlowTaskSummary } from "@/common/workflow/types";
 import { checklistItemSchema, type ChecklistItem, type FlowStageJson, type FlowTaskJson } from "./schema";
 
 export interface WorktreeFlowTasks {

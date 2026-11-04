@@ -1,15 +1,13 @@
 import { connection } from "next/server";
-import { loadBoard } from "@/lib/orca/board";
-import { markBoardSeen } from "@/lib/permissions/store";
-import type { BoardResponse } from "@/lib/orca/types";
-import { warmClaudeSessions } from "@/lib/sessions/claudeSessions";
+import type { BoardResponse } from "@/common/orca/types";
+import { services } from "@/server/container";
 
 export async function GET() {
   await connection();
-  markBoardSeen();
-  warmClaudeSessions();
+  services().permissions.markBoardSeen();
+  services().sessionIndex.warm();
   try {
-    const board = await loadBoard();
+    const board = await services().orca.board.load();
     return Response.json({ ok: true, board } satisfies BoardResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

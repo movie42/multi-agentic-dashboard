@@ -2,7 +2,7 @@ import "server-only";
 import { appendFile, open, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import type { SessionRef } from "@/lib/sessions/types";
+import type { SessionRef } from "@/common/sessions/types";
 import type { SessionTitles as Titles } from "./summarize";
 import { readTitles } from "./transcriptFile";
 

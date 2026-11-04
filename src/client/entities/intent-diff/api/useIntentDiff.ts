@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { IntentDiffResponse, IntentDiffResult } from "@/lib/intentDiff/types";
+import type { IntentDiffResponse, IntentDiffResult } from "@/common/intentDiff/types";
 
 export interface IntentDiffQuery {
   worktreePath: string;

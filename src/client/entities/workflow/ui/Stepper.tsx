@@ -1,4 +1,4 @@
-import type { StepStatus, WorkflowStep } from "@/lib/workflow/types";
+import type { StepStatus, WorkflowStep } from "@/common/workflow/types";
 
 const CIRCLE: Record<StepStatus, string> = {
   done: "bg-done text-st-ink",

@@ -1,11 +1,12 @@
 import { connection } from "next/server";
-import { readRuntime, switchRuntime, type RuntimeResponse } from "@/lib/orca/runtime";
+import { services } from "@/server/container";
+import type { RuntimeResponse } from "@/common/orca/runtime";
 
 let switching: Promise<unknown> | null = null;
 
 export async function GET() {
   await connection();
-  const { mode } = await readRuntime();
+  const { mode } = await services().orca.runtime.read();
   return Response.json({ ok: true, mode } satisfies RuntimeResponse);
 }
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: "이미 전환 중이에요" } satisfies RuntimeResponse, { status: 409 });
   }
 
-  const task = switchRuntime(target);
+  const task = services().orca.runtime.switchTo(target);
   switching = task;
   try {
     const mode = await task;

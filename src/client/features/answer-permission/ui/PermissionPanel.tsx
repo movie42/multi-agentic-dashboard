@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ASK_USER_QUESTION, questionsOf } from "@/lib/permissions/questions";
+import { ASK_USER_QUESTION, questionsOf } from "@/common/permissions/questions";
 import type {
   PendingPermission,
   PermissionAnswer,
   PermissionSuggestion,
   UserQuestion,
-} from "@/lib/permissions/types";
+} from "@/common/permissions/types";
 import { postAction } from "@/client/shared/api/actions";
 
 type SendStatus =

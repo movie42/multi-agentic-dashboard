@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { LineChange, ToolEvent } from "@/lib/intentDiff/types";
+import type { LineChange, ToolEvent } from "@/common/intentDiff/types";
 import { parseJson } from "./report";
 import { type ContentBlock, patchResultSchema, recordSchema, type TranscriptLine, transcriptLineSchema } from "./schema";
 

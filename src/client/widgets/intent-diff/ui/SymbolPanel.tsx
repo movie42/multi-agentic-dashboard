@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { SymbolLocation, SymbolLookup, SymbolLookupResponse } from "@/lib/intentDiff/types";
+import type { SymbolLocation, SymbolLookup, SymbolLookupResponse } from "@/common/intentDiff/types";
 import type { SymbolTarget } from "./CodeLines";
 
 // `!` because a diff row already carries its own add/remove background class.

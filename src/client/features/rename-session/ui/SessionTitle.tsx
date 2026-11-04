@@ -2,7 +2,7 @@
 
 import { TITLE_LIMIT } from "@/common/sessions/limits";
 import { useState } from "react";
-import type { TitleSource } from "@/lib/sessions/types";
+import type { TitleSource } from "@/common/sessions/types";
 import { postAction } from "@/client/shared/api/actions";
 
 interface SessionTitleProps {

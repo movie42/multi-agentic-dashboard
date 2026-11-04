@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import type { FeatureCheck, FeatureSummary } from "@/lib/workflow/types";
+import type { FeatureCheck, FeatureSummary } from "@/common/workflow/types";
 import { isMissingPath, listDir, pathExists, type FileSystemPort, type ReportFn } from "@/server/shared/ports";
 import { sharedWaits, toFeatureRow, type PullRequestLookup } from "./features";
 import { featureDocSchema, type FeatureDocJson } from "./schema";

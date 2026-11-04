@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import type { AskEvent } from "@/lib/intentDiff/types";
+import type { AskEvent } from "@/common/intentDiff/types";
 import { type AskChild, AskRunner, cwdFromHead, readStreamMessage, type SpawnAsk } from "./AskRunner";
 import { AskStore } from "./AskStore";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { FeatureFile, FileDiff, Hunk, HunkPrecision } from "@/lib/intentDiff/types";
+import type { FeatureFile, FileDiff, Hunk, HunkPrecision } from "@/common/intentDiff/types";
 import { CodeLines } from "./CodeLines";
 
 const CHANGE_LABEL: Record<FileDiff["change"], string> = {

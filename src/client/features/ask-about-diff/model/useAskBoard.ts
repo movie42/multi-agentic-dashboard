@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useEffect, useState } from "react";
-import type { AskEvent, AskRequest, AskThread, AskThreadsResponse, IntentDiffResult } from "@/lib/intentDiff/types";
+import type { AskEvent, AskRequest, AskThread, AskThreadsResponse, IntentDiffResult } from "@/common/intentDiff/types";
 
 export interface LiveAnswer {
   text: string;

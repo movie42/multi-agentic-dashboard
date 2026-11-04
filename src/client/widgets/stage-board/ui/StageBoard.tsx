@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { AgentCard, WorktreeSummary } from "@/lib/orca/types";
-import { buildSteps, currentStep } from "@/lib/workflow/steps";
-import type { StepKey, WorkflowMode, WorkflowStep } from "@/lib/workflow/types";
+import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
+import { buildSteps, currentStep } from "@/common/workflow/steps";
+import type { StepKey, WorkflowMode, WorkflowStep } from "@/common/workflow/types";
 import { StateBadge } from "@/client/entities/agent";
 import { groupAgents } from "@/client/entities/agent";
 import { QuickReply } from "@/client/features/quick-reply";

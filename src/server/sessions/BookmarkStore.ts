@@ -1,7 +1,7 @@
 import "server-only";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { SessionBookmark } from "@/lib/sessions/types";
+import type { SessionBookmark } from "@/common/sessions/types";
 import { isMissing, parseJson, type Report } from "../shared/fallback";
 import { bookmarkLineSchema, type BookmarkLine } from "./schema";
 

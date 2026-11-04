@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { WorktreeSummary } from "@/lib/orca/types";
+import type { WorktreeSummary } from "@/common/orca/types";
 import { postAction } from "@/client/shared/api/actions";
-import { AttachButton, AttachmentList } from "@/client/features/attach-files";
-import { appendPaths, useAttachments } from "@/client/features/attach-files";
+import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
+import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 
 type LaunchStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent"; where: string } | { kind: "error"; message: string };
 

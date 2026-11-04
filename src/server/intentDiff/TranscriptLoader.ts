@@ -2,7 +2,7 @@ import "server-only";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import type { ToolEvent } from "@/lib/intentDiff/types";
+import type { ToolEvent } from "@/common/intentDiff/types";
 import { parseTranscript } from "./parseTranscript";
 import { isMissing, type Warn } from "./report";
 

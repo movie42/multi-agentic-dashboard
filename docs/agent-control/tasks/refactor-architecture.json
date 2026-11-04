@@ -596,9 +596,9 @@
       "status": "now",
       "summary": "질문 3라운드 반영 완료 — 승인 대기",
       "conclusion": [
-        "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이에요.",
-        "Phase 1·2: 테스트 안전망(단위·컴포넌트·E2E·계약)과 공용 기반(에러 로그 파일, 토스트·상태 줄, zod 스키마, 서버 서비스 컨테이너)을 깔았어요. 계약 테스트가 첫 실행에서 실제 Orca 출력과 타입의 차이(<code>hasLivePty</code>)를 잡았어요.",
-        "다음은 Phase 3: 서버 상태를 클래스로, 변환은 순수 함수로 나눠요."
+        "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이고, 이 브랜치와 합칠 때 <code>src/proxy.ts</code>는 루트 <code>proxy.ts</code>로 옮겨야 해요(라우트가 루트 <code>app/</code>로 이동).",
+        "Phase 1–4: 테스트 안전망, 공용 기반, 서버 상태의 클래스화(세션 2개 병렬), FSD 폴더 구조와 레이어 lint까지 끝났어요. <code>src/lib</code>는 없어졌어요.",
+        "다음은 Phase 5: TanStack Query, <code>use()</code>, <code>useActionState</code>, Zustand, React Compiler, page 서버 컴포넌트예요."
       ],
       "blocks": [
         {
@@ -860,37 +860,49 @@
             {
               "id": "P3-3",
               "title": "<code>AskStore</code> · 스냅샷 diff 캐시 · 기록 파일 읽기 클래스",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/lib/intentDiff/askStore.ts</code> · <code>ask.ts</code> · <code>snapshots.ts</code> · <code>transcripts.ts</code> · <code>languageService.ts</code> · <code>highlight.ts</code>"
+                  "<code>src/server/intentDiff/</code> — <code>AskStore</code> · <code>AskRunner</code> · <code>SnapshotLog</code> · <code>TranscriptLoader</code> · <code>LanguageServices</code> · <code>Highlighter</code> · <code>EditorThemeReader</code>"
+                ],
+                [
+                  "결정",
+                  "별도 세션(<code>refactor/fsd-p3-intentdiff</code>, <code>682649e</code>)이 작업하고 머지. 예전 10초 TTL이 하던 '새 파일 잡기'는 요청한 파일이 프로젝트 목록에 없고 디스크에 있을 때 설정을 다시 읽는 방식으로 TTL 없이 유지"
+                ],
+                [
+                  "결정",
+                  "Cursor 설정 읽기(<code>editorTheme.ts</code>)의 <code>globalThis</code> 캐시도 Phase 4에서 <code>EditorThemeReader</code> 클래스로"
                 ]
               ]
             },
             {
               "id": "P3-4",
               "title": "git · PR 정보 · flow 문서 읽기 클래스 (<code>lru-cache</code>)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/lib/workflow/git.ts</code> · <code>flowDocs.ts</code> · <code>featureDocs.ts</code> · <code>remoteCheck.ts</code>"
+                  "<code>src/server/workflow/</code> — <code>GitInfo</code> · <code>FlowDocReader</code> · <code>FeatureDocReader</code> · <code>FeatureCheckRunner</code> · 순수 함수 <code>flowTasks.ts</code> · <code>features.ts</code> · <code>featureCheck.ts</code> · <code>github.ts</code>"
                 ],
                 [
                   "결정",
-                  "[[R2-Q1]] lru-cache · [[R3-Q1]] 변경 신호 있으면 버전 키, 없으면(PR 상태) 유효 시간 + <code>allowStale</code>·<code>fetchMethod</code>, 전부 <code>max</code>"
+                  "별도 세션(<code>refactor/fsd-p3-workflow-orca</code>, <code>0392fa3</code>). [[R3-Q1]] PR 상태는 ttl 60s + allowStale + fetchMethod, 작업 방식 감지는 git config 파일 mtime 키. flow 스캔·feature 문서 읽기를 병렬화(결과 순서 같음)"
                 ]
               ]
             },
             {
               "id": "P3-5",
               "title": "<code>OrcaCli</code> · <code>OrcaRuntime</code> · 보드 스냅샷 클래스",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/lib/orca/cli.ts</code> · <code>runtime.ts</code> · <code>board.ts</code> · <code>orphans.ts</code>"
+                  "<code>src/server/orca/</code> — <code>OrcaCli</code> · <code>OrcaRuntime</code> · <code>OrphanReattacher</code> · <code>BoardService</code> · 순수 함수 <code>boardCards.ts</code> · <code>orphans.ts</code> · <code>runtimeMode.ts</code>"
+                ],
+                [
+                  "결정",
+                  "같은 세션이 작업. ps 종료 코드 1, kill -0 ESRCH, origin 없음 같은 예상된 실패는 보고 없이 대체값"
                 ]
               ]
             },
@@ -921,41 +933,66 @@
             {
               "id": "P4-1",
               "title": "레이어 배치와 Next 라우트 분리",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "결정",
-                  "[[R1-Q3]] 루트 app/ = Next 라우트(입구: 검증 → 서비스 호출) · [[R2-Q2]] <code>src/client</code>(FSD, pages→views) · <code>src/server</code>(<code>server-only</code>) · <code>src/common</code>(공용 타입·zod)"
+                  "[[R1-Q3]] [[R2-Q2]] 라우트는 루트 <code>app/</code>, <code>src/client</code>(FSD) · <code>src/server</code> · <code>src/common</code>(타입·zod·순수 표시 로직 <code>steps.ts</code>·<code>screen.ts</code>·<code>questions.ts</code>). <code>src/lib</code>와 래퍼 함수는 모두 삭제, 라우트는 <code>services()</code>를 직접 부름"
+                ],
+                [
+                  "결정",
+                  "서버 모듈끼리의 의존은 container가 생성자로 주입 — <code>orca/services.ts</code>가 lib 래퍼를 거쳐 sessions·permissions를 부르던 순환 import 제거. <code>buildIntentDiff(request, deps)</code>도 서비스를 인자로 받음"
                 ]
               ]
             },
             {
               "id": "P4-2",
               "title": "<code>features/board</code> · <code>features/intentDiff</code>를 views · widgets · features · entities로 쪼갬",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>Dashboard.tsx</code>(621줄) · <code>WorktreePanel.tsx</code> · <code>IntentDiffView.tsx</code>"
+                  "<code>src/client/{shared,entities,features,widgets,views}</code> — 슬라이스마다 바깥에서 쓰는 이름만 내보내는 <code>index.ts</code>"
+                ],
+                [
+                  "결정",
+                  "같은 레이어끼리 import하던 곳을 정리: <code>StateBadge</code>는 <code>entities/agent</code>로, <code>WorktreePanel</code>은 <code>AgentList</code>를 직접 import하지 않고 <code>renderAgents</code> prop으로 받음, 파일 첨부는 사용 시나리오가 아닌 공용 부품이라 <code>shared</code>로"
+                ],
+                [
+                  "결정",
+                  "<code>/diff</code> 페이지 내용은 <code>views/diff</code>의 서버 컴포넌트 <code>DiffContent</code>"
                 ]
               ]
             },
             {
               "id": "P4-3",
               "title": "레이어 import 방향을 lint로 강제 (Steiger 또는 eslint-plugin-boundaries)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
+                  "파일",
+                  "<code>eslint.config.mjs</code>"
+                ],
+                [
                   "결정",
-                  "[[R2-Q2]] [[R3-Q4]] server→common, client→common, app→전부만 허용 · client 안은 FSD 레이어 방향"
+                  "추가 플러그인 없이 <code>no-restricted-imports</code>로: server↛client, common↛server·client·node, client↛server·node, FSD 상위 레이어·같은 레이어 다른 슬라이스·슬라이스 내부 파일 직접 import 금지. 임시 파일로 세 종류 위반이 모두 잡히는지 확인"
                 ]
               ]
             },
             {
               "id": "P4-V",
               "title": "검증: 테스트 · tsc · lint · <code>bun run build</code> 통과, 브라우저로 보드·diff 화면 확인",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "vitest 177 · contract 5 · playwright 3 · tsc 0 · lint 경고 2(기존) · <code>bun run build</code> 성공. 진짜 Orca로 dev 서버를 띄워 보드·세션·런타임·활동·diff API 응답과 보드·diff 화면 렌더, 콘솔 에러 0 확인"
+                ],
+                [
+                  "남은 것",
+                  "빌드 경고 2건: <code>editorTheme.ts</code>가 환경 변수로 정한 경로를 읽어 Turbopack이 프로젝트 전체를 추적한다는 경고. 경로가 실행 시점에 정해지는 구조라 남김(<code>outputFileTracingExcludes</code>가 src·docs를 이미 제외)"
+                ]
+              ]
             }
           ]
         },

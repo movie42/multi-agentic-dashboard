@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BoardResponse, BoardSnapshot } from "@/lib/orca/types";
+import type { BoardResponse, BoardSnapshot } from "@/common/orca/types";
 
 const POLL_MS = 3000;
 

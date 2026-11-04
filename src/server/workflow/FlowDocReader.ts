@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import type { FlowTaskSummary } from "@/lib/workflow/types";
+import type { FlowTaskSummary } from "@/common/workflow/types";
 import { listDir, pathExists, type FileSystemPort, type ReportFn } from "@/server/shared/ports";
 import { summarizeFlowTask, type WorktreeFlowScan } from "./flowTasks";
 import { flowTaskSchema, type FlowTaskJson } from "./schema";

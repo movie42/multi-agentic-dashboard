@@ -5,8 +5,8 @@ import path from "node:path";
 import { createHighlighterCore, type HighlighterCore } from "@shikijs/core";
 import { createOnigurumaEngine } from "@shikijs/engine-oniguruma";
 import { LRUCache } from "lru-cache";
-import type { EditorThemes } from "@/lib/intentDiff/editorTheme";
-import type { DiffRange, FileDiff, SymbolLocation, SymbolLookup } from "@/lib/intentDiff/types";
+import type { EditorThemes } from "@/server/intentDiff/editorTheme";
+import type { DiffRange, FileDiff, SymbolLocation, SymbolLookup } from "@/common/intentDiff/types";
 import { isMissing, type Warn } from "./report";
 
 const MAX_BYTES = 400 * 1024;

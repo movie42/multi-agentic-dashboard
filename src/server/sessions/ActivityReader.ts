@@ -2,7 +2,7 @@ import "server-only";
 import { stat } from "node:fs/promises";
 import { LRUCache } from "lru-cache";
 import { stepsOf, STEP_LIMIT } from "@/server/sessions/activitySteps";
-import type { ActivityStep } from "@/lib/sessions/types";
+import type { ActivityStep } from "@/common/sessions/types";
 import { readTail } from "./transcriptFile";
 
 const TAIL_BYTES = 512 * 1024;

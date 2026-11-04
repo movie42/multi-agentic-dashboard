@@ -3,14 +3,9 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { featureCheckInput } from "@/lib/orca/board";
-import { runOrca } from "@/lib/orca/cli";
-import { startFeatureCheck } from "@/lib/workflow/remoteCheck";
 import { actionRequestSchema, type ActionResponse } from "@/common/actions/schema";
-import { answerPermission } from "@/lib/permissions/store";
-import { ORCA_BUNDLE_ID, readRuntime } from "@/lib/orca/runtime";
-import { removeBookmark, saveBookmark } from "@/lib/sessions/bookmarks";
-import { renameSession } from "@/lib/sessions/sessionTitle";
+import { services } from "@/server/container";
+import { ORCA_BUNDLE_ID } from "@/server/orca/OrcaRuntime";
 
 const execFileAsync = promisify(execFile);
 async function resolveTarget(target: string): Promise<{ url: string; filePath: string | null }> {
@@ -24,11 +19,11 @@ async function resolveTarget(target: string): Promise<{ url: string; filePath: s
 const HEADLESS_ERROR = "헤드리스 모드에는 Orca 창이 없어요. 사이드바에서 앱 모드로 바꿔 주세요.";
 
 async function requireAppWindow() {
-  if ((await readRuntime()).mode === "headless") throw new Error(HEADLESS_ERROR);
+  if ((await services().orca.runtime.read()).mode === "headless") throw new Error(HEADLESS_ERROR);
 }
 
 async function bringOrcaForward() {
-  if ((await readRuntime()).mode === "headless") return;
+  if ((await services().orca.runtime.read()).mode === "headless") return;
   await execFileAsync("open", ["-b", ORCA_BUNDLE_ID]);
 }
 
@@ -48,17 +43,17 @@ export async function POST(request: Request) {
         await execFileAsync("open", [filePath ?? url]);
       } else {
         await requireAppWindow();
-        await runOrca(["tab", "create", "--url", url, "--worktree", `path:${body.worktreePath}`]);
+        await services().orca.cli.run(["tab", "create", "--url", url, "--worktree", `path:${body.worktreePath}`]);
         await bringOrcaForward();
       }
     } else if (body.type === "focus-terminal") {
       await requireAppWindow();
-      await runOrca(["terminal", "switch", "--terminal", body.terminalHandle]);
+      await services().orca.cli.run(["terminal", "switch", "--terminal", body.terminalHandle]);
       await bringOrcaForward();
     } else if (body.type === "close-terminal") {
-      await runOrca(["terminal", "close", "--terminal", body.terminalHandle]);
+      await services().orca.cli.run(["terminal", "close", "--terminal", body.terminalHandle]);
     } else if (body.type === "send-prompt") {
-      await runOrca([
+      await services().orca.cli.run([
         "terminal",
         "send",
         "--terminal",
@@ -70,12 +65,12 @@ export async function POST(request: Request) {
         "3",
       ]);
     } else if (body.type === "choose-option") {
-      await runOrca(["terminal", "send", "--terminal", body.terminalHandle, "--text", String(body.option)]);
+      await services().orca.cli.run(["terminal", "send", "--terminal", body.terminalHandle, "--text", String(body.option)]);
     } else if (body.type === "answer-permission") {
-      if (!answerPermission(body.requestId, body.answer)) throw new Error("이미 끝난 요청이에요");
+      if (!services().permissions.answer(body.requestId, body.answer)) throw new Error("이미 끝난 요청이에요");
     } else if (body.type === "launch-agent") {
       const prompt = body.prompt.trim();
-      await runOrca([
+      await services().orca.cli.run([
         "agent",
         "launch",
         "--agent",
@@ -88,20 +83,20 @@ export async function POST(request: Request) {
       ]);
     } else if (body.type === "open-terminal") {
       await requireAppWindow();
-      await runOrca(["terminal", "create", "--worktree", `path:${body.worktreePath}`, "--focus"]);
+      await services().orca.cli.run(["terminal", "create", "--worktree", `path:${body.worktreePath}`, "--focus"]);
       await bringOrcaForward();
     } else if (body.type === "rename-session") {
-      await renameSession(body.sessionId, body.title.trim());
+      await services().sessionTitles.rename(body.sessionId, body.title.trim());
     } else if (body.type === "bookmark-session") {
-      await saveBookmark({ sessionId: body.sessionId, name: body.name.trim(), cwd: body.cwd, memo: body.memo.trim() });
+      await services().bookmarks.save({ sessionId: body.sessionId, name: body.name.trim(), cwd: body.cwd, memo: body.memo.trim() });
     } else if (body.type === "unbookmark-session") {
-      await removeBookmark(body.sessionId);
+      await services().bookmarks.remove(body.sessionId);
     } else if (body.type === "check-feature") {
-      startFeatureCheck(await featureCheckInput(body.featureId));
+      services().workflow.featureChecks.start(await services().orca.board.featureCheckInput(body.featureId));
     } else {
       const info = await stat(body.cwd);
       if (!info.isDirectory()) throw new Error("session folder no longer exists");
-      await runOrca([
+      await services().orca.cli.run([
         "terminal",
         "create",
         "--worktree",

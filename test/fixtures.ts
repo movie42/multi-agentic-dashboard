@@ -1,5 +1,5 @@
-import type { AgentCard } from "@/lib/orca/types";
-import type { FlowTaskSummary } from "@/lib/workflow/types";
+import type { AgentCard } from "@/common/orca/types";
+import type { FlowTaskSummary } from "@/common/workflow/types";
 
 export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
   return {

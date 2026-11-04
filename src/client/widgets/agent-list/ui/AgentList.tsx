@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AgentCard } from "@/lib/orca/types";
+import type { AgentCard } from "@/common/orca/types";
 import { StateBadge } from "@/client/entities/agent";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";

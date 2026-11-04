@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import type { PullRequestInfo, WorkflowMode } from "@/lib/workflow/types";
+import type { PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
 import { errorField, isMissingPath, type ExecFileFn, type FileSystemPort, type ReportFn } from "@/server/shared/ports";
 import {
   isMissingRemote,

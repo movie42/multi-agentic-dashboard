@@ -3,10 +3,10 @@ import { spawn } from "node:child_process";
 import { openSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pendingByPane, settleStale } from "@/lib/permissions/store";
-import { readBookmarks } from "@/lib/sessions/bookmarks";
-import { findSession } from "@/lib/sessions/fullMessage";
-import { sessionRefOf } from "@/lib/sessions/sessionTitle";
+import type { PermissionStore } from "@/server/permissions/PermissionStore";
+import type { BookmarkStore } from "@/server/sessions/BookmarkStore";
+import type { SessionLocator } from "@/server/sessions/SessionLocator";
+import type { SessionTitles } from "@/server/sessions/SessionTitles";
 import { nodeExecFile, nodeFileSystem } from "@/server/shared/ports";
 import type { Reporters, WorkflowServices } from "@/server/workflow/services";
 import { BoardService } from "./BoardService";
@@ -34,7 +34,16 @@ const nodeProcesses: ProcessPort = {
   env: () => process.env,
 };
 
-export function createOrcaServices({ warn }: Reporters, workflow: WorkflowServices): OrcaServices {
+export interface OrcaDeps {
+  workflow: WorkflowServices;
+  permissions: PermissionStore;
+  bookmarks: BookmarkStore;
+  sessionLocator: SessionLocator;
+  sessionTitles: SessionTitles;
+}
+
+export function createOrcaServices({ warn }: Reporters, deps: OrcaDeps): OrcaServices {
+  const { workflow, permissions, bookmarks, sessionLocator, sessionTitles } = deps;
   const cli = new OrcaCli(ORCA_BIN, nodeExecFile);
   const runtime = new OrcaRuntime({ cli, execFile: nodeExecFile, processes: nodeProcesses, warn });
   const orphans = new OrphanReattacher({ cli, runtime, warn });
@@ -42,8 +51,15 @@ export function createOrcaServices({ warn }: Reporters, workflow: WorkflowServic
     cli,
     orphans,
     workflow,
-    sessions: { findSession, sessionRefOf, readBookmarks },
-    permissions: { settleStale, pendingByPane },
+    sessions: {
+      findSession: (paneKey, cwd, preview, prompt) => sessionLocator.find(paneKey, cwd, preview, prompt),
+      sessionRefOf: (file, size) => sessionTitles.refOf(file, size),
+      readBookmarks: () => bookmarks.read(),
+    },
+    permissions: {
+      settleStale: (paneKey, state, since) => permissions.settleStale(paneKey, state, since),
+      pendingByPane: () => permissions.pendingByPane(),
+    },
     fs: nodeFileSystem,
     warn,
   });

@@ -1,7 +1,7 @@
 "use client";
 
-import type { ProjectSummary } from "@/lib/orca/types";
-import type { WorkflowMode } from "@/lib/workflow/types";
+import type { ProjectSummary } from "@/common/orca/types";
+import type { WorkflowMode } from "@/common/workflow/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 
 const SESSIONS_PAGE = "@sessions";

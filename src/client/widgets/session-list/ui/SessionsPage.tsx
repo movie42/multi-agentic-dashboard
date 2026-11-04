@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ActionRequest } from "@/lib/orca/actions";
-import type { SessionBookmark, SessionSummary, SessionsResponse, TitleSource } from "@/lib/sessions/types";
+import type { ActionRequest } from "@/common/actions/schema";
+import type { SessionBookmark, SessionSummary, SessionsResponse, TitleSource } from "@/common/sessions/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";

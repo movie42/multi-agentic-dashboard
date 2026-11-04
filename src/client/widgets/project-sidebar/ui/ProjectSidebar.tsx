@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectSummary } from "@/lib/orca/types";
+import type { ProjectSummary } from "@/common/orca/types";
 import { formatClock } from "@/client/shared/lib/format";
 import { RuntimeSwitch } from "@/client/features/switch-runtime";
 import type { WorkspacePrefs } from "@/client/entities/workspace";

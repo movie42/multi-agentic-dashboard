@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext } from "react";
-import type { FeatureFile, FileDiff, Hunk } from "@/lib/intentDiff/types";
+import type { FeatureFile, FileDiff, Hunk } from "@/common/intentDiff/types";
 
 export interface HunkEntry {
   file: FileDiff;

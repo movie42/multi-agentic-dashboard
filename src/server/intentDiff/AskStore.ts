@@ -2,7 +2,7 @@ import "server-only";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
-import type { AskThread } from "@/lib/intentDiff/types";
+import type { AskThread } from "@/common/intentDiff/types";
 import { isMissing, type Warn } from "./report";
 import { askStoreFileSchema, askThreadSchema } from "./schema";
 

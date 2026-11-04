@@ -1,7 +1,7 @@
 "use client";
 
-import type { ActionRequest } from "@/lib/orca/actions";
-import type { FeatureCheck, FeatureSummary, FileOverlap, SharedWait } from "@/lib/workflow/types";
+import type { ActionRequest } from "@/common/actions/schema";
+import type { FeatureCheck, FeatureSummary, FileOverlap, SharedWait } from "@/common/workflow/types";
 import { formatClock } from "@/client/shared/lib/format";
 
 interface FeatureGroupProps {

@@ -48,8 +48,8 @@ beforeAll(async () => {
 
 describe("listClaudeSessions", () => {
   it("summarizes transcripts newest first and skips sessions without prompts", async () => {
-    const { listClaudeSessions } = await import("@/lib/sessions/claudeSessions");
-    const sessions = await listClaudeSessions();
+    const { services } = await import("@/server/container");
+    const sessions = await services().sessionIndex.list();
     expect(sessions.map(({ sizeBytes, ...rest }) => ({ ...rest, sized: sizeBytes > 0 }))).toEqual([
       {
         sessionId: S1,
@@ -92,7 +92,11 @@ describe("listClaudeSessions", () => {
 
 describe("session titles", () => {
   it("reads the title, renames by appending a custom-title line, and reads it back", async () => {
-    const { renameSession, sessionRefOf, transcriptOf } = await import("@/lib/sessions/sessionTitle");
+    const { services } = await import("@/server/container");
+    const titles = services().sessionTitles;
+    const transcriptOf = (id: string) => titles.transcriptOf(id);
+    const sessionRefOf = (file: string, size: number) => titles.refOf(file, size);
+    const renameSession = (id: string, title: string) => titles.rename(id, title);
     const file = await transcriptOf(S1);
     expect(file).toBe(path.join(PROJECT_DIR, `${S1}.jsonl`));
     const before = await readFile(file, "utf8");
@@ -108,7 +112,10 @@ describe("session titles", () => {
 describe("findSession", () => {
   it("matches a pane by its last reply, then remembers the file", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { findSession, projectDirOf } = await import("@/lib/sessions/fullMessage");
+    const { services } = await import("@/server/container");
+    const locator = services().sessionLocator;
+    const projectDirOf = (cwd: string) => locator.projectDirOf(cwd);
+    const findSession = (pane: string, cwd: string, preview: string | null, prompt: string | null) => locator.find(pane, cwd, preview, prompt);
     expect(projectDirOf(CWD)).toBe(PROJECT_DIR);
     const byReply = await findSession("pane-1", CWD, "마지막 답변은 열 글자를 넘겨요", null);
     expect(byReply).toMatchObject({ file: path.join(PROJECT_DIR, `${S1}.jsonl`), lastAssistant: "마지막 답변은 열 글자를 넘겨요" });
@@ -119,7 +126,11 @@ describe("findSession", () => {
 
 describe("bookmarks", () => {
   it("saves, reads and removes claude bookmarks in the sb file format", async () => {
-    const { readBookmarks, removeBookmark, saveBookmark } = await import("@/lib/sessions/bookmarks");
+    const { services } = await import("@/server/container");
+    const store = services().bookmarks;
+    const readBookmarks = () => store.read();
+    const saveBookmark = (input: { sessionId: string; name: string; cwd: string; memo: string }) => store.save(input);
+    const removeBookmark = (id: string) => store.remove(id);
     await writeFile(path.join(ROOT, "bookmarks.jsonl"), `${line({ provider: "codex", name: "x", session_id: "c", cwd: "/", created_at: "2026-01-01 00:00" })}\nnot json\n`);
     vi.spyOn(console, "warn").mockImplementation(() => {});
     await saveBookmark({ sessionId: S1, name: "북마크", cwd: CWD, memo: "메모" });

@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DiffTab } from "@/client/widgets/intent-diff";
-import type { ActionRequest } from "@/lib/orca/actions";
+import type { ActionRequest } from "@/common/actions/schema";
 import type {
   AgentCard,
   ProjectSummary,
   WorktreeSummary,
-} from "@/lib/orca/types";
-import { buildSteps } from "@/lib/workflow/steps";
-import type { FeatureSummary, WorkflowMode } from "@/lib/workflow/types";
+} from "@/common/orca/types";
+import { buildSteps } from "@/common/workflow/steps";
+import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { AgentCardView, type CardProgress } from "@/client/widgets/agent-card";
 import { foldWorkers, groupAgents, type FoldedAgents } from "@/client/entities/agent";

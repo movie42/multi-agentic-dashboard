@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext, useState } from "react";
-import type { FeatureCluster, FeatureMap, FileOwner, OwnerKind } from "@/lib/intentDiff/types";
+import type { FeatureCluster, FeatureMap, FileOwner, OwnerKind } from "@/common/intentDiff/types";
 import { HunkBlock } from "./HunkBlock";
 import { HunkLookup } from "@/client/entities/intent-diff";
 

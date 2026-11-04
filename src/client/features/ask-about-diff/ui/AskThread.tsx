@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState } from "react";
 import { postAction } from "@/client/shared/api/actions";
-import type { AskAnchor, AskContext, AskTarget, AskThread } from "@/lib/intentDiff/types";
+import type { AskAnchor, AskContext, AskTarget, AskThread } from "@/common/intentDiff/types";
 import { AnswerMarkdown } from "./AnswerMarkdown";
 import { AskBoardContext } from "../model/useAskBoard";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { RuntimeMode, RuntimeResponse } from "@/lib/orca/runtime";
+import type { RuntimeMode, RuntimeResponse } from "@/common/orca/runtime";
 
 const POLL_MS = 15_000;
 

@@ -44,23 +44,26 @@ function createServices(): Services {
   };
   const workflow = createWorkflowServices(reporters);
   const sessionTitles = new SessionTitles(PROJECTS_DIR);
-  const intentDiff = createIntentDiffServices();
+  const sessionLocator = new SessionLocator({ projectsDir: PROJECTS_DIR, liveSessionsDir: LIVE_SESSIONS_DIR, warn });
+  const permissions = new PermissionStore();
+  const bookmarks = new BookmarkStore(BOOKMARK_FILE, warn);
+  const intentDiff = createIntentDiffServices({ projectDirOf: (cwd) => sessionLocator.projectDirOf(cwd), warn });
   return {
     errorLog,
-    permissions: new PermissionStore(),
+    permissions,
     sessionIndex: new SessionIndex({
       projectsDir: PROJECTS_DIR,
       cacheFile: SESSION_CACHE_FILE,
       askSessionIds: () => intentDiff.askStore.sessionIds(),
       warn,
     }),
-    sessionLocator: new SessionLocator({ projectsDir: PROJECTS_DIR, liveSessionsDir: LIVE_SESSIONS_DIR, warn }),
+    sessionLocator,
     sessionTitles,
     activity: new ActivityReader((sessionId) => sessionTitles.cachedTranscriptOf(sessionId)),
-    bookmarks: new BookmarkStore(BOOKMARK_FILE, warn),
+    bookmarks,
     ...intentDiff,
     workflow,
-    orca: createOrcaServices(reporters, workflow),
+    orca: createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles }),
   };
 }
 

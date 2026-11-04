@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { BoardSnapshot } from "@/lib/orca/types";
-import type { FeatureSummary } from "@/lib/workflow/types";
+import type { BoardSnapshot } from "@/common/orca/types";
+import type { FeatureSummary } from "@/common/workflow/types";
 import { rawAgent, rawWorktree } from "./boardFixtures";
 import {
   buildAgentCard,

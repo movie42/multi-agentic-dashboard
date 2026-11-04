@@ -1,10 +1,8 @@
 import { connection, type NextRequest } from "next/server";
-import { reportWarning } from "@/server/container";
+import { reportWarning, services } from "@/server/container";
 import { reportAnd } from "@/server/shared/fallback";
-import { git } from "@/lib/intentDiff/gitDiff";
-import { highlightLookup } from "@/lib/intentDiff/highlight";
-import { lookupSymbol } from "@/lib/intentDiff/languageService";
-import type { SymbolLookupResponse } from "@/lib/intentDiff/types";
+import { git } from "@/server/intentDiff/gitDiff";
+import type { SymbolLookupResponse } from "@/common/intentDiff/types";
 
 export async function GET(request: NextRequest) {
   await connection();
@@ -19,8 +17,8 @@ export async function GET(request: NextRequest) {
   try {
     const rev = params.get("rev");
     const shownText = rev ? ((await git(worktreePath, ["show", `${rev}:${file}`]).catch(reportAnd("", reportWarning, "intent-diff/symbol", { worktreePath, rev, file }))).split("\n")[line - 1] ?? null) : null;
-    const lookup = lookupSymbol(worktreePath, file, line, column, shownText);
-    await highlightLookup(worktreePath, lookup);
+    const lookup = services().languageServices.lookup(worktreePath, file, line, column, shownText);
+    await services().highlighter.lookup(worktreePath, lookup);
     return Response.json({ ok: true, lookup } satisfies SymbolLookupResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

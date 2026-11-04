@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext, useState } from "react";
-import type { FlowData, FlowStep, FlowSymbol, ItemFlow, SymbolKind } from "@/lib/intentDiff/types";
+import type { FlowData, FlowStep, FlowSymbol, ItemFlow, SymbolKind } from "@/common/intentDiff/types";
 import { AskDraft, AskPlanItem, AskStepContext, ThreadView, type AskStep } from "@/client/features/ask-about-diff";
 import { CodeLines, diffText } from "./CodeLines";
 import { AskBoardContext } from "@/client/features/ask-about-diff";

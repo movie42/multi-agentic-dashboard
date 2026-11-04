@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ActivityResponse, ActivityStep, ToolStatus } from "@/lib/sessions/types";
+import type { ActivityResponse, ActivityStep, ToolStatus } from "@/common/sessions/types";
 import { formatClock } from "@/client/shared/lib/format";
 
 const POLL_MS = 2000;

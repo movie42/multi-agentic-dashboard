@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { TerminalScreen, TerminalScreenResponse } from "@/lib/orca/screen";
+import type { TerminalScreen, TerminalScreenResponse } from "@/common/orca/screen";
 import { postAction } from "@/client/shared/api/actions";
 
 const POLL_MS = 2000;

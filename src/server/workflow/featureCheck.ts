@@ -1,5 +1,5 @@
 import "server-only";
-import type { FileOverlap } from "@/lib/workflow/types";
+import type { FileOverlap } from "@/common/workflow/types";
 
 export interface CheckWorktree {
   path: string;

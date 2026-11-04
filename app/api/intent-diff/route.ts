@@ -1,6 +1,7 @@
 import { connection, type NextRequest } from "next/server";
-import { buildIntentDiff } from "@/lib/intentDiff/build";
-import type { IntentDiffResponse } from "@/lib/intentDiff/types";
+import { services } from "@/server/container";
+import { buildIntentDiff } from "@/server/intentDiff/build";
+import type { IntentDiffResponse } from "@/common/intentDiff/types";
 
 export async function GET(request: NextRequest) {
   await connection();
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       base: params.get("base") || null,
       head: params.get("head") || null,
       task: params.get("task") || null,
-    });
+    }, services());
     return Response.json({ ok: true, result } satisfies IntentDiffResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

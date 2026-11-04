@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PendingPermission } from "@/lib/permissions/types";
+import type { PendingPermission } from "@/common/permissions/types";
 import { fakeFileSystem } from "@/server/shared/fakes";
 import { FeatureDocReader } from "@/server/workflow/FeatureDocReader";
 import { FlowDocReader } from "@/server/workflow/FlowDocReader";

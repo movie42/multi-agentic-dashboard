@@ -1,9 +1,9 @@
 import "server-only";
 import path from "node:path";
 
-export type RuntimeMode = "app" | "headless" | "off";
+import type { RuntimeMode } from "@/common/orca/runtime";
 
-export type RuntimeResponse = { ok: true; mode: RuntimeMode } | { ok: false; error: string };
+export type { RuntimeMode, RuntimeResponse } from "@/common/orca/runtime";
 
 export interface RuntimeStatus {
   mode: RuntimeMode;

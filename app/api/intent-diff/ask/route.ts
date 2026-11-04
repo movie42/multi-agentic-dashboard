@@ -1,11 +1,10 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { connection, type NextRequest } from "next/server";
-import { reportWarning } from "@/server/container";
+import { reportWarning, services } from "@/server/container";
 import { missingOr } from "@/server/shared/fallback";
-import { prepareFollowUp, prepareNewThread, runAsk, type PreparedAsk } from "@/lib/intentDiff/ask";
-import { getThread, listThreads } from "@/lib/intentDiff/askStore";
-import type { AskAnchor, AskContext, AskEvent, AskThreadsResponse } from "@/lib/intentDiff/types";
+import type { AskAnchor, AskContext, AskEvent, AskThreadsResponse } from "@/common/intentDiff/types";
+import type { PreparedAsk } from "@/server/intentDiff/AskRunner";
 
 const MAX_QUESTION = 8000;
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest) {
   const worktreePath = request.nextUrl.searchParams.get("path");
   if (!worktreePath) return Response.json({ ok: false, error: "path가 필요해요" } satisfies AskThreadsResponse, { status: 400 });
   try {
-    return Response.json({ ok: true, threads: await listThreads(worktreePath) } satisfies AskThreadsResponse);
+    return Response.json({ ok: true, threads: await services().askStore.list(worktreePath) } satisfies AskThreadsResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[intent-diff/ask]", message);
@@ -65,14 +64,14 @@ export async function POST(request: NextRequest) {
 
   let prepared: PreparedAsk;
   if (typeof body.threadId === "string") {
-    const thread = await getThread(body.threadId);
+    const thread = await services().askStore.get(body.threadId);
     if (!thread || thread.worktreePath !== worktreePath) return badRequest("대화를 찾지 못했어요");
-    prepared = prepareFollowUp(thread, question);
+    prepared = services().askRunner.prepareFollowUp(thread, question);
   } else {
     if (!isAnchor(body.anchor) || !isContext(body.context)) return badRequest("고른 줄 정보가 올바르지 않아요");
     const writer = typeof body.writerSessionId === "string" && SESSION_ID.test(body.writerSessionId) ? body.writerSessionId : null;
     const fresh = body.fresh === true;
-    prepared = await prepareNewThread({
+    prepared = await services().askRunner.prepareNewThread({
       worktreePath,
       anchor: body.anchor,
       context: body.context,
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
           open = false;
         }
       };
-      runAsk(prepared, emit)
+      services().askRunner.run(prepared, emit)
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : String(error);
           console.error("[intent-diff/ask]", message);

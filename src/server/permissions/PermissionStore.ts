@@ -1,8 +1,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { suggestionsOf, type PermissionAnswer, type PermissionHookInput } from "@/common/permissions/schema";
-import { questionsOf } from "@/lib/permissions/questions";
-import type { PendingPermission, PermissionHookDecision, PermissionHookOutput } from "@/lib/permissions/types";
+import { questionsOf } from "@/common/permissions/questions";
+import type { PendingPermission, PermissionHookDecision, PermissionHookOutput } from "@/common/permissions/types";
 
 export const PRESENCE_MS = 10_000;
 export const HOLD_MS = 590_000;

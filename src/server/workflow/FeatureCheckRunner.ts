@@ -1,6 +1,6 @@
 import "server-only";
 import { LRUCache } from "lru-cache";
-import type { FeatureCheck } from "@/lib/workflow/types";
+import type { FeatureCheck } from "@/common/workflow/types";
 import type { ExecFileFn, ReportFn } from "@/server/shared/ports";
 import { findOverlaps, outputLines, overlapCandidates, type CheckInput } from "./featureCheck";
 

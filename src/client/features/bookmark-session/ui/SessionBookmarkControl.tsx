@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SessionBookmark } from "@/lib/sessions/types";
+import type { SessionBookmark } from "@/common/sessions/types";
 import { type BookmarkTarget, useSessionBookmark } from "../model/useSessionBookmark";
 
 const MEMO_LIMIT = 500;

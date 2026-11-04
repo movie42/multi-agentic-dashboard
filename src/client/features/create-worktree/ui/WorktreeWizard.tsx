@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { WorktreeSummary } from "@/lib/orca/types";
-import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/lib/worktreeWizard/types";
+import type { WorktreeSummary } from "@/common/orca/types";
+import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
 
 type Step =
   | { kind: "closed" }

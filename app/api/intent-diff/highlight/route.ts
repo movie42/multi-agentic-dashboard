@@ -1,6 +1,6 @@
 import { connection, type NextRequest } from "next/server";
-import { highlightLines } from "@/lib/intentDiff/highlight";
-import type { HighlightResponse } from "@/lib/intentDiff/types";
+import type { HighlightResponse } from "@/common/intentDiff/types";
+import { services } from "@/server/container";
 
 const MAX_CODE = 50_000;
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const extension = EXTENSION_BY_FENCE[lang.toLowerCase()] ?? "";
-    return Response.json({ ok: true, html: await highlightLines(code, `answer${extension}`) } satisfies HighlightResponse);
+    return Response.json({ ok: true, html: await services().highlighter.lines(code, `answer${extension}`) } satisfies HighlightResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[intent-diff/highlight]", message);

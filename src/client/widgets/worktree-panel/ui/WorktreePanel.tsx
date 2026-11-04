@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { intentDiffHref } from "@/client/entities/intent-diff";
-import type { ActionRequest } from "@/lib/orca/actions";
-import type { AgentCard, WorktreeSummary } from "@/lib/orca/types";
-import { buildSteps } from "@/lib/workflow/steps";
+import type { ActionRequest } from "@/common/actions/schema";
+import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
+import { buildSteps } from "@/common/workflow/steps";
 import type {
   FeatureRowSummary,
   PullRequestInfo,
   WorkflowMode,
-} from "@/lib/workflow/types";
+} from "@/common/workflow/types";
 import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";

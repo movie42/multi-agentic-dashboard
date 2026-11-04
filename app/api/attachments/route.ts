@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { AttachmentResponse } from "@/lib/orca/actions";
+import type { AttachmentResponse } from "@/common/actions/schema";
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const ATTACHMENT_DIR = path.join(os.tmpdir(), "agent-control", "attachments");

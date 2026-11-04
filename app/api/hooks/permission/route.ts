@@ -1,25 +1,21 @@
-import {
-  HOLD_MS,
-  holdPermission,
-  isDashboardOpen,
-  releasePermission,
-} from "@/lib/permissions/store";
 import { permissionHookInputSchema } from "@/common/permissions/schema";
-import type { PermissionHookOutput } from "@/lib/permissions/types";
+import type { PermissionHookOutput } from "@/common/permissions/types";
+import { services } from "@/server/container";
+import { HOLD_MS } from "@/server/permissions/PermissionStore";
 
 const PANE_KEY = /^[0-9a-f-]+:[0-9a-f-]+$/;
 
 export async function POST(request: Request) {
   const paneKey = request.headers.get("x-orca-pane") ?? "";
   const parsed = permissionHookInputSchema.safeParse(await request.json().catch(() => null));
-  if (!PANE_KEY.test(paneKey) || !parsed.success || !isDashboardOpen()) {
+  if (!PANE_KEY.test(paneKey) || !parsed.success || !services().permissions.isDashboardOpen()) {
     return Response.json({} satisfies PermissionHookOutput);
   }
 
-  const { request: held, result } = holdPermission(paneKey, parsed.data);
+  const { request: held, result } = services().permissions.hold(paneKey, parsed.data);
   console.log("[permission-hook] held", held.id, held.toolName, paneKey);
-  const timer = setTimeout(() => releasePermission(held.id), HOLD_MS);
-  const onAbort = () => releasePermission(held.id);
+  const timer = setTimeout(() => services().permissions.release(held.id), HOLD_MS);
+  const onAbort = () => services().permissions.release(held.id);
   request.signal.addEventListener("abort", onAbort);
   try {
     const output = await result;

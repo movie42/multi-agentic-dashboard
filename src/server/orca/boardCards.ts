@@ -1,8 +1,8 @@
 import "server-only";
-import type { AgentCard, AgentState, Artifact, BoardSnapshot, WorktreeSummary } from "@/lib/orca/types";
-import type { PendingPermission } from "@/lib/permissions/types";
-import type { SessionBookmark, SessionRef } from "@/lib/sessions/types";
-import type { FeatureSummary, PullRequestInfo } from "@/lib/workflow/types";
+import type { AgentCard, AgentState, Artifact, BoardSnapshot, WorktreeSummary } from "@/common/orca/types";
+import type { PendingPermission } from "@/common/permissions/types";
+import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
+import type { FeatureSummary, PullRequestInfo } from "@/common/workflow/types";
 import type { CheckInput } from "@/server/workflow/featureCheck";
 import type { WorktreeFlowTasks } from "@/server/workflow/flowTasks";
 import type { OrcaAgentRaw, OrcaTerminalRaw, OrcaWorktreeRaw } from "./schema";

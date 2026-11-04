@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { ActivityStep } from "@/lib/sessions/types";
+import type { ActivityStep } from "@/common/sessions/types";
 
 export const STEP_LIMIT = 40;
 const SUMMARY_CHARS = 140;

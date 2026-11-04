@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
-import type { AskAnchor, AskContext, DiffLine } from "@/lib/intentDiff/types";
+import type { AskAnchor, AskContext, DiffLine } from "@/common/intentDiff/types";
 import { AskDraft, AskPlanItem, AskStepContext, ThreadView } from "@/client/features/ask-about-diff";
 import { AskBoardContext } from "@/client/features/ask-about-diff";
 

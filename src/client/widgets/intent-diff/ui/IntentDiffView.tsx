@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext, useState } from "react";
-import type { FlowData, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/lib/intentDiff/types";
+import type { FlowData, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/common/intentDiff/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { SymbolClick, type SymbolTarget } from "./CodeLines";
 import { FeatureMapView } from "./FeatureMapView";

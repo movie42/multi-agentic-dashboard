@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeatureSummary } from "@/lib/workflow/types";
+import type { FeatureSummary } from "@/common/workflow/types";
 import { featureOfWorktree, sharedWaits, toFeatureRow } from "./features";
 
 function feature(overrides: Partial<FeatureSummary>): FeatureSummary {

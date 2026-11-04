@@ -1,9 +1,9 @@
 import "server-only";
-import { extractArtifacts } from "@/lib/orca/artifacts";
-import type { AgentCard, Artifact, BoardSnapshot, ProjectSummary, WorktreeSummary } from "@/lib/orca/types";
-import type { PendingPermission } from "@/lib/permissions/types";
-import type { LocatedSession } from "@/lib/sessions/fullMessage";
-import type { SessionBookmark, SessionRef } from "@/lib/sessions/types";
+import { extractArtifacts } from "@/server/orca/artifacts";
+import type { AgentCard, Artifact, BoardSnapshot, ProjectSummary, WorktreeSummary } from "@/common/orca/types";
+import type { PendingPermission } from "@/common/permissions/types";
+import type { LocatedSession } from "@/server/sessions/SessionLocator";
+import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
 import { isMissingPath, type FileSystemPort, type ReportFn } from "@/server/shared/ports";
 import type { CheckInput } from "@/server/workflow/featureCheck";
 import { featureOfWorktree } from "@/server/workflow/features";

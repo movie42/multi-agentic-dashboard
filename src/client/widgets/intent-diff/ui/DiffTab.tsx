@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorktreeSummary } from "@/lib/orca/types";
+import type { WorktreeSummary } from "@/common/orca/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { IntentDiffView } from "./IntentDiffView";
 import { intentDiffHref } from "@/client/entities/intent-diff";

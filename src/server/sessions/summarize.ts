@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { SessionOrigin, SessionSummary, TitleSource } from "@/lib/sessions/types";
+import type { SessionOrigin, SessionSummary, TitleSource } from "@/common/sessions/types";
 import type { TranscriptEntry } from "./schema";
 import { clip, flatten, humanPrompt, parseEntry, textOf } from "./transcriptText";
 
