@@ -3,7 +3,7 @@ import type { LineChange, ToolEvent } from "@/common/intentDiff/types";
 import { parseJson } from "./report";
 import { type ContentBlock, patchResultSchema, recordSchema, type TranscriptLine, transcriptLineSchema } from "./schema";
 
-const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const EDIT_TOOLS: ReadonlySet<string> = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const NARRATION_LIMIT = 1200;
 const PROMPT_LIMIT = 400;
 const THINKING_NARRATION_LIMIT = 500;
@@ -15,15 +15,16 @@ function asString(value: unknown): string | null {
 function promptOf(line: TranscriptLine): string | null {
   if (line.type !== "user" || line.isMeta) return null;
   const content = line.message?.content;
-  let text: string | null = null;
-  if (typeof content === "string") text = content;
-  else if (Array.isArray(content)) {
-    if (content.some((block) => block.type === "tool_result")) return null;
-    text = content
-      .filter((block) => block.type === "text" && typeof block.text === "string")
-      .map((block) => block.text)
-      .join("\n");
-  }
+  if (Array.isArray(content) && content.some((block) => block.type === "tool_result")) return null;
+  const text =
+    typeof content === "string"
+      ? content
+      : Array.isArray(content)
+        ? content
+            .filter((block) => block.type === "text" && typeof block.text === "string")
+            .map((block) => block.text)
+            .join("\n")
+        : null;
   if (!text) return null;
   const trimmed = text.trim();
   const command = trimmed.match(/<command-name>([^<]+)<\/command-name>/);
@@ -134,12 +135,14 @@ export function parseTranscript(raw: string, roots: string[], local: boolean): T
   const events: ToolEvent[] = [];
   const pending = new Map<string, { event: ToolEvent; file: string | null; input: Record<string, unknown> }>();
   const todo: TodoState = { current: null, created: [], byId: new Map() };
+  /* eslint-disable no-restricted-syntax -- transcript replay state carried across lines */
   let sessionId = "";
   let prompt: string | null = null;
   let promptIndex = 0;
   let narration: string | null = null;
   let spokeThisTurn = false;
   let segmentId = "p0";
+  /* eslint-enable no-restricted-syntax */
 
   for (const rawLine of raw.split("\n")) {
     if (!rawLine.startsWith("{")) continue;

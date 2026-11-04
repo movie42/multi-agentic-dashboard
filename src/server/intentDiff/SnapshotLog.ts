@@ -47,6 +47,7 @@ export function changesFromDiff(output: string): Record<string, LineChange> {
 
 export async function mapLimited<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
+  // eslint-disable-next-line no-restricted-syntax -- next index shared by the concurrency workers
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) {

@@ -25,12 +25,17 @@ interface CommandPaletteProps {
   onOpenSessions: () => void;
 }
 
+function openAncestors(element: Element | null) {
+  const details = element?.closest("details");
+  if (!details) return;
+  details.open = true;
+  openAncestors(details.parentElement);
+}
+
 function focusCard(agentId: string, attempts = 20) {
   const card = document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(agentId)}"]`);
   if (card) {
-    for (let parent = card.closest("details"); parent; parent = parent.parentElement?.closest("details") ?? null) {
-      parent.open = true;
-    }
+    openAncestors(card);
     card.focus();
     card.scrollIntoView({ block: "center", behavior: "smooth" });
     return;

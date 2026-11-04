@@ -51,7 +51,9 @@ function callableKind(name: string, file: string): SymbolKind {
 export function changedLinesOf(diff: FileDiff): Set<number> {
   const changed = new Set<number>();
   for (const hunk of diff.hunks) {
+    // eslint-disable-next-line no-restricted-syntax -- hunk walk position
     let pendingDelete = false;
+    // eslint-disable-next-line no-restricted-syntax -- hunk walk position
     let lastNew = hunk.newStart - 1;
     for (const line of hunk.lines) {
       if (line.kind === "del") {
@@ -200,7 +202,9 @@ export function symbolLines(symbol: CodeSymbol, diff: FileDiff, text: FileText):
   const added = new Set<number>();
   const removedBefore = new Map<number, DiffLine[]>();
   for (const hunk of diff.hunks) {
+    // eslint-disable-next-line no-restricted-syntax -- hunk walk position
     let pending: DiffLine[] = [];
+    // eslint-disable-next-line no-restricted-syntax -- hunk walk position
     let lastNew = hunk.newStart - 1;
     for (const line of hunk.lines) {
       if (line.kind === "del") {
@@ -217,6 +221,7 @@ export function symbolLines(symbol: CodeSymbol, diff: FileDiff, text: FileText):
     if (pending.length > 0) removedBefore.set(lastNew + 1, pending);
   }
   const lines: DiffLine[] = [];
+  // eslint-disable-next-line no-restricted-syntax -- hunk walk position
   for (let newNo = symbol.startLine; newNo <= symbol.endLine; newNo++) {
     lines.push(...(removedBefore.get(newNo) ?? []));
     lines.push({

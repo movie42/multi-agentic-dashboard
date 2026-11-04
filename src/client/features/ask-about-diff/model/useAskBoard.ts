@@ -2,6 +2,7 @@
 
 import { createContext, useEffect, useState } from "react";
 import type { AskEvent, AskRequest, AskThread, AskThreadsResponse, IntentDiffResult } from "@/common/intentDiff/types";
+import { readJson, parseJsonLine, errorField } from "@/client/shared/api/json";
 
 export interface LiveAnswer {
   text: string;
@@ -63,7 +64,7 @@ export function useAskBoard(worktreePath: string, result: IntentDiffResult): Ask
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/intent-diff/ask?${new URLSearchParams({ path: worktreePath }).toString()}`, { signal: controller.signal, cache: "no-store" })
-      .then((response) => response.json() as Promise<AskThreadsResponse>)
+      .then((response) => readJson<AskThreadsResponse>(response))
       .then((body) => {
         if (body.ok) setThreads(body.threads);
         else console.warn("[ask] threads unreadable", body.error);
@@ -90,11 +91,13 @@ export function useAskBoard(worktreePath: string, result: IntentDiffResult): Ask
       body: JSON.stringify({ ...input, worktreePath } satisfies AskRequest),
     });
     if (!response.ok || !response.body) {
-      const body = (await response.json().catch(() => null)) as { error?: string } | null;
-      throw new Error(body?.error ?? `질문을 보내지 못했어요 (${response.status})`);
+      const body: unknown = await response.json().catch(() => null);
+      throw new Error(errorField(body) ?? `질문을 보내지 못했어요 (${response.status})`);
     }
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    // eslint-disable-next-line no-restricted-syntax -- NDJSON stream buffer and the thread id announced in it
     let buffer = "";
+    // eslint-disable-next-line no-restricted-syntax -- NDJSON stream buffer and the thread id announced in it
     let threadId: string | null = null;
     for (;;) {
       const { value, done } = await reader.read();
@@ -104,7 +107,7 @@ export function useAskBoard(worktreePath: string, result: IntentDiffResult): Ask
       buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (!line.trim()) continue;
-        const event = JSON.parse(line) as AskEvent;
+        const event = parseJsonLine<AskEvent>(line);
         if (event.type === "thread") {
           threadId = event.thread.id;
           setThreads((previous) => upsert(previous, event.thread));

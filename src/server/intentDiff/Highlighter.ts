@@ -30,7 +30,7 @@ const LANG_BY_EXTENSION: Record<string, Lang> = {
   ".sh": "shellscript",
 };
 
-const KEYWORDS = new Set(
+const KEYWORDS: ReadonlySet<string> = new Set(
   (
     "abstract as async await boolean break case catch class const continue declare default delete do else enum export extends " +
     "false finally for from function get if implements import in infer instanceof interface is keyof let module namespace never " +
@@ -69,6 +69,7 @@ function lineStart(code: string, offset: number): number {
 }
 
 export function trimIndent(html: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- indent scan across lines
   let leading = true;
   return html.replace(SPAN, (whole, attrs: string, content: string) => {
     if (!leading) return whole;

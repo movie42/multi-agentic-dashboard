@@ -235,9 +235,11 @@ export class AskRunner {
     return new Promise<AskOutcome>((resolve) => {
       const child = this.deps.spawn(this.deps.claudeBin, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
       const timer = setTimeout(() => child.kill("SIGTERM"), this.deps.timeoutMs);
+      /* eslint-disable no-restricted-syntax -- child process stream buffers */
       let buffer = "";
       let stderr = "";
       let result: AskOutcome | null = null;
+      /* eslint-enable no-restricted-syntax */
 
       const handleLine = (line: string) => {
         const parsed = parseJson(line);
@@ -254,6 +256,7 @@ export class AskRunner {
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => {
         buffer += chunk;
+        // eslint-disable-next-line no-restricted-syntax -- child process stream buffers
         let newline = buffer.indexOf("\n");
         while (newline >= 0) {
           const line = buffer.slice(0, newline).trim();

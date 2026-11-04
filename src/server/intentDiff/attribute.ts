@@ -16,7 +16,7 @@ import type {
   ToolEvent,
 } from "@/common/intentDiff/types";
 
-const LOCKFILES = new Set(["bun.lock", "bun.lockb", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"]);
+const LOCKFILES: ReadonlySet<string> = new Set(["bun.lock", "bun.lockb", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"]);
 const TASK_DOC = /^docs\/[^/]+\/tasks\/[^/]+\.json$/;
 const IMPORT_LINE = /^\s*(import\b.*|export\s.*\bfrom\s+["'].*|\}\s*from\s+["'].*|[A-Za-z_$][\w$]*(\s+as\s+[\w$]+)?,?|type\s+[A-Za-z_$][\w$]*,?)\s*;?\s*$/;
 const SHELL_WRITES = /sed\s+-i|perl\s+-p?i|(^|[^0-9&<>=-])>>?\s*(?!\/dev\/null)[^\s&|>]|\btee\b|cat\s*>|open\([^)]*,\s*["'][wa]|write_text\(|writeFileSync\(|writeFile\(|\bmv\s|\bcp\s|\brm\s|git\s+(mv|rm|checkout|restore|apply)\b|\bpatch\s/;

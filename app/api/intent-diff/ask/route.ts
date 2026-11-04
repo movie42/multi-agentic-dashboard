@@ -53,6 +53,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
+async function prepare(body: Record<string, unknown>, worktreePath: string, question: string): Promise<PreparedAsk | Response> {
+  if (typeof body.threadId === "string") {
+    const thread = await services().askStore.get(body.threadId);
+    if (!thread || thread.worktreePath !== worktreePath) return badRequest("대화를 찾지 못했어요");
+    return services().askRunner.prepareFollowUp(thread, question);
+  }
+  if (!isAnchor(body.anchor) || !isContext(body.context)) return badRequest("고른 줄 정보가 올바르지 않아요");
+  const writer = typeof body.writerSessionId === "string" && SESSION_ID.test(body.writerSessionId) ? body.writerSessionId : null;
+  const fresh = body.fresh === true;
+  return await services().askRunner.prepareNewThread({
+    worktreePath,
+    anchor: body.anchor,
+    context: body.context,
+    writerSessionId: fresh ? null : writer,
+    chosenFresh: fresh,
+    question,
+  });
+}
+
 /** Streams the answer as NDJSON `AskEvent` lines. */
 export async function POST(request: NextRequest) {
   await connection();
@@ -62,26 +81,11 @@ export async function POST(request: NextRequest) {
   const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question || question.length > MAX_QUESTION) return badRequest("질문이 비었거나 너무 길어요");
 
-  let prepared: PreparedAsk;
-  if (typeof body.threadId === "string") {
-    const thread = await services().askStore.get(body.threadId);
-    if (!thread || thread.worktreePath !== worktreePath) return badRequest("대화를 찾지 못했어요");
-    prepared = services().askRunner.prepareFollowUp(thread, question);
-  } else {
-    if (!isAnchor(body.anchor) || !isContext(body.context)) return badRequest("고른 줄 정보가 올바르지 않아요");
-    const writer = typeof body.writerSessionId === "string" && SESSION_ID.test(body.writerSessionId) ? body.writerSessionId : null;
-    const fresh = body.fresh === true;
-    prepared = await services().askRunner.prepareNewThread({
-      worktreePath,
-      anchor: body.anchor,
-      context: body.context,
-      writerSessionId: fresh ? null : writer,
-      chosenFresh: fresh,
-      question,
-    });
-  }
+  const prepared = await prepare(body, worktreePath, question);
+  if (prepared instanceof Response) return prepared;
 
   const encoder = new TextEncoder();
+  // eslint-disable-next-line no-restricted-syntax -- flips once the client disconnects mid-stream
   let open = true;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {

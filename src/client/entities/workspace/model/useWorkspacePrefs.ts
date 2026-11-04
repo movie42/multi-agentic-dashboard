@@ -6,7 +6,7 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 
 const SESSIONS_PAGE = "@sessions";
 const DIFF_PAGE = "@diff";
-const PAGES = new Set([SESSIONS_PAGE, DIFF_PAGE]);
+const PAGES: ReadonlySet<string> = new Set([SESSIONS_PAGE, DIFF_PAGE]);
 
 export interface WorkspacePrefs {
   selectedRepo: string | null;

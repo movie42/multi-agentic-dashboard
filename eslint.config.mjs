@@ -38,9 +38,33 @@ const layerRules = CLIENT_LAYERS.map((layer, index) => {
   );
 });
 
+const mutableCollection =
+  "VariableDeclarator:not([id.typeAnnotation.typeAnnotation.typeName.name=/^Readonly(Set|Map)$/]) > NewExpression[callee.name=/^(Map|Set|WeakMap|WeakSet)$/]";
+
+const strictness = {
+  files: ["**/*.ts", "**/*.tsx", "**/*.mts"],
+  rules: {
+    "no-empty": ["error", { allowEmptyCatch: false }],
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
+    "no-restricted-syntax": [
+      "error",
+      { selector: "VariableDeclaration[kind='let']", message: "Use const. A parser, stream buffer or position loop may keep let with a line-level disable and its reason." },
+      ...["Program", "Program > ExportNamedDeclaration"].map((parent) => ({
+        selector: `${parent} > VariableDeclaration > ${mutableCollection}`,
+        message: "Module-level mutable collections are shared state; keep them in a class instance from services(), or type a lookup table as ReadonlySet/ReadonlyMap.",
+      })),
+    ],
+  },
+};
+
+const testFiles = ["**/*.test.ts", "**/*.test.tsx", "test/**", "e2e/**"];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  strictness,
+  { files: testFiles, rules: { "@typescript-eslint/consistent-type-assertions": "off", "no-restricted-syntax": "off" } },
   restrict(["src/server/**"], [{ group: ["@/client", "@/client/*"], message: "Server code cannot import client code." }]),
   restrict(
     ["src/common/**"],

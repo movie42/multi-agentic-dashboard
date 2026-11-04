@@ -67,11 +67,13 @@ function createServices(): Services {
   };
 }
 
-const holder = globalThis as typeof globalThis & { __agentControlServices?: Services };
+declare global {
+  var __agentControlServices: Services | undefined;
+}
 
 export function services(): Services {
-  holder.__agentControlServices ??= createServices();
-  return holder.__agentControlServices;
+  globalThis.__agentControlServices ??= createServices();
+  return globalThis.__agentControlServices;
 }
 
 export function reportError(scope: string, error: unknown, context?: Record<string, unknown>): void {

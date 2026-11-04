@@ -90,9 +90,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** The editor's settings file is JSON with comments and trailing commas. */
 function stripJsonc(text: string): string {
+  /* eslint-disable no-restricted-syntax -- JSONC scanner state */
   let out = "";
   let inString = false;
   for (let i = 0; i < text.length; i++) {
+  /* eslint-enable no-restricted-syntax */
     const char = text[i];
     if (inString) {
       out += char;
@@ -108,6 +110,7 @@ function stripJsonc(text: string): string {
       const end = text.indexOf("*/", i + 2);
       i = end === -1 ? text.length : end + 1;
     } else if (char === ",") {
+      // eslint-disable-next-line no-restricted-syntax -- JSONC scanner state
       let next = i + 1;
       while (next < text.length && /\s/.test(text[next])) next++;
       const rest = stripLeadingComments(text.slice(next));
@@ -120,6 +123,7 @@ function stripJsonc(text: string): string {
 }
 
 function stripLeadingComments(text: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- JSONC scanner state
   let rest = text.trimStart();
   while (rest.startsWith("//") || rest.startsWith("/*")) {
     const end = rest.startsWith("//") ? rest.indexOf("\n") : rest.indexOf("*/") + 1;

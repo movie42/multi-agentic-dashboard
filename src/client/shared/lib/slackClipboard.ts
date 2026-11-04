@@ -33,7 +33,8 @@ function tableToList(doc: Document, table: HTMLTableElement): DocumentFragment {
 }
 
 export function toSlackHtml(source: HTMLElement): string {
-  const root = source.cloneNode(true) as HTMLElement;
+  const root = source.cloneNode(true);
+  if (!(root instanceof HTMLElement)) return source.innerHTML;
   const doc = root.ownerDocument;
 
   root.querySelectorAll("summary, [data-copy-skip]").forEach((node) => node.remove());

@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { IntentDiffResponse, IntentDiffResult, SymbolLookup, SymbolLookupResponse } from "@/common/intentDiff/types";
+import { readJson } from "@/client/shared/api/json";
 
 export interface IntentDiffQuery {
   worktreePath: string;
@@ -38,14 +39,14 @@ function symbolHref(query: SymbolQuery): string {
 
 async function fetchIntentDiff(href: string, signal: AbortSignal): Promise<IntentDiffResult> {
   const response = await fetch(href, { signal, cache: "no-store" });
-  const body = (await response.json()) as IntentDiffResponse;
+  const body = await readJson<IntentDiffResponse>(response);
   if (!body.ok) throw new Error(body.error);
   return body.result;
 }
 
 async function fetchSymbol(href: string, signal: AbortSignal): Promise<SymbolLookup> {
   const response = await fetch(href, { signal, cache: "no-store" });
-  const body = (await response.json()) as SymbolLookupResponse;
+  const body = await readJson<SymbolLookupResponse>(response);
   if (!body.ok) throw new Error(body.error);
   return body.lookup;
 }

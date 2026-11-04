@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { RuntimeMode, RuntimeResponse } from "@/common/orca/runtime";
+import { readJson } from "@/client/shared/api/json";
 
 export const RUNTIME_POLL_MS = 15_000;
 
@@ -9,7 +10,7 @@ export const runtimeKeys = {
 
 async function requestRuntime(init?: RequestInit): Promise<RuntimeMode> {
   const response = await fetch("/api/runtime", { cache: "no-store", ...init });
-  const payload = (await response.json()) as RuntimeResponse;
+  const payload = await readJson<RuntimeResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
   return payload.mode;
 }

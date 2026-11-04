@@ -100,6 +100,7 @@ function locationOf(program: ts.Program, root: string, fileName: string, start: 
 }
 
 export function identifierAt(text: string, position: number): string {
+  // eslint-disable-next-line no-restricted-syntax -- identifier scan from a position
   let start = position;
   while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
   return text.slice(start).match(/^[\w$]+/)?.[0] ?? "";

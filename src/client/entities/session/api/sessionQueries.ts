@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { ActivityResponse, ActivityStep, SessionSummary, SessionsResponse } from "@/common/sessions/types";
+import { readJson } from "@/client/shared/api/json";
 
 export const ACTIVITY_POLL_MS = 2000;
 
@@ -16,14 +17,14 @@ export const sessionKeys = {
 
 async function fetchSessions(signal: AbortSignal): Promise<SessionList> {
   const response = await fetch("/api/sessions", { cache: "no-store", signal });
-  const payload = (await response.json()) as SessionsResponse;
+  const payload = await readJson<SessionsResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
   return { sessions: payload.sessions, scannedAt: payload.scannedAt };
 }
 
 async function fetchActivity(sessionId: string, signal: AbortSignal): Promise<ActivityStep[]> {
   const response = await fetch(`/api/activity?session=${encodeURIComponent(sessionId)}`, { cache: "no-store", signal });
-  const payload = (await response.json()) as ActivityResponse;
+  const payload = await readJson<ActivityResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
   return payload.steps;
 }

@@ -51,13 +51,16 @@ export async function resolveRange({ worktreePath, base, head }: RangeRequest): 
   if (head && !headSha) throw new Error(`커밋을 찾을 수 없어요: ${head}`);
   const tip = headSha ?? "HEAD";
 
+  // eslint-disable-next-line no-restricted-syntax -- unified diff parser state
   let baseSha: string | null = null;
+  // eslint-disable-next-line no-restricted-syntax -- unified diff parser state
   let baseLabel = "";
   if (base) {
     baseSha = await tryGit(top, ["rev-parse", "--verify", `${base}^{commit}`]);
     if (!baseSha) throw new Error(`기준 커밋을 찾을 수 없어요: ${base}`);
     baseLabel = base;
   } else {
+    // eslint-disable-next-line no-restricted-syntax -- unified diff parser state
     let newest = -1;
     for (const candidate of ROOT_CANDIDATES) {
       if (candidate === branch) continue;
@@ -126,10 +129,12 @@ function stripPrefix(value: string): string {
 /** Parses `git diff` output produced with `--no-prefix` off and `-M`. */
 export function parseUnifiedDiff(output: string): FileDiff[] {
   const files: FileDiff[] = [];
+  /* eslint-disable no-restricted-syntax -- unified diff parser state */
   let current: FileDiff | null = null;
   let hunk: Hunk | null = null;
   let oldNo = 0;
   let newNo = 0;
+  /* eslint-enable no-restricted-syntax */
 
   const finishFile = () => {
     if (current) files.push(current);
@@ -179,6 +184,7 @@ export function parseUnifiedDiff(output: string): FileDiff[] {
     const active: Hunk = hunk;
     const mark = line[0];
     const text = line.slice(1);
+    // eslint-disable-next-line no-restricted-syntax -- unified diff parser state
     let entry: DiffLine | null = null;
     if (mark === "+") entry = { kind: "add", text, oldNo: null, newNo: newNo++ };
     else if (mark === "-") entry = { kind: "del", text, oldNo: oldNo++, newNo: null };
@@ -251,6 +257,7 @@ export function readBlobs(cwd: string, specs: string[]): Promise<Map<string, str
     child.on("error", () => resolve(result));
     child.on("close", () => {
       const output = Buffer.concat(chunks);
+      // eslint-disable-next-line no-restricted-syntax -- unified diff parser state
       let offset = 0;
       for (const spec of unique) {
         const newline = output.indexOf(10, offset);

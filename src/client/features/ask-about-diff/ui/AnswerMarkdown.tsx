@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { HighlightResponse } from "@/common/intentDiff/types";
+import { highlightQueryOptions } from "../api/highlightQuery";
 
 // Same type, size and token colors as the diff table in CodeLines; box and spacing come from `.md pre`.
 const CODE_BLOCK =
   "font-mono text-[12px] leading-[1.6] whitespace-pre [&_span]:text-(color:--shiki-light) dark:[&_span]:text-(color:--shiki-dark)";
-
-const highlighted = new Map<string, string[]>();
 
 interface CodeBlockProps {
   code: string;
@@ -19,32 +17,7 @@ interface CodeBlockProps {
 }
 
 function CodeBlock({ code, lang, live }: CodeBlockProps) {
-  const key = `${lang}\0${code}`;
-  const [html, setHtml] = useState<{ key: string; lines: string[] } | null>(null);
-  const cached = highlighted.get(key);
-
-  useEffect(() => {
-    if (live || highlighted.has(key)) return;
-    const controller = new AbortController();
-    fetch("/api/intent-diff/highlight", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, lang }),
-      signal: controller.signal,
-    })
-      .then((response) => response.json() as Promise<HighlightResponse>)
-      .then((body) => {
-        if (!body.ok) return console.warn("[answer] highlight failed", body.error);
-        highlighted.set(key, body.html);
-        setHtml({ key, lines: body.html });
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) console.warn("[answer] highlight failed", error);
-      });
-    return () => controller.abort();
-  }, [key, code, lang, live]);
-
-  const lines = cached ?? (html?.key === key ? html.lines : null);
+  const { data: lines } = useQuery(highlightQueryOptions(code, lang, !live));
   if (!lines) return <pre className={CODE_BLOCK}>{code}</pre>;
   return (
     <pre className={CODE_BLOCK}>
