@@ -2,6 +2,7 @@ import "server-only";
 import type { AskRunner } from "./intentDiff/AskRunner";
 import type { AskStore } from "./intentDiff/AskStore";
 import { createIntentDiffServices } from "./intentDiff/createServices";
+import { createOrcaServices, type OrcaServices } from "./orca/services";
 import type { Highlighter } from "./intentDiff/Highlighter";
 import type { LanguageServices } from "./intentDiff/LanguageServices";
 import type { SnapshotLog } from "./intentDiff/SnapshotLog";
@@ -14,6 +15,7 @@ import { SessionIndex } from "./sessions/SessionIndex";
 import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { ErrorLog } from "./shared/errorLog";
+import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 
 export interface Services {
   errorLog: ErrorLog;
@@ -29,11 +31,18 @@ export interface Services {
   transcriptLoader: TranscriptLoader;
   languageServices: LanguageServices;
   highlighter: Highlighter;
+  workflow: WorkflowServices;
+  orca: OrcaServices;
 }
 
 function createServices(): Services {
   const errorLog = new ErrorLog();
   const warn = (scope: string, error: unknown, context?: Record<string, unknown>) => errorLog.record("warn", scope, error, context);
+  const reporters = {
+    warn,
+    error: (scope: string, error: unknown, context?: Record<string, unknown>) => errorLog.record("error", scope, error, context),
+  };
+  const workflow = createWorkflowServices(reporters);
   const sessionTitles = new SessionTitles(PROJECTS_DIR);
   const intentDiff = createIntentDiffServices();
   return {
@@ -50,6 +59,8 @@ function createServices(): Services {
     activity: new ActivityReader((sessionId) => sessionTitles.cachedTranscriptOf(sessionId)),
     bookmarks: new BookmarkStore(BOOKMARK_FILE, warn),
     ...intentDiff,
+    workflow,
+    orca: createOrcaServices(reporters, workflow),
   };
 }
 
