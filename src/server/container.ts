@@ -1,13 +1,25 @@
 import "server-only";
+import { createOrcaServices, type OrcaServices } from "./orca/services";
 import { ErrorLog } from "./shared/errorLog";
+import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 
 export interface Services {
   errorLog: ErrorLog;
+  workflow: WorkflowServices;
+  orca: OrcaServices;
 }
 
 function createServices(): Services {
+  const errorLog = new ErrorLog();
+  const reporters = {
+    warn: (scope: string, error: unknown, context?: Record<string, unknown>) => errorLog.record("warn", scope, error, context),
+    error: (scope: string, error: unknown, context?: Record<string, unknown>) => errorLog.record("error", scope, error, context),
+  };
+  const workflow = createWorkflowServices(reporters);
   return {
-    errorLog: new ErrorLog(),
+    errorLog,
+    workflow,
+    orca: createOrcaServices(reporters, workflow),
   };
 }
 
