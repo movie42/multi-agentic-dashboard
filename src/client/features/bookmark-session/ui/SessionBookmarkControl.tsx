@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useActionState, useState } from "react";
+import { toastError } from "@/client/shared/model/toastStore";
 import type { SessionBookmark } from "@/common/sessions/types";
 import { type BookmarkTarget, useSessionBookmark } from "../model/useSessionBookmark";
 
@@ -16,6 +17,8 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+type BookmarkTask = () => Promise<SessionBookmark | null>;
+
 export function bookmarkTarget(
   sessionId: string,
   title: string,
@@ -28,22 +31,22 @@ export function bookmarkTarget(
 
 export function BookmarkStar({ target, onChanged }: BookmarkProps) {
   const { bookmark, save, remove } = useSessionBookmark(target);
-  const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async (task: () => Promise<SessionBookmark | null>) => {
-    setSaving(true);
-    setError(null);
+  const [failure, dispatch, saving] = useActionState(async (_previous: string | null, task: BookmarkTask): Promise<string | null> => {
     try {
       const bookmark = await task();
       onChanged?.(bookmark);
+      return null;
     } catch (runError) {
-      console.error("[bookmark]", runError);
-      setError(errorText(runError));
-    } finally {
-      setSaving(false);
+      toastError("bookmark", runError);
+      return errorText(runError);
     }
+  }, null);
+  const error = saving ? null : failure;
+
+  const run = (task: BookmarkTask) => {
+    if (saving) return;
+    startTransition(() => dispatch(task));
   };
 
   const removeNow = () =>
@@ -95,24 +98,25 @@ export function BookmarkStar({ target, onChanged }: BookmarkProps) {
 export function BookmarkMemo({ target, onChanged }: BookmarkProps) {
   const { bookmark, save } = useSessionBookmark(target);
   const [draft, setDraft] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, dispatch, saving] = useActionState(async (_previous: string | null, memo: string): Promise<string | null> => {
+    try {
+      const saved = await save(memo);
+      onChanged?.(saved);
+      setDraft(null);
+      return null;
+    } catch (saveError) {
+      toastError("bookmark memo", saveError);
+      return errorText(saveError);
+    }
+  }, null);
+  const error = saving ? null : failure;
 
   if (!bookmark) return null;
 
-  const submit = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      const saved = await save((draft ?? "").trim());
-      onChanged?.(saved);
-      setDraft(null);
-    } catch (saveError) {
-      console.error("[bookmark] memo", saveError);
-      setError(errorText(saveError));
-    } finally {
-      setSaving(false);
-    }
+  const submit = () => {
+    if (saving) return;
+    const memo = (draft ?? "").trim();
+    startTransition(() => dispatch(memo));
   };
 
   if (draft !== null) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { create } from "zustand";
 import type { SessionBookmark } from "@/common/sessions/types";
 import { postAction } from "@/client/shared/api/actions";
 
@@ -11,15 +11,15 @@ interface Override {
   value: SessionBookmark | null;
 }
 
-const overrides = new Map<string, Override>();
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+interface BookmarkOverrideState {
+  overrides: Record<string, Override>;
+  remember: (sessionId: string, override: Override) => void;
 }
+
+export const useBookmarkOverrides = create<BookmarkOverrideState>()((set) => ({
+  overrides: {},
+  remember: (sessionId, override) => set((state) => ({ overrides: { ...state.overrides, [sessionId]: override } })),
+}));
 
 const keyOf = (bookmark: SessionBookmark | null) => JSON.stringify(bookmark);
 
@@ -31,17 +31,11 @@ export interface BookmarkTarget {
 }
 
 export function useSessionBookmark(target: BookmarkTarget) {
-  const override = useSyncExternalStore(
-    subscribe,
-    () => overrides.get(target.sessionId),
-    () => undefined,
-  );
+  const override = useBookmarkOverrides((state) => state.overrides[target.sessionId]);
+  const rememberOverride = useBookmarkOverrides((state) => state.remember);
   const bookmark = override && override.replaces === keyOf(target.bookmark) ? override.value : target.bookmark;
 
-  const remember = (value: SessionBookmark | null) => {
-    overrides.set(target.sessionId, { replaces: keyOf(target.bookmark), value });
-    for (const listener of listeners) listener();
-  };
+  const remember = (value: SessionBookmark | null) => rememberOverride(target.sessionId, { replaces: keyOf(target.bookmark), value });
 
   const save = async (memo: string) => {
     if (!target.cwd) throw new Error("세션 폴더를 몰라 북마크할 수 없어요");

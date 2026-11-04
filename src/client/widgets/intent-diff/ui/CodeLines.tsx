@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
+import { createContext, Fragment, use, useEffect, useRef, useState } from "react";
 import type { AskAnchor, AskContext, DiffLine } from "@/common/intentDiff/types";
 import { AskDraft, AskPlanItem, AskStepContext, ThreadView } from "@/client/features/ask-about-diff";
 import { AskBoardContext } from "@/client/features/ask-about-diff";
@@ -75,10 +75,10 @@ interface CodeLinesProps {
 }
 
 export function CodeLines({ file, lines }: CodeLinesProps) {
-  const onSymbol = useContext(SymbolClick);
-  const board = useContext(AskBoardContext);
-  const step = useContext(AskStepContext);
-  const planItem = useContext(AskPlanItem);
+  const onSymbol = use(SymbolClick);
+  const board = use(AskBoardContext);
+  const step = use(AskStepContext);
+  const planItem = use(AskPlanItem);
   const [pick, setPick] = useState<Pick | null>(null);
   // The press that started on a line number: a release without moving is a click, otherwise a drag.
   const press = useRef<{ index: number; wasOnlyPick: boolean; moved: boolean } | null>(null);

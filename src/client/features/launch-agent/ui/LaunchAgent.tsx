@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import type { WorktreeSummary } from "@/common/orca/types";
 import { postAction } from "@/client/shared/api/actions";
+import { toastError } from "@/client/shared/model/toastStore";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 
-type LaunchStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent"; where: string } | { kind: "error"; message: string };
+type LaunchResult = { kind: "idle" } | { kind: "sent"; where: string } | { kind: "error"; message: string };
+type LaunchStatus = LaunchResult | { kind: "sending" };
+
+interface LaunchRequest {
+  worktree: WorktreeSummary;
+  prompt: string;
+}
 
 interface LaunchAgentProps {
   worktrees: WorktreeSummary[];
@@ -22,35 +29,35 @@ export function LaunchAgent({ worktrees, showRepo }: LaunchAgentProps) {
   const sorted = [...worktrees].sort((a, b) => a.repo.localeCompare(b.repo) || (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0));
   const [chosenPath, setChosenPath] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [status, setStatus] = useState<LaunchStatus>({ kind: "idle" });
   const attachments = useAttachments("launch-agent");
   const target = sorted.find((worktree) => worktree.path === chosenPath) ?? sorted[0];
 
-  const launch = async () => {
-    if (!target || status.kind === "sending" || attachments.uploading) return;
-    setStatus({ kind: "sending" });
-    try {
-      await postAction({
-        type: "launch-agent",
-        worktreePath: target.path,
-        prompt: appendPaths(prompt, attachments.readyPaths),
-      });
-      setPrompt("");
-      attachments.clear();
-      setStatus({ kind: "sent", where: labelOf(target, showRepo) });
-    } catch (error) {
-      console.error("[launch-agent]", error);
-      setStatus({
-        kind: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
+  const [result, dispatch, sending] = useActionState(
+    async (_previous: LaunchResult, request: LaunchRequest): Promise<LaunchResult> => {
+      try {
+        await postAction({ type: "launch-agent", worktreePath: request.worktree.path, prompt: request.prompt });
+        setPrompt("");
+        attachments.clear();
+        return { kind: "sent", where: labelOf(request.worktree, showRepo) };
+      } catch (error) {
+        toastError("launch-agent", error);
+        return { kind: "error", message: error instanceof Error ? error.message : String(error) };
+      }
+    },
+    { kind: "idle" },
+  );
+  const status: LaunchStatus = sending ? { kind: "sending" } : result;
+
+  const launch = () => {
+    if (!target || sending || attachments.uploading) return;
+    const request = { worktree: target, prompt: appendPaths(prompt, attachments.readyPaths) };
+    startTransition(() => dispatch(request));
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
-    void launch();
+    launch();
   };
 
   if (!target) return null;
@@ -94,8 +101,8 @@ export function LaunchAgent({ worktrees, showRepo }: LaunchAgentProps) {
           </div>
           <button
             type="button"
-            onClick={() => void launch()}
-            disabled={status.kind === "sending" || attachments.uploading}
+            onClick={launch}
+            disabled={sending || attachments.uploading}
             className="shrink-0 rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
           >
             {status.kind === "sending" ? "시작하는 중" : attachments.uploading ? "올리는 중" : "새 세션 시작"}

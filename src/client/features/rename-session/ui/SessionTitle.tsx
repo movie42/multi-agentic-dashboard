@@ -1,9 +1,10 @@
 "use client";
 
 import { TITLE_LIMIT } from "@/common/sessions/limits";
-import { useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import type { TitleSource } from "@/common/sessions/types";
 import { postAction } from "@/client/shared/api/actions";
+import { toastError } from "@/client/shared/model/toastStore";
 
 interface SessionTitleProps {
   sessionId: string;
@@ -14,6 +15,11 @@ interface SessionTitleProps {
   onRenamed?: (title: string) => void;
 }
 
+interface SaveResult {
+  id: number;
+  error: string | null;
+}
+
 interface SavedTitle {
   value: string;
   replaces: string | null;
@@ -21,8 +27,7 @@ interface SavedTitle {
 
 export function SessionTitle({ sessionId, title, titleSource, fallback, textClassName, onRenamed }: SessionTitleProps) {
   const [draft, setDraft] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [dismissedId, setDismissedId] = useState(0);
   // Shown until the next poll brings the written title back from the transcript.
   const [saved, setSaved] = useState<SavedTitle | null>(null);
 
@@ -30,28 +35,34 @@ export function SessionTitle({ sessionId, title, titleSource, fallback, textClas
   const shown = pending ? saved.value : (title ?? fallback);
   const source: TitleSource = pending ? "custom" : titleSource;
 
-  const startEditing = () => {
-    setError(null);
-    setDraft(shown);
-  };
-
-  const save = async () => {
-    const next = (draft ?? "").replace(/\s+/g, " ").trim();
-    if (!next || next === shown) {
-      setDraft(null);
-      return;
-    }
-    setSaving(true);
+  const [result, dispatch, saving] = useActionState(async (previous: SaveResult, next: string): Promise<SaveResult> => {
+    const id = previous.id + 1;
     try {
       await postAction({ type: "rename-session", sessionId, title: next });
       setSaved({ value: next, replaces: title });
       setDraft(null);
       onRenamed?.(next);
+      return { id, error: null };
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : String(saveError));
-    } finally {
-      setSaving(false);
+      toastError("rename-session", saveError);
+      return { id, error: saveError instanceof Error ? saveError.message : String(saveError) };
     }
+  }, { id: 0, error: null });
+  const error = result.id === dismissedId ? null : result.error;
+
+  const startEditing = () => {
+    setDismissedId(result.id);
+    setDraft(shown);
+  };
+
+  const save = () => {
+    const next = (draft ?? "").replace(/\s+/g, " ").trim();
+    if (!next || next === shown) {
+      setDraft(null);
+      return;
+    }
+    if (saving) return;
+    startTransition(() => dispatch(next));
   };
 
   if (draft !== null) {
