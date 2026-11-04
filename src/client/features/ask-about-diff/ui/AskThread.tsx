@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, startTransition, use, useActionState, useState } from "react";
 import { postAction } from "@/client/shared/api/actions";
+import { toastError } from "@/client/shared/model/toastStore";
 import type { AskAnchor, AskContext, AskTarget, AskThread } from "@/common/intentDiff/types";
 import { AnswerMarkdown } from "./AnswerMarkdown";
 import { AskBoardContext } from "../model/useAskBoard";
@@ -36,19 +37,31 @@ function anchorText(anchor: AskAnchor): string {
 interface QuestionBoxProps {
   placeholder: string;
   submitLabel: string;
-  pending: boolean;
-  error: string | null;
-  onSubmit: (question: string) => Promise<boolean>;
+  scope: string;
+  notice?: string | null;
+  onSubmit: (question: string) => Promise<void>;
   onCancel?: () => void;
   autoFocus?: boolean;
   children?: React.ReactNode;
 }
 
-function QuestionBox({ placeholder, submitLabel, pending, error, onSubmit, onCancel, autoFocus = false, children }: QuestionBoxProps) {
+function QuestionBox({ placeholder, submitLabel, scope, notice = null, onSubmit, onCancel, autoFocus = false, children }: QuestionBoxProps) {
   const [text, setText] = useState("");
-  const submit = async () => {
+  const [failure, dispatch, pending] = useActionState(async (_previous: string | null, question: string): Promise<string | null> => {
+    try {
+      await onSubmit(question);
+      setText("");
+      return null;
+    } catch (error) {
+      toastError(scope, error);
+      return error instanceof Error ? error.message : String(error);
+    }
+  }, null);
+  const error = notice ?? (pending ? null : failure);
+  const submit = () => {
     if (!text.trim() || pending) return;
-    if (await onSubmit(text.trim())) setText("");
+    const question = text.trim();
+    startTransition(() => dispatch(question));
   };
   return (
     <div className="flex flex-col gap-2">
@@ -56,7 +69,7 @@ function QuestionBox({ placeholder, submitLabel, pending, error, onSubmit, onCan
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void submit();
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) submit();
         }}
         rows={3}
         autoFocus={autoFocus}
@@ -74,7 +87,7 @@ function QuestionBox({ placeholder, submitLabel, pending, error, onSubmit, onCan
         )}
         <button
           type="button"
-          onClick={() => void submit()}
+          onClick={submit}
           disabled={!text.trim() || pending}
           className="rounded-md bg-fg px-3 py-1 font-semibold text-bg disabled:opacity-40"
         >
@@ -93,32 +106,19 @@ interface DraftProps {
 
 /** A question about lines that have no conversation yet. */
 export function AskDraft({ anchor, context, onClose }: DraftProps) {
-  const board = useContext(AskBoardContext);
+  const board = use(AskBoardContext);
   const [fresh, setFresh] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   if (!board) return null;
   const writer = board.writerOf(anchor.file, anchor.startLine, anchor.endLine);
 
-  const submit = async (question: string) => {
-    setPending(true);
-    setError(null);
-    try {
-      await board.ask({ question, anchor, context, writerSessionId: writer, fresh }, () => onClose());
-      return true;
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
-      setPending(false);
-      return false;
-    }
-  };
+  const submit = (question: string) => board.ask({ question, anchor, context, writerSessionId: writer, fresh }, () => onClose());
 
   return (
     <div className="my-2 rounded-lg border border-hair bg-bg p-3 font-sans">
       <p className="mb-2 text-[12px] text-muted">
         {anchorText(anchor)} · {context.label}
       </p>
-      <QuestionBox placeholder="이 코드에 대해 물어볼 것 (⌘↵ 보내기)" submitLabel="묻기" pending={pending} error={error} onSubmit={submit} onCancel={onClose} autoFocus>
+      <QuestionBox placeholder="이 코드에 대해 물어볼 것 (⌘↵ 보내기)" submitLabel="묻기" scope="ask" onSubmit={submit} onCancel={onClose} autoFocus>
         {writer ? (
           <label className="flex items-center gap-1.5 text-muted">
             <input type="checkbox" checked={fresh} onChange={(event) => setFresh(event.target.checked)} />
@@ -138,33 +138,26 @@ interface ThreadViewProps {
 
 /** A saved conversation, shown under the lines it is about. */
 export function ThreadView({ thread }: ThreadViewProps) {
-  const board = useContext(AskBoardContext);
+  const board = use(AskBoardContext);
   const [open, setOpen] = useState(true);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [terminalError, setTerminalError] = useState<string | null>(null);
   if (!board) return null;
   const live = board.live[thread.id];
   const last = thread.turns[thread.turns.length - 1];
   const waiting = last?.answer === null && last.error === null;
 
-  const followUp = async (question: string) => {
-    setPending(true);
-    setError(null);
-    try {
-      await board.ask({ question, threadId: thread.id });
-      return true;
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
-      return false;
-    } finally {
-      setPending(false);
-    }
+  const followUp = (question: string) => {
+    setTerminalError(null);
+    return board.ask({ question, threadId: thread.id });
   };
 
   const continueInTerminal = () => {
-    setError(null);
+    setTerminalError(null);
     postAction({ type: "resume-session", sessionId: thread.sessionId, cwd: thread.cwd, title: `질문 · ${thread.label}` }).catch(
-      (failure: unknown) => setError(failure instanceof Error ? failure.message : String(failure)),
+      (failure: unknown) => {
+        toastError("ask resume", failure);
+        setTerminalError(failure instanceof Error ? failure.message : String(failure));
+      },
     );
   };
 
@@ -206,7 +199,7 @@ export function ThreadView({ thread }: ThreadViewProps) {
             </div>
           ))}
           {!waiting && (
-            <QuestionBox placeholder="이어서 묻기 (⌘↵ 보내기)" submitLabel="이어 묻기" pending={pending} error={error} onSubmit={followUp}>
+            <QuestionBox placeholder="이어서 묻기 (⌘↵ 보내기)" submitLabel="이어 묻기" scope="ask" notice={terminalError} onSubmit={followUp}>
               <button type="button" onClick={continueInTerminal} className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg">
                 터미널에서 이어 가기
               </button>

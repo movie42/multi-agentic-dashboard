@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { postAction } from "@/client/shared/api/actions";
+import { toastError } from "@/client/shared/model/toastStore";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 
+type SendResult = { kind: "idle"; id: number } | { kind: "sent"; id: number } | { kind: "error"; id: number; message: string };
 type SendStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string };
 
 interface QuickReplyProps {
@@ -15,50 +17,50 @@ interface QuickReplyProps {
 
 export function QuickReply({ terminalHandle, working, autoFocus = false }: QuickReplyProps) {
   const [text, setText] = useState("");
-  const [status, setStatus] = useState<SendStatus>({ kind: "idle" });
+  const [dismissedId, setDismissedId] = useState(0);
   const attachments = useAttachments("quick-reply");
 
-  const canSend = (text.trim().length > 0 || attachments.readyPaths.length > 0) && !attachments.uploading && status.kind !== "sending";
+  const [result, dispatch, sending] = useActionState(async (previous: SendResult, message: string): Promise<SendResult> => {
+    const id = previous.id + 1;
+    try {
+      await postAction({ type: "send-prompt", terminalHandle, text: message });
+      setText("");
+      attachments.clear();
+      return { kind: "sent", id };
+    } catch (error) {
+      toastError("quick-reply", error);
+      return { kind: "error", id, message: error instanceof Error ? error.message : String(error) };
+    }
+  }, { kind: "idle", id: 0 });
+
+  const status: SendStatus = sending ? { kind: "sending" } : result.id === dismissedId ? { kind: "idle" } : result;
+  const canSend = (text.trim().length > 0 || attachments.readyPaths.length > 0) && !attachments.uploading && !sending;
+  const dismiss = () => setDismissedId(result.id);
 
   const addFiles = (files: File[]) => {
-    if (status.kind !== "sending") setStatus({ kind: "idle" });
+    if (!sending) dismiss();
     attachments.addFiles(files);
   };
 
-  const send = async () => {
+  const send = () => {
     if (!canSend) return;
-    setStatus({ kind: "sending" });
-    try {
-      await postAction({
-        type: "send-prompt",
-        terminalHandle,
-        text: appendPaths(text, attachments.readyPaths),
-      });
-      setText("");
-      attachments.clear();
-      setStatus({ kind: "sent" });
-    } catch (error) {
-      console.error("[quick-reply]", error);
-      setStatus({
-        kind: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
+    const message = appendPaths(text, attachments.readyPaths);
+    startTransition(() => dispatch(message));
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
-    void send();
+    send();
   };
 
   const onChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(event.target.value);
-    if (status.kind !== "sending") setStatus({ kind: "idle" });
+    if (!sending) dismiss();
   };
 
   const onPaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    if (event.clipboardData.files.length > 0 && status.kind !== "sending") setStatus({ kind: "idle" });
+    if (event.clipboardData.files.length > 0 && !sending) dismiss();
     attachments.onPaste(event);
   };
 
@@ -94,7 +96,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
           />
           <button
             type="button"
-            onClick={() => void send()}
+            onClick={send}
             disabled={!canSend}
             className="shrink-0 rounded-full bg-fg px-3 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
           >

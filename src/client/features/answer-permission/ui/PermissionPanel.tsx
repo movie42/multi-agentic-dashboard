@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { ASK_USER_QUESTION, questionsOf } from "@/common/permissions/questions";
 import type {
   PendingPermission,
@@ -9,6 +9,9 @@ import type {
   UserQuestion,
 } from "@/common/permissions/types";
 import { postAction } from "@/client/shared/api/actions";
+import { toastError } from "@/client/shared/model/toastStore";
+
+type SendResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
 
 type SendStatus =
   | { kind: "idle" }
@@ -46,19 +49,23 @@ function stringField(input: Record<string, unknown>, key: string): string | null
 }
 
 function useSend(requestId: string) {
-  const [status, setStatus] = useState<SendStatus>({ kind: "idle" });
-  const send = async (answer: PermissionAnswer) => {
-    if (status.kind === "sending" || status.kind === "sent") return;
-    setStatus({ kind: "sending" });
+  const [result, dispatch, sending] = useActionState(async (previous: SendResult, answer: PermissionAnswer): Promise<SendResult> => {
+    if (previous.kind === "sent") return previous;
     try {
       await postAction({ type: "answer-permission", requestId, answer });
-      setStatus({ kind: "sent" });
+      return { kind: "sent" };
     } catch (error) {
-      console.error("[permission]", error);
-      setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
+      toastError("permission", error);
+      return { kind: "error", message: error instanceof Error ? error.message : String(error) };
     }
+  }, { kind: "idle" });
+  const status: SendStatus = sending ? { kind: "sending" } : result;
+  const locked = sending || result.kind === "sent";
+  const send = (answer: PermissionAnswer) => {
+    if (locked) return;
+    startTransition(() => dispatch(answer));
   };
-  return { status, send, locked: status.kind === "sending" || status.kind === "sent" };
+  return { status, send, locked };
 }
 
 interface StatusLineProps {
@@ -121,7 +128,7 @@ function ToolPermission({ permission }: ToolPermissionProps) {
           <button
             type="button"
             disabled={locked}
-            onClick={() => void send({ behavior: "deny", message: reason.trim() })}
+            onClick={() => send({ behavior: "deny", message: reason.trim() })}
             className="cursor-pointer rounded-full bg-accent px-4 py-1.5 text-[13px] leading-5 font-semibold text-accent-ink hover:opacity-85 disabled:cursor-default disabled:opacity-30"
           >
             거부
@@ -132,7 +139,7 @@ function ToolPermission({ permission }: ToolPermissionProps) {
           <button
             type="button"
             disabled={locked}
-            onClick={() => void send({ behavior: "allow", suggestionIndex: null })}
+            onClick={() => send({ behavior: "allow", suggestionIndex: null })}
             className={PRIMARY}
           >
             허용
@@ -149,7 +156,7 @@ function ToolPermission({ permission }: ToolPermissionProps) {
               key={`${suggestion.type}-${index}`}
               type="button"
               disabled={locked}
-              onClick={() => void send({ behavior: "allow", suggestionIndex: index })}
+              onClick={() => send({ behavior: "allow", suggestionIndex: index })}
               className="flex max-w-full cursor-pointer items-baseline gap-1.5 rounded-full bg-tint-2 px-3 py-1 text-left text-[12px] hover:bg-fg hover:text-bg disabled:cursor-default disabled:opacity-30"
             >
               <span className="truncate">{suggestionLabel(suggestion)}</span>
@@ -183,7 +190,7 @@ function QuestionPermission({ permission, questions }: QuestionPermissionProps) 
   };
   const ready = questions.every((question) => answerOf(question) !== "");
 
-  const submit = (answers: Record<string, string>) => void send({ behavior: "answer", answers });
+  const submit = (answers: Record<string, string>) => send({ behavior: "answer", answers });
 
   const pick = (question: UserQuestion, label: string) => {
     if (instant) {
