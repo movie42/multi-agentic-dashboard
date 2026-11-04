@@ -596,9 +596,9 @@
       "status": "now",
       "summary": "질문 3라운드 반영 완료 — 승인 대기",
       "conclusion": [
-        "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이고, 이 브랜치와 합칠 때 <code>src/proxy.ts</code>는 루트 <code>proxy.ts</code>로 옮겨야 해요(라우트가 루트 <code>app/</code>로 이동).",
-        "Phase 1–4: 테스트 안전망, 공용 기반, 서버 상태의 클래스화(세션 2개 병렬), FSD 폴더 구조와 레이어 lint까지 끝났어요. <code>src/lib</code>는 없어졌어요.",
-        "다음은 Phase 5: TanStack Query, <code>use()</code>, <code>useActionState</code>, Zustand, React Compiler, page 서버 컴포넌트예요."
+        "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이고, 이 브랜치와 합칠 때 <code>src/proxy.ts</code>는 루트 <code>proxy.ts</code>로, <code>@/lib/security/origin</code>은 <code>src/server</code> 쪽으로 옮겨야 해요.",
+        "Phase 1–5 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19(TanStack Query·use()·useActionState·Zustand·Compiler·page 서버 컴포넌트). 병렬 세션 4개(P3 2개, P5 2개)의 브랜치를 모두 머지했어요.",
+        "다음은 Phase 6: 화면 코드 <code>as</code> 정리, <code>noUncheckedIndexedAccess</code>, ESLint 규칙 고정(빈 catch, let, 타입 단언, any)."
       ],
       "blocks": [
         {
@@ -909,11 +909,11 @@
             {
               "id": "P3-6",
               "title": "빈 <code>catch {}</code> 7곳 · <code>.catch(() =&gt; null)</code> 59곳을 P2-1 통로로",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "파일",
-                  "<code>scripts/install-desktop.mjs</code> · <code>scripts/snapshot-hook.mjs</code> 포함"
+                  "결과",
+                  "서버·스크립트·라우트의 빈 catch와 삼키던 <code>.catch</code>는 <code>missingOr</code>/<code>reportAnd</code>로, 화면의 동작 실패는 Phase 5에서 <code>toastError</code>로"
                 ]
               ]
             },
@@ -1004,90 +1004,103 @@
             {
               "id": "P5-1",
               "title": "폴링 훅을 TanStack Query로 (<code>useBoard</code> 등)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/features/board/useBoard.ts</code> · <code>useAttention.ts</code> · <code>src/features/intentDiff/useIntentDiff.ts</code> · <code>useAskBoard.ts</code>"
+                  "<code>app/providers.tsx</code> · <code>src/client/entities/{board,runtime,terminal,session,intent-diff}/api/</code> · <code>views/dashboard/model/useBoard.ts</code> · <code>ActivityTimeline</code> · <code>SessionsPage</code> · <code>SymbolPanel</code> · <code>ChoicePanel</code> · <code>RuntimeSwitch</code>"
+                ],
+                [
+                  "결정",
+                  "별도 세션(<code>refactor/fsd-p5-data</code>, <code>547605a</code>). 폴링 타이밍을 지키려고 <code>refetchIntervalInBackground: true</code>, <code>refetchOnWindowFocus: false</code>, <code>retry: false</code>. 배경 실패는 기존 문구를 라벨로 쓴 <code>StatusLine</code>, 동작 실패는 <code>toastError</code>"
+                ],
+                [
+                  "결정",
+                  "보드 갱신 실패는 예전처럼 사이드바에만 표시(머지 때 본문 중복 표시 제거)"
                 ]
               ]
             },
             {
               "id": "P5-2",
               "title": "<code>useContext</code> → <code>use()</code>",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "파일",
-                  "<code>FeatureMapView.tsx</code> · <code>FlowView.tsx</code> · <code>AskThread.tsx</code> · <code>IntentDiffView.tsx</code>"
+                  "결정",
+                  "<code>useContext</code> 전부 <code>use()</code>로 (폼 세션 + 머지 후 나머지 3개 파일)"
                 ]
               ]
             },
             {
               "id": "P5-3",
               "title": "전송 폼을 <code>useActionState</code> · <code>useOptimistic</code>로 (빠른 답장, 세션 제목, 에이전트 실행)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>QuickReply.tsx</code> · <code>SessionTitle.tsx</code> · <code>LaunchAgent.tsx</code>"
+                  "<code>features/{quick-reply,launch-agent,rename-session,answer-permission,bookmark-session,ask-about-diff}</code> + 폼마다 컴포넌트 테스트"
+                ],
+                [
+                  "결정",
+                  "별도 세션(<code>refactor/fsd-p5-forms</code>, <code>8454627</code>). 전송은 <code>useActionState</code>, 기존 마크업을 지키려고 <code>form action</code> 대신 핸들러에서 <code>startTransition(dispatch)</code>. <code>useOptimistic</code>은 즉시 바꾸면 기존 타이밍이 달라져 쓰지 않음"
                 ]
               ]
             },
             {
               "id": "P5-4",
               "title": "여러 화면이 같이 쓰는 UI 상태를 Zustand로",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>useWorkspacePrefs.ts</code> · <code>useDismissed.ts</code> · <code>useStoredList.ts</code>"
+                  "<code>src/client/shared/lib/storedListStore.ts</code> · <code>useStoredList.ts</code> · 북마크 덮어쓰기 <code>useBookmarkOverrides</code>"
                 ],
                 [
                   "결정",
-                  "[[R1-Q2]] 여러 화면이 같이 쓰는 것만 Zustand"
+                  "localStorage 키·형식은 그대로 두고 메모리 쪽만 Zustand. 다른 탭 변경은 storage 이벤트로 반영"
                 ]
               ]
             },
             {
               "id": "P5-5",
               "title": "React Compiler 켜기와 Compiler lint 규칙",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>next.config.ts</code> · <code>package.json</code> · <code>eslint.config.mjs</code>"
+                  "<code>next.config.ts</code>(<code>reactCompiler: true</code>) · <code>babel-plugin-react-compiler</code>"
                 ],
                 [
                   "결정",
-                  "[[R1-Q8]] 이번에 켜요 · Compiler가 건너뛴 컴포넌트는 <code>\"use no memo\"</code>로 끄지 않고 코드를 고쳐요"
-                ],
-                [
-                  "패턴",
-                  "Next.js 16 설정 키는 <code>node_modules/next/dist/docs/</code>에서 확인 후 작성"
+                  "[[R1-Q8]] Compiler lint 규칙(<code>react-hooks/*</code>)은 <code>eslint-config-next</code>에 이미 켜져 있음. 빌드 청크에서 메모 캐시 코드 확인"
                 ]
               ]
             },
             {
               "id": "P5-6",
               "title": "page 진입부를 서버 컴포넌트로 — 첫 화면 보드 스냅샷을 TanStack Query 초기값으로",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>app/page.tsx</code> · <code>app/sessions/page.tsx</code> · <code>src/client/views/*</code>"
+                  "<code>app/page.tsx</code>"
                 ],
                 [
                   "결정",
-                  "[[R3-Q4]]"
+                  "[[R3-Q4]] Suspense 안에서 <code>await connection()</code> 후 <code>services().orca.board.load()</code> → <code>initialData</code>. 실패하면 경고 로그 후 클라이언트 폴링으로. <code>/</code>는 Partial Prerender"
                 ]
               ]
             },
             {
               "id": "P5-V",
               "title": "검증: 테스트 · tsc · lint 경고 0 · 브라우저 확인 · <code>bun run desktop</code> 앱 확인",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "vitest 219 · contract 5 · playwright 3 · tsc 0 · lint 0(경고 2 기존) · build 성공(Compiler 켬)"
+                ]
+              ]
             }
           ]
         },
@@ -1100,7 +1113,12 @@
               "id": "P6-1",
               "title": "<code>as</code> 단언 47곳을 스키마·타입 가드로",
               "done": false,
-              "rows": []
+              "rows": [
+                [
+                  "진행",
+                  "서버·공용 코드 완료(<code>2f00b0d</code>). 화면 코드 남음"
+                ]
+              ]
             },
             {
               "id": "P6-2",
@@ -1125,6 +1143,10 @@
                 [
                   "결정",
                   "[[R1-Q5]] [[R3-Q2]] 최상단·함수 안 let 모두 에러 · 예외는 줄 단위 disable + 이유 (diff 파서, JSONC 스캐너, 스트림 버퍼, 위치 탐색 루프)"
+                ],
+                [
+                  "진행",
+                  "함수 안 let: 서버는 파서·스트림 버퍼·동시성 카운터만 남김(<code>0099baa</code>), 화면은 <code>useAskBoard</code> 스트림 버퍼만 남음. 규칙 고정과 줄 단위 예외는 아직"
                 ]
               ]
             },
