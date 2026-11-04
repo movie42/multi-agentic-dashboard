@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  reactCompiler: true,
   outputFileTracingExcludes: {
     "*": ["./docs/**", "./src/**", "./scripts/**", "./desktop/**", "./dist/**", "./README.md", "./AGENTS.md"],
   },
