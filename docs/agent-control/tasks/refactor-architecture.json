@@ -822,22 +822,38 @@
             {
               "id": "P3-1",
               "title": "<code>PermissionStore</code> 클래스",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/lib/permissions/store.ts</code>"
+                  "<code>src/server/permissions/PermissionStore.ts</code> · <code>src/lib/permissions/store.ts</code>(래퍼)"
+                ],
+                [
+                  "결정",
+                  "대기열·대시보드 열림 시각을 인스턴스 필드로, 시계·ID 생성기를 주입. 답 → 훅 결정 변환은 순수 함수 <code>decisionFor</code>"
                 ]
               ]
             },
             {
               "id": "P3-2",
               "title": "<code>SessionIndex</code> 클래스 + 파싱 순수 함수 분리",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/lib/sessions/claudeSessions.ts</code> · <code>fullMessage.ts</code> · <code>sessionTitle.ts</code> · <code>activity.ts</code> · <code>bookmarks.ts</code>"
+                  "<code>src/server/sessions/</code> — <code>SessionIndex</code> · <code>SessionLocator</code> · <code>SessionTitles</code> · <code>ActivityReader</code> · <code>BookmarkStore</code> · 순수 함수 <code>summarize.ts</code> · <code>transcriptText.ts</code> · <code>activitySteps.ts</code> · 스키마 <code>schema.ts</code>"
+                ],
+                [
+                  "결정",
+                  "바꾸기 전에 <code>test/sessions.test.ts</code>로 세션 목록·제목 바꾸기·대화 기록 찾기·북마크의 지금 동작을 고정하고, 같은 테스트가 바뀐 뒤에도 통과. 대화 기록 줄 스키마는 다른 도구가 정한 형식이라 필드마다 <code>.catch(undefined)</code>로 너그럽게"
+                ],
+                [
+                  "결정",
+                  "파일 없음(ENOENT)만 조용히 대체값, 그 밖의 실패는 <code>reportWarning</code> 후 대체값 — <code>src/server/shared/fallback.ts</code>의 <code>missingOr</code>/<code>reportAnd</code>"
+                ],
+                [
+                  "결정",
+                  "테스트·E2E가 실제 로그 파일에 쓰지 않도록 <code>AGENT_CONTROL_LOG_FILE</code>을 임시 경로로 지정"
                 ]
               ]
             },

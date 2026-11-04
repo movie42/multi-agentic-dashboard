@@ -78,5 +78,7 @@ export function serverEnv(): Record<string, string> {
     SB_FILE: path.join(ROOT, "share", "bookmarks.jsonl"),
     INTENT_DIFF_ARCHIVE_DIR: path.join(ROOT, "share", "intent-diff"),
     CURSOR_SETTINGS_FILE: path.join(ROOT, "share", "cursor-settings.json"),
+    AGENT_CONTROL_LOG_FILE: path.join(ROOT, "share", "app.log"),
+    AGENT_CONTROL_CACHE_DIR: path.join(ROOT, "share", "cache"),
   };
 }
