@@ -23,13 +23,11 @@ export function parseMessage(message: string | null): ParsedMessage | null {
   const text = (isPreview ? restoreLineBreaks(message) : message).trim();
 
   const lines = text.split("\n");
-  const leadLines: string[] = [];
-  let index = 0;
-  while (index < lines.length && lines[index].trim() === "") index += 1;
-  while (index < lines.length && lines[index].trim() !== "" && !isBlockStart(lines[index])) {
-    leadLines.push(lines[index]);
-    index += 1;
-  }
+  const firstText = lines.findIndex((line) => line.trim() !== "");
+  const start = firstText < 0 ? lines.length : firstText;
+  const leadEnd = lines.slice(start).findIndex((line) => line.trim() === "" || isBlockStart(line));
+  const index = leadEnd < 0 ? lines.length : start + leadEnd;
+  const leadLines = lines.slice(start, index);
 
   if (leadLines.length === 0) {
     return { lead: text, rest: "", isPreview };
