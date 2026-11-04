@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   await connection();
   const body: unknown = await request.json().catch(() => null);
-  if (!isRecord(body) || !(await isWorktree(body.worktreePath))) return badRequest("worktreePath가 올바르지 않아요");
-  const worktreePath = body.worktreePath as string;
+  const worktreePath = isRecord(body) && typeof body.worktreePath === "string" ? body.worktreePath : null;
+  if (!isRecord(body) || !worktreePath || !(await isWorktree(worktreePath))) return badRequest("worktreePath가 올바르지 않아요");
   const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question || question.length > MAX_QUESTION) return badRequest("질문이 비었거나 너무 길어요");
 

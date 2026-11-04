@@ -4,7 +4,9 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { git } from "@/server/intentDiff/gitDiff";
 import { UNTIL_SLACK_MS } from "@/server/intentDiff/TranscriptLoader";
+import { z } from "zod";
 import type { DiffRange, ToolEvent } from "@/common/intentDiff/types";
+import { parseJson } from "@/server/shared/fallback";
 
 // Claude Code deletes transcripts after `cleanupPeriodDays`, `git worktree remove` deletes the
 // snapshot log, and `git gc` prunes the unreferenced snapshot trees. The archive keeps what was
@@ -12,18 +14,50 @@ import type { DiffRange, ToolEvent } from "@/common/intentDiff/types";
 const ARCHIVE_DIR = process.env.INTENT_DIFF_ARCHIVE_DIR ?? path.join(homedir(), ".local", "share", "agent-control", "intent-diff");
 const VERSION = 1;
 
-interface ArchivedEvent {
-  event: ToolEvent;
-  /** Worktree whose own working-tree diff this event was read for; null when only seen in a commit range. */
-  local: string | null;
-}
+const lineChangeSchema = z.object({
+  added: z.array(z.string()),
+  removed: z.array(z.string()),
+  precision: z.enum(["exact", "file"]),
+});
+
+const toolEventSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  at: z.number(),
+  tool: z.string(),
+  description: z.string().nullable(),
+  narration: z.string().nullable(),
+  segmentId: z.string(),
+  prompt: z.string().nullable(),
+  todo: z.string().nullable(),
+  command: z.string().nullable(),
+  inputText: z.string(),
+  changes: z.record(z.string(), lineChangeSchema),
+});
+
+const archivedEventSchema = z.object({ event: toolEventSchema, local: z.string().nullable() });
+
+const archiveFileSchema = z.looseObject({
+  version: z.literal(VERSION),
+  repo: z.string(),
+  events: z.record(z.string(), z.unknown()),
+  completions: z.record(z.string(), z.record(z.string(), z.number())).catch({}),
+});
 
 interface ArchiveFile {
   version: number;
   repo: string;
-  events: Record<string, ArchivedEvent>;
-  /** Task file → plan item id → when it was checked off. */
+  events: Record<string, z.infer<typeof archivedEventSchema>>;
   completions: Record<string, Record<string, number>>;
+}
+
+function validEvents(raw: Record<string, unknown>): ArchiveFile["events"] {
+  return Object.fromEntries(
+    Object.entries(raw).flatMap(([key, value]) => {
+      const parsed = archivedEventSchema.safeParse(value);
+      return parsed.success ? [[key, parsed.data] as const] : [];
+    }),
+  );
 }
 
 export interface ArchiveMerge {
@@ -45,13 +79,10 @@ async function readArchive(file: string, repo: string): Promise<ArchiveFile> {
   const empty: ArchiveFile = { version: VERSION, repo, events: {}, completions: {} };
   const raw = await readFile(file, "utf8").catch(() => null);
   if (!raw) return empty;
-  try {
-    const parsed = JSON.parse(raw) as ArchiveFile;
-    return parsed.version === VERSION ? parsed : empty;
-  } catch (error) {
-    console.warn("[intent-diff] archive unreadable, starting over", file, error);
-    return empty;
-  }
+  const parsed = archiveFileSchema.safeParse(parseJson(raw));
+  if (parsed.success) return { ...parsed.data, events: validEvents(parsed.data.events) };
+  console.warn("[intent-diff] archive unreadable, starting over", file, parsed.error.message);
+  return empty;
 }
 
 function hasChanges(event: ToolEvent): boolean {

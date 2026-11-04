@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { DiffLine, DiffRange, FileDiff, Hunk } from "@/common/intentDiff/types";
+import { parseJson } from "@/server/shared/fallback";
 
 const execFileAsync = promisify(execFile);
 
@@ -113,11 +114,8 @@ const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/;
 function unquote(value: string): string {
   const trimmed = value.trim();
   if (!trimmed.startsWith('"')) return trimmed;
-  try {
-    return JSON.parse(trimmed) as string;
-  } catch {
-    return trimmed.slice(1, -1);
-  }
+  const parsed = parseJson(trimmed);
+  return typeof parsed === "string" ? parsed : trimmed.slice(1, -1);
 }
 
 function stripPrefix(value: string): string {

@@ -34,6 +34,7 @@ export class OrcaRuntime {
   private readonly quitTimeoutMs: number;
   private readonly readyTimeoutMs: number;
   private readonly pollMs: number;
+  private switching: Promise<RuntimeMode> | null = null;
   private readonly appExecutable: string;
 
   constructor(options: OrcaRuntimeOptions) {
@@ -51,6 +52,19 @@ export class OrcaRuntime {
 
   read(): Promise<RuntimeStatus> {
     return this.readStatus(true);
+  }
+
+  get isSwitching(): boolean {
+    return this.switching !== null;
+  }
+
+  switchOnce(target: Exclude<RuntimeMode, "off">): Promise<RuntimeMode> | null {
+    if (this.switching) return null;
+    const task = this.switchTo(target).finally(() => {
+      this.switching = null;
+    });
+    this.switching = task;
+    return task;
   }
 
   async switchTo(target: Exclude<RuntimeMode, "off">): Promise<RuntimeMode> {

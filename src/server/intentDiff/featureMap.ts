@@ -67,8 +67,7 @@ export function buildFeatureMap(
     const members: string[] = [];
     const queue = [start];
     seen.add(start);
-    while (queue.length > 0) {
-      const file = queue.shift() as string;
+    for (const file of queue) {
       members.push(file);
       for (const next of [...nodes[file].imports, ...nodes[file].importedBy]) {
         if (!seen.has(next) && nodes[next]) {
@@ -101,9 +100,8 @@ export function buildFeatureMap(
     cluster.phases = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([phase]) => phase);
     const top = cluster.phases[0];
     cluster.title =
-      top && phaseTitle.get(top)
-        ? (phaseTitle.get(top) as string)
-        : cluster.entries.map((file) => path.posix.basename(file)).join(" · ");
+      (top ? phaseTitle.get(top) : undefined) ||
+      cluster.entries.map((file) => path.posix.basename(file)).join(" · ");
   }
   clusters.sort((a, b) => b.files.length - a.files.length);
 

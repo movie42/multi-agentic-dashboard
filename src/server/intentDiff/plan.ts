@@ -3,27 +3,43 @@ import path from "node:path";
 import type { SnapshotStep } from "@/server/intentDiff/SnapshotLog";
 
 export type ReadAtTree = (worktreePath: string, tree: string, file: string) => Promise<string | null>;
+import { z } from "zod";
 import type { ToolEvent } from "@/common/intentDiff/types";
+import { parseJson } from "@/server/shared/fallback";
 
-interface RawItem {
-  id?: string;
-  title?: string;
-  done?: boolean;
-  rows?: unknown[];
-}
+const text = z.string().optional().catch(undefined);
 
-interface RawBlock {
-  type?: string;
-  id?: string;
-  title?: string;
-  items?: RawItem[];
-}
+const rawItemSchema = z.looseObject({
+  id: text,
+  title: text,
+  done: z.boolean().optional().catch(undefined),
+  rows: z.array(z.unknown()).optional().catch(undefined),
+});
 
-interface RawTask {
-  id?: string;
-  title?: string;
-  branch?: string;
-  stages?: { tasks?: { status?: string; blocks?: RawBlock[] } };
+const rawBlockSchema = z.looseObject({
+  type: text,
+  id: text,
+  title: text,
+  items: z.array(rawItemSchema).optional().catch(undefined),
+});
+
+const rawTaskSchema = z.looseObject({
+  id: text,
+  title: text,
+  branch: text,
+  stages: z
+    .looseObject({ tasks: z.looseObject({ status: text, blocks: z.array(rawBlockSchema).optional().catch(undefined) }).optional().catch(undefined) })
+    .optional()
+    .catch(undefined),
+});
+
+type RawItem = z.infer<typeof rawItemSchema>;
+type RawTask = z.infer<typeof rawTaskSchema>;
+
+function parseRawTask(raw: string | null): RawTask | null {
+  if (!raw) return null;
+  const parsed = rawTaskSchema.safeParse(parseJson(raw));
+  return parsed.success ? parsed.data : null;
 }
 
 export interface PlanItem {
@@ -108,7 +124,7 @@ async function candidates(worktreePath: string): Promise<Candidate[]> {
       const full = path.join(tasksDir, name);
       const info = await stat(full).catch(() => null);
       const json = await readFile(full, "utf8")
-        .then((raw) => JSON.parse(raw) as RawTask)
+        .then(parseRawTask)
         .catch(() => null);
       if (!info || !json) continue;
       const id = json.id ?? name.replace(/\.json$/, "");
@@ -145,17 +161,11 @@ export async function loadPlan(worktreePath: string, branch: string | null, task
 }
 
 function doneIds(raw: string | null): Set<string> {
-  if (!raw) return new Set();
-  try {
-    const json = JSON.parse(raw) as RawTask;
-    const ids = (json.stages?.tasks?.blocks ?? [])
-      .flatMap((block) => block.items ?? [])
-      .filter((item) => item.done === true && typeof item.id === "string")
-      .map((item) => item.id as string);
-    return new Set(ids);
-  } catch {
-    return new Set();
-  }
+  const json = parseRawTask(raw);
+  const ids = (json?.stages?.tasks?.blocks ?? [])
+    .flatMap((block) => block.items ?? [])
+    .flatMap((item) => (item.done === true && typeof item.id === "string" ? [item.id] : []));
+  return new Set(ids);
 }
 
 /**

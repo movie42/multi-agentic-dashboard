@@ -1,37 +1,51 @@
 import path from "node:path";
+import { z } from "zod";
 import type { ActivityStep } from "@/common/sessions/types";
+import { parseJson } from "@/server/shared/fallback";
 
 export const STEP_LIMIT = 40;
 const SUMMARY_CHARS = 140;
 const TEXT_CHARS = 600;
 
-interface ContentBlock {
-  type?: string;
-  id?: string;
-  name?: string;
-  text?: string;
-  input?: Record<string, unknown>;
-  tool_use_id?: string;
-  is_error?: boolean;
-}
+const text = z.string().optional().catch(undefined);
+const flag = z.boolean().optional().catch(undefined);
 
-interface TranscriptLine {
-  type?: string;
-  uuid?: string;
-  cwd?: string;
-  timestamp?: string;
-  isSidechain?: boolean;
-  isMeta?: boolean;
-  message?: { content?: unknown };
-}
+const contentBlockSchema = z.looseObject({
+  type: text,
+  id: text,
+  name: text,
+  text,
+  input: z.record(z.string(), z.unknown()).optional().catch(undefined),
+  tool_use_id: text,
+  is_error: flag,
+});
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+const transcriptLineSchema = z.looseObject({
+  type: text,
+  uuid: text,
+  cwd: text,
+  timestamp: text,
+  isSidechain: flag,
+  isMeta: flag,
+  message: z.looseObject({ content: z.unknown().optional() }).optional().catch(undefined),
+});
+
+type ContentBlock = z.infer<typeof contentBlockSchema>;
+type TranscriptLine = z.infer<typeof transcriptLineSchema>;
 
 function blocksOf(content: unknown): ContentBlock[] {
   if (typeof content === "string") return [{ type: "text", text: content }];
-  return Array.isArray(content) ? content.filter(isRecord) : [];
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((block: unknown) => {
+    const parsed = contentBlockSchema.safeParse(block);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+function parseLine(raw: string): TranscriptLine | null {
+  if (!raw.startsWith("{")) return null;
+  const parsed = transcriptLineSchema.safeParse(parseJson(raw));
+  return parsed.success ? parsed.data : null;
 }
 
 function clip(text: string, limit: number): string {
@@ -76,14 +90,8 @@ export function stepsOf(lines: string[]): ActivityStep[] {
   const tools = new Map<string, Extract<ActivityStep, { kind: "tool" }>>();
 
   for (const raw of lines) {
-    if (!raw.startsWith("{")) continue;
-    let line: TranscriptLine;
-    try {
-      line = JSON.parse(raw) as TranscriptLine;
-    } catch {
-      continue;
-    }
-    if (line.isSidechain || line.isMeta) continue;
+    const line = parseLine(raw);
+    if (!line || line.isSidechain || line.isMeta) continue;
     const at = timeOf(line);
     const blocks = blocksOf(line.message?.content);
 
