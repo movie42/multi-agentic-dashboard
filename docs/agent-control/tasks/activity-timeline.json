@@ -1,0 +1,171 @@
+{
+  "id": "activity-timeline",
+  "title": "카드에서 에이전트 진행 기록 실시간 보기",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 · 검증 끝",
+      "conclusion": [
+        "Claude Code가 세션마다 쓰는 대화 기록 파일(jsonl)의 끝부분을 읽어, 도구 호출 · 에이전트 메시지 · 사용자 입력을 시간 순 단계 목록으로 바꿔요.",
+        "카드의 마지막 메시지 아래에 '진행 기록' 토글을 두고, 펼친 동안만 2초마다 새로 읽어요. 접혀 있으면 요청하지 않아요.",
+        "결과가 아직 없는 도구 호출은 '진행 중'으로, 오류로 끝난 호출은 오류로 표시해요.",
+        "서브에이전트 내부 기록(isSidechain)은 빼고, 서브에이전트 호출은 한 단계로만 보여줘요.",
+        "Orca 앱 모드와 헤드리스 모드 어느 쪽에서도 같은 화면이 나와요. Orca CLI를 부르지 않아요.",
+        "검증: 이 세션 카드를 dev 서버(3100)에서 펼쳐 최근 40단계, 진행 중 · 오류 표시, 자동 스크롤을 확인했어요. tsc · eslint 통과."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 기록 파일을 단계 목록으로",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "진행 단계 타입 ActivityStep 정의",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/sessions/types.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "판별 유니온: kind = prompt | text | tool, tool은 status = running | ok | error"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "세션 ID로 기록 파일을 찾아 끝 512KB를 읽고 단계 목록으로 변환",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/sessions/activity.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>sessionTitle.ts</code>의 <code>transcriptOf</code>를 export해서 사용, 끝 읽기는 <code>fullMessage.ts</code>의 <code>readTail</code> 방식"
+                ],
+                [
+                  "패턴",
+                  "파일 mtime이 같으면 캐시 반환(<code>fullMessage.ts</code>의 <code>tails</code> 캐시)"
+                ],
+                [
+                  "결정",
+                  "기록 끝 512KB 안에 단계가 40개가 안 되면 읽는 범위를 4배씩 넓혀요(최대 16MB). 이미지 Read 결과가 base64 한 줄로 512KB를 넘겨, 처음엔 단계가 0개로 나왔어요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "도구별 한 줄 요약: Read/Edit/Write는 파일 경로, Bash는 명령 첫 줄, Grep/Glob은 패턴, Agent는 설명",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/sessions/activity.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Bash는 명령에 붙은 설명(description)을 요약으로 쓰고, 명령 원문은 마우스를 올리면 보여요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 이 세션의 기록 파일로 변환 스크립트를 돌려 최근 단계가 실제 작업 순서와 맞는지 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · API",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "GET /api/activity?session=<id> — 최근 단계 40개 반환",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/api/activity/route.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "세션 ID 검사 정규식 <code>SESSION_ID</code> (<code>src/app/api/actions/route.ts</code>)"
+                ],
+                [
+                  "패턴",
+                  "<code>src/app/api/terminal/route.ts</code>의 ok/error 응답 형태"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: dev 서버(3100)에 curl로 이 세션 ID를 요청해 단계가 나오는지, 잘못된 ID는 400인지",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 카드 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "진행 기록 타임라인 컴포넌트: 펼친 동안 2초 폴링, 아래로 자동 스크롤, 진행 중 단계 강조",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/ActivityTimeline.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "폴링은 <code>ChoicePanel.tsx</code>, 접기는 <code>MessageView.tsx</code>의 details"
+                ],
+                [
+                  "결정",
+                  "목록 항목에 shrink-0을 붙였어요. 스크롤 목록 안에서 줄 수 제한(line-clamp)이 걸린 글 단계가 높이 0으로 줄어들었어요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "카드에 연결: Claude 세션이 잡힌 카드에서만 마지막 메시지 아래에 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/AgentCardView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: 타입체크 · 린트, browse로 dev 서버에서 이 세션 카드를 펼쳐 스크린샷",
+              "done": true,
+              "rows": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "Orca 창을 띄우지 않고도 대시보드 카드에서 에이전트가 지금 무엇을 하고 있는지(읽는 파일, 실행 중인 명령, 남긴 말)를 따라가게 한다.",
+      "state": "confirmed",
+      "basis": "사용자 요청: 'claude 작업 진행중인 상태를 모니터링할수 있냐'"
+    }
+  ]
+}

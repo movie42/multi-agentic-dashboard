@@ -5,6 +5,7 @@ import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, AgentState, Artifact } from "@/lib/orca/types";
 import type { PullRequestInfo, WorkflowStep } from "@/lib/workflow/types";
 import { formatElapsed } from "./format";
+import { ActivityTimeline } from "./ActivityTimeline";
 import { ChoicePanel } from "./ChoicePanel";
 import { MessageView } from "./MessageView";
 import { PermissionPanel } from "./PermissionPanel";
@@ -230,6 +231,8 @@ export function AgentCardView({
       )}
 
       <MessageView message={agent.lastMessage} />
+
+      {agent.session && <ActivityTimeline key={agent.session.id} sessionId={agent.session.id} />}
 
       {agent.permission ? (
         <PermissionPanel key={agent.permission.id} permission={agent.permission} />
