@@ -30,7 +30,8 @@ export function useStoredList(storageKey: string): [string[], (next: string[]) =
     () => {
       try {
         return window.localStorage.getItem(storageKey) ?? "[]";
-      } catch {
+      } catch (error) {
+        console.warn("[stored-list] read failed", storageKey, error);
         return "[]";
       }
     },
@@ -40,7 +41,9 @@ export function useStoredList(storageKey: string): [string[], (next: string[]) =
   const write = (next: string[]) => {
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {}
+    } catch (error) {
+      console.warn("[stored-list] write failed", storageKey, error);
+    }
     listeners.forEach((listener) => listener());
   };
 

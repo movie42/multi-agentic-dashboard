@@ -1,6 +1,8 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { connection, type NextRequest } from "next/server";
+import { reportWarning } from "@/server/container";
+import { missingOr } from "@/server/shared/fallback";
 import { prepareFollowUp, prepareNewThread, runAsk, type PreparedAsk } from "@/lib/intentDiff/ask";
 import { getThread, listThreads } from "@/lib/intentDiff/askStore";
 import type { AskAnchor, AskContext, AskEvent, AskThreadsResponse } from "@/lib/intentDiff/types";
@@ -31,7 +33,7 @@ function isContext(value: unknown): value is AskContext {
 
 async function isWorktree(worktreePath: unknown): Promise<boolean> {
   if (typeof worktreePath !== "string" || !path.isAbsolute(worktreePath)) return false;
-  const info = await stat(worktreePath).catch(() => null);
+  const info = await stat(worktreePath).catch(missingOr(null, reportWarning, "intent-diff/ask", { worktreePath }));
   return info?.isDirectory() ?? false;
 }
 

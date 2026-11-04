@@ -74,5 +74,7 @@ function main() {
 
 try {
   main();
-} catch {}
+} catch (error) {
+  console.error("[snapshot-hook]", error instanceof Error ? error.message : error);
+}
 process.exit(0);
