@@ -4,9 +4,10 @@
   "figma": "",
   "nodes": [],
   "paths": [
-    "src/features/board",
-    "src/lib/orca",
-    "src/app/api"
+    "src/client",
+    "src/server",
+    "src/common",
+    "app"
   ],
   "links": []
 }
