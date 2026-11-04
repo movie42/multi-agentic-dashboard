@@ -75,6 +75,12 @@ function createWindow() {
     show: false,
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isInternal(url) && new URL(url).pathname === "/diff") {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: { width: 1440, height: 960, minWidth: 900, minHeight: 600, title: "변경 읽기" },
+      };
+    }
     shell.openExternal(url);
     return { action: "deny" };
   });

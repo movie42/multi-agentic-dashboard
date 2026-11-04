@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DiffTab } from "@/features/intentDiff/DiffTab";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type {
   AgentCard,
@@ -301,6 +302,8 @@ export function Dashboard() {
 
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />
+        ) : prefs.showingDiff ? (
+          <DiffTab worktrees={board.worktrees} />
         ) : selectedRepo === null ? (
           <>
             <header>

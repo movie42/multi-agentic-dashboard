@@ -11,7 +11,9 @@
     "desktop:install": "node scripts/install-desktop.mjs",
     "desktop": "bun run desktop:build && bun run desktop:install",
     "hook:install": "node scripts/install-permission-hook.mjs",
-    "hook:uninstall": "node scripts/install-permission-hook.mjs --uninstall"
+    "hook:uninstall": "node scripts/install-permission-hook.mjs --uninstall",
+    "snapshot:install": "node scripts/install-snapshot-hook.mjs",
+    "snapshot:uninstall": "node scripts/install-snapshot-hook.mjs --uninstall"
   },
   "dependencies": {
     "next": "16.4.4",

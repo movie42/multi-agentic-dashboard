@@ -1,0 +1,533 @@
+{
+  "id": "intent-diff",
+  "title": "의도 순서로 읽는 diff 뷰",
+  "type": "기능 개발",
+  "branch": "diff-viewer",
+  "links": [],
+  "stages": {
+    "grill": {
+      "rounds": [
+        {
+          "id": "R1",
+          "askedAt": "11/04",
+          "from": "세션 기록을 실제로 열어 본 결과",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "셸로 고친 줄도 정확히 묶을까요?",
+              "said": "이 프로젝트 최근 세션 15개의 도구 호출: Bash 651회 · Write 15회 · Edit 8회. Bash 중 파일을 쓰는 모양(heredoc, sed -i, python 스크립트)이 165회.",
+              "intent": "의도를 세션 기록에서 가져오는데, 에이전트가 파일 대부분을 셸 명령으로 고치고 있어요. 이대로면 화면 대부분이 '의도 미상'이나 '추정'으로 채워져서 이 뷰를 만드는 이유가 사라져요.",
+              "body": "세션 기록에는 <code>Edit</code>/<code>Write</code> 도구로 고친 경우 바뀐 줄이 정확히 남지만, 셸 명령으로 고친 경우에는 명령 문자열만 남아요. 명령에 파일 경로가 보이면 '이 파일을 이 의도로 건드렸다'까지는 추정할 수 있지만, 어느 줄인지는 알 수 없어요. 정확하게 하려면 도구 호출이 끝날 때마다 워크트리 상태를 한 번씩 찍어 두는 훅(Claude Code <code>PostToolUse</code> 훅: 도구 호출 직후 자동으로 실행되는 스크립트)이 필요해요. 찍어 둔 상태 두 개를 비교하면 그 호출 하나가 바꾼 줄이 정확히 나와요. 훅은 전역 설정(<code>~/.claude/settings.json</code>)에 들어가서 모든 프로젝트의 도구 호출마다 git 명령이 한 번 더 돌아요(작은 저장소 기준 수십 ms).",
+              "recommendation": "훅을 추천해요. 앞으로의 작업은 셸 편집까지 줄 단위로 정확해지고, 훅이 없던 지난 세션은 세션 기록만으로 추정해서 '추정' 표시를 붙여요. 훅은 기존 권한 훅처럼 설치·제거 스크립트로 넣고 빼요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "권한 훅 설치 스크립트 <code>scripts/install-permission-hook.mjs</code>가 같은 방식으로 전역 설정을 고침"
+                ]
+              ],
+              "options": [
+                {
+                  "value": "hook",
+                  "label": "훅 추가 — 앞으로는 셸 편집도 줄 단위로 정확, 지난 세션은 '추정' 표시"
+                },
+                {
+                  "value": "transcript",
+                  "label": "세션 기록만 — 설치할 것 없음, 셸 편집은 파일 단위 '추정'으로만 묶임"
+                }
+              ],
+              "recommended": "hook",
+              "answer": {
+                "choice": "hook",
+                "why": "셸 편집도 토큰 절약을 위해서 어떤 의도를 가지고 수정하는 것이니까. 필요하다.",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "상태 기록 훅을 추가해요. 앞으로의 작업은 셸 편집도 도구 호출 단위로 바뀐 줄이 정확히 잡히고, 훅이 없던 지난 세션만 파일 단위 '추정'으로 묶어요.",
+              "reason": {
+                "text": "셸 편집도 토큰 절약을 위해서 어떤 의도를 가지고 수정하는 것이니까. 필요하다.",
+                "by": "user"
+              },
+              "appliedTo": "[[P2-3]] [[P5]]"
+            },
+            {
+              "id": "Q2",
+              "title": "diff 뷰를 어디서 열까요?",
+              "said": "대시보드는 지금 한 화면(src/app/page.tsx) 안에서 보기를 바꾸는 구조이고, 세션 목록도 이 안의 보기 하나예요.",
+              "intent": "diff는 파일 여러 개를 넓게 펼쳐 읽는 화면이라, 보드 화면과 같은 틀에 넣으면 좁아지거나 보드 상태를 잃어요. 어디서 여는지에 따라 화면 구조가 달라져요.",
+              "body": "워크트리 패널에 '변경 읽기' 버튼을 두는 건 같아요. 다른 점은 버튼을 눌렀을 때예요. 별도 주소(<code>/diff?path=…</code>)로 열면 화면 전체를 diff에 쓰고, 데스크톱 앱에서도 뒤로 가기로 보드에 돌아와요. 보드 안의 보기로 열면 사이드바가 남아 다른 워크트리로 바로 옮겨 갈 수 있지만 가로 폭이 줄어요.",
+              "recommendation": "별도 주소를 추천해요. 묶음 목차와 hunk 본문을 나란히 두려면 폭이 필요하고, 주소에 워크트리가 들어가 있어서 나중에 PR 리뷰 화면 같은 다른 곳에서도 같은 링크로 열 수 있어요.",
+              "options": [
+                {
+                  "value": "route",
+                  "label": "별도 주소로 전체 화면 — 넓게 읽고, 뒤로 가기로 보드 복귀"
+                },
+                {
+                  "value": "inline",
+                  "label": "보드 안의 보기 — 사이드바 유지, 폭은 좁음"
+                }
+              ],
+              "recommended": "route",
+              "answer": {
+                "choice": "route",
+                "why": "별도 창으로 열면 좋겠다. 코드 diff는 사이드 창으로 보기엔 의도를 따라가기 어렵다.",
+                "note": "별도 주소로라고 되어있는데 별로 view를 띄우는건가? 그냥 앱 내부지만 창만 별도로 띄우고 원한다면 에이전트 컨트롤 내부에서 탭 버튼으로 페이징하면 될것같은데",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "diff 화면은 자체 주소(<code>/diff?path=…</code>)를 가진 페이지로 만들고, '변경 읽기'를 누르면 데스크톱 앱 안에서 새 창으로 열어요. 같은 화면을 메인 창 사이드바의 '변경' 탭으로도 열 수 있게 해요. 외부 브라우저로는 열지 않아요.",
+              "reason": {
+                "text": "별도 창으로 열면 좋겠다. 코드 diff는 사이드 창으로 보기엔 의도를 따라가기 어렵다. (메모) 앱 내부지만 창만 별도로 띄우고, 원한다면 에이전트 컨트롤 내부에서 탭 버튼으로 페이징.",
+                "by": "user"
+              },
+              "appliedTo": "[[P4-2]] [[P4-4]] [[P4-5]]"
+            }
+          ]
+        }
+      ]
+    },
+    "tasks": {
+      "status": "ask",
+      "summary": "Phase 6 완료 · 확인 대기",
+      "conclusion": [
+        "워크트리 하나의 변경을 계획 항목 → 의도 → hunk 순으로 보여 주는 <code>/diff</code> 화면과 API를 만들었어요 [[P4]].",
+        "<code>265663c</code>에 돌려 보면 변경이 session-ux 작업의 P1 · P2 · P3 아래로 나뉘고, 같은 커밋에 섞인 Slack 복사 버튼 변경은 '계획 파일 밖'으로 표시돼요 [[P3-V]].",
+        "도구 호출마다 워크트리 상태를 찍는 훅을 전역 설정에 설치했어요. 훅을 켠 뒤의 셸 편집은 줄 단위로 연결되고, 그 전 세션은 파일 단위 '추정'이에요 [[P5]].",
+        "'변경 읽기' 버튼은 데스크톱 앱에서 새 창으로, 사이드바 '변경' 탭은 메인 창 안에서 같은 화면을 열어요. 데스크톱 새 창은 직접 확인하지 못했어요 [[P4-V]].",
+        "'기능 지도'로 바꾸면 바뀐 파일을 import 관계로 묶어, 입구(API · 화면)에서 내려가는 트리와 파일마다 걸린 계획 항목을 보여 줘요 [[P6]]."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · diff 원본 읽기",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "의도 diff 타입 정의 — hunk, 편집 기록, 의도 묶음, 계획 항목, 버킷",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/types.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "상태는 판별 유니온(discriminated union) — <code>src/lib/workflow/types.ts</code>의 <code>PullRequestInfo</code>와 같은 모양"
+                ],
+                [
+                  "결정",
+                  "버킷은 4종: 계획 밖 변경 · 계획했는데 diff 없음 · 기계적 변경 · 의도 미상"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "비교 기준 계산과 diff 파싱 — 브랜치 분기점 대비 현재 워크트리(커밋 안 한 변경과 새 파일 포함), 기준 커밋을 직접 줄 수도 있게",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/gitDiff.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/lib/workflow/git.ts</code>의 <code>execFile</code> 호출 방식과 공용 브랜치 정규식 <code>SHARED_BRANCH</code>"
+                ],
+                [
+                  "결정",
+                  "rename은 <code>git diff -M</code>으로 잡아 기계적 변경으로 보냄"
+                ],
+                [
+                  "결정",
+                  "기준 브랜치 후보(develop · main · master, 로컬과 원격) 중 분기점이 가장 최근인 것을 기준으로 씀 — 로컬 main이 원격보다 앞서 있으면 원격 기준이 지난 커밋까지 끌고 왔음"
+                ],
+                [
+                  "결정",
+                  "세션 기록을 읽는 시작 시각은 기준 커밋 시각 · 브랜치 생성(reflog 첫 줄) · 브랜치 커밋의 작성 시각 중 가장 이른 것. rebase 후 기준 커밋 시각만 쓰면 그 전 편집이 전부 '의도 미상'이 됐음(30조각 중 21 → 0)"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 이 저장소에서 파싱한 파일·줄 수가 <code>git diff --numstat <기준></code>과 같다",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 세션 기록에서 편집 기록 뽑기",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "워크트리의 세션 기록 찾기 — 워크트리 경로에 해당하는 기록 파일 중 분기점 커밋 이후 것 전부",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/transcripts.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/lib/sessions/fullMessage.ts</code>의 <code>projectDirOf</code> (export해서 사용)"
+                ],
+                [
+                  "결정",
+                  "같은 저장소의 다른 체크아웃 세션 기록도 읽고, 이 워크트리 안 파일을 고친 기록만 씀. 다른 체크아웃의 셸 명령은 이 워크트리 절대 경로가 들어 있을 때만 셈"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "도구 호출 시간순 목록 만들기 — 편집(Edit · Write · MultiEdit의 바뀐 줄), 셸 명령(명령에 나온 파일 경로), 할 일 목록 상태(TodoWrite · TaskCreate · TaskUpdate), 호출 직전의 에이전트 설명 글. 하위 에이전트 기록 포함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/transcripts.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/lib/sessions/claudeSessions.ts</code>의 줄 단위 JSON 파싱과 mtime 캐시"
+                ],
+                [
+                  "결정",
+                  "에이전트가 사용자에게 보인 진행 문장이 기록에 짧은 thinking 블록으로 남는 경우가 있어, 그 턴에 text가 없을 때만 500자 이하 thinking을 설명으로 씀"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "훅이 찍어 둔 상태 기록 읽기 — 연속한 두 상태를 비교해 도구 호출 하나가 바꾼 줄을 얻기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/snapshots.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 이 세션의 기록으로 뽑은 편집 목록에 이번 작업 문서 수정이 시간순으로 들어 있다",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 변경을 의도와 계획 항목에 붙이기",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "hunk → 편집 연결 — 그 hunk의 추가된 줄을 마지막으로 만든 편집을 내용으로 찾음(줄 번호는 이후 편집으로 밀리므로 쓰지 않음). 셸 편집은 파일 경로만 맞으면 '추정'으로 연결",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/attribute.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "편집 → 의도 묶음 — 그때 진행 중이던 할 일 항목으로 묶고, 없으면 사용자 메시지 사이 구간으로 묶음. 묶음 제목은 할 일 항목, 설명은 에이전트가 쓴 글",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/attribute.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "계획 항목 층 — 워크트리 브랜치에 맞는 /flow 작업 문서를 찾아, 항목이 완료로 바뀐 시점으로 구간을 나누고 그 구간의 편집을 붙임. 시점이 애매하면 항목의 <code>파일</code> 행으로 정함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/plan.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/lib/workflow/flowDocs.ts</code>의 작업 문서 읽기와 캐시"
+                ],
+                [
+                  "결정",
+                  "계획서는 /flow 작업 문서 JSON만 지원. 예전 <code>tasks.md</code>는 제외"
+                ],
+                [
+                  "결정",
+                  "한 번에 여러 항목이 완료로 바뀐 경우(시점이 같음) 파일 행으로만 정하고, 어느 항목에도 없는 파일은 '계획 밖 변경'으로 보냄"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "묶음 안 읽기 순서 — 바뀐 파일끼리 import 관계를 보고 타입·계약 → 구현 → 호출부 → 화면 순으로 정렬",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/order.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-5",
+              "title": "기계적 변경 분리 — 공백만, import 줄만, rename만 바뀐 hunk",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/attribute.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>265663c</code>(세션 북마크 · 포커스 UI 통일) 커밋을 기준 커밋으로 주면 <code>session-ux</code> 작업의 P1 · P2 · P3 아래에 변경이 나뉘어 붙는다",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · API와 화면",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "API — 워크트리 경로와 기준 커밋을 받아 계획 → 의도 → hunk 구조를 돌려줌",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/api/intent-diff/route.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/app/api/board/route.ts</code>의 <code>connection()</code> + <code>{ ok, … }</code> 응답 모양"
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "diff 화면 — 왼쪽 목차(계획 항목 → 의도), 오른쪽 의도별 설명과 hunk(한 열 diff). 버킷은 맨 아래 접힘. 연결 근거가 '기록'인지 '추정'인지 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/diff/page.tsx</code> · <code>src/features/intentDiff/*</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/features/board/SessionsPage.tsx</code>의 목록·카드 스타일과 기존 색 토큰"
+                ],
+                [
+                  "결정",
+                  "주소 하나로 새 창과 메인 창 탭 양쪽에서 같은 화면을 씀 [[R1-Q2]]"
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "워크트리 패널에 '변경 읽기' 버튼 — 데스크톱 앱에서는 새 창, 웹에서는 새 탭으로 엶",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/WorktreePanel.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "같은 파일의 둥근 동작 버튼"
+                ]
+              ]
+            },
+            {
+              "id": "P4-4",
+              "title": "데스크톱 앱에서 같은 앱 주소의 <code>/diff</code> 링크는 외부 브라우저 대신 앱의 새 창으로 열기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>desktop/main.mjs</code>"
+                ],
+                [
+                  "패턴",
+                  "지금은 <code>setWindowOpenHandler</code>가 모든 링크를 <code>shell.openExternal</code>로 보냄 — <code>/diff</code>만 새 <code>BrowserWindow</code>로 분기"
+                ]
+              ]
+            },
+            {
+              "id": "P4-5",
+              "title": "메인 창 사이드바에 '변경' 탭 — 워크트리를 고르면 같은 diff 화면을 메인 창 안에서 보여 줌",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/board/ProjectSidebar.tsx</code> · <code>src/features/board/useWorkspacePrefs.ts</code> · <code>src/features/board/Dashboard.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "사이드바 '세션' 항목과 <code>showingSessions</code> 전환 방식"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 헤드리스 브라우저로 이 워크트리와 <code>265663c</code> 기준 화면을 열어 묶음이 보이고, <code>bun run desktop</code> 후 데스크톱 앱에서 '변경 읽기'가 새 창으로, 사이드바 '변경' 탭이 메인 창 안에서 열린다",
+              "done": false,
+              "rows": [
+                [
+                  "결과",
+                  "헤드리스 브라우저: <code>/diff</code> 화면과 사이드바 '변경' 탭 확인, 다른 저장소 워크트리(<code>compose_mis/COMP-603</code>)도 열림. <code>bun run desktop</code> 설치까지 함. 데스크톱 앱에서 '변경 읽기'가 새 창으로 열리는지는 직접 보지 못함"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 상태 기록 훅",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "훅 스크립트 — 도구 호출 직후 git 저장소 안이면 임시 인덱스로 워크트리 전체를 tree 객체로 저장하고, 시각 · 세션 id · 도구 호출 id · tree를 저장소 git 폴더 안 기록 파일에 한 줄 추가. 대시보드가 꺼져 있어도 동작",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>scripts/snapshot-hook.mjs</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "설치 · 제거 스크립트와 <code>package.json</code> 명령",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>scripts/install-snapshot-hook.mjs</code> · <code>package.json</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>scripts/install-permission-hook.mjs</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: 훅을 켠 세션에서 셸로 한 줄을 고치고, diff 화면에서 그 줄이 '기록'으로 해당 의도 아래 붙는다",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "훅 설치 후 셸(<code>sed -i</code>)로 바꾼 <code>PREVIEW_LINES</code> 한 줄이 그 도구 호출 id에 줄 단위('기록')로 붙음"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 기능 지도 (파일 의존 트리)",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "바뀐 파일끼리의 import 그래프로 기능 묶음 만들기 — 연결된 파일 묶음 하나가 기능 하나, 아무도 import하지 않는 파일이 입구",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/featureMap.ts</code> · <code>src/lib/intentDiff/order.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>order.ts</code>의 import 해석"
+                ],
+                [
+                  "결정",
+                  "같은 파일을 여러 곳에서 가져오면 첫 자리에만 그리고, 나머지는 '이 지도 다른 줄에 있음'으로 적음. 공용 타입 파일 하나로 API와 화면이 이어지면 한 기능으로 묶이고, 입구별로 나눠 보여 줌"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "파일마다 그 파일을 고친 계획 항목 · 의도를 붙이고, 묶음 제목은 가장 많이 걸린 Phase로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/featureMap.ts</code> · <code>src/lib/intentDiff/build.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-3",
+              "title": "'계획 순서 | 기능 지도' 전환 — 기능 지도는 입구에서 내려가는 트리, 파일을 펼치면 그 자리에서 변경을 읽음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/FeatureMapView.tsx</code> · <code>src/features/intentDiff/IntentDiffView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-4",
+              "title": "계획 순서 화면의 변경 머리에도 '쓰는 곳 · 가져옴' 연결 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/HunkBlock.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: 이 워크트리에서 화면(page) · API(route) · 보드 탭(Dashboard)이 입구로 나오고, 각 파일에 P 항목이 붙는다",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "이 워크트리: 기능 1개(22파일)에 입구 3개 — API <code>route.ts</code> · 화면 조각 <code>Dashboard.tsx</code> · 화면 <code>page.tsx</code>. 파일마다 P 항목이 붙고, 파일을 누르면 그 자리에서 변경이 펼쳐짐. import 연결 없는 파일 5개(설정 · 스크립트 · 작업 문서)는 따로 모임"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "에이전트가 한 번에 많이 고친 코드를, 무엇을 왜 바꿨는지 직접 맞추지 않고 읽을 수 있게 한다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 (11/04 대화)"
+    },
+    {
+      "text": "작업 계획서가 있으면 계획 항목 순서가 diff의 목차가 되고, 계획 밖 변경과 계획했는데 하지 않은 항목이 따로 드러난다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 (11/04 대화)"
+    },
+    {
+      "text": "의도는 추측하지 않고, 에이전트가 작업하던 시점에 남긴 기록(세션 기록·계획서)에서 가져온다. 찾지 못한 변경은 '의도 미상'으로 따로 둔다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 (11/04 대화) — A 방식 추천에 동의"
+    }
+  ],
+  "pulledAt": 1793770581033
+}

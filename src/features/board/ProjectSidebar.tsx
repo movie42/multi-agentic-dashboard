@@ -112,7 +112,7 @@ export function ProjectSidebar({
         <NavItem
           label="전체"
           note={focused.size > 0 ? `포커스 ${focused.size}` : undefined}
-          active={prefs.selectedRepo === null && !prefs.showingSessions}
+          active={prefs.selectedRepo === null && !prefs.showingSessions && !prefs.showingDiff}
           needsMe={totalNeedsMe}
           working={totalWorking}
           onSelect={() => prefs.selectRepo(null)}
@@ -126,6 +126,9 @@ export function ProjectSidebar({
           working={0}
           onSelect={prefs.openSessions}
         />
+      </div>
+      <div className="flex">
+        <NavItem label="변경" active={prefs.showingDiff} needsMe={0} working={0} onSelect={prefs.openDiff} />
       </div>
 
       <p className="mt-6 mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">프로젝트</p>

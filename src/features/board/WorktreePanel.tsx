@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { intentDiffHref } from "@/features/intentDiff/useIntentDiff";
 import type { ActionRequest } from "@/lib/orca/actions";
 import type { AgentCard, WorktreeSummary } from "@/lib/orca/types";
 import { buildSteps } from "@/lib/workflow/steps";
@@ -195,6 +196,15 @@ export function WorktreePanel({
           >
             터미널로
           </button>
+          <a
+            href={intentDiffHref({ worktreePath: worktree.path })}
+            target="_blank"
+            rel="noreferrer"
+            title="분기점 이후 변경을 계획 항목 → 의도 순서로 새 창에서 읽어요"
+            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+          >
+            변경 읽기
+          </a>
         </p>
         {childLinks.length > 0 && (
           <div className="mt-4 text-[13px]">

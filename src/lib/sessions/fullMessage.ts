@@ -29,7 +29,7 @@ const tails = globalCache.__agentControlTails;
 globalCache.__agentControlPaneFiles ??= new Map();
 const paneFiles = globalCache.__agentControlPaneFiles;
 
-function projectDirOf(cwd: string): string {
+export function projectDirOf(cwd: string): string {
   return path.join(PROJECTS_DIR, cwd.replace(/[^A-Za-z0-9]/g, "-"));
 }
 
