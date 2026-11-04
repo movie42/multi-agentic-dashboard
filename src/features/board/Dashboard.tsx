@@ -10,6 +10,7 @@ import { AgentCardView, type CardProgress } from "./AgentCardView";
 import { foldWorkers, groupAgents, type FoldedAgents } from "./classify";
 import { CommandPalette } from "./CommandPalette";
 import { FeatureGroup } from "./FeatureGroup";
+import { FocusChips, FocusToggle } from "./FocusControls";
 import { LaunchAgent } from "./LaunchAgent";
 import { ProjectSidebar, type ProjectCounts } from "./ProjectSidebar";
 import { AgentList } from "./AgentList";
@@ -81,6 +82,7 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [viewKeys, writeView] = useStoredList("agent-control:overview-view");
   const view: OverviewView = viewKeys[0] === "stage" ? "stage" : "turn";
+  const [focusKeys, writeFocus] = useStoredList("agent-control:overview-focus");
   const [jump, setJump] = useState<JumpTarget | null>(null);
   const handledJump = useRef<JumpTarget | null>(null);
 
@@ -157,6 +159,14 @@ export function Dashboard() {
   const jumpToAgent = (agent: AgentCard) => jumpTo(agent.repo, [agent.id, agent.worktreeId]);
   const withoutProgressCard = (agent: AgentCard) => renderCard(agent, false);
 
+  const focused = new Set(focusKeys.filter((repo) => projectByRepo.has(repo)));
+  const toggleFocus = (repo: string) =>
+    writeFocus(focused.has(repo) ? [...focused].filter((item) => item !== repo) : [...focused, repo]);
+  const inFocus = (repo: string) => focused.size === 0 || focused.has(repo);
+  const focusedAgents = board.agents.filter((agent) => inFocus(agent.repo));
+  const focusedWorktrees = board.worktrees.filter((worktree) => inFocus(worktree.repo));
+  const focusGroups = groupAgents(foldWorkers(focusedAgents).top, dismissed.isDismissed);
+
   const needle = query.trim().toLowerCase();
   const worktreeMatches = (worktree: WorktreeSummary) =>
     [worktree.repo, worktree.name, worktree.branch, ...worktree.flowTasks.map((task) => `${task.taskId} ${task.title}`)]
@@ -170,13 +180,13 @@ export function Dashboard() {
         .some((value) => value?.toLowerCase().includes(needle))
     );
   };
-  const visibleAgents = board.agents.filter(agentMatches);
+  const visibleAgents = focusedAgents.filter(agentMatches);
   const visibleWorktrees = needle
-    ? board.worktrees.filter(
+    ? focusedWorktrees.filter(
         (worktree) =>
           worktreeMatches(worktree) || visibleAgents.some((agent) => agent.worktreeId === worktree.worktreeId),
       )
-    : board.worktrees;
+    : focusedWorktrees;
   const visibleFold = foldWorkers(visibleAgents);
   const visibleGroups = groupAgents(visibleFold.top, dismissed.isDismissed);
 
@@ -199,8 +209,10 @@ export function Dashboard() {
       <ProjectSidebar
         projects={board.projects}
         countsByRepo={countsByRepo}
-        totalNeedsMe={allGroups.needsMe.length}
-        totalWorking={allGroups.working.length}
+        totalNeedsMe={focusGroups.needsMe.length}
+        totalWorking={focusGroups.working.length}
+        focused={focused}
+        onToggleFocus={toggleFocus}
         prefs={prefs}
         fetchedAt={board.fetchedAt}
         error={error}
@@ -221,9 +233,16 @@ export function Dashboard() {
             <header>
               <h1 className="text-[36px] leading-[1.15] font-bold tracking-[-0.025em]">전체</h1>
               <p className="mt-2.5 text-[13px] text-muted">
-                내 차례 {allGroups.needsMe.length} · 에이전트 작업 중 {allGroups.working.length} · 쉬는 중{" "}
-                {allGroups.resting.length} · 프로젝트 {board.projects.length}
+                내 차례 {focusGroups.needsMe.length} · 에이전트 작업 중 {focusGroups.working.length} · 쉬는 중{" "}
+                {focusGroups.resting.length} · 프로젝트{" "}
+                {focused.size > 0 ? `${focused.size}/${board.projects.length}` : board.projects.length}
               </p>
+              <FocusChips
+                repos={board.projects.map((project) => project.repo).filter((repo) => focused.has(repo))}
+                onRemove={toggleFocus}
+                onClear={() => writeFocus([])}
+              />
+
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <div className="flex rounded-full bg-tint p-0.5 text-[13px] font-semibold">
                   {VIEW_OPTIONS.map((option) => (
@@ -254,7 +273,7 @@ export function Dashboard() {
                 )}
               </div>
               <div className="mt-4">
-                <LaunchAgent worktrees={board.worktrees} showRepo />
+                <LaunchAgent worktrees={focusedWorktrees} showRepo />
               </div>
             </header>
 
@@ -314,6 +333,8 @@ export function Dashboard() {
             renderCard={withoutProgressCard}
             expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
+            focused={focused.has(selectedRepo)}
+            onToggleFocus={() => toggleFocus(selectedRepo)}
           />
         )}
       </main>
@@ -340,9 +361,24 @@ interface ProjectViewProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   expandedId: string | null;
   onAction: (action: ActionRequest) => void;
+  focused: boolean;
+  onToggleFocus: () => void;
 }
 
-function ProjectView({ repo, worktrees, features, agents, mode, now, isDismissed, renderCard, expandedId, onAction }: ProjectViewProps) {
+function ProjectView({
+  repo,
+  worktrees,
+  features,
+  agents,
+  mode,
+  now,
+  isDismissed,
+  renderCard,
+  expandedId,
+  onAction,
+  focused,
+  onToggleFocus,
+}: ProjectViewProps) {
   const allPanels = worktrees.map((worktree) => ({
     worktree,
     groups: groupAgents(
@@ -376,7 +412,10 @@ function ProjectView({ repo, worktrees, features, agents, mode, now, isDismissed
   return (
     <>
       <header>
-        <h1 className="text-[36px] leading-[1.15] font-bold tracking-[-0.025em]">{repo}</h1>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="text-[36px] leading-[1.15] font-bold tracking-[-0.025em]">{repo}</h1>
+          <FocusToggle active={focused} onToggle={onToggleFocus} />
+        </div>
         <p className="mt-2.5 text-[13px] text-muted">
           worktree {worktrees.length}개 · {mode === "company" ? "회사 워크플로" : "개인 워크플로"}
         </p>

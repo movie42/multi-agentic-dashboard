@@ -36,6 +36,7 @@ export async function sessionRefOf(file: string, size: number): Promise<SessionR
     id: path.basename(file, ".jsonl"),
     title: custom ?? ai,
     titleSource: custom ? "custom" : ai ? "ai" : "none",
+    bookmark: null,
   };
 }
 

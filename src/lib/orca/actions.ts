@@ -6,6 +6,8 @@ export type ActionRequest =
   | { type: "close-terminal"; terminalHandle: string }
   | { type: "resume-session"; sessionId: string; cwd: string; title: string }
   | { type: "rename-session"; sessionId: string; title: string }
+  | { type: "bookmark-session"; sessionId: string; name: string; cwd: string; memo: string }
+  | { type: "unbookmark-session"; sessionId: string }
   | { type: "send-prompt"; terminalHandle: string; text: string }
   | { type: "choose-option"; terminalHandle: string; option: number }
   | { type: "launch-agent"; worktreePath: string; prompt: string }

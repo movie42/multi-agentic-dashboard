@@ -8,6 +8,7 @@ import { formatElapsed } from "./format";
 import { ChoicePanel } from "./ChoicePanel";
 import { MessageView } from "./MessageView";
 import { PermissionPanel } from "./PermissionPanel";
+import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "./SessionBookmarkControl";
 import { QuickReply } from "./QuickReply";
 import { SessionTitle } from "./SessionTitle";
 import { Stepper } from "./Stepper";
@@ -123,6 +124,9 @@ export function AgentCardView({
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr");
   const showWorktree = agent.worktreeName !== agent.branch;
   const fallbackTitle = agent.prompt?.replace(/\s+/g, " ").slice(0, 80) ?? "제목 없음";
+  const bookmark = agent.session
+    ? bookmarkTarget(agent.session.id, agent.session.title ?? fallbackTitle, agent.worktreePath, agent.session.bookmark)
+    : null;
 
   return (
     <article
@@ -161,7 +165,15 @@ export function AgentCardView({
               {dismissed ? "되돌리기" : "정리"}
             </button>
           )}
+          {bookmark ? (
+            <BookmarkStar target={bookmark} />
+          ) : (
+            <span className="shrink-0 text-[17px] leading-none text-faint" title="세션 기록을 찾지 못해 북마크할 수 없어요">
+              ☆
+            </span>
+          )}
         </div>
+        {bookmark && <BookmarkMemo target={bookmark} />}
         <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-none">
           <span className="rounded-md bg-tint-2 px-2 py-1 font-semibold" title="프로젝트">
             {agent.repo}

@@ -4,9 +4,10 @@ import { featureDocsIn, featureOfWorktree, loadFeatures } from "@/lib/workflow/f
 import { mergeRepoFlowTasks, scanFlowTasks, splitFlowTasks, type WorktreeFlowScan } from "@/lib/workflow/flowDocs";
 import type { CheckInput } from "@/lib/workflow/remoteCheck";
 import { detectMode, getPullRequest } from "@/lib/workflow/git";
+import { readBookmarks } from "@/lib/sessions/bookmarks";
 import { findSession } from "@/lib/sessions/fullMessage";
 import { sessionRefOf } from "@/lib/sessions/sessionTitle";
-import type { SessionRef } from "@/lib/sessions/types";
+import type { SessionBookmark, SessionRef } from "@/lib/sessions/types";
 import { pendingByPane, settleStale } from "@/lib/permissions/store";
 import { runOrca } from "./cli";
 import { reattachOrphans } from "./orphans";
@@ -65,11 +66,15 @@ function shortBranch(branch: string | null): string | null {
 }
 
 export async function loadBoard(): Promise<BoardSnapshot> {
-  const [ps, terminals] = await Promise.all([
+  const [ps, terminals, bookmarks] = await Promise.all([
     runOrca<{ worktrees: OrcaWorktreeRaw[] }>(["worktree", "ps", "--limit", "500"]),
     runOrca<{ terminals: OrcaTerminalRaw[] }>(["terminal", "list"]).catch(() => ({
       terminals: [],
     })),
+    readBookmarks().catch((error: unknown) => {
+      console.warn("[board] bookmarks", error);
+      return new Map<string, SessionBookmark>();
+    }),
   ]);
 
   const handleByPane = new Map<string, string>();
@@ -151,7 +156,7 @@ export async function loadBoard(): Promise<BoardSnapshot> {
         state: toAgentState(effectiveState),
         prompt: agent.prompt,
         title: agent.taskTitle ?? agent.displayName,
-        session,
+        session: session ? { ...session, bookmark: bookmarks.get(session.id) ?? null } : null,
         lastMessage,
         toolName: agent.toolName,
         backgroundRunning,

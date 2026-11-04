@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { ActionRequest } from "@/lib/orca/actions";
-import type { SessionSummary, SessionsResponse, TitleSource } from "@/lib/sessions/types";
+import type { SessionBookmark, SessionSummary, SessionsResponse, TitleSource } from "@/lib/sessions/types";
 import { formatElapsed } from "./format";
 import { parseMessage } from "./message";
+import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "./SessionBookmarkControl";
 import { SessionTitle } from "./SessionTitle";
 
 type TitleFilter = "all" | "not-custom" | "none";
@@ -42,6 +43,10 @@ function matchesTitle(session: SessionSummary, filter: TitleFilter): boolean {
   return true;
 }
 
+function updateLastLoaded(update: (list: SessionSummary[]) => SessionSummary[]) {
+  if (lastLoaded) lastLoaded = { ...lastLoaded, sessions: update(lastLoaded.sessions) };
+}
+
 export function SessionsPage({ onAction }: SessionsPageProps) {
   const [state, setState] = useState<SessionsState>({
     sessions: lastLoaded?.sessions ?? null,
@@ -56,6 +61,7 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [copied, setCopied] = useState<string | null>(null);
   const [showAutomated, setShowAutomated] = useState(false);
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +91,13 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
     setState((previous) => ({ ...previous, sessions: previous.sessions ? rename(previous.sessions) : null }));
   };
 
+  const setBookmarkLocally = (sessionId: string, bookmark: SessionBookmark | null) => {
+    const update = (list: SessionSummary[]) =>
+      list.map((entry) => (entry.sessionId === sessionId ? { ...entry, bookmark } : entry));
+    setState((previous) => ({ ...previous, sessions: previous.sessions ? update(previous.sessions) : null }));
+    updateLastLoaded(update);
+  };
+
   const reload = () => {
     setState((previous) => ({ ...previous, loading: true }));
     setReloadKey((key) => key + 1);
@@ -110,9 +123,10 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
   const filtered = sessions.filter(
     (session) =>
       matchesTitle(session, titleFilter) &&
+      (!bookmarkedOnly || session.bookmark !== null) &&
       (!project || session.project === project) &&
       (!needle ||
-        [session.title, session.firstPrompt, session.lastPrompt, session.lastMessage, session.gitBranch, session.cwd, session.sessionId].some(
+        [session.title, session.firstPrompt, session.lastPrompt, session.lastMessage, session.gitBranch, session.cwd, session.sessionId, session.bookmark?.memo].some(
           (value) => value?.toLowerCase().includes(needle),
         )),
   );
@@ -121,6 +135,7 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
     ai: sessions.filter((session) => session.titleSource === "ai").length,
     none: sessions.filter((session) => session.titleSource === "none").length,
   };
+  const bookmarkedCount = sessions.filter((session) => session.bookmark !== null).length;
 
   return (
     <>
@@ -168,6 +183,16 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
             placeholder="검색 · 제목, 요청, 답변, 브랜치, 폴더, 세션 ID"
             className="w-full max-w-md rounded-full bg-tint px-4 py-1.5 text-[14px] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
           />
+          <button
+            type="button"
+            aria-pressed={bookmarkedOnly}
+            onClick={() => setBookmarkedOnly((current) => !current)}
+            className={`rounded-full px-3.5 py-1.5 text-[13px] leading-none font-semibold ${
+              bookmarkedOnly ? "bg-fg text-bg" : "bg-tint text-muted hover:text-fg"
+            }`}
+          >
+            ★ 북마크 {bookmarkedCount}
+          </button>
           <label className="flex cursor-pointer items-center gap-1.5 text-[13px] text-muted">
             <input
               type="checkbox"
@@ -190,6 +215,8 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
         {filtered.slice(0, limit).map((session) => {
           const badge = TITLE_BADGE[session.titleSource];
           const reply = parseMessage(session.lastMessage)?.lead;
+          const target = bookmarkTarget(session.sessionId, session.title, session.cwd, session.bookmark);
+          const onBookmarkChanged = (bookmark: SessionBookmark | null) => setBookmarkLocally(session.sessionId, bookmark);
           return (
             <li
               key={session.sessionId}
@@ -220,7 +247,11 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                       {session.origin === "headless" ? "자동 호출" : "다른 세션이 시작"}
                     </span>
                   )}
+                  <span className="ml-auto flex shrink-0 items-center gap-2">
+                    <BookmarkStar target={target} onChanged={onBookmarkChanged} />
+                  </span>
                 </p>
+                <BookmarkMemo target={target} onChanged={onBookmarkChanged} />
                 {session.lastPrompt && (
                   <p className="line-clamp-2 text-[14px] leading-relaxed text-muted">“{session.lastPrompt}”</p>
                 )}

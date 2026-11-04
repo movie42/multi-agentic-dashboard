@@ -9,7 +9,8 @@ const TAIL_BYTES = 512 * 1024;
 const TEXT_LIMIT = 800;
 const HOUSEKEEPING_COMMAND = /^\/(clear|compact|model|resume|exit|cost|config|status|login|logout|effort|fast|context|mcp|permissions)(\s|$)/;
 
-type ParsedSession = Omit<SessionSummary, "cwdExists">;
+export type ScannedSession = Omit<SessionSummary, "bookmark">;
+type ParsedSession = Omit<ScannedSession, "cwdExists">;
 
 const CACHE_VERSION = 3;
 const CACHE_FILE = path.join(
@@ -26,7 +27,7 @@ interface CacheEntry {
 interface SessionCacheState {
   entries: Map<string, CacheEntry>;
   loaded: Promise<void> | null;
-  inFlight: Promise<SessionSummary[]> | null;
+  inFlight: Promise<ScannedSession[]> | null;
   persisted?: boolean;
 }
 
@@ -255,7 +256,7 @@ async function exists(target: string | null): Promise<boolean> {
   );
 }
 
-export function listClaudeSessions(): Promise<SessionSummary[]> {
+export function listClaudeSessions(): Promise<ScannedSession[]> {
   state.inFlight ??= scanSessions().finally(() => {
     state.inFlight = null;
   });
@@ -268,7 +269,7 @@ export function warmClaudeSessions(): void {
   }
 }
 
-async function scanSessions(): Promise<SessionSummary[]> {
+async function scanSessions(): Promise<ScannedSession[]> {
   state.loaded ??= loadDiskCache();
   await state.loaded;
   let changed = false;
@@ -308,7 +309,7 @@ async function scanSessions(): Promise<SessionSummary[]> {
   if (changed || !state.persisted) await saveDiskCache();
 
   const cwdExists = new Map<string, boolean>();
-  const sessions: SessionSummary[] = [];
+  const sessions: ScannedSession[] = [];
   for (const session of parsed) {
     if (!session) continue;
     if (session.cwd && !cwdExists.has(session.cwd)) cwdExists.set(session.cwd, await exists(session.cwd));
