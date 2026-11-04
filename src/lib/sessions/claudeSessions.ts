@@ -2,6 +2,7 @@ import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promise
 import { homedir } from "node:os";
 import path from "node:path";
 import type { SessionOrigin, SessionSummary, TitleSource } from "./types";
+import { askSessionIds } from "@/lib/intentDiff/askStore";
 
 const PROJECTS_DIR = process.env.CLAUDE_PROJECTS_DIR ?? path.join(homedir(), ".claude", "projects");
 const HEAD_BYTES = 256 * 1024;
@@ -310,8 +311,9 @@ async function scanSessions(): Promise<ScannedSession[]> {
 
   const cwdExists = new Map<string, boolean>();
   const sessions: ScannedSession[] = [];
+  const asked = await askSessionIds();
   for (const session of parsed) {
-    if (!session) continue;
+    if (!session || asked.has(session.sessionId)) continue;
     if (session.cwd && !cwdExists.has(session.cwd)) cwdExists.set(session.cwd, await exists(session.cwd));
     sessions.push({
       ...session,

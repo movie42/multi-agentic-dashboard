@@ -8,7 +8,9 @@ import { FeatureMapView } from "./FeatureMapView";
 import { HunkBlock } from "./HunkBlock";
 import { FlowView, stepAnchor } from "./FlowView";
 import { HunkLookup, type HunkEntry } from "./hunkLookup";
+import { AskPlanItem } from "./AskThread";
 import { SymbolPanel } from "./SymbolPanel";
+import { AskBoardContext, useAskBoard } from "./useAskBoard";
 import { useIntentDiff, type IntentDiffQuery } from "./useIntentDiff";
 
 const MECHANICAL_LABEL: Record<MechanicalReason, string> = {
@@ -67,9 +69,11 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
   const [storedMode, writeMode] = useStoredList("agent-control:diff-mode");
   const mode: ReadingMode = storedMode[0] === "feature" ? "feature" : "plan";
   const [symbol, setSymbol] = useState<SymbolTarget | null>(null);
+  const askBoard = useAskBoard(range.worktreePath, result);
 
   return (
     <HunkLookup.Provider value={lookup}>
+      <AskBoardContext.Provider value={askBoard}>
       <SymbolClick.Provider value={setSymbol}>
         <header>
           <h1 className="text-[30px] leading-[1.2] font-bold tracking-[-0.02em]">{result.plan?.title ?? name}</h1>
@@ -81,6 +85,7 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
             </span>
             <span>
               세션 {result.sessionCount} · 상태 기록 {result.snapshotCount}
+              {result.archivedCount > 0 && ` · 보관 기록 ${result.archivedCount}`}
             </span>
             <button type="button" onClick={onReload} disabled={loading} className="underline decoration-faint underline-offset-[3px] hover:decoration-current disabled:opacity-50">
               {loading ? "다시 읽는 중…" : "다시 읽기"}
@@ -139,6 +144,7 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
         </div>
         {symbol && <SymbolPanel worktreePath={range.worktreePath} rev={range.head} target={symbol} onClose={() => setSymbol(null)} />}
       </SymbolClick.Provider>
+      </AskBoardContext.Provider>
     </HunkLookup.Provider>
   );
 }
@@ -170,7 +176,9 @@ function PlanItemBlock({ item, flow }: PlanItemBlockProps) {
         <span>{item.title}</span>
         <span className={`text-[12px] font-normal ${item.done ? "text-done" : "text-muted"}`}>{item.done ? "완료" : "미완료"}</span>
       </h3>
-      <FlowView flow={flow.flows[item.id]} data={flow} />
+      <AskPlanItem.Provider value={{ id: item.id, title: item.title }}>
+        <FlowView flow={flow.flows[item.id]} data={flow} />
+      </AskPlanItem.Provider>
     </section>
   );
 }

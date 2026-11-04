@@ -2,7 +2,9 @@
 
 import { useContext, useState } from "react";
 import type { FlowData, FlowStep, FlowSymbol, ItemFlow, SymbolKind } from "@/lib/intentDiff/types";
-import { CodeLines } from "./CodeLines";
+import { AskDraft, AskPlanItem, AskStepContext, ThreadView, type AskStep } from "./AskThread";
+import { CodeLines, diffText } from "./CodeLines";
+import { AskBoardContext } from "./useAskBoard";
 import { HunkBlock } from "./HunkBlock";
 import { HunkLookup } from "./hunkLookup";
 
@@ -28,12 +30,24 @@ function dirName(file: string): string {
   return index >= 0 ? file.slice(0, index + 1) : "";
 }
 
+function askStep(symbol: FlowSymbol): AskStep {
+  return {
+    symbolId: symbol.id,
+    label: `${KIND_LABEL[symbol.kind]} ${symbol.name}`,
+    intents: symbol.intents,
+    file: symbol.file,
+    startLine: symbol.startLine,
+    endLine: symbol.endLine,
+  };
+}
+
 interface SymbolHeaderProps {
   symbol: FlowSymbol;
   number: number | null;
+  onAsk?: () => void;
 }
 
-function SymbolHeader({ symbol, number }: SymbolHeaderProps) {
+function SymbolHeader({ symbol, number, onAsk }: SymbolHeaderProps) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 bg-tint px-3 py-2">
       {number !== null && <span className="text-[12px] font-bold text-muted">{number}</span>}
@@ -44,6 +58,41 @@ function SymbolHeader({ symbol, number }: SymbolHeaderProps) {
         {baseName(symbol.file)}
         <span className="text-faint">:{symbol.startLine}</span>
       </span>
+      {onAsk && (
+        <button type="button" onClick={onAsk} className="ml-auto text-[12px] text-muted hover:text-fg">
+          묻기
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface StepAskProps {
+  symbol: FlowSymbol;
+  asking: boolean;
+  onClose: () => void;
+}
+
+/** Questions about the whole step, under its header. */
+function StepAsk({ symbol, asking, onClose }: StepAskProps) {
+  const board = useContext(AskBoardContext);
+  const planItem = useContext(AskPlanItem);
+  if (!board) return null;
+  const threads = board.threads.filter((thread) => thread.anchor.kind === "step" && thread.anchor.symbolId === symbol.id);
+  if (threads.length === 0 && !asking) return null;
+  const step = askStep(symbol);
+  return (
+    <div className="border-t border-hair px-3">
+      {threads.map((thread) => (
+        <ThreadView key={thread.id} thread={thread} />
+      ))}
+      {asking && (
+        <AskDraft
+          anchor={{ kind: "step", symbolId: symbol.id, file: symbol.file, startLine: symbol.startLine, endLine: symbol.endLine }}
+          context={{ label: step.label, planItem, intents: step.intents, diff: diffText(symbol.lines) }}
+          onClose={onClose}
+        />
+      )}
     </div>
   );
 }
@@ -87,7 +136,9 @@ function CompactStep({ step, symbol, label }: CompactStepProps) {
       </button>
       {open && (
         <div className="mt-1 mb-3 overflow-hidden rounded-lg border border-hair" data-file={symbol.file}>
-          <CodeLines file={symbol.file} lines={symbol.lines} />
+          <AskStepContext.Provider value={askStep(symbol)}>
+            <CodeLines file={symbol.file} lines={symbol.lines} />
+          </AskStepContext.Provider>
         </div>
       )}
     </div>
@@ -101,6 +152,8 @@ interface StepViewProps {
 }
 
 function StepView({ step, symbol, number }: StepViewProps) {
+  const board = useContext(AskBoardContext);
+  const [asking, setAsking] = useState(false);
   if (step.kind === "repeat") {
     return (
       <div>
@@ -141,11 +194,14 @@ function StepView({ step, symbol, number }: StepViewProps) {
     <div id={stepAnchor(symbol.id)} className="scroll-mt-6">
       <Via via={step.via} />
       <article className="overflow-hidden rounded-lg border border-hair" data-file={symbol.file}>
-        <SymbolHeader symbol={symbol} number={number} />
+        <SymbolHeader symbol={symbol} number={number} onAsk={board ? () => setAsking(true) : undefined} />
         {symbol.intents.length > 0 && (
           <p className="border-t border-hair px-3 py-1 text-[12px] text-muted">의도 · {symbol.intents.join(" / ")}</p>
         )}
-        <CodeLines file={symbol.file} lines={symbol.lines} />
+        <StepAsk symbol={symbol} asking={asking} onClose={() => setAsking(false)} />
+        <AskStepContext.Provider value={askStep(symbol)}>
+          <CodeLines file={symbol.file} lines={symbol.lines} />
+        </AskStepContext.Provider>
       </article>
     </div>
   );

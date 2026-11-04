@@ -4,8 +4,18 @@ import { useEffect, useState } from "react";
 import type { SymbolLocation, SymbolLookup, SymbolLookupResponse } from "@/lib/intentDiff/types";
 import type { SymbolTarget } from "./CodeLines";
 
-const FLASH = ["bg-ask/25"];
-const FLASH_MS = 1600;
+// `!` because a diff row already carries its own add/remove background class.
+const FOCUS = ["!bg-ask/25", "shadow-[inset_3px_0_0_var(--color-ask)]"];
+let focused: HTMLElement | null = null;
+
+/** Marks one diff row as the panel's current pick until another row is picked or the panel closes. */
+function focusRow(element: HTMLElement | null) {
+  focused?.classList.remove(...FOCUS);
+  focused = element;
+  element?.classList.add(...FOCUS);
+}
+// Token colors arrive as `--shiki-light` / `--shiki-dark` on each span, as in the diff table.
+const CODE_COLORS = "[&_span]:text-(color:--shiki-light) dark:[&_span]:text-(color:--shiki-dark)";
 
 interface Settled {
   key: string;
@@ -55,8 +65,7 @@ function LocationRow({ location }: LocationRowProps) {
       return;
     }
     element.scrollIntoView({ block: "center", behavior: "smooth" });
-    element.classList.add(...FLASH);
-    window.setTimeout(() => element.classList.remove(...FLASH), FLASH_MS);
+    focusRow(element);
   };
 
   return (
@@ -65,16 +74,21 @@ function LocationRow({ location }: LocationRowProps) {
         <span className="font-mono text-[11px] text-muted">
           {location.file}:{location.line}
         </span>
-        <span className="truncate font-mono text-[12px]">{location.text}</span>
+        {location.html ? (
+          <span className={`overflow-hidden font-mono text-[12px] text-ellipsis whitespace-pre ${CODE_COLORS}`} dangerouslySetInnerHTML={{ __html: location.html }} />
+        ) : (
+          <span className="truncate font-mono text-[12px]">{location.text}</span>
+        )}
       </button>
       {open && (
         <pre className="mx-2 mb-2 overflow-x-auto rounded-md bg-tint px-2 py-1.5 font-mono text-[11px] leading-[1.6]">
           {location.snippet.lines.map((text, index) => {
             const lineNo = location.snippet.startLine + index;
+            const html = location.snippet.html?.[index];
             return (
-              <div key={lineNo} className={lineNo === location.line ? "font-semibold text-fg" : "text-muted"}>
-                <span className="mr-3 inline-block w-8 text-right text-faint select-none">{lineNo}</span>
-                {text}
+              <div key={lineNo} className={`flex ${lineNo === location.line ? "font-semibold text-fg" : "text-muted"}`}>
+                <span className="mr-3 inline-block w-8 shrink-0 text-right text-faint select-none">{lineNo}</span>
+                {html !== undefined ? <span className={CODE_COLORS} dangerouslySetInnerHTML={{ __html: html }} /> : text}
               </div>
             );
           })}
@@ -95,6 +109,8 @@ interface SymbolPanelProps {
 export function SymbolPanel({ worktreePath, rev, target, onClose }: SymbolPanelProps) {
   const { lookup, error } = useSymbolLookup(worktreePath, rev, target);
 
+  useEffect(() => () => focusRow(null), []);
+
   return (
     <aside className="fixed inset-y-0 right-0 z-20 flex w-full max-w-[28rem] flex-col border-l border-hair bg-bg shadow-[-8px_0_24px_-12px_var(--faint)]">
       <header className="flex items-baseline gap-2 border-b border-hair px-4 py-3">
@@ -111,8 +127,15 @@ export function SymbolPanel({ worktreePath, rev, target, onClose }: SymbolPanelP
         {!lookup && !error && <p className="px-2 text-muted">저장소 전체에서 찾는 중이에요… 처음 한 번은 몇 초 걸려요.</p>}
         {lookup && (
           <div className="flex flex-col gap-5">
-            {lookup.signature && (
-              <pre className="mx-2 overflow-x-auto rounded-md bg-tint px-3 py-2 font-mono text-[12px] leading-[1.6] whitespace-pre-wrap">{lookup.signature}</pre>
+            {lookup.signatureHtml ? (
+              <pre
+                className={`mx-2 overflow-x-auto rounded-md bg-tint px-3 py-2 font-mono text-[12px] leading-[1.6] whitespace-pre-wrap ${CODE_COLORS}`}
+                dangerouslySetInnerHTML={{ __html: lookup.signatureHtml }}
+              />
+            ) : (
+              lookup.signature && (
+                <pre className="mx-2 overflow-x-auto rounded-md bg-tint px-3 py-2 font-mono text-[12px] leading-[1.6] whitespace-pre-wrap">{lookup.signature}</pre>
+              )
             )}
             <section>
               <h3 className="px-2 pb-1 text-[12px] font-bold text-muted">정의 {lookup.definitions.length}</h3>

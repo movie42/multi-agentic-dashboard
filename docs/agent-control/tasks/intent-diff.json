@@ -71,7 +71,7 @@
               "answer": {
                 "choice": "route",
                 "why": "별도 창으로 열면 좋겠다. 코드 diff는 사이드 창으로 보기엔 의도를 따라가기 어렵다.",
-                "note": "별도 주소로라고 되어있는데 별로 view를 띄우는건가? 그냥 앱 내부지만 창만 별도로 띄우고 원한다면 에이전트 컨트롤 내부에서 탭 버튼으로 페이징하면 될것같은데",
+                "note": "별도 주소로라고 되어있는데 별로 view를 띄우는건가? 그냥 앱 내부지만 창만 별도로 띄우고 원한다면 에이전트 컨트롤 내부에서 탭 버튼으로 페이징하면 될것같은데 \ng",
                 "followUp": "",
                 "copy": ""
               },
@@ -83,19 +83,474 @@
               "appliedTo": "[[P4-2]] [[P4-4]] [[P4-5]]"
             }
           ]
+        },
+        {
+          "id": "R2",
+          "askedAt": "11/04",
+          "from": "후속 요청 — 코드 색을 Cursor 테마로 [[P10]], diff에서 에이전트에게 묻기 [[P11]]",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "'Cursor 테마'는 Cursor 기본 테마인가요, Cursor에서 고른 테마인가요?",
+              "said": "\"코드 색 테마를 Cursor 테마로\" — 지금 Cursor 설정의 <code>workbench.colorTheme</code>은 \"Default Light+\"예요.",
+              "intent": "둘 중 무엇이냐에 따라 화면 결과가 달라요. 고른 테마를 따라가면 지금 설정에서는 색이 하나도 안 바뀌어요.",
+              "body": "Cursor 앱 안에는 Cursor Light · Cursor Dark 같은 기본 테마 파일이 들어 있어요. 반면 Cursor에서 지금 고른 테마는 \"Default Light+\"이고, 이건 diff 화면이 지금 쓰는 VS Code Light+와 같은 테마예요. 그래서 '고른 테마를 따라간다'로 만들면 오늘은 화면이 그대로이고, Cursor에서 테마를 바꿀 때만 따라 바뀌어요. 이 방식은 설치한 테마 확장(<code>~/.cursor/extensions</code>)까지 찾아 읽어야 하고, Cursor는 지금 다크 테마를 따로 지정하지 않아서(<code>window.autoDetectColorScheme</code> false) 다크 모드 색을 어디서 가져올지도 정해야 해요.",
+              "recommendation": "Cursor 기본 테마(라이트는 Cursor Light, 다크는 Cursor Dark)를 추천해요. 요청하신 '색이 바뀌는' 결과가 바로 나오고, 라이트 · 다크 짝이 정해져 있어요.",
+              "options": [
+                {
+                  "value": "default",
+                  "label": "Cursor Light / Cursor Dark로 고정 — 오늘 바로 색이 바뀜"
+                },
+                {
+                  "value": "follow",
+                  "label": "Cursor에서 고른 테마를 따라감 — 지금은 Light+라 화면이 그대로"
+                }
+              ],
+              "recommended": "default",
+              "answer": {
+                "choice": "unsure",
+                "why": "커스텀 theme을 원했다.",
+                "note": "커스텀 theme이 있을텐데... 내가 직접 작성한거.",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "Cursor 기본 테마가 아니라, 사용자가 Cursor 설정 파일에 직접 쓴 색 규칙을 diff 화면에 적용해요. 다크 모드에 어떻게 적용할지는 [[R3-Q1]]에서 정해요.",
+              "reason": {
+                "text": "커스텀 theme을 원했다. (메모) 내가 직접 작성한거.",
+                "by": "user"
+              },
+              "appliedTo": "[[P10-1]] [[P10-3]] [[R3-Q1]]"
+            },
+            {
+              "id": "Q2",
+              "title": "테마 파일을 실행할 때 Cursor 앱에서 읽을까요, 저장소에 복사할까요?",
+              "said": "테마 파일 위치: <code>/Applications/Cursor.app/Contents/Resources/app/extensions/theme-cursor/themes/</code>",
+              "intent": "공개 저장소에 다른 회사 파일을 올려도 되는지, 그리고 Cursor가 없는 컴퓨터에서 화면이 어떻게 보일지가 갈려요.",
+              "body": "이 저장소(movie42/multi-agentic-dashboard)는 GitHub 공개 저장소예요. Cursor 테마 확장 폴더에는 라이선스 파일이 없고 작성자는 Anysphere(Cursor 회사)라서, 복사해 올리면 허락 없이 재배포하는 셈이 될 수 있어요. 실행할 때 앱 번들에서 읽으면 저장소에는 아무것도 올라가지 않고 Cursor가 업데이트한 색도 따라가요. 대신 Cursor가 없는 컴퓨터에서는 그 파일이 없으니 지금의 Light+ / Dark+로 돌아가야 해요.",
+              "recommendation": "실행할 때 앱 번들에서 읽고, 파일이 없거나 형식이 다르면 Light+ / Dark+로 돌아가는 방식을 추천해요. 대시보드는 이 Mac의 데스크톱 앱으로만 돌고 있어서 돌아가는 경우는 거의 생기지 않아요.",
+              "options": [
+                {
+                  "value": "runtime",
+                  "label": "실행할 때 Cursor 앱에서 읽기 — 없으면 지금 색"
+                },
+                {
+                  "value": "copy",
+                  "label": "저장소에 복사 — 어디서나 같은 색, 공개 저장소에 Cursor 파일이 올라감"
+                }
+              ],
+              "recommended": "runtime",
+              "answer": {
+                "choice": "runtime",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "테마 색은 실행할 때 Cursor 쪽 파일에서 읽고, 저장소에는 복사하지 않아요. 파일이 없거나 읽지 못하면 지금의 Light+ / Dark+로 그려요.",
+              "reason": {
+                "text": "Cursor에서 보기 편하게 맞춘 색으로 diff도 보고 싶음 (미적인 이유) — [[R3-Q4]]",
+                "by": "user"
+              },
+              "appliedTo": "[[P10-1]]"
+            },
+            {
+              "id": "Q3",
+              "title": "누구에게 물을까요?",
+              "said": "\"에이전트에게 의견을 물어볼 수 있으면 좋겠어 (diff에서 이게 가능할까?)\"",
+              "intent": "의도 diff의 출발점은 '추측하지 않고 작업하던 시점의 기록에서 의도를 가져온다'예요. 누구에게 묻느냐가 답이 그 기록을 아는지를 정해요.",
+              "body": "가능해요. 흐름의 단계마다 그 줄을 쓴 세션 ID를 이미 알고 있어서(<code>IntentGroup.sessionId</code>), 그 세션의 대화 기록을 이어 받아 물을 수 있어요. 이 세션은 계획서와 사용자가 한 말, 시도했다 버린 방법까지 기억하고 있어서 '왜'에 답할 수 있어요. 새 리뷰 세션은 코드만 보고 판단하니 '왜'는 모르지만, 쓴 사람의 판단에 끌려가지 않는 의견을 줘요. 쓴 세션을 못 찾는 경우([[C1-3]])는 어느 쪽을 고르든 새 세션으로 물어요. 한 단계를 세션 여럿이 고쳤으면([[C1-4]]) 고른 줄을 마지막으로 고친 세션에 물어요.",
+              "recommendation": "쓴 세션을 기본으로 하고, 패널에서 '새 세션에게'로 바꿔 물을 수 있게 하는 걸 추천해요. 리뷰 중 가장 자주 막히는 건 '왜 이렇게 했나'이고, 그건 쓴 세션만 답할 수 있어요.",
+              "context": [
+                [
+                  "케이스",
+                  "[[C1-3]] [[C1-4]]"
+                ],
+                [
+                  "재료",
+                  "<code>src/lib/intentDiff/transcripts.ts</code>가 편집마다 세션 ID를 남기고, 흐름 단계는 그 묶음(<code>IntentGroup</code>)을 가리켜요"
+                ]
+              ],
+              "options": [
+                {
+                  "value": "writer",
+                  "label": "쓴 세션 기본, 새 세션으로 바꿔 묻기 가능"
+                },
+                {
+                  "value": "writer-only",
+                  "label": "쓴 세션에게만"
+                },
+                {
+                  "value": "fresh",
+                  "label": "항상 새 리뷰 세션에게"
+                }
+              ],
+              "recommended": "writer",
+              "answer": {
+                "choice": "writer",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "기본은 그 줄을 쓴 세션에게 묻고, 답 칸에서 '새 세션에게'로 바꿔 물을 수 있어요. 쓴 세션을 못 찾으면 새 세션으로, 세션이 여럿이면 고른 줄을 마지막으로 고친 세션으로 물어요.",
+              "reason": {
+                "text": "다른 세션도 추측으로 답할 수 있지만, 코드를 쓴 원래 세션(origin)이 답하는 게 좋음 — [[R3-Q4]]",
+                "by": "user"
+              },
+              "appliedTo": "[[C1-3]] [[C1-4]] [[P11-2]] [[P11-7]]"
+            },
+            {
+              "id": "Q4",
+              "title": "어떻게 묻고, 답을 어디서 볼까요?",
+              "said": "대시보드에는 터미널에 글 보내기(<code>send-prompt</code>), 지난 세션을 새 터미널에서 다시 열기(<code>resume-session</code>), 새 에이전트 실행(<code>launch-agent</code>)이 이미 있어요.",
+              "intent": "작업 중인 에이전트를 방해할지, 원래 세션 기록이 바뀔지, 리뷰하던 화면을 떠나야 할지가 여기서 정해져요.",
+              "body": "방법은 두 가지예요. 첫째, 화면 뒤에서 Claude를 한 번 실행하는 방식(<code>claude -p --resume &lt;id&gt; --fork-session</code>)이에요. 쓴 세션의 기록을 복사한 사본(fork)이 답하고, 답은 diff 화면 오른쪽 패널에 글자 단위로 흘러나와요. 원래 세션은 건드리지 않으니, 작업 중인 터미널을 방해하지 않고 이미 끝난 세션에도 똑같이 동작해요. 둘째, 터미널로 보내는 방식이에요. 쓴 세션이 터미널에 살아 있으면 거기 질문을 보내고([[C1-1]]), 끝났으면 새 터미널에서 다시 열어 보내요([[C1-2]]). 답은 Orca 터미널로 옮겨 가서 읽어요. 작업 중인 에이전트에게 보내면 하던 일 사이에 질문이 끼어들고, 원래 세션 기록에 질문이 쌓여서 diff가 읽는 기록도 바뀌어요. 첫째 방식의 비용: 긴 세션은 기록 전체를 다시 읽어서 첫 답까지 수십 초 걸리고 그만큼 토큰을 써요.",
+              "recommendation": "첫째(뒤에서 사본에 묻고 diff 화면 패널에서 답 보기)를 추천해요. 세션 상태와 상관없이 같은 동작이고, 리뷰하던 줄 옆에서 답을 읽어요.",
+              "context": [
+                [
+                  "케이스",
+                  "[[C1-1]] [[C1-2]]"
+                ]
+              ],
+              "options": [
+                {
+                  "value": "fork-panel",
+                  "label": "뒤에서 사본에 묻기 — 답은 diff 화면 패널"
+                },
+                {
+                  "value": "terminal",
+                  "label": "터미널로 보내기 — 답은 Orca 터미널"
+                },
+                {
+                  "value": "mixed",
+                  "label": "살아 있으면 터미널, 끝났으면 패널"
+                }
+              ],
+              "recommended": "fork-panel",
+              "answer": {
+                "choice": "fork-panel",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "질문은 화면 뒤에서 쓴 세션의 사본(fork)에 보내고, 답은 diff 화면 안에서 읽어요. 원래 세션과 그 터미널은 건드리지 않아서, 세션이 작업 중이든 끝났든 같은 동작이에요. 답이 줄 아래에 붙을지 오른쪽 칸에 뜰지는 [[R3-Q2]]에서 정해요.",
+              "reason": {
+                "text": "작업 중인 에이전트를 방해하지 않고, 리뷰하던 코드 옆에서 답을 읽고 싶음. diff 질문은 diff에서만 보이길 원함 ([[R2-Q5]] 되물음)",
+                "by": "user"
+              },
+              "appliedTo": "[[C1-1]] [[C1-2]] [[P11-2]] [[P11-5]]"
+            },
+            {
+              "id": "Q5",
+              "title": "묻는 에이전트가 코드를 고쳐도 될까요?",
+              "said": "\"의견을 물어볼 수 있으면\"",
+              "intent": "diff를 읽는 중에 파일이 바뀌면 보고 있던 화면이 사실과 달라져요. 의견만인지, 고치기까지인지가 실행 권한을 정해요.",
+              "body": "뒤에서 실행하는 에이전트는 사용자가 권한 요청을 볼 수 없어서, 처음부터 쓸 수 있는 도구를 정해 둬야 해요. 읽기 도구(Read · Grep · Glob)만 주면 의견만 말하고 파일은 그대로예요. 의견을 듣고 고치고 싶으면 패널의 '터미널에서 이어 가기'를 눌러, 그 대화를 Orca 터미널에서 다시 열어요(기존 <code>resume-session</code>). 터미널에서는 평소처럼 권한을 물으며 고쳐요.",
+              "recommendation": "읽기 전용 + '터미널에서 이어 가기' 버튼을 추천해요. 고치는 일은 권한을 볼 수 있는 곳에서 하게 해요.",
+              "answer": {
+                "choice": "yes",
+                "why": "",
+                "note": "",
+                "followUp": "묻는 에이전트... 그런데 에이전트 채팅은 agent control에 나오는거야 아니면 diff에 따로 표시되는거야? 내가 원하는건 diff에 따로 표시되는거고 코드마다 의견을 보낼수 있으면 좋겠는데 물론 orca에는 세션이 평소처럼 쌓이겠지만 diff 질문은 diff에서 표시되면 좋겠어",
+                "copy": ""
+              },
+              "decision": "묻는 에이전트는 읽기 도구(Read · Grep · Glob)만 써서 파일을 고치지 않아요. 고치고 싶으면 '터미널에서 이어 가기'로 그 대화를 Orca 터미널에서 다시 열어 평소처럼 권한을 보며 고쳐요.",
+              "reason": {
+                "text": "읽는 동안 코드가 바뀌면 보고 있던 diff가 사실과 달라짐 — [[R3-Q4]]에서 확인",
+                "by": "user"
+              },
+              "appliedTo": "[[P11-2]] [[P11-6]]"
+            },
+            {
+              "id": "Q6",
+              "title": "무엇을 붙여 보낼까요?",
+              "said": "흐름 단계에는 함수 이름 · 파일 · 줄 범위, 그 단계가 속한 계획 항목, 의도 묶음의 제목과 메모가 있어요.",
+              "intent": "에이전트가 어느 코드를 묻는지 헷갈리면 엉뚱한 곳을 설명해요. 무엇을 기본으로 붙이고, 사용자가 범위를 얼마나 좁힐 수 있는지가 화면의 고르기 동작을 정해요.",
+              "body": "질문과 함께 자동으로 붙는 내용은 계획 항목 제목, 의도 묶음 제목, 단계의 함수 이름과 <code>파일:시작줄-끝줄</code>, 그 단계에서 바뀐 줄(diff)이에요. 코드 전체는 붙이지 않아요 — 에이전트가 파일을 직접 읽을 수 있고, 그 사이 파일이 바뀌었으면 diff가 기준이 돼요. 범위를 좁히는 방법은 두 가지예요. 단계 머리의 '묻기' 버튼만 두면 단계 전체가 범위이고, 줄 번호를 눌러(Shift로 범위) 고르면 고른 줄이 따로 강조돼서 붙어요.",
+              "recommendation": "단계 버튼 + 줄 번호로 범위 고르기를 추천해요. 단계 하나가 수십 줄이면 '이 세 줄'을 짚는 쪽이 답이 정확해요.",
+              "options": [
+                {
+                  "value": "step-lines",
+                  "label": "단계 전체 또는 줄 범위를 골라 묻기"
+                },
+                {
+                  "value": "step",
+                  "label": "단계 단위로만 묻기"
+                }
+              ],
+              "recommended": "step-lines",
+              "answer": {
+                "choice": "step-lines",
+                "why": "이렇게 하면 github ui에 익숙하니까.",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "단계 머리의 '묻기' 버튼으로 단계 전체를, 줄 번호를 눌러(Shift로 범위) 고른 줄만 물을 수 있어요. 질문에는 계획 항목 · 의도 묶음 제목, 함수 이름과 파일:줄 범위, 그 단계에서 바뀐 줄이 붙어요.",
+              "reason": {
+                "text": "이렇게 하면 github ui에 익숙하니까.",
+                "by": "user"
+              },
+              "appliedTo": "[[P11-4]] [[P11-2]]"
+            },
+            {
+              "id": "Q7",
+              "title": "묻고 받은 대화를 남길까요?",
+              "said": "",
+              "intent": "다음 날 같은 diff를 다시 열었을 때 어제 물은 답이 단계 옆에 있으면 같은 질문을 반복하지 않아요. 남기면 저장 위치가 생겨요.",
+              "body": "남기지 않으면 diff 화면을 닫을 때 대화가 사라져요(사본 세션 기록은 Claude 쪽에 남지만 화면에서는 못 찾아요). 남기면 워크트리별로 '단계 · 줄 → 사본 세션 ID'를 대시보드 데이터 폴더에 적어 두고, 단계 옆에 '질문 2' 같은 표시가 붙어요. 같은 단계에서 이어 물으면 그 사본에 이어서 물어요.",
+              "recommendation": "남기는 걸 추천해요. 대화 본문은 Claude 세션 기록이 갖고 있어서, 대시보드는 연결만 적어 두면 돼요.",
+              "answer": {
+                "choice": "yes",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "묻고 받은 대화는 워크트리별로 남겨요. 대시보드는 '단계 · 줄 범위 → 사본 세션 ID'만 적어 두고, 대화 본문은 사본 세션 기록에서 읽어요. 같은 곳에서 이어 물으면 그 사본에 이어서 물어요.",
+              "reason": {
+                "text": "다음에 같은 diff를 열었을 때 이미 물은 답을 다시 보고 싶음 — [[R3-Q4]]에서 확인",
+                "by": "user"
+              },
+              "appliedTo": "[[P11-1]]"
+            }
+          ]
+        },
+        {
+          "id": "R3",
+          "askedAt": "11/04",
+          "from": "R2 답 — 직접 쓴 테마 [[R2-Q1]], 되물음 [[R2-Q5]]",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "직접 쓴 색 규칙을 Light+ 위에 얹고, 다크 모드는 Dark+ 그대로 둘까요?",
+              "said": "[[R2-Q1]] 메모: \"커스텀 theme이 있을텐데... 내가 직접 작성한거.\"",
+              "intent": "직접 쓴 색이 어디까지 적용되느냐에 따라 다크 모드에서 글자가 안 보일 수 있어요.",
+              "body": "Cursor 설정 파일(<code>~/Library/Application Support/Cursor/User/settings.json</code>)에 직접 쓴 규칙이 있어요. <code>editor.tokenColorCustomizations</code>에 6개 — 변수 #ff9100, 함수 #ff0080, 타입 #760a76, 예약어 #0000ff, 문자열 #788084, 객체 키 #ffae00 — 이고, 바탕 테마는 Default Light+예요. diff 화면도 Light+에 이 6개를 얹으면 Cursor와 같은 색이 돼요. 그런데 이 색들은 흰 바탕에 맞춘 거라 다크 모드에서는 예약어 #0000ff 같은 색이 거의 안 보여요. 그래서 다크 모드는 Dark+ 그대로 두고, 나중에 설정에 다크 전용 규칙(<code>\"[Default Dark+]\": {…}</code>)을 쓰면 그것만 다크에 얹는 방식을 제안해요. 한 가지 한계: Cursor는 TypeScript 언어 서버가 주는 의미 색(<code>editor.semanticTokenColorCustomizations</code>의 <code>test</code> · <code>control</code>)도 쓰는데, diff 화면 색칠(Shiki)은 문법 규칙만 읽어서 이 2개는 적용되지 않아요.",
+              "recommendation": "라이트 = Light+ + 직접 쓴 6개, 다크 = Dark+ 그대로(다크 전용 규칙이 생기면 그것만)를 추천해요.",
+              "options": [
+                {
+                  "value": "light-only",
+                  "label": "라이트만 내 색, 다크는 Dark+ 그대로"
+                },
+                {
+                  "value": "both",
+                  "label": "다크에도 같은 6개 색 — 일부 색이 어두운 바탕에서 흐림"
+                }
+              ],
+              "recommended": "light-only",
+              "answer": {
+                "choice": "light-only",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "라이트 모드는 Light+에 직접 쓴 색 6개를 얹고, 다크 모드는 Dark+ 그대로 그려요. 설정에 다크 전용 규칙(<code>\"[Default Dark+]\"</code>)이 생기면 그것만 다크에 얹어요. Cursor의 의미 색 규칙 2개(<code>test</code> · <code>control</code>)는 diff 화면에 적용되지 않아요.",
+              "reason": {
+                "text": "직접 쓴 색은 흰 바탕에 맞춘 것이라 어두운 바탕에서 흐려지지 않게 (추정)",
+                "by": "inferred"
+              },
+              "appliedTo": "[[P10-1]] [[P10-V]]"
+            },
+            {
+              "id": "Q2",
+              "title": "답은 고른 줄 바로 아래에 붙일까요, 오른쪽 칸에 띄울까요?",
+              "said": "[[R2-Q5]] 되물음: \"diff에 따로 표시되는거고 코드마다 의견을 보낼수 있으면 좋겠는데\" · [[R2-Q6]] 이유: \"github ui에 익숙하니까\"",
+              "intent": "GitHub 리뷰처럼 코드 곳곳에 대화가 붙는지, 한 곳에서 대화하는지가 화면 구조를 정해요.",
+              "body": "먼저 되물음에 답할게요. 질문과 답은 diff 화면에만 보여요. 사본 세션은 화면 뒤에서 돌기 때문에 Agent Control 보드 카드나 Orca 터미널에는 나타나지 않고, 대시보드 '세션' 목록과 diff 기록 읽기에서도 빼요. 원래 세션은 Orca에서 평소처럼 쌓여요. 보여 줄 곳은 두 가지예요. GitHub 리뷰 코멘트처럼 고른 줄 바로 아래에 대화 상자가 열리면 코드 곳곳에 대화가 남고, 스크롤하며 다시 읽을 수 있어요. 오른쪽 칸(지금 정의 · 쓰는 곳 패널 자리)에 띄우면 코드는 그대로 펼쳐지지만, 어느 줄에 대한 대화인지는 칸 위의 표시로만 알아요.",
+              "recommendation": "줄 아래에 붙이는 걸 추천해요. 줄 번호로 범위를 고르는 동작([[R2-Q6]])과 이어지고, GitHub 리뷰와 같은 모양이라 익숙해요.",
+              "options": [
+                {
+                  "value": "inline",
+                  "label": "고른 줄 아래에 대화 — GitHub 리뷰처럼"
+                },
+                {
+                  "value": "panel",
+                  "label": "오른쪽 칸에 대화 — 코드는 그대로"
+                }
+              ],
+              "recommended": "inline",
+              "answer": {
+                "choice": "inline",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "질문과 답은 고른 줄 바로 아래에 GitHub 리뷰 코멘트처럼 붙어요. 코드 곳곳에 대화가 남아 스크롤하며 다시 읽어요.",
+              "reason": {
+                "text": "GitHub 리뷰처럼 코드마다 의견을 남기는 모양을 원함 ([[R2-Q5]] 되물음, [[R2-Q6]] 이유에서 추정)",
+                "by": "inferred"
+              },
+              "appliedTo": "[[P11-5]] [[C1-1]]"
+            },
+            {
+              "id": "Q3",
+              "title": "'의견'은 질문과 답만인가요, 고쳐 달라는 코멘트를 모아 보내는 것까지인가요?",
+              "said": "[[R2-Q5]] 되물음: \"코드마다 의견을 보낼수 있으면 좋겠는데\"",
+              "intent": "'의견을 보낸다'가 에이전트에게 고쳐 달라는 요청이라면, 읽기 전용([[R2-Q5]])과 별개로 그 요청을 받을 곳이 필요해요.",
+              "body": "지금 정한 건 '물으면 답한다'예요. GitHub에는 이와 별개로 줄마다 코멘트를 달아 모아 두었다가 한 번에 보내는 리뷰(Start a review → Submit)가 있어요. 이걸 만들면 줄마다 '이건 이렇게 바꿔 줘'를 남기고, 마지막에 쓴 세션의 터미널로 한 번에 보내요. 쓴 세션이 터미널에서 작업을 이어 가며 고쳐요.",
+              "recommendation": "이번에는 질문과 답만 만들고, 모아 보내기는 따로 정하는 걸 추천해요. 묻기가 자리 잡으면 같은 줄 고르기와 저장소 위에 얹을 수 있어요.",
+              "options": [
+                {
+                  "value": "ask-only",
+                  "label": "질문과 답만"
+                },
+                {
+                  "value": "review",
+                  "label": "질문 + 고칠 코멘트를 모아 쓴 세션에 보내기"
+                }
+              ],
+              "recommended": "ask-only",
+              "answer": {
+                "choice": "ask-only",
+                "why": "",
+                "note": "",
+                "followUp": "고칠것은 한번에 모아서",
+                "copy": ""
+              },
+              "decision": "이번 Phase는 질문과 답만 만들어요. 고쳐 달라는 코멘트는 나중에 줄마다 모아 두었다가 쓴 세션에 한 번에 보내는 방식으로 따로 만들어요.",
+              "reason": {
+                "text": "고칠 것은 한 번에 모아서 보내고 싶음 (되물음 \"고칠것은 한번에 모아서\")",
+                "by": "user"
+              },
+              "appliedTo": "[[P11]] 결론"
+            },
+            {
+              "id": "Q4",
+              "title": "고른 이유를 이렇게 이해했어요 — 맞나요?",
+              "said": "[[R2-Q2]] [[R2-Q3]] [[R2-Q5]] [[R2-Q7]]은 이유 칸이 비어 있었어요.",
+              "intent": "나중에 설계를 바꿀 때 '왜 이렇게 골랐는지'를 근거로 삼아요. 추정한 이유가 틀리면 그 근거도 틀려요.",
+              "body": "R2-Q2 실행 때 읽기: 공개 저장소에 다른 곳 파일을 올리지 않고, Cursor 색을 바꾸면 따라오길 원함. R2-Q3 쓴 세션 기본: '왜'는 쓴 세션만 답할 수 있음. R2-Q5 읽기 전용: 읽는 동안 코드가 바뀌면 보던 diff가 틀려짐. R2-Q7 대화 남기기: 같은 diff를 다시 열 때 이미 물은 답을 다시 보고 싶음.",
+              "recommendation": "맞으면 추천대로, 다른 게 있으면 다르게를 고르고 이유 칸에 적어 주세요.",
+              "answer": {
+                "choice": "yes",
+                "why": "cursor는 내가 보기 편한 색상으로 보고싶어서고 (미적인 이유)\n쓴 세션만 답할수도 있지만 아닐수도 있지 않나? 추측도 가능하니까 하지만 oriigin이 대답하면 좋으니까.",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "[[R2-Q2]] · [[R2-Q3]] · [[R2-Q5]] · [[R2-Q7]]의 추정 이유를 확인했어요. [[R2-Q2]]는 공개 저장소 문제가 아니라 보기 편한 색이 이유였고, [[R2-Q3]]은 다른 세션도 추측은 할 수 있지만 원래 세션의 답이 낫다는 뜻으로 고쳤어요.",
+              "reason": {
+                "text": "cursor는 내가 보기 편한 색상으로 보고싶어서고 (미적인 이유) 쓴 세션만 답할수도 있지만 아닐수도 있지 않나? 추측도 가능하니까 하지만 origin이 대답하면 좋으니까.",
+                "by": "user"
+              },
+              "appliedTo": "[[R2-Q2]] [[R2-Q3]] [[R2-Q5]] [[R2-Q7]]"
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "type": "cases",
+          "id": "C1",
+          "title": "① '이 단계 묻기'를 눌렀을 때",
+          "sub": "계획 순서 화면의 흐름 단계 하나에서",
+          "lead": "흐름의 단계(바뀐 함수 · 컴포넌트 하나)는 그 줄을 쓴 세션 기록과 이어져 있어요. 그 세션이 지금 어떤 상태인지에 따라 물을 수 있는 방법이 달라요.",
+          "columns": [
+            "상황",
+            "누구에게",
+            "답이 보이는 곳",
+            "상태"
+          ],
+          "rows": [
+            {
+              "id": "C1-1",
+              "cells": [
+                {
+                  "text": "쓴 세션이 Orca 터미널에서 아직 작업 중",
+                  "note": "보드 카드의 세션 ID와 같음"
+                },
+                "그 세션의 사본(fork) — 원래 터미널은 그대로",
+                "diff 화면, 고른 줄 아래",
+                ""
+              ],
+              "status": [
+                {
+                  "state": "done",
+                  "label": "정리됨"
+                }
+              ]
+            },
+            {
+              "id": "C1-2",
+              "cells": [
+                {
+                  "text": "쓴 세션이 이미 끝남",
+                  "note": "기록 파일(~/.claude/projects/…/<id>.jsonl)은 남아 있음"
+                },
+                "기록을 이어 받은 사본",
+                "diff 화면, 고른 줄 아래",
+                ""
+              ],
+              "status": [
+                {
+                  "state": "done",
+                  "label": "정리됨"
+                }
+              ]
+            },
+            {
+              "id": "C1-3",
+              "cells": [
+                {
+                  "text": "쓴 세션을 못 찾음",
+                  "note": "'의도 미상' 변경, 또는 기록 파일이 지워짐"
+                },
+                "새 세션",
+                "diff 화면, 고른 줄 아래",
+                ""
+              ],
+              "status": [
+                {
+                  "state": "done",
+                  "label": "정리됨"
+                }
+              ]
+            },
+            {
+              "id": "C1-4",
+              "cells": [
+                {
+                  "text": "한 단계를 세션 여럿이 고침",
+                  "note": "흐름 단계 하나에 의도 묶음이 둘 이상"
+                },
+                "고른 줄을 마지막으로 고친 세션",
+                "diff 화면, 고른 줄 아래",
+                ""
+              ],
+              "status": [
+                {
+                  "state": "done",
+                  "label": "정리됨"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "style": "bridge",
+          "text": "어느 상황이든 사용자가 누르는 버튼은 하나예요. 상황마다 달라지는 건 뒤에서 누구를 부르는지뿐이에요."
         }
       ]
     },
     "tasks": {
       "status": "ask",
-      "summary": "Phase 7–9 완료 · 다크 모드와 데스크톱 확인 대기",
+      "summary": "Phase 10–12 완료 · 데스크톱 앱에서 직접 확인 대기",
       "conclusion": [
         "워크트리 하나의 변경을 계획 항목 → 의도 → hunk 순으로 보여 주는 <code>/diff</code> 화면과 API를 만들었어요 [[P4]].",
         "<code>265663c</code>에 돌려 보면 변경이 session-ux 작업의 P1 · P2 · P3 아래로 나뉘고, 같은 커밋에 섞인 Slack 복사 버튼 변경은 '계획 파일 밖'으로 표시돼요 [[P3-V]].",
         "도구 호출마다 워크트리 상태를 찍는 훅을 전역 설정에 설치했어요. 훅을 켠 뒤의 셸 편집은 줄 단위로 연결되고, 그 전 세션은 파일 단위 '추정'이에요 [[P5]].",
         "'변경 읽기' 버튼은 데스크톱 앱에서 새 창으로, 사이드바 '변경' 탭은 메인 창 안에서 같은 화면을 열어요. 데스크톱 새 창은 직접 확인하지 못했어요 [[P4-V]].",
         "'기능 지도'로 바꾸면 바뀐 파일을 import 관계로 묶어, 입구(API · 화면)에서 내려가는 트리와 파일마다 걸린 계획 항목을 보여 줘요 [[P6]].",
-        "'계획 순서'는 이제 항목마다 입구 함수에서 호출을 따라 내려가는 흐름으로 읽고, 코드는 VS Code Light+ / Dark+ 색, 식별자를 누르면 정의와 쓰는 곳 패널이 열려요 [[P7]] [[P8]] [[P9]]."
+        "'계획 순서'는 이제 항목마다 입구 함수에서 호출을 따라 내려가는 흐름으로 읽고, 코드는 VS Code Light+ / Dark+ 색, 식별자를 누르면 정의와 쓰는 곳 패널이 열려요 [[P7]] [[P8]] [[P9]].",
+        "diff 코드 색은 Cursor 설정에 직접 쓴 색 규칙을 실행할 때 읽어 Light+ 위에 얹어요. 다크는 Dark+ 그대로이고, 첫 색칠이 틀리던 엔진도 바꿨어요 [[P10]].",
+        "흐름 단계의 '묻기'나 줄 번호(Shift로 범위)로 고른 코드를 그 코드를 쓴 세션의 사본에 묻고, 답은 그 줄 아래에 GitHub 리뷰처럼 붙어요. 사본은 읽기 도구만 쓰고, diff 기록과 세션 목록에서 빠져요 [[P11]].",
+        "고쳐 달라는 코멘트를 모아 쓴 세션에 한 번에 보내는 기능은 다음 작업으로 남겼어요 [[R3-Q3]].",
+        "답 안의 코드 블록은 diff와 같은 색 · 크기로 그리고, 줄 번호를 끌어서 범위를 고를 수 있어요 [[P13]]."
       ],
       "blocks": [
         {
@@ -671,6 +1126,359 @@
               ]
             }
           ]
+        },
+        {
+          "type": "checklist",
+          "id": "P10",
+          "title": "Phase 10 · Cursor에서 직접 쓴 색",
+          "items": [
+            {
+              "id": "P10-1",
+              "title": "Cursor 설정 파일의 <code>editor.tokenColorCustomizations</code>를 읽어 Light+ 위에 얹은 테마를 만듦. 설정이 없거나 읽지 못하면 Light+ / Dark+ 그대로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/editorTheme.ts</code> (새 파일)"
+                ],
+                [
+                  "재사용",
+                  "<code>@shikijs/themes/light-plus</code>의 테마 객체에 <code>tokenColors</code>를 덧붙임. 설정 파일은 주석과 끝 쉼표가 있는 JSONC라 그대로는 <code>JSON.parse</code>가 실패함"
+                ],
+                [
+                  "결정",
+                  "[[R2-Q2]] 실행 때 읽고 저장소에 복사하지 않음"
+                ],
+                [
+                  "결정",
+                  "[[R3-Q1]] 라이트에만 얹고 다크는 Dark+, 다크 전용 규칙이 있으면 그것만"
+                ]
+              ]
+            },
+            {
+              "id": "P10-2",
+              "title": "하이라이터에 Cursor 테마를 등록하고, 색칠 결과 캐시 키에 테마 이름을 넣어 테마가 바뀌면 다시 칠함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/highlight.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>THEMES</code> · <code>globalCache.__intentDiffHighlighted</code> (지금 키는 언어 + 코드뿐)"
+                ],
+                [
+                  "결정",
+                  "Shiki의 JavaScript 정규식 엔진은 서버가 켜진 뒤 첫 색칠에서 토큰 경계를 잘못 잡아(<code>total = 1;</code>이 상수 한 덩어리) Oniguruma 엔진(<code>@shikijs/engine-oniguruma</code>, WASM 내장판)으로 바꿈. P8부터 있던 버그"
+                ]
+              ]
+            },
+            {
+              "id": "P10-3",
+              "title": "코드 영역 바탕을 흰색으로 맞춤 — 직접 쓴 색은 Cursor <code>editor.background</code> #ffffff 기준",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/CodeLines.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "라이트 바탕이 이미 #ffffff(<code>--bg</code>)라 바꿀 것 없음"
+                ]
+              ]
+            },
+            {
+              "id": "P10-V",
+              "title": "검증: <code>bun run desktop</code> 후 /diff 라이트에서 변수 · 함수 · 예약어가 Cursor와 같은 색, 다크는 지금과 같음, 설정 파일 경로를 바꾸면 Light+로 돌아감",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "<code>bun run desktop</code> 빌드의 standalone 서버로 4b50f14..82c2c7a를 열면 함수 #FF0080 · 변수 #FF9100 · 문자열 #788084 · 타입 #760A76이 라이트 색에 들어가고 다크는 Dark+ 그대로"
+                ],
+                [
+                  "결과",
+                  "설정 파일 경로를 없는 곳으로 바꾸면(<code>CURSOR_SETTINGS_FILE</code>) Light+ 색으로 돌아감"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P11",
+          "title": "Phase 11 · diff에서 에이전트에게 묻기",
+          "items": [
+            {
+              "id": "P11-1",
+              "title": "질문 대화 저장 — 워크트리별로 단계 · 파일 · 줄 범위 → 사본 세션 ID, 질문 시각",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/askStore.ts</code> (새 파일)"
+                ],
+                [
+                  "패턴",
+                  "<code>src/lib/sessions/bookmarks.ts</code> — 홈 아래 파일 하나에 읽고 쓰기"
+                ],
+                [
+                  "결정",
+                  "[[R2-Q7]] 대화 본문은 사본 세션 기록에서 읽고, 대시보드는 연결만 적음"
+                ],
+                [
+                  "결정",
+                  "답 본문도 저장 파일에 함께 적음 — 사본 세션 기록에는 원래 세션의 대화 전체가 복사돼 있어, 질문과 답만 골라내려면 보낸 문장을 다시 찾아야 해서. 저장 위치는 <code>~/.local/share/agent-control/ask-threads.json</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P11-2",
+              "title": "묻기 API — 쓴 세션을 고르고 사본에 질문, 답을 흘려 보냄",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/api/intent-diff/ask/route.ts</code> · <code>src/lib/intentDiff/ask.ts</code> (새 파일)"
+                ],
+                [
+                  "결정",
+                  "[[R2-Q3]] 고른 줄을 마지막으로 고친 <code>IntentGroup.sessionId</code>, 없으면 새 세션"
+                ],
+                [
+                  "결정",
+                  "[[R2-Q4]] [[R2-Q5]] <code>claude -p --resume &lt;id&gt; --fork-session --session-id &lt;새 ID&gt; --allowedTools Read,Grep,Glob --output-format stream-json</code>, 이어 묻기는 <code>--resume &lt;사본 ID&gt;</code>"
+                ],
+                [
+                  "결정",
+                  "[[R2-Q6]] 붙이는 내용: 계획 항목 · 의도 묶음 제목, 함수 이름과 파일:줄 범위, 단계의 바뀐 줄"
+                ],
+                [
+                  "결정",
+                  "MCP 서버를 끔(<code>--strict-mcp-config</code>) — <code>--tools</code>로 막아도 Jira · Notion · Slack 쓰기 도구가 열려 있었음. 쓴 세션은 기록 파일의 <code>cwd</code>에서 실행해야 <code>--resume</code>이 찾음"
+                ],
+                [
+                  "결정",
+                  "데스크톱 앱은 PATH에 <code>~/.local/bin</code>이 없어 <code>claude</code> 위치를 직접 찾음(<code>CLAUDE_BIN</code>으로 바꿀 수 있음). 화면을 닫아도 실행은 끝까지 가서 답이 저장됨"
+                ],
+                [
+                  "결정",
+                  "'마지막으로 고친 세션'은 고른 줄과 겹치는 의도 묶음 중 시작 시각이 가장 늦은 것으로 정함 — 화면이 가진 정보에 편집 시각이 없어서"
+                ]
+              ]
+            },
+            {
+              "id": "P11-3",
+              "title": "사본 세션을 diff 기록 읽기와 대시보드 세션 목록에서 뺌 — 사본은 원래 세션의 편집 기록을 그대로 복사해서, 빼지 않으면 같은 편집이 두 번 잡힘",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/transcripts.ts</code> · <code>src/lib/sessions/claudeSessions.ts</code>"
+                ],
+                [
+                  "결정",
+                  "사본 ID를 <code>--session-id</code>로 미리 정해 P11-1에 적고, 그 목록으로 거름"
+                ]
+              ]
+            },
+            {
+              "id": "P11-4",
+              "title": "줄 번호를 눌러(Shift로 범위) 고르기, 단계 머리의 '묻기' 버튼",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/CodeLines.tsx</code> · <code>FlowView.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R2-Q6]] GitHub처럼 줄 번호로 범위 고르기"
+                ],
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/useAskBoard.ts</code> (새 파일) — 대화 목록 · 흘러나오는 답 · 쓴 세션 찾기"
+                ]
+              ]
+            },
+            {
+              "id": "P11-5",
+              "title": "고른 줄 아래 대화 상자 — 질문 입력, 흘러나오는 답, 이어 묻기, 지난 대화 펼치기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/AskThread.tsx</code> (새 파일) · <code>CodeLines.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R3-Q2]] GitHub 리뷰 코멘트처럼 줄 아래"
+                ]
+              ]
+            },
+            {
+              "id": "P11-6",
+              "title": "'터미널에서 이어 가기' — 사본 세션을 Orca 터미널에서 다시 열기",
+              "done": true,
+              "rows": [
+                [
+                  "재사용",
+                  "actions 라우트의 <code>resume-session</code>"
+                ],
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/AskThread.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P11-7",
+              "title": "'새 세션에게'로 바꿔 묻기",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "[[R2-Q3]]"
+                ]
+              ]
+            },
+            {
+              "id": "P11-V",
+              "title": "검증: <code>bun run desktop</code> 후 끝난 세션이 쓴 단계에서 줄 범위를 골라 묻고 답이 diff 화면에 나옴, 다시 열어도 대화가 남음, 의도 묶음 수가 묻기 전과 같음",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "PATH를 줄인 프로덕션 서버에서 <code>highlight.ts:40-46</code>을 쓴 세션 bf9a6e67(기록 12MB)의 사본에 물으면 16초 만에 답함. 사본은 Read · Grep만 썼고, 답에 '처음 쓸 때는 테마가 고정이었다'는 그 세션의 기억이 들어 있음"
+                ],
+                [
+                  "결과",
+                  "이어 묻기는 같은 사본 세션에 이어짐. 사본 기록이 생긴 뒤에도 diff 세션 수 5 · 조각 45가 그대로이고, 세션 목록 663개에 사본이 없음"
+                ],
+                [
+                  "결과",
+                  "화면에서 245–248번 줄을 고르면 그 줄 아래 질문 상자가 열리고, '새 세션에게'로 보내면 같은 자리에 대화가 생겨 답이 Markdown으로 붙음"
+                ],
+                [
+                  "남은 확인",
+                  "데스크톱 앱 창에서 직접 보지 않음 — 같은 빌드 산출물을 헤드리스로 확인. '터미널에서 이어 가기'는 Orca 창이 필요해 누르지 않음"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P12",
+          "title": "Phase 12 · 세션 기록이 지워져도 매핑 유지",
+          "items": [
+            {
+              "id": "P12-1",
+              "done": true,
+              "title": "읽어 낸 도구 호출(바뀐 줄 포함)과 계획 항목 체크 시각을 저장소 밖 <code>~/.local/share/agent-control/intent-diff/&lt;repo&gt;-&lt;hash&gt;.json</code>에 쌓고, 원본에 없으면 여기서 채움",
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/archive.ts</code> (새 파일), <code>src/lib/intentDiff/build.ts</code>, <code>src/lib/intentDiff/transcripts.ts</code>"
+                ],
+                [
+                  "결정",
+                  "프로젝트 안에는 두지 않음 — 저장소에서 볼 일이 없음"
+                ],
+                [
+                  "결정",
+                  "보관한 호출을 상태 기록 합치기 전에 넣어, 세션 기록이 없어도 상태 기록이 <code>toolUseId</code>로 같은 호출에 붙음"
+                ],
+                [
+                  "이유",
+                  "세션 jsonl은 Claude Code <code>cleanupPeriodDays</code>(기본 30일)에 지워지고, 상태 기록은 <code>git worktree remove</code>와 <code>git gc</code>에 지워짐"
+                ]
+              ]
+            },
+            {
+              "id": "P12-2",
+              "done": true,
+              "title": "헤더에 보관 기록에서 채운 호출 수를 보여 줌",
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/types.ts</code> (<code>archivedCount</code>), <code>src/features/intentDiff/IntentDiffView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P12-V",
+              "done": true,
+              "title": "검증: 한 번 연 뒤 <code>CLAUDE_PROJECTS_DIR</code>를 빈 폴더로 바꿔 다시 열어도 계획 항목별 묶음 · 체크 시각이 같음",
+              "rows": [
+                [
+                  "결과",
+                  "지금 워크트리 · 4b50f14..82c2c7a 둘 다 항목별 묶음 수와 체크 시각이 같음(3회 반복), 보관 기록 332 / 356건"
+                ],
+                [
+                  "남은 것",
+                  "워크트리를 지운 뒤 다른 워크트리에서 커밋 범위로 여는 경우는 직접 돌려 보지 않음"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P13",
+          "title": "Phase 13 · 답 안의 코드 색과 줄 번호 드래그",
+          "items": [
+            {
+              "id": "P13-1",
+              "title": "답 안의 코드 블록을 diff와 같은 색 · 글꼴 · 크기로 그림. 답이 흘러나오는 동안은 색 없이, 다 받은 뒤 서버에서 칠함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/AnswerMarkdown.tsx</code> · <code>src/app/api/intent-diff/highlight/route.ts</code> (새 파일)"
+                ],
+                [
+                  "결정",
+                  "대시보드 공용 <code>Markdown</code>(<code>MessageView.tsx</code>)은 고치지 않고 diff 쪽에 답 전용 렌더러를 둠. <code>.md</code>의 15px가 레이어 밖 규칙이라 답 글자 크기는 <code>!</code>로 13px"
+                ],
+                [
+                  "결과",
+                  "코드 블록 토큰 56개가 Cursor 색으로 칠해지고 글자 12px (사용자 스크린샷 11/04 16:50의 문제)"
+                ]
+              ]
+            },
+            {
+              "id": "P13-2",
+              "title": "줄 번호를 누른 채 끌어서 범위 고르기 (Shift 클릭도 그대로)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/CodeLines.tsx</code>"
+                ],
+                [
+                  "결과",
+                  "249번에서 253번까지 끌면 다섯 줄이 칠해지고 <code>gitDiff.ts:249–253</code> 질문 상자가 열림"
+                ],
+                [
+                  "결정",
+                  "누르는 순간이 아니라 뗄 때 클릭인지 드래그인지 가름. 끄는 동안에는 질문 상자를 열지 않음 — 상자가 커서 아래 줄을 밀어내 드래그가 끊겼음 (11/04 사용자 지적)"
+                ],
+                [
+                  "결과",
+                  "249에서 252까지 끄는 동안 상자 없음 → 떼면 249–252 상자, 255 클릭은 한 줄, 같은 줄 다시 클릭은 해제"
+                ]
+              ]
+            },
+            {
+              "id": "P13-V",
+              "title": "검증: <code>bun run desktop</code> 빌드 서버에서 위 두 동작을 헤드리스로 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
         }
       ]
     }
@@ -690,7 +1498,23 @@
       "text": "의도는 추측하지 않고, 에이전트가 작업하던 시점에 남긴 기록(세션 기록·계획서)에서 가져온다. 찾지 못한 변경은 '의도 미상'으로 따로 둔다.",
       "state": "confirmed",
       "basis": "사용자 요청 (11/04 대화) — A 방식 추천에 동의"
+    },
+    {
+      "text": "diff 화면의 코드 색은 사용자가 Cursor에서 직접 쓴 색 규칙과 같아서, 편집기에서 보던 색 그대로 읽는다.",
+      "state": "confirmed",
+      "basis": "[[R2-Q1]] 메모 · [[R3-Q4]] 미적인 이유",
+      "was": [
+        "diff 화면의 코드 색은 평소 편집기(Cursor)에서 보던 색과 같아서, 화면을 옮겨 와도 눈이 다시 적응할 필요가 없다."
+      ]
+    },
+    {
+      "text": "읽다가 막히는 코드는 diff 화면을 떠나지 않고 그 코드를 쓴 에이전트에게 줄을 짚어 묻고, 대화는 diff 화면에만 남는다.",
+      "state": "confirmed",
+      "basis": "[[R2-Q4]] [[R2-Q5]] 되물음 [[R2-Q6]] · [[R3-Q2]]",
+      "was": [
+        "읽다가 왜 이렇게 했는지 막히는 코드는 diff 화면을 떠나지 않고 그 코드를 쓴 에이전트에게 물어 확인할 수 있다."
+      ]
     }
   ],
-  "pulledAt": 1793770581033
+  "pulledAt": 1793777261163
 }

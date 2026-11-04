@@ -2,11 +2,11 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createHighlighterCore, type HighlighterCore } from "@shikijs/core";
-import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
+import { createOnigurumaEngine } from "@shikijs/engine-oniguruma";
+import { editorThemes, type EditorThemes } from "./editorTheme";
 import { readBlobs } from "./gitDiff";
-import type { DiffRange, FileDiff } from "./types";
+import type { DiffRange, FileDiff, SymbolLocation, SymbolLookup } from "./types";
 
-const THEMES = { light: "light-plus", dark: "dark-plus" } as const;
 const MAX_BYTES = 400 * 1024;
 const CACHE_ENTRIES = 400;
 
@@ -62,7 +62,9 @@ function highlighter(): Promise<HighlighterCore> {
       import("@shikijs/langs/yaml"),
       import("@shikijs/langs/shellscript"),
     ],
-    engine: createJavaScriptRegexEngine(),
+    // The JavaScript regex engine mis-splits tokens on the first lines it sees after start-up
+    // (`total = 1;` came out as one constant token), so the reference Oniguruma engine is used.
+    engine: createOnigurumaEngine(import("@shikijs/engine-oniguruma/wasm-inlined")),
   });
   return globalCache.__intentDiffHighlighter;
 }
@@ -76,24 +78,34 @@ export function langOf(file: string): Lang | null {
 }
 
 /**
- * One markup string per line. Colors come from VS Code's Light+ and Dark+ themes as the
- * `--shiki-light` / `--shiki-dark` custom properties, so the page picks one with a CSS rule.
+ * One markup string per line. Colors come from the editor themes (Light+ / Dark+ with the user's
+ * Cursor color rules) as the `--shiki-light` / `--shiki-dark` custom properties, so the page picks
+ * one with a CSS rule.
  */
 export async function highlightLines(code: string, file: string): Promise<string[]> {
   const lang = langOf(file);
   if (!lang || code.length > MAX_BYTES) return code.split("\n").map(escapeHtml);
+  const themes = await editorThemes();
   // Tokenizing is the slow part of a request and most files do not change between requests.
-  const key = createHash("sha1").update(lang).update("\0").update(code).digest("hex");
+  const key = createHash("sha1").update(themes.key).update("\0").update(lang).update("\0").update(code).digest("hex");
   const cached = highlighted.get(key);
   if (cached) return cached;
-  const lines = await tokenize(code, lang);
+  const lines = await tokenize(code, lang, themes);
   if (highlighted.size >= CACHE_ENTRIES) highlighted.delete(highlighted.keys().next().value as string);
   highlighted.set(key, lines);
   return lines;
 }
 
-async function tokenize(code: string, lang: Lang): Promise<string[]> {
-  const { tokens } = (await highlighter()).codeToTokens(code, { lang, themes: THEMES, defaultColor: false });
+async function tokenize(code: string, lang: Lang, themes: EditorThemes): Promise<string[]> {
+  const core = await highlighter();
+  const loaded = core.getLoadedThemes();
+  const missing = [themes.light, themes.dark].filter((theme) => !loaded.includes(theme.name ?? ""));
+  if (missing.length > 0) await core.loadTheme(...missing);
+  const { tokens } = core.codeToTokens(code, {
+    lang,
+    themes: { light: themes.light.name ?? "", dark: themes.dark.name ?? "" },
+    defaultColor: false,
+  });
   return tokens.map((line) =>
     line
       .map((token) => {
@@ -151,4 +163,56 @@ export async function highlightDiffs(range: DiffRange, files: FileDiff[]): Promi
     }),
   );
   return endTexts;
+}
+
+const SPAN = /<span([^>]*)>([^<]*)<\/span>/g;
+
+/** Drops a line's indentation from its markup, to match the trimmed `text` of a location. */
+function trimIndent(html: string): string {
+  let leading = true;
+  return html.replace(SPAN, (whole, attrs: string, content: string) => {
+    if (!leading) return whole;
+    const rest = content.replace(/^(?:[ \t]|&nbsp;)+/, "");
+    if (rest === "") return "";
+    leading = false;
+    return `<span${attrs}>${rest}</span>`;
+  });
+}
+
+/**
+ * Colors the panel's code the way the diff colors it. A file in the repository is highlighted whole
+ * so each line keeps its context; a file under node_modules only by its snippet.
+ */
+export async function highlightLookup(root: string, lookup: SymbolLookup): Promise<void> {
+  const fileHtml = new Map<string, Promise<string[] | null>>();
+  const linesOf = (file: string) => {
+    let pending = fileHtml.get(file);
+    if (!pending) {
+      pending = readFile(path.join(root, file), "utf8")
+        .then((code) => highlightLines(code, file))
+        .catch(() => null);
+      fileHtml.set(file, pending);
+    }
+    return pending;
+  };
+
+  const fill = async (location: SymbolLocation) => {
+    const { startLine, lines } = location.snippet;
+    const html = location.external
+      ? await highlightLines(lines.join("\n"), location.file)
+      : (await linesOf(location.file))?.slice(startLine - 1, startLine - 1 + lines.length);
+    if (!html || html.length !== lines.length) return;
+    location.snippet.html = html;
+    const own = html[location.line - startLine];
+    if (own !== undefined) location.html = trimIndent(own);
+  };
+
+  await Promise.all([
+    ...[...lookup.definitions, ...lookup.references].map(fill),
+    lookup.signature
+      ? highlightLines(lookup.signature, "signature.ts").then((html) => {
+          lookup.signatureHtml = html.join("\n");
+        })
+      : null,
+  ]);
 }

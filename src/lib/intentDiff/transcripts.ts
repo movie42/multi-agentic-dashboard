@@ -2,12 +2,13 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { projectDirOf } from "@/lib/sessions/fullMessage";
 import type { LineChange, ToolEvent } from "./types";
+import { askSessionIds } from "./askStore";
 
 const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const NARRATION_LIMIT = 1200;
 const PROMPT_LIMIT = 400;
 const THINKING_NARRATION_LIMIT = 500;
-const UNTIL_SLACK_MS = 5 * 60_000;
+export const UNTIL_SLACK_MS = 5 * 60_000;
 
 interface ContentBlock {
   type?: string;
@@ -274,9 +275,11 @@ export async function loadToolEvents(
 ): Promise<TranscriptEvents> {
   const sessions = new Set<string>();
   const all: ToolEvent[] = [];
+  const asked = await askSessionIds();
   for (const source of sources) {
     const local = roots.includes(source);
     for (const file of await transcriptFiles(projectDirOf(source))) {
+      if (asked.has(path.basename(file, ".jsonl"))) continue;
       const info = await stat(file).catch(() => null);
       if (!info || info.mtimeMs < since) continue;
       const cacheKey = `${file}|${roots.join(",")}|${local}`;

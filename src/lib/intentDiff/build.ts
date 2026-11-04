@@ -1,4 +1,5 @@
 import { attribute, mergeSnapshots } from "./attribute";
+import { mergeArchive } from "./archive";
 import { buildFlows } from "./flow";
 import { git, loadFileDiffs, resolveRange } from "./gitDiff";
 import { highlightDiffs } from "./highlight";
@@ -49,8 +50,14 @@ export async function buildIntentDiff(request: IntentDiffRequest): Promise<Inten
     loadSnapshotSteps(roots, range.since, range.until),
     loadPlan(range.worktreePath, range.branch, request.task),
   ]);
-  const events = mergeSnapshots(transcript.events, steps);
-  const completions = plan ? await completionTimes(plan, steps, events) : new Map<string, number>();
+  const archived = await mergeArchive(
+    range,
+    transcript.events,
+    (events) => mergeSnapshots(events, steps),
+    plan?.taskFile ?? null,
+    (events) => (plan ? completionTimes(plan, steps, events) : Promise.resolve(new Map<string, number>())),
+  );
+  const { events, completions } = archived;
 
   const texts = await highlightDiffs(range, files);
   const contents = new Map<string, string>();
@@ -74,6 +81,7 @@ export async function buildIntentDiff(request: IntentDiffRequest): Promise<Inten
     range,
     sessionCount: transcript.sessionCount,
     snapshotCount: steps.length,
+    archivedCount: archived.restored,
     files,
     ...result,
     featureMap,

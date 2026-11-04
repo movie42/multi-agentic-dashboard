@@ -212,6 +212,8 @@ export interface IntentDiffResult {
   range: DiffRange;
   sessionCount: number;
   snapshotCount: number;
+  /** Tool calls restored from the archive because their transcript or snapshot is gone. */
+  archivedCount: number;
   files: FileDiff[];
   plan: PlanView | null;
   /** Intent groups when there is no plan; empty when a plan holds them. */
@@ -233,16 +235,88 @@ export interface SymbolLocation {
   external: boolean;
   line: number;
   text: string;
-  snippet: { startLine: number; lines: string[] };
+  /** `text` as highlighted markup, filled in by the route. */
+  html?: string;
+  snippet: { startLine: number; lines: string[]; html?: string[] };
 }
 
 export interface SymbolLookup {
   name: string;
   /** TypeScript's hover text: the declaration with its type. */
   signature: string | null;
+  signatureHtml?: string;
   definitions: SymbolLocation[];
   references: SymbolLocation[];
   truncated: boolean;
 }
 
 export type SymbolLookupResponse = { ok: true; lookup: SymbolLookup } | { ok: false; error: string };
+
+/** step: the whole flow step · lines: a range the reader picked by line number (end-side numbers). */
+export type AskAnchor =
+  | { kind: "step"; symbolId: string; file: string; startLine: number; endLine: number }
+  | { kind: "lines"; file: string; startLine: number; endLine: number };
+
+/** writer: a fork of the session that wrote the lines · fresh: a new session with no history. */
+export type AskTarget =
+  | { kind: "writer"; sessionId: string }
+  | { kind: "fresh"; reason: "chosen" | "no-writer" | "writer-gone" };
+
+export interface AskTurn {
+  question: string;
+  answer: string | null;
+  error: string | null;
+  askedAt: number;
+  answeredAt: number | null;
+}
+
+/** A conversation about some lines, held by its own Claude session so the original stays untouched. */
+export interface AskThread {
+  id: string;
+  worktreePath: string;
+  anchor: AskAnchor;
+  /** What the lines are, for the header: the symbol name or the file. */
+  label: string;
+  target: AskTarget;
+  /** The session that holds this conversation: the fork, or the fresh session. */
+  sessionId: string;
+  /** Where the session lives; `claude --resume` only finds a session from its own directory. */
+  cwd: string;
+  turns: AskTurn[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** What the page knows about the picked lines, sent with the first question. */
+export interface AskContext {
+  label: string;
+  planItem: { id: string; title: string } | null;
+  intents: string[];
+  /** The picked lines as a unified diff body (`+`, `-`, ` ` prefixes). */
+  diff: string;
+}
+
+export interface AskRequest {
+  worktreePath: string;
+  question: string;
+  /** Continue this thread; the fields below are ignored when set. */
+  threadId?: string;
+  anchor?: AskAnchor;
+  context?: AskContext;
+  /** The session that last changed the picked lines; null when none is known. */
+  writerSessionId?: string | null;
+  /** Ask a fresh session even when the writer is known. */
+  fresh?: boolean;
+}
+
+/** One NDJSON line of the ask stream. */
+export type AskEvent =
+  | { type: "thread"; thread: AskThread }
+  | { type: "text"; text: string }
+  | { type: "tool"; label: string }
+  | { type: "done"; thread: AskThread }
+  | { type: "error"; error: string; thread: AskThread | null };
+
+export type AskThreadsResponse = { ok: true; threads: AskThread[] } | { ok: false; error: string };
+
+export type HighlightResponse = { ok: true; html: string[] } | { ok: false; error: string };
