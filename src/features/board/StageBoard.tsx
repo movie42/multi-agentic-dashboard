@@ -111,9 +111,9 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
         return (
           <section
             key={group.key}
-            className="grid grid-cols-1 gap-x-6 gap-y-3 border-t border-hair pt-4 lg:grid-cols-12"
+            className="grid grid-cols-1 gap-x-6 gap-y-3 border-t border-hair pt-4 lg:grid-cols-[176px_minmax(0,1fr)]"
           >
-            <div className="lg:col-span-3">
+            <div>
               <h2 className="flex items-center gap-2 text-[14px] leading-[1.7] font-bold">
                 <span className={`size-2 rounded-full ${dot}`} />
                 {group.title}
@@ -121,7 +121,7 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
               </h2>
               <p className="mt-1 text-[12px] leading-relaxed text-muted">{group.hint}</p>
             </div>
-            <ul className="min-w-0 lg:col-span-9">
+            <ul className="min-w-0">
               {rows.map((row) => (
                 <StageRowView key={row.id} row={row} onJump={onJump} />
               ))}

@@ -220,14 +220,14 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
           return (
             <li
               key={session.sessionId}
-              className="grid grid-cols-1 gap-x-6 gap-y-2 border-b border-hair py-5 lg:grid-cols-12"
+              className="grid grid-cols-1 gap-x-6 gap-y-2 border-b border-hair py-5 lg:grid-cols-[176px_minmax(0,1fr)]"
             >
-              <div className="text-[12px] leading-relaxed text-muted lg:col-span-3">
+              <div className="text-[12px] leading-relaxed text-muted">
                 <p className="text-[13px] font-semibold text-fg">{session.project ?? "폴더 모름"}</p>
                 {session.gitBranch && <p className="truncate font-mono text-now">⎇ {session.gitBranch}</p>}
                 <p>{formatElapsed(session.updatedAt, state.scannedAt)} 전 마지막 활동</p>
               </div>
-              <div className="flex min-w-0 flex-col gap-2 lg:col-span-9">
+              <div className="flex min-w-0 flex-col gap-2">
                 <p className="flex items-center gap-2">
                   <span
                     className={`shrink-0 rounded-full px-2 py-1 text-[11px] leading-none font-semibold ${badge.className}`}
