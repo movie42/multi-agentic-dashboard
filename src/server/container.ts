@@ -1,5 +1,11 @@
 import "server-only";
-import { askSessionIds } from "@/lib/intentDiff/askStore";
+import type { AskRunner } from "./intentDiff/AskRunner";
+import type { AskStore } from "./intentDiff/AskStore";
+import { createIntentDiffServices } from "./intentDiff/createServices";
+import type { Highlighter } from "./intentDiff/Highlighter";
+import type { LanguageServices } from "./intentDiff/LanguageServices";
+import type { SnapshotLog } from "./intentDiff/SnapshotLog";
+import type { TranscriptLoader } from "./intentDiff/TranscriptLoader";
 import { PermissionStore } from "./permissions/PermissionStore";
 import { ActivityReader } from "./sessions/ActivityReader";
 import { BookmarkStore } from "./sessions/BookmarkStore";
@@ -17,20 +23,33 @@ export interface Services {
   sessionTitles: SessionTitles;
   activity: ActivityReader;
   bookmarks: BookmarkStore;
+  askStore: AskStore;
+  askRunner: AskRunner;
+  snapshotLog: SnapshotLog;
+  transcriptLoader: TranscriptLoader;
+  languageServices: LanguageServices;
+  highlighter: Highlighter;
 }
 
 function createServices(): Services {
   const errorLog = new ErrorLog();
   const warn = (scope: string, error: unknown, context?: Record<string, unknown>) => errorLog.record("warn", scope, error, context);
   const sessionTitles = new SessionTitles(PROJECTS_DIR);
+  const intentDiff = createIntentDiffServices();
   return {
     errorLog,
     permissions: new PermissionStore(),
-    sessionIndex: new SessionIndex({ projectsDir: PROJECTS_DIR, cacheFile: SESSION_CACHE_FILE, askSessionIds: () => askSessionIds(), warn }),
+    sessionIndex: new SessionIndex({
+      projectsDir: PROJECTS_DIR,
+      cacheFile: SESSION_CACHE_FILE,
+      askSessionIds: () => intentDiff.askStore.sessionIds(),
+      warn,
+    }),
     sessionLocator: new SessionLocator({ projectsDir: PROJECTS_DIR, liveSessionsDir: LIVE_SESSIONS_DIR, warn }),
     sessionTitles,
     activity: new ActivityReader((sessionId) => sessionTitles.cachedTranscriptOf(sessionId)),
     bookmarks: new BookmarkStore(BOOKMARK_FILE, warn),
+    ...intentDiff,
   };
 }
 
