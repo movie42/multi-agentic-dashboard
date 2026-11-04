@@ -1,51 +1,19 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect } from "react";
+import { syncFromStorageEvent, useStoredListStore } from "./storedListStore";
 
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-
-function parseList(raw: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
+const EMPTY: string[] = [];
 
 export function useStoredList(storageKey: string): [string[], (next: string[]) => void] {
-  const raw = useSyncExternalStore(
-    subscribe,
-    () => {
-      try {
-        return window.localStorage.getItem(storageKey) ?? "[]";
-      } catch (error) {
-        console.warn("[stored-list] read failed", storageKey, error);
-        return "[]";
-      }
-    },
-    () => "[]",
-  );
+  const list = useStoredListStore((state) => state.lists[storageKey]) ?? EMPTY;
 
-  const write = (next: string[]) => {
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch (error) {
-      console.warn("[stored-list] write failed", storageKey, error);
-    }
-    listeners.forEach((listener) => listener());
-  };
+  useEffect(() => {
+    useStoredListStore.getState().load(storageKey);
+    window.addEventListener("storage", syncFromStorageEvent);
+    return () => window.removeEventListener("storage", syncFromStorageEvent);
+  }, [storageKey]);
 
-  return [parseList(raw), write];
+  const write = (next: string[]) => useStoredListStore.getState().write(storageKey, next);
+  return [list, write];
 }
