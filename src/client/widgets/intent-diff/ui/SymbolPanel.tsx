@@ -1,7 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { SymbolLocation, SymbolLookup, SymbolLookupResponse } from "@/common/intentDiff/types";
+import type { SymbolLocation } from "@/common/intentDiff/types";
+import { symbolQueryOptions } from "@/client/entities/intent-diff";
+import { errorMessage } from "@/client/shared/model/errorMessage";
 import type { SymbolTarget } from "./CodeLines";
 
 // `!` because a diff row already carries its own add/remove background class.
@@ -17,31 +20,9 @@ function focusRow(element: HTMLElement | null) {
 // Token colors arrive as `--shiki-light` / `--shiki-dark` on each span, as in the diff table.
 const CODE_COLORS = "[&_span]:text-(color:--shiki-light) dark:[&_span]:text-(color:--shiki-dark)";
 
-interface Settled {
-  key: string;
-  lookup: SymbolLookup | null;
-  error: string | null;
-}
-
 function useSymbolLookup(worktreePath: string, rev: string | null, target: SymbolTarget) {
-  const params = new URLSearchParams({ path: worktreePath, file: target.file, line: String(target.line), col: String(target.col) });
-  if (rev) params.set("rev", rev);
-  const href = `/api/intent-diff/symbol?${params.toString()}`;
-  const [settled, setSettled] = useState<Settled>({ key: "", lookup: null, error: null });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(href, { signal: controller.signal, cache: "no-store" })
-      .then((response) => response.json() as Promise<SymbolLookupResponse>)
-      .then((body) => setSettled(body.ok ? { key: href, lookup: body.lookup, error: null } : { key: href, lookup: null, error: body.error }))
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setSettled({ key: href, lookup: null, error: error instanceof Error ? error.message : String(error) });
-      });
-    return () => controller.abort();
-  }, [href]);
-
-  return settled.key === href ? settled : { key: href, lookup: null, error: null };
+  const lookupQuery = useQuery(symbolQueryOptions({ worktreePath, rev, file: target.file, line: target.line, col: target.col }));
+  return { lookup: lookupQuery.data ?? null, error: lookupQuery.error ? errorMessage(lookupQuery.error) : null };
 }
 
 /** The rendered line of this page that shows `file:line`, when it is on screen and not folded. */
