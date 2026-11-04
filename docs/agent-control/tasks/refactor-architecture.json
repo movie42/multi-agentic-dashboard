@@ -597,8 +597,8 @@
       "summary": "질문 3라운드 반영 완료 — 승인 대기",
       "conclusion": [
         "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이고, 이 브랜치와 합칠 때 <code>src/proxy.ts</code>는 루트 <code>proxy.ts</code>로, <code>@/lib/security/origin</code>은 <code>src/server</code> 쪽으로 옮겨야 해요.",
-        "Phase 1–5 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19(TanStack Query·use()·useActionState·Zustand·Compiler·page 서버 컴포넌트). 병렬 세션 4개(P3 2개, P5 2개)의 브랜치를 모두 머지했어요.",
-        "다음은 Phase 6: 화면 코드 <code>as</code> 정리, <code>noUncheckedIndexedAccess</code>, ESLint 규칙 고정(빈 catch, let, 타입 단언, any)."
+        "Phase 1–6 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19, 타입·lint 규칙 고정.",
+        "남은 빌드 경고: <code>editorTheme.ts</code>가 실행 시점 경로를 읽어 Turbopack이 프로젝트 전체 추적을 경고해요."
       ],
       "blocks": [
         {
@@ -1112,29 +1112,37 @@
             {
               "id": "P6-1",
               "title": "<code>as</code> 단언 47곳을 스키마·타입 가드로",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "진행",
-                  "서버·공용 코드 완료(<code>2f00b0d</code>). 화면 코드 남음"
+                  "파일",
+                  "<code>src/client/shared/api/json.ts</code>(<code>readJson</code> · <code>parseJsonLine</code> · <code>errorField</code>) · 각 <code>entities/*/api</code> · <code>useAskBoard</code> · <code>slackClipboard</code> · <code>useKeyboardNav</code> · <code>container.ts</code>"
+                ],
+                [
+                  "결정",
+                  "서버·공용은 zod 스키마와 타입 가드(<code>2f00b0d</code>). 화면이 이 앱 자체 API 응답을 읽는 단언은 <code>readJson</code> 한 곳에만 남기고 줄 단위 예외 + 이유. 에러 본문은 타입 가드 <code>errorField</code>, DOM은 <code>instanceof</code>, <code>globalThis</code> 단언은 <code>declare global</code>로"
                 ]
               ]
             },
             {
               "id": "P6-2",
               "title": "tsconfig <code>noUncheckedIndexedAccess</code> 켜기",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>tsconfig.json</code>"
+                  "<code>tsconfig.json</code> + 걸린 31개 파일"
+                ],
+                [
+                  "결정",
+                  "<code>!</code> 없이 고침: 정규식 그룹은 구조 분해 기본값이나 <code>?? \"\"</code>, 배열 첫 요소는 변수로 받아 검사, 인덱스로 짝짓던 곳은 <code>Promise.all</code>에서 쌍으로 받기(<code>BoardService</code>), 명령 팔레트 항목은 <code>agentIndex</code> 대신 <code>agent</code>를 들고 다님"
                 ]
               ]
             },
             {
               "id": "P6-3",
               "title": "ESLint 규칙 고정 — <code>no-empty</code>, 최상단 <code>let</code> 금지, <code>consistent-type-assertions</code>, <code>no-explicit-any</code>",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -1142,19 +1150,24 @@
                 ],
                 [
                   "결정",
-                  "[[R1-Q5]] [[R3-Q2]] 최상단·함수 안 let 모두 에러 · 예외는 줄 단위 disable + 이유 (diff 파서, JSONC 스캐너, 스트림 버퍼, 위치 탐색 루프)"
+                  "[[R1-Q5]] [[R3-Q2]] <code>no-empty</code>, <code>no-explicit-any</code>, <code>consistent-type-assertions: never</code>, <code>let</code> 금지, 모듈 최상단 <code>new Map/Set</code> 금지(읽기 전용 표는 <code>ReadonlySet</code>로 표시하면 허용). 대상은 ts·tsx. 테스트 파일은 단언·let 규칙 제외"
                 ],
                 [
-                  "진행",
-                  "함수 안 let: 서버는 파서·스트림 버퍼·동시성 카운터만 남김(<code>0099baa</code>), 화면은 <code>useAskBoard</code> 스트림 버퍼만 남음. 규칙 고정과 줄 단위 예외는 아직"
+                  "결정",
+                  "남은 let은 줄 단위 disable + 이유: diff 파서, JSONC 스캐너, 트랜스크립트 재생, 자식 프로세스·NDJSON 스트림 버퍼, 위치 탐색 루프. 동시성 카운터(<code>mapLimited</code>)는 공유 iterator로, ask 라우트 <code>prepared</code>는 함수로, 답변 코드 하이라이트 모듈 캐시는 TanStack Query로 옮겨 let·모듈 Map 제거"
                 ]
               ]
             },
             {
               "id": "P6-V",
               "title": "검증: 테스트 · tsc · lint 통과",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "vitest 219 · contract 5 · playwright 3 · tsc 0 · lint 0(경고 2 기존) · build 성공"
+                ]
+              ]
             }
           ]
         }

@@ -47,12 +47,10 @@ export function changesFromDiff(output: string): Record<string, LineChange> {
 
 export async function mapLimited<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
-  // eslint-disable-next-line no-restricted-syntax -- next index shared by the concurrency workers
-  let next = 0;
+  const queue = items.entries();
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await run(items[index]);
+    for (const [index, item] of queue) {
+      results[index] = await run(item);
     }
   });
   await Promise.all(workers);
@@ -73,11 +71,12 @@ export class SnapshotLog {
   async loadSteps(roots: string[], since: number, until: number | null): Promise<SnapshotStep[]> {
     const logs = await Promise.all(roots.map(async (worktreePath) => ({ worktreePath, records: await this.readLog(worktreePath) })));
     const pairs = logs.flatMap(({ worktreePath, records }) =>
-      records.slice(1).flatMap((record, index) =>
-        record.at < since || (until !== null && record.at > until)
+      records.slice(1).flatMap((record, index) => {
+        const previous = records[index];
+        return !previous || record.at < since || (until !== null && record.at > until)
           ? []
-          : [{ worktreePath, record, previousTree: records[index].tree }],
-      ),
+          : [{ worktreePath, record, previousTree: previous.tree }];
+      }),
     );
     const steps = await mapLimited(pairs, DIFF_CONCURRENCY, async (pair) => ({
       ...pair,

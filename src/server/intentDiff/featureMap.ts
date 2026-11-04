@@ -21,7 +21,7 @@ export function ownersByHunk(attribution: Attribution): Map<string, FileOwner> {
 }
 
 function phaseOf(itemId: string): string {
-  return itemId.split("-")[0];
+  return itemId.split("-")[0] ?? itemId;
 }
 
 /**
@@ -69,7 +69,9 @@ export function buildFeatureMap(
     seen.add(start);
     for (const file of queue) {
       members.push(file);
-      for (const next of [...nodes[file].imports, ...nodes[file].importedBy]) {
+      const node = nodes[file];
+      if (!node) continue;
+      for (const next of [...node.imports, ...node.importedBy]) {
         if (!seen.has(next) && nodes[next]) {
           seen.add(next);
           queue.push(next);
@@ -80,7 +82,7 @@ export function buildFeatureMap(
       loose.push(start);
       continue;
     }
-    const roots = members.filter((file) => nodes[file].importedBy.length === 0);
+    const roots = members.filter((file) => nodes[file]?.importedBy.length === 0);
     const topRank = Math.max(...members.map((file) => ranks.get(file) ?? 0));
     const entries = (roots.length > 0 ? roots : members.filter((file) => (ranks.get(file) ?? 0) === topRank)).sort(
       (a, b) => (ranks.get(b) ?? 0) - (ranks.get(a) ?? 0) || a.localeCompare(b),
@@ -92,7 +94,7 @@ export function buildFeatureMap(
   for (const cluster of clusters) {
     const counts = new Map<string, number>();
     for (const file of cluster.files) {
-      for (const hunkId of nodes[file].hunkIds) {
+      for (const hunkId of nodes[file]?.hunkIds ?? []) {
         const owner = owners.get(hunkId);
         if (owner?.kind === "item") counts.set(phaseOf(owner.id), (counts.get(phaseOf(owner.id)) ?? 0) + 1);
       }

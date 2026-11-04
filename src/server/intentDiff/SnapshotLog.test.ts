@@ -42,7 +42,7 @@ describe("SnapshotLog", () => {
       ["t1", "t2"],
       ["t2", "t3"],
     ]);
-    expect(steps[0].changes).toEqual({ "a.ts": { added: ["new"], removed: ["old"], precision: "exact" } });
+    expect(steps[0]?.changes).toEqual({ "a.ts": { added: ["new"], removed: ["old"], precision: "exact" } });
     await log.loadSteps(["/w"], 2, null);
     expect(git.mock.calls.filter(([, args]) => args[0] === "diff-tree")).toHaveLength(2);
   });
@@ -55,7 +55,7 @@ describe("SnapshotLog", () => {
     });
     const warn = vi.fn();
     const log = new SnapshotLog(git, warn);
-    expect((await log.loadSteps(["/w"], 0, null))[0].changes).toEqual({});
+    expect((await log.loadSteps(["/w"], 0, null))[0]?.changes).toEqual({});
     await log.loadSteps(["/w"], 0, null);
     expect(warn).toHaveBeenCalledTimes(2);
   });

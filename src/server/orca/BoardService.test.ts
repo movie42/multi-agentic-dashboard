@@ -82,9 +82,9 @@ describe("BoardService.load", () => {
       ["t1:l1", "working", "h1"],
       ["t2:l2", "waiting", null],
     ]);
-    expect(snapshot.agents[0].session).toMatchObject({ id: "abc", title: "Title" });
-    expect(snapshot.agents[0].artifacts.map((artifact) => artifact.target)).toEqual(["/w/report.md"]);
-    expect(snapshot.agents[1].permission).toMatchObject({ id: "p1" });
+    expect(snapshot.agents[0]?.session).toMatchObject({ id: "abc", title: "Title" });
+    expect(snapshot.agents[0]?.artifacts.map((artifact) => artifact.target)).toEqual(["/w/report.md"]);
+    expect(snapshot.agents[1]?.permission).toMatchObject({ id: "p1" });
     expect(permissions.settleStale).toHaveBeenCalledWith("t2:l2", "waiting", 50);
     expect(orphans.reattach).toHaveBeenCalledOnce();
     expect(warn).not.toHaveBeenCalled();

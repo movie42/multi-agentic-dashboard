@@ -24,8 +24,8 @@ export function importGraph(contents: Map<string, string>): Map<string, string[]
   for (const [file, text] of contents) {
     if (!SOURCE.test(file)) continue;
     const found = new Set<string>();
-    for (const match of text.matchAll(SPECIFIER)) {
-      const target = resolveImport(file, match[1], files);
+    for (const [, specifier = ""] of text.matchAll(SPECIFIER)) {
+      const target = resolveImport(file, specifier, files);
       if (target && target !== file) found.add(target);
     }
     deps.set(file, [...found]);

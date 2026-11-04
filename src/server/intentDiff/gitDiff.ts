@@ -146,7 +146,7 @@ export function parseUnifiedDiff(output: string): FileDiff[] {
     if (line.startsWith("diff --git ")) {
       finishFile();
       const match = line.match(/^diff --git (?:"?a\/)(.+?)"? (?:"?b\/)(.+?)"?$/);
-      const file = match ? match[2] : line.slice("diff --git ".length);
+      const file = match?.[2] ?? line.slice("diff --git ".length);
       current = { file, oldFile: null, change: "modified", binary: false, hunks: [] };
       continue;
     }
@@ -172,7 +172,7 @@ export function parseUnifiedDiff(output: string): FileDiff[] {
       hunk = {
         id: `${file.file}#${file.hunks.length}`,
         file: file.file,
-        header: header[3].trim(),
+        header: (header[3] ?? "").trim(),
         oldStart: oldNo,
         newStart: newNo,
         lines: [],

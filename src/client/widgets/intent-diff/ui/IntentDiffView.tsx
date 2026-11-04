@@ -197,7 +197,7 @@ function FlowLinks({ flow, data }: FlowLinksProps) {
     const symbol = data.symbols[step.symbolId];
     return (
       <a key={step.symbolId} href={`#${stepAnchor(step.symbolId)}`} className={`block truncate py-0.5 text-muted hover:text-fg ${["pl-3", "pl-6", "pl-9", "pl-12"][Math.min(step.depth, 3)]}`}>
-        {symbol.name}
+        {symbol?.name}
       </a>
     );
   });

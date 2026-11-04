@@ -25,6 +25,7 @@ function moveFocus(step: number) {
   const current = currentCard();
   const index = current ? list.indexOf(current) : -1;
   const next = list[index < 0 ? (step > 0 ? 0 : list.length - 1) : Math.min(list.length - 1, Math.max(0, index + step))];
+  if (!next) return;
   next.focus();
   next.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }

@@ -81,7 +81,7 @@ function filesOf(rows: unknown[] | undefined): string[] {
   for (const row of rows ?? []) {
     if (!Array.isArray(row) || row[0] !== "파일" || typeof row[1] !== "string") continue;
     for (const match of row[1].matchAll(/<code>([^<]+)<\/code>/g)) {
-      const value = plainText(match[1]).replace(/^\.\//, "");
+      const value = plainText(match[1] ?? "").replace(/^\.\//, "");
       if (/[/.]/.test(value) && !/\s/.test(value)) files.push(value);
     }
   }

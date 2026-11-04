@@ -37,13 +37,13 @@ export function parseChoicePrompt(lines: string[]): ChoicePrompt | null {
 
   const options: ChoiceOption[] = lines.slice(start, end + 1).flatMap((line) => {
     const match = line.match(OPTION_LINE);
-    return match ? [{ number: Number(match[2]), label: match[3].trim(), selected: Boolean(match[1]) }] : [];
+    return match ? [{ number: Number(match[2]), label: (match[3] ?? "").trim(), selected: Boolean(match[1]) }] : [];
   });
   if (options.length < 2 || !options.some((option) => option.selected)) return null;
 
   const above = lines.slice(0, start).map(clean);
   const questionIndex = above.findLastIndex((line) => line !== "" && !isFrame(line));
-  const question = questionIndex >= 0 ? above[questionIndex] : null;
+  const question = questionIndex >= 0 ? (above[questionIndex] ?? null) : null;
   const context = above
     .slice(Math.max(0, questionIndex - CONTEXT_LINES), Math.max(0, questionIndex))
     .filter((line) => !isFrame(line));

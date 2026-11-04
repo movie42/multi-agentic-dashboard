@@ -69,7 +69,7 @@ function summaryOf(name: string, input: Record<string, unknown> | undefined, cwd
   if (file) return relativeTo(cwd, file);
   for (const key of ["description", "command", "pattern", "query", "url", "skill", "prompt"]) {
     const value = stringField(input, key);
-    if (value) return clip(value.split("\n")[0], SUMMARY_CHARS);
+    if (value) return clip(value.split("\n")[0] ?? value, SUMMARY_CHARS);
   }
   return name === "TodoWrite" ? "할 일 목록 갱신" : null;
 }

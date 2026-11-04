@@ -16,7 +16,7 @@ describe("ErrorLog", () => {
     log.record("error", "board", new Error("orca failed"), { worktree: "/w" });
     await log.flush();
     const [line] = (await readFile(file, "utf8")).trim().split("\n");
-    expect(JSON.parse(line)).toMatchObject({
+    expect(JSON.parse(line ?? "")).toMatchObject({
       at: "2026-11-04T00:00:00.000Z",
       level: "error",
       scope: "board",

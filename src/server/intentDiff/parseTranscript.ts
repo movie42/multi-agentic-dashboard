@@ -28,7 +28,7 @@ function promptOf(line: TranscriptLine): string | null {
   if (!text) return null;
   const trimmed = text.trim();
   const command = trimmed.match(/<command-name>([^<]+)<\/command-name>/);
-  if (command) return command[1].trim();
+  if (command?.[1]) return command[1].trim();
   if (/^(<local-command|<system-reminder|<task-notification|Caveat:)/.test(trimmed)) return null;
   return trimmed.slice(0, PROMPT_LIMIT);
 }

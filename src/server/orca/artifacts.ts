@@ -22,8 +22,8 @@ function normalizeTarget(raw: string, worktreePath: string): string | null {
   const target = raw.replace(/[.,;:]+$/, "");
   if (/^https?:\/\//.test(target)) return target;
   if (target.startsWith("file://")) return decodeURI(target.slice("file://".length));
-  if (!FILE_EXTENSION.test(target.split("#")[0])) return null;
-  const withoutHash = target.split("#")[0];
+  const withoutHash = target.split("#")[0] ?? target;
+  if (!FILE_EXTENSION.test(withoutHash)) return null;
   if (path.isAbsolute(withoutHash)) return withoutHash;
   if (/^[a-z]+:/i.test(withoutHash)) return null;
   return path.resolve(worktreePath, withoutHash);
@@ -42,15 +42,15 @@ export function extractArtifacts(message: string | null, worktreePath: string): 
     found.set(target, { target, label: prNumber ? `#${prNumber}` : label, kind });
   };
 
-  for (const match of message.matchAll(MARKDOWN_LINK)) {
-    add(match[2], match[1]);
+  for (const [, label = "", target = ""] of message.matchAll(MARKDOWN_LINK)) {
+    add(target, label);
   }
   const withoutLinks = message.replace(MARKDOWN_LINK, " ");
   for (const match of withoutLinks.matchAll(BARE_URL)) {
     add(match[0], "claude.ai artifact");
   }
-  for (const match of withoutLinks.matchAll(BARE_PATH)) {
-    add(match[1], path.basename(match[1]));
+  for (const [, target = ""] of withoutLinks.matchAll(BARE_PATH)) {
+    add(target, path.basename(target));
   }
 
   return [...found.values()];

@@ -53,7 +53,7 @@ export class TranscriptLoader {
       }),
     );
     const groups = perSource.flat();
-    const sessions = new Set(groups.filter((events) => events.length > 0).map((events) => events[0].sessionId));
+    const sessions = new Set(groups.flatMap((events) => events.slice(0, 1).map((event) => event.sessionId)));
     const events = groups.flat().sort((a, b) => a.at - b.at);
     return { events, sessionCount: sessions.size };
   }

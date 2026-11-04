@@ -24,7 +24,7 @@ describe("OrcaCli", () => {
     expect(await cli.run(["status"], 5)).toBe(1);
     expect(execFile.calls[0]).toMatchObject({ file: "/bin/orca", args: ["status", "--json"], options: { timeout: 5 } });
     await cli.run(["status"], z.number());
-    expect(execFile.calls[1].options?.timeout).toBe(15_000);
+    expect(execFile.calls[1]?.options?.timeout).toBe(15_000);
   });
 
   it("uses stdout from a failed process when present, otherwise throws", async () => {

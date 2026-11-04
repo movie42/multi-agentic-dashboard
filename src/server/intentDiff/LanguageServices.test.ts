@@ -31,7 +31,7 @@ describe("LanguageServices", () => {
     expect(lookup.references.map((location) => location.file)).toContain("src/b.ts");
 
     await writeFile(path.join(root, "src", "c.ts"), 'import { total } from "./a";\ntotal(2);\n');
-    expect(services.lookup(root, "src/c.ts", 2, 0, null).definitions[0].file).toBe("src/a.ts");
+    expect(services.lookup(root, "src/c.ts", 2, 0, null).definitions[0]?.file).toBe("src/a.ts");
   }, 30_000);
 
   it("throws for a file outside the project", async () => {

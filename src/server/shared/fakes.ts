@@ -34,7 +34,7 @@ export function fakeFileSystem(files: Record<string, FakeFile>): FileSystemPort 
         ...new Set(
           Object.keys(files)
             .filter((file) => file.startsWith(`${target}/`))
-            .map((file) => path.relative(target, file).split("/")[0]),
+            .map((file) => path.relative(target, file).split("/")[0] ?? file),
         ),
       ];
       return names.map((name): DirEntry => ({ name, isDirectory: () => isDir(path.join(target, name)) }));

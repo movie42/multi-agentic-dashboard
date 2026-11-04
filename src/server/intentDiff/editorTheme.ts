@@ -112,7 +112,7 @@ function stripJsonc(text: string): string {
     } else if (char === ",") {
       // eslint-disable-next-line no-restricted-syntax -- JSONC scanner state
       let next = i + 1;
-      while (next < text.length && /\s/.test(text[next])) next++;
+      while (next < text.length && /\s/.test(text[next] ?? "")) next++;
       const rest = stripLeadingComments(text.slice(next));
       if (rest[0] !== "}" && rest[0] !== "]") out += char;
     } else {

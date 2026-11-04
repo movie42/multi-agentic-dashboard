@@ -32,8 +32,8 @@ describe("parseChoicePrompt", () => {
   });
 
   it("accepts › and > as the selection marker", () => {
-    expect(parseChoicePrompt(["Q", "› 1. a", "  2. b"])?.options[0].selected).toBe(true);
-    expect(parseChoicePrompt(["Q", "  1. a", "> 2. b"])?.options[1].selected).toBe(true);
+    expect(parseChoicePrompt(["Q", "› 1. a", "  2. b"])?.options[0]?.selected).toBe(true);
+    expect(parseChoicePrompt(["Q", "  1. a", "> 2. b"])?.options[1]?.selected).toBe(true);
   });
 
   it("has no question when only frames sit above", () => {

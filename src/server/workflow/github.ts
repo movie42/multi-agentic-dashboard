@@ -12,7 +12,7 @@ export function isSharedBranch(branch: string): boolean {
 
 export function ownerFromRemoteUrl(url: string): string {
   const match = url.trim().match(/github\.com[:/]([^/]+)\//);
-  return match ? match[1] : "unknown-host";
+  return match?.[1] ?? "unknown-host";
 }
 
 export function isMissingRemote(stderr: string): boolean {

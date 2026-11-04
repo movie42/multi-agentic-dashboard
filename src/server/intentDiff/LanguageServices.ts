@@ -102,7 +102,7 @@ function locationOf(program: ts.Program, root: string, fileName: string, start: 
 export function identifierAt(text: string, position: number): string {
   // eslint-disable-next-line no-restricted-syntax -- identifier scan from a position
   let start = position;
-  while (start > 0 && /[\w$]/.test(text[start - 1])) start--;
+  while (start > 0 && /[\w$]/.test(text[start - 1] ?? "")) start--;
   return text.slice(start).match(/^[\w$]+/)?.[0] ?? "";
 }
 
@@ -131,7 +131,7 @@ export class LanguageServices {
     const diskLines = sourceFile.text.split("\n");
     const diskLine = lineOnDisk(diskLines, line, shownText);
     if (diskLine === null) throw new Error("이 줄은 지금 파일에 없어요. 그 뒤에 바뀌었거나 지워졌어요.");
-    const position = sourceFile.getPositionOfLineAndCharacter(diskLine - 1, Math.min(column, diskLines[diskLine - 1].length));
+    const position = sourceFile.getPositionOfLineAndCharacter(diskLine - 1, Math.min(column, diskLines[diskLine - 1]?.length ?? 0));
 
     const info = service.getQuickInfoAtPosition(fileName, position);
     const definitions = (service.getDefinitionAtPosition(fileName, position) ?? [])

@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { BoardSnapshot } from "@/common/orca/types";
+import type { AgentCard, BoardSnapshot } from "@/common/orca/types";
 import { StateBadge } from "@/client/entities/agent";
 
 type PaletteItem =
   | { kind: "nav"; key: string; label: string; hint: string; run: () => void }
   | { kind: "project"; key: string; label: string; hint: string; run: () => void }
   | { kind: "worktree"; key: string; label: string; hint: string; run: () => void }
-  | { kind: "agent"; key: string; label: string; hint: string; agentIndex: number; run: () => void };
+  | { kind: "agent"; key: string; label: string; hint: string; agent: AgentCard; run: () => void };
 
 const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   nav: "이동",
@@ -80,12 +80,12 @@ export function CommandPalette({ board, onSelectRepo, onOpenSessions }: CommandP
   const items: PaletteItem[] = [
     { kind: "nav", key: "nav:all", label: "전체", hint: "모든 프로젝트", run: () => onSelectRepo(null) },
     { kind: "nav", key: "nav:sessions", label: "지난 세션", hint: "닫은 Claude 세션 찾기", run: onOpenSessions },
-    ...board.agents.map((agent, agentIndex) => ({
+    ...board.agents.map((agent) => ({
       kind: "agent" as const,
       key: `agent:${agent.id}`,
       label: agent.prompt?.replace(/\s+/g, " ") ?? agent.title ?? "(요청 없음)",
       hint: [agent.repo, agent.worktreeName, agent.branch, agent.lastMessage?.replace(/\s+/g, " ")].filter(Boolean).join(" · "),
-      agentIndex,
+      agent,
       run: () => {
         onSelectRepo(agent.repo);
         focusCard(agent.id);
@@ -169,7 +169,7 @@ export function CommandPalette({ board, onSelectRepo, onOpenSessions }: CommandP
                 className={`flex w-full items-center gap-3 px-5 py-2.5 text-left ${index === active ? "bg-tint" : ""}`}
               >
                 {item.kind === "agent" ? (
-                  <StateBadge agent={board.agents[item.agentIndex]} />
+                  <StateBadge agent={item.agent} />
                 ) : (
                   <span className="w-16 shrink-0 text-[11px] font-semibold text-muted">{KIND_LABEL[item.kind]}</span>
                 )}

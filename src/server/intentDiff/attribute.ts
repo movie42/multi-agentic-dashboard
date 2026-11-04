@@ -141,7 +141,7 @@ function findOwner(hunk: Hunk, events: ToolEvent[], mentions: Map<string, ToolEv
 
   const touching = events.filter((event) => event.changes[hunk.file]);
   if (needles.length > 0 && touching.length > 0) {
-    const sets = touching.map((event) => ({ event, lines: new Set(event.changes[hunk.file][side].map(normalize)) }));
+    const sets = touching.map((event) => ({ event, lines: new Set((event.changes[hunk.file]?.[side] ?? []).map(normalize)) }));
     const votes = new Map<ToolEvent, number>();
     for (const needle of needles) {
       const writer = [...sets].reverse().find((entry) => entry.lines.has(needle));
@@ -153,7 +153,7 @@ function findOwner(hunk: Hunk, events: ToolEvent[], mentions: Map<string, ToolEv
         null,
       )?.[0] ?? null;
     if (best) {
-      const precision = best.changes[hunk.file].precision;
+      const precision = best.changes[hunk.file]?.precision ?? "file";
       return { event: best, precision };
     }
   }
@@ -262,15 +262,17 @@ function planItemFor(
   const byTime = items
     .filter((item) => doneAfter(item) !== null)
     .sort((a, b) => (doneAfter(a) ?? 0) - (doneAfter(b) ?? 0));
-  const firstAt = byTime.length > 0 ? doneAfter(byTime[0]) : null;
+  const first = byTime[0];
+  const firstAt = first ? doneAfter(first) : null;
   const tied = byTime.filter((item) => doneAfter(item) === firstAt);
   const timeItem = tied.find(hinted) ?? (tied.length === 1 ? tied[0] : null);
   if (timeItem && hinted(timeItem)) return { item: timeItem, outside: false };
 
   const byHint = items.filter(hinted);
-  if (byHint.length > 0) {
+  const firstHinted = byHint[0];
+  if (firstHinted) {
     const open = byHint.find((item) => doneAfter(item) !== null || !completions.has(item.id));
-    return { item: open ?? byHint[0], outside: false };
+    return { item: open ?? firstHinted, outside: false };
   }
   if (timeItem) return { item: timeItem, outside: timeItem.files.length > 0 };
   return null;

@@ -25,7 +25,7 @@ describe("GitInfo.getPullRequest", () => {
     await flush();
     expect(git.getPullRequest("/w", "feat/x")).toMatchObject({ kind: "found", number: 7 });
     expect(execFile.calls).toHaveLength(1);
-    expect(execFile.calls[0].options?.cwd).toBe("/w");
+    expect(execFile.calls[0]?.options?.cwd).toBe("/w");
   });
 
   it("keeps showing the stale value while a refresh runs after the ttl", async () => {
@@ -52,7 +52,7 @@ describe("GitInfo.getPullRequest", () => {
     expect(git.getPullRequest("/w", "feat/a")).toEqual({ kind: "not-applicable" });
     expect(git.getPullRequest("/w", "feat/b")).toEqual({ kind: "unknown" });
     expect(warn).toHaveBeenCalledOnce();
-    expect(warn.mock.calls[0][0]).toBe("pr");
+    expect(warn.mock.calls[0]?.[0]).toBe("pr");
   });
 });
 

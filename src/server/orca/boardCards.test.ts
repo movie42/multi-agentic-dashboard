@@ -110,7 +110,7 @@ describe("board card helpers", () => {
   it("assigns a feature's repo from its repo path or row worktrees without mutating", () => {
     const original = feature({ repo: null, rows: [{ id: "r", title: "", issue: null, branch: null, worktree: "/w2", jiraStatus: null, jiraTodo: null }] });
     const [assigned] = withFeatureRepos([original], new Map([["/w2", "repo-b"]]));
-    expect(assigned.repo).toBe("repo-b");
+    expect(assigned?.repo).toBe("repo-b");
     expect(original.repo).toBeNull();
   });
 });

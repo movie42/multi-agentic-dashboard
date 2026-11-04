@@ -171,11 +171,10 @@ export class SessionLocator {
     const tails = await Promise.all(
       candidates.map((candidate) => this.safeTail(candidate.file, candidate.size, candidate.mtimeMs)),
     );
-    const pick = (index: number): LocatedSession => ({
-      file: candidates[index].file,
-      size: candidates[index].size,
-      lastAssistant: tails[index]?.lastAssistant ?? null,
-    });
+    const pick = (index: number): LocatedSession | null => {
+      const candidate = candidates[index];
+      return candidate ? { file: candidate.file, size: candidate.size, lastAssistant: tails[index]?.lastAssistant ?? null } : null;
+    };
     const byReply = replyNeedle
       ? tails.findIndex((tail) => tail?.lastAssistant && flatten(tail.lastAssistant).startsWith(replyNeedle))
       : -1;

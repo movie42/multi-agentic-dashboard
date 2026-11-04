@@ -89,14 +89,14 @@ export class BoardService {
 
     const live = ps.worktrees.filter((worktree) => !worktree.isArchived);
     const liveIds = new Set(live.map((worktree) => worktree.worktreeId));
-    const scanList = await Promise.all(
-      live.map((worktree) => workflow.flowDocs.scan(worktree.path, shortBranch(worktree.branch))),
+    const scanned = await Promise.all(
+      live.map(async (worktree) => ({ worktree, scan: await workflow.flowDocs.scan(worktree.path, shortBranch(worktree.branch)) })),
     );
-    const scans = new Map(live.map((worktree, index) => [worktree.worktreeId, scanList[index]]));
+    const scans = new Map(scanned.map(({ worktree, scan }) => [worktree.worktreeId, scan]));
     const repoFlowTasks = new Map(
       [...new Set(live.map((worktree) => worktree.repo))].map((repo) => [
         repo,
-        mergeRepoFlowTasks(live.flatMap((worktree, index) => (worktree.repo === repo ? [scanList[index]] : []))),
+        mergeRepoFlowTasks(scanned.flatMap(({ worktree, scan }) => (worktree.repo === repo ? [scan] : []))),
       ]),
     );
 

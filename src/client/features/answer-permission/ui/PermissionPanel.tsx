@@ -181,7 +181,7 @@ function QuestionPermission({ permission, questions }: QuestionPermissionProps) 
   const { status, send, locked } = useSend(permission.id);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
-  const instant = questions.length === 1 && !questions[0].multiSelect;
+  const instant = questions.length === 1 && !questions[0]?.multiSelect;
 
   const answerOf = (question: UserQuestion): string => {
     const own = (typed[question.question] ?? "").trim();

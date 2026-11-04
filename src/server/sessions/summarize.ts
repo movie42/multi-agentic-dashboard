@@ -63,10 +63,10 @@ interface HeadFacts {
 export function headFacts(lines: string[]): HeadFacts {
   const entries = lines.map(parseEntry).filter((entry): entry is TranscriptEntry => entry !== null && !entry.isSidechain);
   const users = entries.filter(isUserPrompt);
-  const promptIndex = users.findIndex((entry) => promptText(entry));
+  const promptEntry = users.find((entry) => promptText(entry));
   const stopAt = (() => {
     const withCwd = entries.findIndex((entry) => entry.cwd);
-    const firstPromptEntry = promptIndex >= 0 ? entries.indexOf(users[promptIndex]) : -1;
+    const firstPromptEntry = promptEntry ? entries.indexOf(promptEntry) : -1;
     return withCwd >= 0 && firstPromptEntry >= 0 ? Math.max(withCwd, firstPromptEntry) + 1 : entries.length;
   })();
   const scanned = entries.slice(0, stopAt);
@@ -76,7 +76,7 @@ export function headFacts(lines: string[]): HeadFacts {
     cwd: scanned.find((entry) => entry.cwd)?.cwd ?? null,
     gitBranch: scanned.find((entry) => entry.gitBranch)?.gitBranch ?? null,
     startedAt: timestamped?.timestamp ? Date.parse(timestamped.timestamp) : null,
-    firstPrompt: promptIndex >= 0 ? promptText(users[promptIndex]) : null,
+    firstPrompt: promptEntry ? promptText(promptEntry) : null,
     origin: firstUser ? originOf(firstUser) : null,
   };
 }

@@ -38,7 +38,9 @@ describe("useStoredList", () => {
         <Probe storageKey="shared" />
       </>,
     );
-    await userEvent.click(screen.getAllByRole("button")[0]);
+    const [first] = screen.getAllByRole("button");
+    if (!first) throw new Error("no button");
+    await userEvent.click(first);
     expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["n0", "n0"]);
   });
 
