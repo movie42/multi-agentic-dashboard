@@ -88,13 +88,14 @@
     },
     "tasks": {
       "status": "ask",
-      "summary": "Phase 6 완료 · 확인 대기",
+      "summary": "Phase 7–9 완료 · 다크 모드와 데스크톱 확인 대기",
       "conclusion": [
         "워크트리 하나의 변경을 계획 항목 → 의도 → hunk 순으로 보여 주는 <code>/diff</code> 화면과 API를 만들었어요 [[P4]].",
         "<code>265663c</code>에 돌려 보면 변경이 session-ux 작업의 P1 · P2 · P3 아래로 나뉘고, 같은 커밋에 섞인 Slack 복사 버튼 변경은 '계획 파일 밖'으로 표시돼요 [[P3-V]].",
         "도구 호출마다 워크트리 상태를 찍는 훅을 전역 설정에 설치했어요. 훅을 켠 뒤의 셸 편집은 줄 단위로 연결되고, 그 전 세션은 파일 단위 '추정'이에요 [[P5]].",
         "'변경 읽기' 버튼은 데스크톱 앱에서 새 창으로, 사이드바 '변경' 탭은 메인 창 안에서 같은 화면을 열어요. 데스크톱 새 창은 직접 확인하지 못했어요 [[P4-V]].",
-        "'기능 지도'로 바꾸면 바뀐 파일을 import 관계로 묶어, 입구(API · 화면)에서 내려가는 트리와 파일마다 걸린 계획 항목을 보여 줘요 [[P6]]."
+        "'기능 지도'로 바꾸면 바뀐 파일을 import 관계로 묶어, 입구(API · 화면)에서 내려가는 트리와 파일마다 걸린 계획 항목을 보여 줘요 [[P6]].",
+        "'계획 순서'는 이제 항목마다 입구 함수에서 호출을 따라 내려가는 흐름으로 읽고, 코드는 VS Code Light+ / Dark+ 색, 식별자를 누르면 정의와 쓰는 곳 패널이 열려요 [[P7]] [[P8]] [[P9]]."
       ],
       "blocks": [
         {
@@ -504,6 +505,168 @@
                 [
                   "결과",
                   "이 워크트리: 기능 1개(22파일)에 입구 3개 — API <code>route.ts</code> · 화면 조각 <code>Dashboard.tsx</code> · 화면 <code>page.tsx</code>. 파일마다 P 항목이 붙고, 파일을 누르면 그 자리에서 변경이 펼쳐짐. import 연결 없는 파일 5개(설정 · 스크립트 · 작업 문서)는 따로 모임"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "Phase 7 · 계획 항목을 실행 흐름으로 읽기",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "바뀐 함수 · 컴포넌트 · 타입을 TypeScript 구문 트리로 찾고, 각 심볼에 그 줄을 고친 계획 항목과 의도를 붙임",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/symbols.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "심볼 사이 호출 관계 — 호출 · JSX · 함수 참조를 TypeScript 타입 검사기로 정의까지 따라가고, <code>fetch(\"/api/…\")</code>는 해당 <code>route.ts</code>로 이음. 화살표에 잇는 코드 한 줄을 남김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/symbols.ts</code> · <code>src/lib/intentDiff/languageService.ts</code>"
+                ],
+                [
+                  "결정",
+                  "파일을 하나씩 <code>git show</code>로 읽으면 수십 개 프로세스가 몰려 4초 넘게 걸려서, <code>git cat-file --batch</code> 한 번으로 읽음. 색칠 결과는 파일 내용 기준으로 캐시"
+                ]
+              ]
+            },
+            {
+              "id": "P7-3",
+              "title": "항목별 흐름 — 그 항목 심볼 중 아무도 부르지 않는 것이 입구, 호출을 따라 내려감. 다른 항목 심볼은 접힌 링크, 심볼 밖 변경(import · 설정 파일)은 '그 밖의 변경'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/flow.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P7-4",
+              "title": "'계획 순서' 본문을 흐름 화면으로 교체 — 단계마다 심볼 코드(바뀐 줄 표시), 의도 메모, 잇는 줄 화살표",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/FlowView.tsx</code> · <code>IntentDiffView.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "파일 조각 묶음 대신 흐름만 보여 줌 — 같은 항목을 두 방식으로 읽으면 헷갈림 (11/04 대화)"
+                ]
+              ]
+            },
+            {
+              "id": "P7-V",
+              "title": "검증: P4-2가 DiffPage → IntentDiffView → useIntentDiff → (P4-1) GET 순으로 읽힌다",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "커밋 범위 <code>eb55976..4b50f14</code>에서 P4-2가 DiffPage → DiffContent → first → IntentDiffView → useIntentDiff → (P4-1) GET 순으로 읽힘. 단계 사이에 잇는 줄(예: <code><DiffContent searchParams={searchParams} /> :36</code>)이 보임"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P8",
+          "title": "Phase 8 · VS Code 색",
+          "items": [
+            {
+              "id": "P8-1",
+              "title": "Shiki(VS Code와 같은 TextMate 문법)로 바뀐 파일의 이전 · 이후 내용을 통째로 색칠해 줄마다 HTML을 붙임. 테마는 Light+ / Dark+, 시스템 다크 모드를 따름",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/lib/intentDiff/highlight.ts</code> · <code>package.json</code>"
+                ],
+                [
+                  "결정",
+                  "Shiki 전체 패키지(<code>shiki</code>)는 Next가 외부 모듈로 두는데 standalone 빌드에 실리지 않아 프로덕션에서 로드가 실패함. 코어 패키지(<code>@shikijs/core</code> · 문법 · 테마)를 직접 가져오고 정규식 엔진은 JavaScript 엔진을 씀"
+                ]
+              ]
+            },
+            {
+              "id": "P8-2",
+              "title": "흐름 · 기능 지도 · 버킷의 코드 줄이 색칠된 HTML로 그려짐",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/CodeLines.tsx</code> · <code>HunkBlock.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P8-V",
+              "title": "검증: 라이트 · 다크에서 색이 보인다",
+              "done": false,
+              "rows": [
+                [
+                  "결과",
+                  "라이트 테마 색은 프로덕션 빌드 화면에서 확인. 다크 모드는 직접 보지 못함"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P9",
+          "title": "Phase 9 · 함수 이름 눌러 정의 · 쓰는 곳 보기",
+          "items": [
+            {
+              "id": "P9-1",
+              "title": "저장소 전체 TypeScript 언어 서비스로 정의와 참조를 찾는 API",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/app/api/intent-diff/symbol/route.ts</code> · <code>src/lib/intentDiff/languageService.ts</code>"
+                ],
+                [
+                  "결정",
+                  "바뀐 파일만이 아니라 저장소 전체에서 찾음 — 바꾼 함수를 기존 화면 어디서 쓰는지가 리뷰에 중요 (11/04 대화)"
+                ],
+                [
+                  "결정",
+                  "커밋 범위를 볼 때는 화면의 줄과 디스크 파일의 줄이 다를 수 있어, 누른 줄의 텍스트로 지금 파일의 같은 줄을 찾아서 조회함"
+                ]
+              ]
+            },
+            {
+              "id": "P9-2",
+              "title": "식별자를 누르면 오른쪽 패널에 정의 · 쓰는 곳. 이번 변경 안이면 그 줄로 이동, 밖이면 코드 몇 줄을 패널에",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/features/intentDiff/SymbolPanel.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P9-V",
+              "title": "검증: <code>useIntentDiff</code>를 누르면 정의와 쓰는 곳이 나오고 눌러서 이동한다",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "P4-2의 <code>useIntentDiff</code>를 누르면 시그니처 · 정의 1곳 · 쓰는 곳 2곳(import · 호출)이 나오고, 정의를 누르면 흐름의 5단계로 이동해 그 줄이 잠깐 강조됨"
                 ]
               ]
             }

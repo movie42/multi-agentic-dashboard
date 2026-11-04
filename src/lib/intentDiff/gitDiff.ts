@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -236,6 +236,38 @@ export async function loadFileDiffs(range: DiffRange): Promise<FileDiff[]> {
   const tracked = parseUnifiedDiff(await git(range.worktreePath, args));
   if (range.head) return tracked;
   return [...tracked, ...(await untrackedFiles(range.worktreePath))];
+}
+
+/**
+ * Reads many `rev:path` blobs through one `git cat-file --batch` process. Spawning one `git show`
+ * per file is slow when a diff has dozens of files.
+ */
+export function readBlobs(cwd: string, specs: string[]): Promise<Map<string, string | null>> {
+  const unique = [...new Set(specs)];
+  return new Promise((resolve) => {
+    const result = new Map<string, string | null>(unique.map((spec) => [spec, null]));
+    if (unique.length === 0) return resolve(result);
+    const child = spawn("git", ["-C", cwd, "cat-file", "--batch"], { stdio: ["pipe", "pipe", "ignore"] });
+    const chunks: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    child.on("error", () => resolve(result));
+    child.on("close", () => {
+      const output = Buffer.concat(chunks);
+      let offset = 0;
+      for (const spec of unique) {
+        const newline = output.indexOf(10, offset);
+        if (newline < 0) break;
+        const header = output.subarray(offset, newline).toString("utf8");
+        offset = newline + 1;
+        const size = header.match(/^[0-9a-f]+ blob (\d+)$/)?.[1];
+        if (!size) continue;
+        result.set(spec, output.subarray(offset, offset + Number(size)).toString("utf8"));
+        offset += Number(size) + 1;
+      }
+      resolve(result);
+    });
+    child.stdin.end(unique.map((spec) => `${spec}\n`).join(""));
+  });
 }
 
 /** File contents at the diff's end: the working tree, or the head commit. */

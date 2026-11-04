@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["./docs/**", "./src/**", "./scripts/**", "./desktop/**", "./dist/**", "./README.md", "./AGENTS.md"],
   },
+  // The symbol lookup loads TypeScript's lib.*.d.ts files from disk, which tracing cannot see.
+  outputFileTracingIncludes: {
+    "/api/intent-diff/symbol": ["./node_modules/typescript/lib/*.d.ts"],
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

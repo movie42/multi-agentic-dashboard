@@ -1,16 +1,14 @@
 "use client";
 
-import { useContext } from "react";
-import type {
-  IntentDiffResult,
-  IntentGroup,
-  MechanicalReason,
-  PlanItemView,
-} from "@/lib/intentDiff/types";
+import { useContext, useState } from "react";
+import type { FlowData, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/lib/intentDiff/types";
 import { useStoredList } from "@/features/board/useStoredList";
+import { SymbolClick, type SymbolTarget } from "./CodeLines";
 import { FeatureMapView } from "./FeatureMapView";
 import { HunkBlock } from "./HunkBlock";
-import { HunkLookup, IntentGroupBlock, type HunkEntry } from "./IntentGroupBlock";
+import { FlowView, stepAnchor } from "./FlowView";
+import { HunkLookup, type HunkEntry } from "./hunkLookup";
+import { SymbolPanel } from "./SymbolPanel";
 import { useIntentDiff, type IntentDiffQuery } from "./useIntentDiff";
 
 const MECHANICAL_LABEL: Record<MechanicalReason, string> = {
@@ -68,78 +66,79 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
   const name = range.worktreePath.split("/").pop();
   const [storedMode, writeMode] = useStoredList("agent-control:diff-mode");
   const mode: ReadingMode = storedMode[0] === "feature" ? "feature" : "plan";
+  const [symbol, setSymbol] = useState<SymbolTarget | null>(null);
 
   return (
     <HunkLookup.Provider value={lookup}>
-      <header>
-        <h1 className="text-[30px] leading-[1.2] font-bold tracking-[-0.02em]">{result.plan?.title ?? name}</h1>
-        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted">
-          <span className="font-mono">{range.branch ?? name}</span>
-          <span>
-            {range.baseLabel} <span className="font-mono">{range.base.slice(0, 7)}</span> →{" "}
-            {range.head ? <span className="font-mono">{range.head.slice(0, 7)}</span> : "지금 워크트리"}
-          </span>
-          <span>
-            세션 {result.sessionCount} · 상태 기록 {result.snapshotCount}
-          </span>
-          <button type="button" onClick={onReload} disabled={loading} className="underline decoration-faint underline-offset-[3px] hover:decoration-current disabled:opacity-50">
-            {loading ? "다시 읽는 중…" : "다시 읽기"}
-          </button>
-        </p>
-        <p className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
-          <Stat label="조각" value={stats.hunks} />
-          <Stat label="기록으로 연결" value={stats.exact} tone="text-done" />
-          <Stat label="추정으로 연결" value={stats.file} tone="text-ask" />
-          <Stat label="의도 미상" value={stats.none} />
-          <Stat label="기계적" value={stats.mechanical} />
-        </p>
-        <div className="mt-5 flex w-fit rounded-full bg-tint p-0.5 text-[13px] font-semibold">
-          {MODE_OPTIONS.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              aria-pressed={mode === option.key}
-              onClick={() => writeMode([option.key])}
-              className={`rounded-full px-3.5 py-1.5 leading-none ${mode === option.key ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
-            >
-              {option.label}
+      <SymbolClick.Provider value={setSymbol}>
+        <header>
+          <h1 className="text-[30px] leading-[1.2] font-bold tracking-[-0.02em]">{result.plan?.title ?? name}</h1>
+          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted">
+            <span className="font-mono">{range.branch ?? name}</span>
+            <span>
+              {range.baseLabel} <span className="font-mono">{range.base.slice(0, 7)}</span> →{" "}
+              {range.head ? <span className="font-mono">{range.head.slice(0, 7)}</span> : "지금 워크트리"}
+            </span>
+            <span>
+              세션 {result.sessionCount} · 상태 기록 {result.snapshotCount}
+            </span>
+            <button type="button" onClick={onReload} disabled={loading} className="underline decoration-faint underline-offset-[3px] hover:decoration-current disabled:opacity-50">
+              {loading ? "다시 읽는 중…" : "다시 읽기"}
             </button>
-          ))}
-        </div>
-      </header>
+          </p>
+          <p className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
+            <Stat label="조각" value={stats.hunks} />
+            <Stat label="기록으로 연결" value={stats.exact} tone="text-done" />
+            <Stat label="추정으로 연결" value={stats.file} tone="text-ask" />
+            <Stat label="의도 미상" value={stats.none} />
+            <Stat label="기계적" value={stats.mechanical} />
+          </p>
+          <div className="mt-5 flex w-fit rounded-full bg-tint p-0.5 text-[13px] font-semibold">
+            {MODE_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                aria-pressed={mode === option.key}
+                onClick={() => writeMode([option.key])}
+                className={`rounded-full px-3.5 py-1.5 leading-none ${mode === option.key ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </header>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <nav className="text-[13px] lg:sticky lg:top-6 lg:col-span-3 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
-          {mode === "plan" ? <Toc result={result} /> : <FeatureToc result={result} />}
-        </nav>
-        <main className="flex min-w-0 flex-col gap-12 lg:col-span-9">
-          {mode === "feature" ? (
-            <FeatureMapView map={result.featureMap} />
-          ) : (
-            <>
-              {result.plan ? (
-                result.plan.phases.map((phase) => (
-                  <section key={phase.id} className="flex flex-col gap-8">
-                    <h2 className="text-[20px] font-bold tracking-[-0.01em]">{phase.title}</h2>
-                    {phase.items.map((item) => (
-                      <PlanItemBlock key={item.id} item={item} />
-                    ))}
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          <nav className="text-[13px] lg:sticky lg:top-6 lg:col-span-3 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
+            {mode === "plan" ? <Toc result={result} /> : <FeatureToc result={result} />}
+          </nav>
+          <main className="flex min-w-0 flex-col gap-12 lg:col-span-9">
+            {mode === "feature" ? (
+              <FeatureMapView map={result.featureMap} />
+            ) : (
+              <>
+                {result.plan ? (
+                  result.plan.phases.map((phase) => (
+                    <section key={phase.id} className="flex flex-col gap-8">
+                      <h2 className="text-[20px] font-bold tracking-[-0.01em]">{phase.title}</h2>
+                      {phase.items.map((item) => (
+                        <PlanItemBlock key={item.id} item={item} flow={result.flow} />
+                      ))}
+                    </section>
+                  ))
+                ) : (
+                  <section className="flex flex-col gap-6">
+                    <h2 className="text-[20px] font-bold tracking-[-0.01em]">흐름</h2>
+                    <FlowView flow={result.flow.flows["*"]} data={result.flow} />
                   </section>
-                ))
-              ) : (
-                <section className="flex flex-col gap-10">
-                  <h2 className="text-[20px] font-bold tracking-[-0.01em]">의도 순서</h2>
-                  {result.groups.length === 0 && <p className="text-[14px] text-muted">세션 기록에 연결된 변경이 없어요.</p>}
-                  {result.groups.map((group) => (
-                    <IntentGroupBlock key={group.id} group={group} />
-                  ))}
-                </section>
-              )}
-              <Buckets result={result} />
-            </>
-          )}
-        </main>
-      </div>
+                )}
+                <Buckets result={result} />
+              </>
+            )}
+          </main>
+        </div>
+        {symbol && <SymbolPanel worktreePath={range.worktreePath} rev={range.head} target={symbol} onClose={() => setSymbol(null)} />}
+      </SymbolClick.Provider>
     </HunkLookup.Provider>
   );
 }
@@ -160,31 +159,40 @@ function Stat({ label, value, tone = "" }: StatProps) {
 
 interface PlanItemBlockProps {
   item: PlanItemView;
+  flow: FlowData;
 }
 
-function PlanItemBlock({ item }: PlanItemBlockProps) {
+function PlanItemBlock({ item, flow }: PlanItemBlockProps) {
   return (
-    <section id={`item-${item.id}`} className="flex scroll-mt-6 flex-col gap-5 border-t border-hair pt-5">
+    <section id={`item-${item.id}`} className="flex scroll-mt-6 flex-col gap-4 border-t border-hair pt-5">
       <h3 className="flex flex-wrap items-baseline gap-2 text-[16px] leading-[1.45] font-semibold">
         <span className="shrink-0 font-mono text-[13px] whitespace-nowrap text-muted">{item.id}</span>
         <span>{item.title}</span>
         <span className={`text-[12px] font-normal ${item.done ? "text-done" : "text-muted"}`}>{item.done ? "완료" : "미완료"}</span>
       </h3>
-      {item.groups.length === 0 ? (
-        <p className="text-[13px] text-muted">이 항목에 연결된 변경이 없어요. 아래 &apos;계획했는데 변경 없음&apos;에서 이유를 볼 수 있어요.</p>
-      ) : (
-        item.groups.map((group) => <IntentGroupBlock key={group.id} group={group} />)
-      )}
+      <FlowView flow={flow.flows[item.id]} data={flow} />
     </section>
   );
 }
 
-function groupLink(group: IntentGroup) {
-  return (
-    <a key={group.id} href={`#group-${group.id}`} className="block truncate py-0.5 pl-3 text-muted hover:text-fg">
-      {group.title}
-    </a>
+interface FlowLinksProps {
+  flow: ItemFlow | undefined;
+  data: FlowData;
+}
+
+/** The top two levels of functions and components a flow reads, for the table of contents. */
+function FlowLinks({ flow, data }: FlowLinksProps) {
+  const steps = (flow?.steps ?? []).filter(
+    (step) => step.kind === "own" && step.depth <= 1 && data.symbols[step.symbolId]?.kind !== "value",
   );
+  return steps.map((step) => {
+    const symbol = data.symbols[step.symbolId];
+    return (
+      <a key={step.symbolId} href={`#${stepAnchor(step.symbolId)}`} className={`block truncate py-0.5 text-muted hover:text-fg ${["pl-3", "pl-6", "pl-9", "pl-12"][Math.min(step.depth, 3)]}`}>
+        {symbol.name}
+      </a>
+    );
+  });
 }
 
 interface ResultProps {
@@ -194,22 +202,24 @@ interface ResultProps {
 function Toc({ result }: ResultProps) {
   return (
     <div className="flex flex-col gap-4">
-      {result.plan
-        ? result.plan.phases.map((phase) => (
-            <div key={phase.id}>
-              <p className="mb-1 font-semibold">{phase.title}</p>
-              {phase.items.map((item) => (
-                <div key={item.id}>
-                  <a href={`#item-${item.id}`} className={`flex gap-1.5 py-0.5 hover:text-fg ${item.groups.length === 0 ? "text-faint" : ""}`}>
-                    <span className="shrink-0 font-mono text-[12px] whitespace-nowrap text-muted">{item.id}</span>
-                    <span className="truncate">{item.title}</span>
-                  </a>
-                  {item.groups.map(groupLink)}
-                </div>
-              ))}
-            </div>
-          ))
-        : result.groups.map(groupLink)}
+      {result.plan ? (
+        result.plan.phases.map((phase) => (
+          <div key={phase.id}>
+            <p className="mb-1 font-semibold">{phase.title}</p>
+            {phase.items.map((item) => (
+              <div key={item.id}>
+                <a href={`#item-${item.id}`} className={`flex gap-1.5 py-0.5 hover:text-fg ${item.groups.length === 0 ? "text-faint" : ""}`}>
+                  <span className="shrink-0 font-mono text-[12px] whitespace-nowrap text-muted">{item.id}</span>
+                  <span className="truncate">{item.title}</span>
+                </a>
+                <FlowLinks flow={result.flow.flows[item.id]} data={result.flow} />
+              </div>
+            ))}
+          </div>
+        ))
+      ) : (
+        <FlowLinks flow={result.flow.flows["*"]} data={result.flow} />
+      )}
       <div className="flex flex-col gap-0.5 border-t border-hair pt-3">
         <a href="#bucket-unplanned" className={result.unplanned.length > 0 ? "font-semibold text-ask" : "text-muted"}>
           계획 밖 변경 {result.unplanned.length}
@@ -254,9 +264,7 @@ function Buckets({ result }: ResultProps) {
             <h2 className="text-[20px] font-bold tracking-[-0.01em]">계획 밖 변경 {result.unplanned.length}</h2>
             <p className="mt-1 text-[13px] text-muted">어느 계획 항목의 작업 시간에도, 파일 목록에도 맞지 않는 변경이에요. 리뷰할 때 먼저 보세요.</p>
           </div>
-          {result.unplanned.map((group) => (
-            <IntentGroupBlock key={group.id} group={group} />
-          ))}
+          <FlowView flow={result.flow.flows.unplanned} data={result.flow} />
         </section>
       )}
 

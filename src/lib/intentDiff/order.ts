@@ -4,7 +4,7 @@ const SOURCE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const SPECIFIER = /(?:from\s+|import\s*\(\s*|require\s*\(\s*|^\s*import\s+)["']([^"']+)["']/gm;
 const EXTENSIONS = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", "/index.ts", "/index.tsx", "/index.js"];
 
-function resolve(from: string, specifier: string, files: Set<string>): string | null {
+export function resolveImport(from: string, specifier: string, files: Set<string>): string | null {
   let base: string;
   if (specifier.startsWith("@/")) base = `src/${specifier.slice(2)}`;
   else if (specifier.startsWith(".")) base = path.posix.join(path.posix.dirname(from), specifier);
@@ -23,7 +23,7 @@ export function importGraph(contents: Map<string, string>): Map<string, string[]
     if (!SOURCE.test(file)) continue;
     const found = new Set<string>();
     for (const match of text.matchAll(SPECIFIER)) {
-      const target = resolve(file, match[1], files);
+      const target = resolveImport(file, match[1], files);
       if (target && target !== file) found.add(target);
     }
     deps.set(file, [...found]);

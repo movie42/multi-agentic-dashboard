@@ -3,7 +3,7 @@
 import { useContext, useState } from "react";
 import type { FeatureCluster, FeatureMap, FileOwner, OwnerKind } from "@/lib/intentDiff/types";
 import { HunkBlock } from "./HunkBlock";
-import { HunkLookup } from "./IntentGroupBlock";
+import { HunkLookup } from "./hunkLookup";
 
 const INDENT = ["pl-0", "pl-6", "pl-12", "pl-18", "pl-24", "pl-30", "pl-36", "pl-42", "pl-48"];
 

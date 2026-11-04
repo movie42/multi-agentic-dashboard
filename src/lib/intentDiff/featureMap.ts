@@ -3,7 +3,7 @@ import type { Attribution } from "./attribute";
 import type { LoadedPlan } from "./plan";
 import type { FeatureCluster, FeatureFile, FeatureMap, FileDiff, FileOwner, IntentGroup } from "./types";
 
-function ownersByHunk(attribution: Attribution): Map<string, FileOwner> {
+export function ownersByHunk(attribution: Attribution): Map<string, FileOwner> {
   const owners = new Map<string, FileOwner>();
   const claim = (groups: IntentGroup[], owner: (group: IntentGroup) => FileOwner) => {
     for (const group of groups) for (const ref of group.hunks) owners.set(ref.hunkId, owner(group));

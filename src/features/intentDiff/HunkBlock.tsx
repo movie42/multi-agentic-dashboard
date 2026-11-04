@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import type { FeatureFile, FileDiff, Hunk, HunkPrecision } from "@/lib/intentDiff/types";
-
-const PREVIEW_LINES = 100;
+import { CodeLines } from "./CodeLines";
 
 const CHANGE_LABEL: Record<FileDiff["change"], string> = {
   modified: "수정",
@@ -30,14 +28,6 @@ const PRECISION: Record<HunkPrecision, { label: string; title: string; className
   },
 };
 
-const LINE_STYLE = {
-  add: "bg-done/10",
-  del: "bg-accent/10",
-  ctx: "",
-} as const;
-
-const LINE_MARK = { add: "+", del: "−", ctx: " " } as const;
-
 interface HunkBlockProps {
   file: FileDiff;
   hunk: Hunk;
@@ -52,13 +42,10 @@ function baseName(file: string): string {
 }
 
 export function HunkBlock({ file, hunk, precision, note, links }: HunkBlockProps) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = expanded ? hunk.lines : hunk.lines.slice(0, PREVIEW_LINES);
-  const hidden = hunk.lines.length - lines.length;
   const badge = precision ? PRECISION[precision] : null;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-hair">
+    <div className="overflow-hidden rounded-lg border border-hair" data-file={file.file}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 bg-tint px-3 py-2 text-[12px]">
         <span className="font-mono font-semibold break-all">{file.file}</span>
         {file.oldFile && <span className="font-mono text-muted">← {file.oldFile}</span>}
@@ -84,29 +71,7 @@ export function HunkBlock({ file, hunk, precision, note, links }: HunkBlockProps
           {file.binary ? "바이너리 파일이라 내용을 보여 주지 않아요." : "내용 변경 없이 이름이나 권한만 바뀌었어요."}
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse font-mono text-[12px] leading-[1.55]">
-            <tbody>
-              {lines.map((line, index) => (
-                <tr key={index} className={LINE_STYLE[line.kind]}>
-                  <td className="w-10 px-2 text-right align-top text-faint select-none">{line.oldNo ?? ""}</td>
-                  <td className="w-10 px-2 text-right align-top text-faint select-none">{line.newNo ?? ""}</td>
-                  <td className="w-4 align-top text-muted select-none">{LINE_MARK[line.kind]}</td>
-                  <td className="pr-3 whitespace-pre">{line.text}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {hidden > 0 && (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="w-full border-t border-hair px-3 py-1.5 text-left text-[12px] text-muted hover:bg-tint"
-            >
-              {hidden}줄 더 보기
-            </button>
-          )}
-        </div>
+        <CodeLines file={file.file} lines={hunk.lines} />
       )}
     </div>
   );

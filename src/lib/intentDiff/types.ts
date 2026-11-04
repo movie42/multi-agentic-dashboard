@@ -5,6 +5,8 @@ export interface DiffLine {
   text: string;
   oldNo: number | null;
   newNo: number | null;
+  /** Syntax-highlighted markup for the line; identifiers carry `data-col` so they can be looked up. */
+  html?: string;
 }
 
 export interface Hunk {
@@ -164,6 +166,48 @@ export interface FeatureMap {
   loose: string[];
 }
 
+export type SymbolKind = "component" | "function" | "value" | "type";
+
+/** A changed top-level declaration, read as one step of a flow. */
+export interface FlowSymbol {
+  id: string;
+  name: string;
+  kind: SymbolKind;
+  file: string;
+  startLine: number;
+  endLine: number;
+  owner: FileOwner | null;
+  /** Titles of the intents whose changes fall inside this symbol. */
+  intents: string[];
+  /** The symbol's end-side code with removed lines put back in place. */
+  lines: DiffLine[];
+}
+
+/** own: read here · foreign: built under another plan item, linked · repeat: already read above. */
+export type FlowStepKind = "own" | "foreign" | "repeat";
+
+export interface FlowStep {
+  symbolId: string;
+  depth: number;
+  /** The line in the caller that leads to this step. */
+  via: { line: number; text: string } | null;
+  kind: FlowStepKind;
+}
+
+export interface ItemFlow {
+  steps: FlowStep[];
+  /** Changed types the item's code uses, read after the flow. */
+  types: string[];
+  /** Changes outside any declaration: imports, config, JSON, top-level statements. */
+  rest: HunkRef[];
+}
+
+export interface FlowData {
+  symbols: Record<string, FlowSymbol>;
+  /** Plan item id, or "unplanned" / "unknown" / "mechanical", or "*" when there is no plan. */
+  flows: Record<string, ItemFlow>;
+}
+
 export interface IntentDiffResult {
   range: DiffRange;
   sessionCount: number;
@@ -177,7 +221,28 @@ export interface IntentDiffResult {
   mechanical: MechanicalRef[];
   unknown: HunkRef[];
   featureMap: FeatureMap;
+  flow: FlowData;
   stats: { hunks: number; exact: number; file: number; none: number; mechanical: number };
 }
 
 export type IntentDiffResponse = { ok: true; result: IntentDiffResult } | { ok: false; error: string };
+
+export interface SymbolLocation {
+  /** Repo-relative path, or the package path for a file under node_modules. */
+  file: string;
+  external: boolean;
+  line: number;
+  text: string;
+  snippet: { startLine: number; lines: string[] };
+}
+
+export interface SymbolLookup {
+  name: string;
+  /** TypeScript's hover text: the declaration with its type. */
+  signature: string | null;
+  definitions: SymbolLocation[];
+  references: SymbolLocation[];
+  truncated: boolean;
+}
+
+export type SymbolLookupResponse = { ok: true; lookup: SymbolLookup } | { ok: false; error: string };

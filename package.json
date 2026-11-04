@@ -16,6 +16,10 @@
     "snapshot:uninstall": "node scripts/install-snapshot-hook.mjs --uninstall"
   },
   "dependencies": {
+    "@shikijs/core": "3.23.0",
+    "@shikijs/engine-javascript": "3.23.0",
+    "@shikijs/langs": "3.23.0",
+    "@shikijs/themes": "3.23.0",
     "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",

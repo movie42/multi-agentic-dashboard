@@ -1,9 +1,12 @@
 import { attribute, mergeSnapshots } from "./attribute";
-import { git, loadFileDiffs, readEndFile, resolveRange } from "./gitDiff";
+import { buildFlows } from "./flow";
+import { git, loadFileDiffs, resolveRange } from "./gitDiff";
+import { highlightDiffs } from "./highlight";
 import { buildFeatureMap } from "./featureMap";
 import { importGraph, readingRanks } from "./order";
 import { completionTimes, loadPlan } from "./plan";
 import { loadSnapshotSteps } from "./snapshots";
+import { indexSymbols } from "./symbols";
 import { loadToolEvents } from "./transcripts";
 import type { FileDiff, IntentDiffResult } from "./types";
 
@@ -49,19 +52,18 @@ export async function buildIntentDiff(request: IntentDiffRequest): Promise<Inten
   const events = mergeSnapshots(transcript.events, steps);
   const completions = plan ? await completionTimes(plan, steps, events) : new Map<string, number>();
 
-  const sources = files.filter((file) => SOURCE.test(file.file) && file.change !== "deleted");
+  const texts = await highlightDiffs(range, files);
   const contents = new Map<string, string>();
-  await Promise.all(
-    sources.map(async (file) => {
-      const text = await readEndFile(range, file.file);
-      if (text !== null) contents.set(file.file, text);
-    }),
-  );
+  for (const file of files) {
+    const text = texts.get(file.file);
+    if (text && SOURCE.test(file.file)) contents.set(file.file, text.lines.join("\n"));
+  }
 
   const graph = importGraph(contents);
   const ranks = readingRanks(graph);
   const result = attribute(files, events, plan, completions, ranks);
   const featureMap = buildFeatureMap(files, graph, ranks, result, plan);
+  const flow = buildFlows(files, texts, indexSymbols(files, texts), result, ranks);
   const placed = [
     ...result.groups,
     ...result.unplanned,
@@ -75,6 +77,7 @@ export async function buildIntentDiff(request: IntentDiffRequest): Promise<Inten
     files,
     ...result,
     featureMap,
+    flow,
     stats: {
       hunks: files.reduce((sum, file) => sum + file.hunks.length, 0),
       exact: placed.filter((hunk) => hunk.precision === "exact").length,
