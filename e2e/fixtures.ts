@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-export const E2E_PORT = 3197;
+export const E2E_PORT = Number(process.env.E2E_PORT ?? 3197);
 export const ROOT = path.resolve(process.cwd(), "e2e", ".tmp");
 export const ORCA_DIR = path.join(ROOT, "orca");
 export const WORKTREE = path.join(ROOT, "worktree");
