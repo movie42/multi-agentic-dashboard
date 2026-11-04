@@ -10,6 +10,7 @@
   --st-ask: #f08c00;
   --st-ink: #ffffff;
   --st-pr: #8250df;
+  --focus: #0b7a76;
   --muted: #5f6b7d;
   --faint: #b8c1ce;
   --hair: #e2e7ee;
@@ -30,6 +31,7 @@
     --tint: #12161c;
     --tint-2: #1a212b;
     --st-pr: #a371f7;
+    --focus: #2bb5ae;
     color-scheme: dark;
   }
 }
@@ -44,6 +46,7 @@
   --color-ask: var(--st-ask);
   --color-st-ink: var(--st-ink);
   --color-pr: var(--st-pr);
+  --color-focus: var(--focus);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-hair: var(--hair);

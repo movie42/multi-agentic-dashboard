@@ -2,6 +2,13 @@ export type TitleSource = "custom" | "ai" | "none";
 
 export type SessionOrigin = "human" | "headless" | "spawned";
 
+export interface SessionBookmark {
+  name: string;
+  memo: string;
+  createdAt: string;
+  lastOpenedAt: string | null;
+}
+
 export interface SessionSummary {
   sessionId: string;
   title: string;
@@ -17,6 +24,7 @@ export interface SessionSummary {
   updatedAt: number;
   sizeBytes: number;
   origin: SessionOrigin;
+  bookmark: SessionBookmark | null;
 }
 
 export type SessionsResponse =
@@ -27,4 +35,16 @@ export interface SessionRef {
   id: string;
   title: string | null;
   titleSource: TitleSource;
+  bookmark: SessionBookmark | null;
 }
+
+export type ToolStatus = "running" | "ok" | "error" | "stopped";
+
+export type ActivityStep =
+  | { kind: "prompt"; id: string; at: number | null; text: string }
+  | { kind: "text"; id: string; at: number | null; text: string }
+  | { kind: "tool"; id: string; at: number | null; name: string; summary: string | null; detail: string | null; status: ToolStatus };
+
+export type ActivityResponse =
+  | { ok: true; steps: ActivityStep[]; updatedAt: number }
+  | { ok: false; error: string };

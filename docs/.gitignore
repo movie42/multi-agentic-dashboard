@@ -5,6 +5,7 @@
 !/agent-control/tasks/
 !/agent-control/images/
 !/agent-control/diagrams/
+!/agent-control/verify/
 /agent-control/diagrams/.receipts/
 /features/*/index.html
 # flow:end

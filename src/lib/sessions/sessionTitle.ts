@@ -36,10 +36,11 @@ export async function sessionRefOf(file: string, size: number): Promise<SessionR
     id: path.basename(file, ".jsonl"),
     title: custom ?? ai,
     titleSource: custom ? "custom" : ai ? "ai" : "none",
+    bookmark: null,
   };
 }
 
-async function transcriptOf(sessionId: string): Promise<string> {
+export async function transcriptOf(sessionId: string): Promise<string> {
   const dirs = await readdir(PROJECTS_DIR, { withFileTypes: true });
   for (const dir of dirs) {
     if (!dir.isDirectory()) continue;

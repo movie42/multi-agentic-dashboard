@@ -11,9 +11,15 @@
     "desktop:install": "node scripts/install-desktop.mjs",
     "desktop": "bun run desktop:build && bun run desktop:install",
     "hook:install": "node scripts/install-permission-hook.mjs",
-    "hook:uninstall": "node scripts/install-permission-hook.mjs --uninstall"
+    "hook:uninstall": "node scripts/install-permission-hook.mjs --uninstall",
+    "snapshot:install": "node scripts/install-snapshot-hook.mjs",
+    "snapshot:uninstall": "node scripts/install-snapshot-hook.mjs --uninstall"
   },
   "dependencies": {
+    "@shikijs/core": "3.23.0",
+    "@shikijs/engine-oniguruma": "3.23.0",
+    "@shikijs/langs": "3.23.0",
+    "@shikijs/themes": "3.23.0",
     "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",

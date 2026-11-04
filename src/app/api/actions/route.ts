@@ -10,6 +10,7 @@ import type { ActionRequest, ActionResponse } from "@/lib/orca/actions";
 import { answerPermission } from "@/lib/permissions/store";
 import type { PermissionAnswer } from "@/lib/permissions/types";
 import { ORCA_BUNDLE_ID, readRuntime } from "@/lib/orca/runtime";
+import { BOOKMARK_MEMO_LIMIT, removeBookmark, saveBookmark } from "@/lib/sessions/bookmarks";
 import { renameSession, TITLE_LIMIT } from "@/lib/sessions/sessionTitle";
 
 const execFileAsync = promisify(execFile);
@@ -90,6 +91,22 @@ function isActionRequest(value: unknown): value is ActionRequest {
       body.title.length <= TITLE_LIMIT &&
       !/[\r\n]/.test(body.title)
     );
+  }
+  if (body.type === "bookmark-session") {
+    return (
+      typeof body.sessionId === "string" &&
+      SESSION_ID.test(body.sessionId) &&
+      typeof body.name === "string" &&
+      body.name.trim().length > 0 &&
+      body.name.length <= TITLE_LIMIT &&
+      typeof body.cwd === "string" &&
+      path.isAbsolute(body.cwd) &&
+      typeof body.memo === "string" &&
+      body.memo.length <= BOOKMARK_MEMO_LIMIT
+    );
+  }
+  if (body.type === "unbookmark-session") {
+    return typeof body.sessionId === "string" && SESSION_ID.test(body.sessionId);
   }
   if (body.type === "resume-session") {
     return (
@@ -181,6 +198,10 @@ export async function POST(request: Request) {
       await bringOrcaForward();
     } else if (body.type === "rename-session") {
       await renameSession(body.sessionId, body.title.trim());
+    } else if (body.type === "bookmark-session") {
+      await saveBookmark({ sessionId: body.sessionId, name: body.name.trim(), cwd: body.cwd, memo: body.memo.trim() });
+    } else if (body.type === "unbookmark-session") {
+      await removeBookmark(body.sessionId);
     } else if (body.type === "check-feature") {
       startFeatureCheck(await featureCheckInput(body.featureId));
     } else {

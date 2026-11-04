@@ -5,11 +5,15 @@ import type { WorkflowMode } from "@/lib/workflow/types";
 import { useStoredList } from "./useStoredList";
 
 const SESSIONS_PAGE = "@sessions";
+const DIFF_PAGE = "@diff";
+const PAGES = new Set([SESSIONS_PAGE, DIFF_PAGE]);
 
 export interface WorkspacePrefs {
   selectedRepo: string | null;
   showingSessions: boolean;
+  showingDiff: boolean;
   openSessions: () => void;
+  openDiff: () => void;
   selectRepo: (repo: string | null) => void;
   modeOf: (project: ProjectSummary) => WorkflowMode;
   isModeOverridden: (repo: string) => boolean;
@@ -29,9 +33,11 @@ export function useWorkspacePrefs(): WorkspacePrefs {
   const modeOf = (project: ProjectSummary) => overrideOf(project.repo) ?? project.autoMode;
 
   return {
-    selectedRepo: selected[0] && selected[0] !== SESSIONS_PAGE ? selected[0] : null,
+    selectedRepo: selected[0] && !PAGES.has(selected[0]) ? selected[0] : null,
     showingSessions: selected[0] === SESSIONS_PAGE,
+    showingDiff: selected[0] === DIFF_PAGE,
     openSessions: () => writeSelected([SESSIONS_PAGE]),
+    openDiff: () => writeSelected([DIFF_PAGE]),
     selectRepo: (repo) => writeSelected(repo ? [repo] : []),
     modeOf,
     isModeOverridden: (repo) => overrideOf(repo) !== null,

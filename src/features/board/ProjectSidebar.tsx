@@ -17,6 +17,8 @@ interface ProjectSidebarProps {
   totalNeedsMe: number;
   totalWorking: number;
   prefs: WorkspacePrefs;
+  focused: Set<string>;
+  onToggleFocus: (repo: string) => void;
   fetchedAt: number;
   error: string | null;
 }
@@ -36,6 +38,7 @@ const SHORTCUTS: [string, string][] = [
   ["e", "Orca에서 이어가기"],
   ["/ ⌘K", "어디서든 검색"],
   ["esc", "입력창 나가기"],
+  ["⌘ 클릭", "프로젝트를 전체 포커스에 넣고 빼기"],
 ];
 
 function dotClass(needsMe: number, working: number): string {
@@ -46,23 +49,35 @@ function dotClass(needsMe: number, working: number): string {
 
 interface NavItemProps {
   label: string;
+  note?: string;
   active: boolean;
+  focused?: boolean;
   needsMe: number;
   working: number;
-  onSelect: () => void;
+  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-function NavItem({ label, active, needsMe, working, onSelect }: NavItemProps) {
+function itemTone(active: boolean, focused: boolean): string {
+  if (active) return `bg-bg font-semibold${focused ? " text-focus" : ""}`;
+  if (focused) return "bg-focus/12 font-semibold text-focus hover:bg-focus/20";
+  return "hover:bg-tint-2";
+}
+
+function NavItem({ label, note, active, focused = false, needsMe, working, onSelect }: NavItemProps) {
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`-mx-2 grid min-w-0 flex-1 grid-cols-[8px_1fr_auto] items-center gap-x-2.5 rounded-md px-2 py-1.5 text-left text-[14px] leading-[1.4] ${
-        active ? "bg-bg font-semibold" : "hover:bg-tint-2"
-      }`}
+      className={`-mx-2 grid min-w-0 flex-1 grid-cols-[8px_1fr_auto] items-center gap-x-2.5 rounded-md px-2 py-1.5 text-left text-[14px] leading-[1.4] ${itemTone(
+        active,
+        focused,
+      )}`}
     >
       <span className={`size-2 rounded-full ${dotClass(needsMe, working)}`} />
-      <span className="truncate">{label}</span>
+      <span className="truncate">
+        {label}
+        {note && <span className="ml-1.5 text-[12px] font-semibold text-focus">{note}</span>}
+      </span>
       <span className="flex gap-1.5 text-[11px] font-semibold">
         {needsMe > 0 && <span className="text-ask">{needsMe}</span>}
         {working > 0 && <span className="text-now">{working}</span>}
@@ -77,6 +92,8 @@ export function ProjectSidebar({
   totalNeedsMe,
   totalWorking,
   prefs,
+  focused,
+  onToggleFocus,
   fetchedAt,
   error,
 }: ProjectSidebarProps) {
@@ -94,7 +111,8 @@ export function ProjectSidebar({
       <div className="flex">
         <NavItem
           label="전체"
-          active={prefs.selectedRepo === null && !prefs.showingSessions}
+          note={focused.size > 0 ? `포커스 ${focused.size}` : undefined}
+          active={prefs.selectedRepo === null && !prefs.showingSessions && !prefs.showingDiff}
           needsMe={totalNeedsMe}
           working={totalWorking}
           onSelect={() => prefs.selectRepo(null)}
@@ -109,20 +127,29 @@ export function ProjectSidebar({
           onSelect={prefs.openSessions}
         />
       </div>
+      <div className="flex">
+        <NavItem label="변경" active={prefs.showingDiff} needsMe={0} working={0} onSelect={prefs.openDiff} />
+      </div>
 
       <p className="mt-6 mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">프로젝트</p>
       <div className="flex flex-col gap-px">
         {projects.map((project) => {
           const counts = countsByRepo.get(project.repo) ?? { needsMe: 0, working: 0, worktrees: 0 };
           const mode = prefs.modeOf(project);
+          const inFocus = focused.has(project.repo);
           return (
             <div key={project.repo} className="flex items-center gap-3">
               <NavItem
                 label={project.repo}
                 active={prefs.selectedRepo === project.repo}
+                focused={inFocus}
                 needsMe={counts.needsMe}
                 working={counts.working}
-                onSelect={() => prefs.selectRepo(project.repo)}
+                onSelect={(event) =>
+                  event.metaKey || event.shiftKey
+                    ? onToggleFocus(project.repo)
+                    : prefs.selectRepo(project.repo)
+                }
               />
               <button
                 type="button"

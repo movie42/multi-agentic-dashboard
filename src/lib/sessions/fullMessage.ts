@@ -1,8 +1,14 @@
-import { open, readdir, stat } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { open, readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const PROJECTS_DIR = process.env.CLAUDE_PROJECTS_DIR ?? path.join(homedir(), ".claude", "projects");
+const LIVE_SESSIONS_DIR = process.env.CLAUDE_SESSIONS_DIR ?? path.join(homedir(), ".claude", "sessions");
+const LIVE_TTL_MS = 2_000;
 const TAIL_BYTES = 512 * 1024;
 const CANDIDATE_FILES = 8;
 const MATCH_CHARS = 60;
@@ -29,7 +35,66 @@ const tails = globalCache.__agentControlTails;
 globalCache.__agentControlPaneFiles ??= new Map();
 const paneFiles = globalCache.__agentControlPaneFiles;
 
-function projectDirOf(cwd: string): string {
+interface LiveSession {
+  sessionId: string;
+  cwd: string;
+}
+
+let liveSnapshot: { at: number; value: Promise<Map<string, LiveSession>> } | null = null;
+
+// Claude Code writes ~/.claude/sessions/<pid>.json (pid -> sessionId) for every running CLI,
+// and Orca launches each agent with ORCA_AGENT_PANE=<paneKey> in its environment.
+async function scanLiveSessions(): Promise<Map<string, LiveSession>> {
+  const byPid = new Map<number, LiveSession>();
+  const names = await readdir(LIVE_SESSIONS_DIR).catch(() => []);
+  await Promise.all(
+    names
+      .filter((name) => /^\d+\.json$/.test(name))
+      .map(async (name) => {
+        try {
+          const raw = JSON.parse(await readFile(path.join(LIVE_SESSIONS_DIR, name), "utf8")) as {
+            pid?: unknown;
+            sessionId?: unknown;
+            cwd?: unknown;
+          };
+          if (typeof raw.pid === "number" && typeof raw.sessionId === "string" && typeof raw.cwd === "string") {
+            byPid.set(raw.pid, { sessionId: raw.sessionId, cwd: raw.cwd });
+          }
+        } catch {}
+      }),
+  );
+  const byPane = new Map<string, LiveSession>();
+  if (byPid.size === 0) return byPane;
+  const { stdout } = await execFileAsync("/bin/ps", ["eww", "-o", "pid=,command=", "-p", [...byPid.keys()].join(",")], {
+    maxBuffer: 16 * 1024 * 1024,
+  }).catch(() => ({ stdout: "" }));
+  for (const line of stdout.split("\n")) {
+    const pid = Number(line.trim().split(/\s+/, 1)[0]);
+    const pane = line.match(/\bORCA_AGENT_PANE=(\S+)/)?.[1];
+    const live = byPid.get(pid);
+    if (pane && live) byPane.set(pane, live);
+  }
+  return byPane;
+}
+
+function liveSessions(): Promise<Map<string, LiveSession>> {
+  if (!liveSnapshot || Date.now() - liveSnapshot.at > LIVE_TTL_MS) {
+    liveSnapshot = { at: Date.now(), value: scanLiveSessions().catch(() => new Map()) };
+  }
+  return liveSnapshot.value;
+}
+
+async function liveSessionOf(paneKey: string): Promise<LocatedSession | null> {
+  const live = (await liveSessions()).get(paneKey);
+  if (!live) return null;
+  const file = path.join(projectDirOf(live.cwd), `${live.sessionId}.jsonl`);
+  const info = await stat(file).catch(() => null);
+  if (!info) return null;
+  const tail = await tailOf(file, info.size, info.mtimeMs).catch(() => null);
+  return { file, size: info.size, lastAssistant: tail?.lastAssistant ?? null };
+}
+
+export function projectDirOf(cwd: string): string {
   return path.join(PROJECTS_DIR, cwd.replace(/[^A-Za-z0-9]/g, "-"));
 }
 
@@ -99,8 +164,8 @@ function needleOf(text: string | null): string | null {
   return needle.length >= 10 ? needle : null;
 }
 
-// Orca reports a live pane's last reply and prompt but not its Claude session id,
-// so the transcript is found by matching those texts against recent files in the worktree.
+// Orca does not report a pane's Claude session id. The live pid registry gives it directly;
+// otherwise the transcript is found by matching the pane's last reply and prompt against recent files.
 // A pane keeps its last matched transcript, because a long turn can push both texts out of the tail read.
 export async function findSession(
   paneKey: string,
@@ -108,7 +173,7 @@ export async function findSession(
   preview: string | null,
   prompt: string | null,
 ): Promise<LocatedSession | null> {
-  const located = await matchSession(cwd, preview, prompt);
+  const located = (await liveSessionOf(paneKey)) ?? (await matchSession(cwd, preview, prompt));
   if (located) {
     paneFiles.set(paneKey, located.file);
     return located;

@@ -6,6 +6,7 @@ import { StateBadge } from "./AgentCardView";
 import { formatElapsed } from "./format";
 import { parseMessage } from "./message";
 import { QuickReply } from "./QuickReply";
+import { BookmarkMark, bookmarkTarget } from "./SessionBookmarkControl";
 
 interface AgentListProps {
   agents: AgentCard[];
@@ -82,6 +83,11 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump,
             </span>
           )}
           {files > 0 && <span className="text-[12px] text-muted">산출물 {files}</span>}
+          {agent.session && (
+            <BookmarkMark
+              target={bookmarkTarget(agent.session.id, agent.session.title ?? "", agent.worktreePath, agent.session.bookmark)}
+            />
+          )}
           <span className="w-20 shrink-0 text-right text-[12px] text-muted">
             {working ? `${formatElapsed(agent.stateSince, now)} 경과` : `${formatElapsed(agent.updatedAt, now)} 전`}
           </span>
