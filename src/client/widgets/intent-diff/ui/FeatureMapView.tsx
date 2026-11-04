@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { use, useState } from "react";
 import type { FeatureCluster, FeatureMap, FileOwner, OwnerKind } from "@/common/intentDiff/types";
 import { HunkBlock } from "./HunkBlock";
 import { HunkLookup } from "@/client/entities/intent-diff";
@@ -86,7 +86,7 @@ interface FileRowProps {
 
 function FileRow({ row, map }: FileRowProps) {
   const [open, setOpen] = useState(false);
-  const lookup = useContext(HunkLookup);
+  const lookup = use(HunkLookup);
   const node = map.files[row.file];
   if (!node) return null;
   const sharedBy = node.importedBy.length;

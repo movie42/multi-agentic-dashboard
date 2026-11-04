@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { use, useState } from "react";
 import type { FlowData, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/common/intentDiff/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { SymbolClick, type SymbolTarget } from "./CodeLines";
@@ -339,6 +339,6 @@ interface HunkRowProps {
 }
 
 function HunkRow({ hunkId, note }: HunkRowProps) {
-  const entry = useContext(HunkLookup).get(hunkId);
+  const entry = use(HunkLookup).get(hunkId);
   return entry ? <HunkBlock file={entry.file} hunk={entry.hunk} precision={null} note={note} /> : null;
 }

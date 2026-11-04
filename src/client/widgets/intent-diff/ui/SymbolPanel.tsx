@@ -9,13 +9,15 @@ import type { SymbolTarget } from "./CodeLines";
 
 // `!` because a diff row already carries its own add/remove background class.
 const FOCUS = ["!bg-ask/25", "shadow-[inset_3px_0_0_var(--color-ask)]"];
-let focused: HTMLElement | null = null;
+const FOCUS_MARK = "data-symbol-focus";
 
-/** Marks one diff row as the panel's current pick until another row is picked or the panel closes. */
 function focusRow(element: HTMLElement | null) {
-  focused?.classList.remove(...FOCUS);
-  focused = element;
+  document.querySelectorAll<HTMLElement>(`[${FOCUS_MARK}]`).forEach((row) => {
+    row.classList.remove(...FOCUS);
+    row.removeAttribute(FOCUS_MARK);
+  });
   element?.classList.add(...FOCUS);
+  element?.setAttribute(FOCUS_MARK, "");
 }
 // Token colors arrive as `--shiki-light` / `--shiki-dark` on each span, as in the diff table.
 const CODE_COLORS = "[&_span]:text-(color:--shiki-light) dark:[&_span]:text-(color:--shiki-dark)";

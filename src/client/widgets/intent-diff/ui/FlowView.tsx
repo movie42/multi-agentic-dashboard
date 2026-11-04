@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { use, useState } from "react";
 import type { FlowData, FlowStep, FlowSymbol, ItemFlow, SymbolKind } from "@/common/intentDiff/types";
 import { AskDraft, AskPlanItem, AskStepContext, ThreadView, type AskStep } from "@/client/features/ask-about-diff";
 import { CodeLines, diffText } from "./CodeLines";
@@ -75,8 +75,8 @@ interface StepAskProps {
 
 /** Questions about the whole step, under its header. */
 function StepAsk({ symbol, asking, onClose }: StepAskProps) {
-  const board = useContext(AskBoardContext);
-  const planItem = useContext(AskPlanItem);
+  const board = use(AskBoardContext);
+  const planItem = use(AskPlanItem);
   if (!board) return null;
   const threads = board.threads.filter((thread) => thread.anchor.kind === "step" && thread.anchor.symbolId === symbol.id);
   if (threads.length === 0 && !asking) return null;
@@ -152,7 +152,7 @@ interface StepViewProps {
 }
 
 function StepView({ step, symbol, number }: StepViewProps) {
-  const board = useContext(AskBoardContext);
+  const board = use(AskBoardContext);
   const [asking, setAsking] = useState(false);
   if (step.kind === "repeat") {
     return (
@@ -213,18 +213,21 @@ interface FlowViewProps {
 }
 
 export function FlowView({ flow, data }: FlowViewProps) {
-  const lookup = useContext(HunkLookup);
+  const lookup = use(HunkLookup);
   if (!flow || (flow.steps.length === 0 && flow.types.length === 0 && flow.rest.length === 0)) {
     return <p className="text-[13px] text-muted">이 항목에 연결된 변경이 없어요. 아래 &apos;계획했는데 변경 없음&apos;에서 이유를 볼 수 있어요.</p>;
   }
-  let counter = 0;
+  const numbered = flow.steps.map((step) => {
+    const symbol = data.symbols[step.symbolId];
+    return Boolean(symbol) && step.kind === "own" && symbol?.kind !== "value";
+  });
+  const numberAt = (index: number) => (numbered[index] ? numbered.slice(0, index + 1).filter(Boolean).length : null);
   return (
     <div className="flex flex-col gap-1">
       {flow.steps.map((step, index) => {
         const symbol = data.symbols[step.symbolId];
         if (!symbol) return null;
-        const numbered = step.kind === "own" && symbol.kind !== "value";
-        const number = numbered ? ++counter : null;
+        const number = numberAt(index);
         return (
           <div key={`${step.symbolId}-${index}`} className={INDENT[Math.min(step.depth, INDENT.length - 1)]}>
             <StepView step={step} symbol={symbol} number={number} />

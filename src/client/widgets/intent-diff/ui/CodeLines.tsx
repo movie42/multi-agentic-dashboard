@@ -51,22 +51,18 @@ function foldRows(lines: DiffLine[]): Row[] {
   const near = lines.map((_, index) =>
     lines.slice(Math.max(0, index - CONTEXT_AROUND), index + CONTEXT_AROUND + 1).some((line) => line.kind !== "ctx"),
   );
-  const rows: Row[] = [];
-  let run: DiffLine[] = [];
-  const flush = () => {
-    if (run.length >= FOLD_MIN) rows.push({ type: "fold", lines: run });
-    else rows.push(...run.map((line): Row => ({ type: "line", line })));
-    run = [];
-  };
-  lines.forEach((line, index) => {
-    if (line.kind === "ctx" && !near[index]) run.push(line);
-    else {
-      flush();
-      rows.push({ type: "line", line });
-    }
-  });
-  flush();
-  return rows;
+  const groups = lines.reduce<{ foldable: boolean; lines: DiffLine[] }[]>((acc, line, index) => {
+    const foldable = line.kind === "ctx" && !near[index];
+    const last = acc.at(-1);
+    return last?.foldable && foldable
+      ? [...acc.slice(0, -1), { foldable, lines: [...last.lines, line] }]
+      : [...acc, { foldable, lines: [line] }];
+  }, []);
+  return groups.flatMap((group): Row[] =>
+    group.foldable && group.lines.length >= FOLD_MIN
+      ? [{ type: "fold", lines: group.lines }]
+      : group.lines.map((line): Row => ({ type: "line", line })),
+  );
 }
 
 interface CodeLinesProps {

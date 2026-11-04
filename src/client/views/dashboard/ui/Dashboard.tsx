@@ -14,7 +14,6 @@ import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
-import { StatusLine } from "@/client/shared/ui/StatusLine";
 import { AgentCardView, type CardProgress } from "@/client/widgets/agent-card";
 import { foldWorkers, groupAgents, type FoldedAgents } from "@/client/entities/agent";
 import { CommandPalette } from "@/client/widgets/command-palette";
@@ -303,8 +302,6 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       />
 
       <main className="mx-auto flex max-w-[1920px] min-w-0 flex-col gap-16 px-5 pt-14 pb-36 md:px-12">
-        <StatusLine error={boardQuery.error} label="갱신 실패" />
-
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />
         ) : prefs.showingDiff ? (
