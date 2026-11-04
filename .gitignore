@@ -42,3 +42,8 @@ next-env.d.ts
 .gstack/
 .ai-skills/
 /dist/
+
+# e2e
+/e2e/.tmp
+/test-results
+/playwright-report

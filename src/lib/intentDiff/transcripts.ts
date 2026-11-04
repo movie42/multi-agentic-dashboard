@@ -162,7 +162,7 @@ function updateTodo(state: TodoState, tool: string, input: Record<string, unknow
  * `local` is false for a transcript recorded in another checkout; its shell commands only count
  * when they name one of `roots` by absolute path, since a relative path there means its own files.
  */
-function parseTranscript(raw: string, roots: string[], local: boolean): ToolEvent[] {
+export function parseTranscript(raw: string, roots: string[], local: boolean): ToolEvent[] {
   const events: ToolEvent[] = [];
   const pending = new Map<string, { event: ToolEvent; file: string | null; input: Record<string, unknown> }>();
   const todo: TodoState = { current: null, created: [], byId: new Map() };
