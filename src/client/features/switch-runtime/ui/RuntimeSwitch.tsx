@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { RuntimeMode, RuntimeResponse } from "@/common/orca/runtime";
-
-const POLL_MS = 15_000;
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import type { RuntimeMode } from "@/common/orca/runtime";
+import { runtimeKeys, runtimeQueryOptions, switchRuntime } from "@/client/entities/runtime";
+import { toastError } from "@/client/shared/model/toastStore";
 
 type SwitchTarget = Exclude<RuntimeMode, "off">;
 
@@ -12,61 +13,30 @@ const OPTIONS: { key: SwitchTarget; label: string; hint: string }[] = [
   { key: "headless", label: "헤드리스", hint: "Orca 앱을 종료하고 창 없이 런타임만 띄웁니다. 에이전트 터미널은 그대로 살아 있어요" },
 ];
 
-type RuntimeState =
-  | { status: "loading" }
-  | { status: "ready"; mode: RuntimeMode }
-  | { status: "switching"; mode: RuntimeMode; target: SwitchTarget };
-
-async function requestRuntime(init?: RequestInit): Promise<RuntimeMode> {
-  const response = await fetch("/api/runtime", { cache: "no-store", ...init });
-  const payload = (await response.json()) as RuntimeResponse;
-  if (!payload.ok) throw new Error(payload.error);
-  return payload.mode;
+interface Switching {
+  mode: RuntimeMode;
+  target: SwitchTarget;
 }
 
 export function RuntimeSwitch() {
-  const [state, setState] = useState<RuntimeState>({ status: "loading" });
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const runtime = useQuery(runtimeQueryOptions());
+  const [switching, setSwitching] = useState<Switching | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const tick = async () => {
-      try {
-        const mode = await requestRuntime();
-        if (!cancelled) setState((previous) => (previous.status === "switching" ? previous : { status: "ready", mode }));
-      } catch (pollError) {
-        console.error("[runtime] poll failed", pollError);
-      }
-      if (!cancelled) timer = setTimeout(tick, POLL_MS);
-    };
-
-    tick();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, []);
-
-  const current = state.status === "loading" ? null : state.mode;
+  const current = switching?.mode ?? runtime.data ?? null;
+  const status = switching ? "switching" : runtime.data === undefined ? "loading" : "ready";
 
   const switchTo = async (target: SwitchTarget) => {
-    if (state.status !== "ready" || state.mode === target) return;
-    setError(null);
-    setState({ status: "switching", mode: state.mode, target });
+    if (switching || runtime.data === undefined || runtime.data === target) return;
+    setSwitching({ mode: runtime.data, target });
     try {
-      const mode = await requestRuntime({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: target }),
-      });
-      setState({ status: "ready", mode });
+      const mode = await switchRuntime(target);
+      queryClient.setQueryData(runtimeKeys.all, mode);
     } catch (switchError) {
-      setError(switchError instanceof Error ? switchError.message : String(switchError));
-      const mode = await requestRuntime().catch(() => state.mode);
-      setState({ status: "ready", mode });
+      toastError("runtime", switchError, { target });
+      await runtime.refetch();
     }
+    setSwitching(null);
   };
 
   return (
@@ -79,7 +49,7 @@ export function RuntimeSwitch() {
               type="button"
               title={option.hint}
               aria-pressed={current === option.key}
-              disabled={state.status !== "ready"}
+              disabled={status !== "ready"}
               onClick={() => switchTo(option.key)}
               className={`rounded-full px-3 py-1 leading-none disabled:cursor-default ${
                 current === option.key ? "bg-fg text-bg" : "text-muted enabled:hover:text-fg"
@@ -90,12 +60,11 @@ export function RuntimeSwitch() {
           ))}
         </div>
         <span className="text-[11px] text-muted">
-          {state.status === "loading" && "확인 중…"}
-          {state.status === "switching" && `${state.target === "app" ? "앱" : "헤드리스"}로 전환 중…`}
-          {state.status === "ready" && state.mode === "off" && "Orca 꺼짐"}
+          {status === "loading" && "확인 중…"}
+          {switching && `${switching.target === "app" ? "앱" : "헤드리스"}로 전환 중…`}
+          {status === "ready" && runtime.data === "off" && "Orca 꺼짐"}
         </span>
       </div>
-      {error && <p className="text-[11px] leading-relaxed text-accent">{error}</p>}
     </div>
   );
 }

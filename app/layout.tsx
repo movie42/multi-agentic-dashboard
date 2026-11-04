@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "@/client/shared/ui/Toaster";
+import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full font-sans text-base leading-[1.75]">
-        {children}
+        <Providers>{children}</Providers>
         <Toaster />
       </body>
     </html>

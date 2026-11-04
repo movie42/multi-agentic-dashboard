@@ -1,56 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { TerminalScreen, TerminalScreenResponse } from "@/common/orca/screen";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { terminalScreenQueryOptions } from "@/client/entities/terminal";
 import { postAction } from "@/client/shared/api/actions";
-
-const POLL_MS = 2000;
+import { toastError } from "@/client/shared/model/toastStore";
+import { StatusLine } from "@/client/shared/ui/StatusLine";
 
 interface ChoicePanelProps {
   terminalHandle: string;
 }
 
 export function ChoicePanel({ terminalHandle }: ChoicePanelProps) {
-  const [screen, setScreen] = useState<TerminalScreen | null>(null);
+  const screenQuery = useQuery(terminalScreenQueryOptions(terminalHandle));
   const [sending, setSending] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = () =>
-      fetch(`/api/terminal?handle=${encodeURIComponent(terminalHandle)}`, { cache: "no-store" })
-        .then((response) => response.json() as Promise<TerminalScreenResponse>)
-        .then((payload) => {
-          if (cancelled) return;
-          if (payload.ok) setScreen(payload.screen);
-          else setError(payload.error);
-        })
-        .catch((loadError: unknown) => {
-          if (!cancelled) setError(String(loadError));
-        });
-    void load();
-    const timer = setInterval(load, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [terminalHandle]);
 
   const choose = async (option: number) => {
     setSending(option);
-    setError(null);
     try {
       await postAction({ type: "choose-option", terminalHandle, option });
     } catch (chooseError) {
-      console.error("[choice]", chooseError);
-      setError(chooseError instanceof Error ? chooseError.message : String(chooseError));
+      toastError("choice", chooseError, { terminalHandle, option });
       setSending(null);
     }
   };
 
-  const choice = screen?.choice ?? null;
+  const choice = screenQuery.data?.choice ?? null;
   if (!choice) {
-    return error ? <p className="text-[12px] text-accent">터미널 화면을 읽지 못했어요: {error}</p> : null;
+    return <StatusLine error={screenQuery.error} label="터미널 화면을 읽지 못했어요" />;
   }
 
   return (
@@ -78,7 +55,7 @@ export function ChoicePanel({ terminalHandle }: ChoicePanelProps) {
         ))}
       </div>
       {sending !== null && <p className="text-[12px] text-muted">{sending}번을 보냈어요. 상태가 곧 바뀌어요.</p>}
-      {error && <p className="text-[12px] text-accent">못 보냈어요: {error}</p>}
+      <StatusLine error={screenQuery.error} label="터미널 화면을 읽지 못했어요" />
     </div>
   );
 }

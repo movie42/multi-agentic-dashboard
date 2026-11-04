@@ -5,12 +5,16 @@ import { DiffTab } from "@/client/widgets/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
 import type {
   AgentCard,
+  BoardSnapshot,
   ProjectSummary,
   WorktreeSummary,
 } from "@/common/orca/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
+import { errorMessage } from "@/client/shared/model/errorMessage";
+import { toastError } from "@/client/shared/model/toastStore";
+import { StatusLine } from "@/client/shared/ui/StatusLine";
 import { AgentCardView, type CardProgress } from "@/client/widgets/agent-card";
 import { foldWorkers, groupAgents, type FoldedAgents } from "@/client/entities/agent";
 import { CommandPalette } from "@/client/widgets/command-palette";
@@ -87,11 +91,24 @@ interface JumpTarget {
 
 const FALLBACK_PROJECT: ProjectSummary = { repo: "", autoMode: "company" };
 
-export function Dashboard() {
-  const { board, error } = useBoard();
+export function DashboardLoading() {
+  return (
+    <main className="flex flex-col items-start gap-4 px-12 py-14 text-[14px] text-muted">
+      <p>Orca에서 에이전트 상태를 불러오는 중…</p>
+    </main>
+  );
+}
+
+interface DashboardProps {
+  initialBoard?: BoardSnapshot | null;
+}
+
+export function Dashboard({ initialBoard = null }: DashboardProps) {
+  const boardQuery = useBoard(initialBoard);
+  const board = boardQuery.data ?? null;
+  const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
   const prefs = useWorkspacePrefs();
   const dismissed = useDismissed();
-  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [viewKeys, writeView] = useStoredList("agent-control:overview-view");
   const view: OverviewView = viewKeys[0] === "stage" ? "stage" : "turn";
@@ -126,15 +143,10 @@ export function Dashboard() {
   }, [jump, prefs.selectedRepo]);
 
   const runAction = async (action: ActionRequest) => {
-    setNotice(null);
     try {
       await postAction(action);
     } catch (actionError) {
-      setNotice(
-        actionError instanceof Error
-          ? actionError.message
-          : String(actionError),
-      );
+      toastError("action", actionError, { type: action.type });
     }
   };
 
@@ -145,14 +157,11 @@ export function Dashboard() {
   useKeyboardNav();
 
   if (!board) {
+    if (!error) return <DashboardLoading />;
     return (
       <main className="flex flex-col items-start gap-4 px-12 py-14 text-[14px] text-muted">
-        <p>
-          {error
-            ? `Orca에 연결하지 못했습니다: ${error}`
-            : "Orca에서 에이전트 상태를 불러오는 중…"}
-        </p>
-        {error && <RuntimeSwitch />}
+        <p>{`Orca에 연결하지 못했습니다: ${error}`}</p>
+        <RuntimeSwitch />
       </main>
     );
   }
@@ -294,12 +303,7 @@ export function Dashboard() {
       />
 
       <main className="mx-auto flex max-w-[1920px] min-w-0 flex-col gap-16 px-5 pt-14 pb-36 md:px-12">
-        {notice && (
-          <p className="rounded-lg bg-tint px-4 py-3 text-[14px]">
-            <span className="mr-2 font-semibold text-accent">실행 실패</span>
-            {notice}
-          </p>
-        )}
+        <StatusLine error={boardQuery.error} label="갱신 실패" />
 
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />

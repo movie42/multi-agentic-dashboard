@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { SessionBookmark, SessionSummary, SessionsResponse, TitleSource } from "@/common/sessions/types";
+import type { SessionBookmark, SessionSummary, TitleSource } from "@/common/sessions/types";
+import { sessionListQueryOptions, type SessionList } from "@/client/entities/session";
+import { errorMessage } from "@/client/shared/model/errorMessage";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
@@ -24,15 +27,6 @@ const TITLE_BADGE: Record<TitleSource, { label: string; className: string }> = {
 
 const PAGE_SIZE = 100;
 
-let lastLoaded: { sessions: SessionSummary[]; scannedAt: number } | null = null;
-
-interface SessionsState {
-  sessions: SessionSummary[] | null;
-  scannedAt: number;
-  error: string | null;
-  loading: boolean;
-}
-
 interface SessionsPageProps {
   onAction: (action: ActionRequest) => void;
 }
@@ -43,18 +37,9 @@ function matchesTitle(session: SessionSummary, filter: TitleFilter): boolean {
   return true;
 }
 
-function updateLastLoaded(update: (list: SessionSummary[]) => SessionSummary[]) {
-  if (lastLoaded) lastLoaded = { ...lastLoaded, sessions: update(lastLoaded.sessions) };
-}
-
 export function SessionsPage({ onAction }: SessionsPageProps) {
-  const [state, setState] = useState<SessionsState>({
-    sessions: lastLoaded?.sessions ?? null,
-    scannedAt: lastLoaded?.scannedAt ?? 0,
-    error: null,
-    loading: true,
-  });
-  const [reloadKey, setReloadKey] = useState(0);
+  const queryClient = useQueryClient();
+  const sessionsQuery = useQuery(sessionListQueryOptions());
   const [query, setQuery] = useState("");
   const [titleFilter, setTitleFilter] = useState<TitleFilter>("all");
   const [project, setProject] = useState("");
@@ -63,45 +48,20 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
   const [showAutomated, setShowAutomated] = useState(false);
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/sessions", { cache: "no-store" })
-      .then((response) => response.json() as Promise<SessionsResponse>)
-      .then((payload) => {
-        if (cancelled) return;
-        if (payload.ok) lastLoaded = { sessions: payload.sessions, scannedAt: payload.scannedAt };
-        setState((previous) =>
-          payload.ok
-            ? { sessions: payload.sessions, scannedAt: payload.scannedAt, error: null, loading: false }
-            : { ...previous, error: payload.error, loading: false },
-        );
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setState((previous) => ({ ...previous, error: String(error), loading: false }));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
+  const updateSessions = (update: (list: SessionSummary[]) => SessionSummary[]) =>
+    queryClient.setQueryData<SessionList>(sessionListQueryOptions().queryKey, (previous) =>
+      previous ? { ...previous, sessions: update(previous.sessions) } : previous,
+    );
 
-  const renameLocally = (sessionId: string, title: string) => {
-    const rename = (list: SessionSummary[]) =>
-      list.map((entry) => (entry.sessionId === sessionId ? { ...entry, title, titleSource: "custom" as const } : entry));
-    setState((previous) => ({ ...previous, sessions: previous.sessions ? rename(previous.sessions) : null }));
-  };
+  const renameLocally = (sessionId: string, title: string) =>
+    updateSessions((list) =>
+      list.map((entry) => (entry.sessionId === sessionId ? { ...entry, title, titleSource: "custom" as const } : entry)),
+    );
 
-  const setBookmarkLocally = (sessionId: string, bookmark: SessionBookmark | null) => {
-    const update = (list: SessionSummary[]) =>
-      list.map((entry) => (entry.sessionId === sessionId ? { ...entry, bookmark } : entry));
-    setState((previous) => ({ ...previous, sessions: previous.sessions ? update(previous.sessions) : null }));
-    updateLastLoaded(update);
-  };
+  const setBookmarkLocally = (sessionId: string, bookmark: SessionBookmark | null) =>
+    updateSessions((list) => list.map((entry) => (entry.sessionId === sessionId ? { ...entry, bookmark } : entry)));
 
-  const reload = () => {
-    setState((previous) => ({ ...previous, loading: true }));
-    setReloadKey((key) => key + 1);
-  };
+  const reload = () => void sessionsQuery.refetch();
 
   const copyCommand = async (session: SessionSummary) => {
     const command = `${session.cwd ? `cd ${JSON.stringify(session.cwd)} && ` : ""}claude --resume ${session.sessionId}`;
@@ -113,7 +73,9 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
     }
   };
 
-  const allSessions = state.sessions ?? [];
+  const loadedSessions = sessionsQuery.data?.sessions ?? null;
+  const scannedAt = sessionsQuery.data?.scannedAt ?? 0;
+  const allSessions = loadedSessions ?? [];
   const automatedCount = allSessions.filter((session) => session.origin !== "human").length;
   const sessions = showAutomated ? allSessions : allSessions.filter((session) => session.origin === "human");
   const needle = query.trim().toLowerCase();
@@ -145,7 +107,7 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
           Claude Code 세션 {sessions.length} · 직접 제목 {counts.custom} · 자동 제목 {counts.ai} · 제목 없음 {counts.none}
           {" · "}
           <button type="button" onClick={reload} className="underline decoration-faint underline-offset-[3px] hover:text-fg">
-            {state.loading ? "읽는 중…" : "다시 읽기"}
+            {sessionsQuery.isFetching ? "읽는 중…" : "다시 읽기"}
           </button>
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -205,12 +167,12 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
         </div>
       </header>
 
-      {state.error && <p className="text-[14px] text-accent">세션을 읽지 못했어요: {state.error}</p>}
-      {state.sessions === null && state.loading && (
+      {sessionsQuery.error && <p className="text-[14px] text-accent">세션을 읽지 못했어요: {errorMessage(sessionsQuery.error)}</p>}
+      {loadedSessions === null && sessionsQuery.isFetching && (
         <p className="text-[14px] text-muted">세션 기록을 읽는 중이에요. 처음 한 번은 몇 초 걸려요.</p>
       )}
 
-      {state.sessions !== null && (
+      {loadedSessions !== null && (
       <ul className="border-t-2 border-fg">
         {filtered.slice(0, limit).map((session) => {
           const badge = TITLE_BADGE[session.titleSource];
@@ -225,7 +187,7 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
               <div className="text-[12px] leading-relaxed text-muted">
                 <p className="text-[13px] font-semibold text-fg">{session.project ?? "폴더 모름"}</p>
                 {session.gitBranch && <p className="truncate font-mono text-now">⎇ {session.gitBranch}</p>}
-                <p>{formatElapsed(session.updatedAt, state.scannedAt)} 전 마지막 활동</p>
+                <p>{formatElapsed(session.updatedAt, scannedAt)} 전 마지막 활동</p>
               </div>
               <div className="flex min-w-0 flex-col gap-2">
                 <p className="flex items-center gap-2">

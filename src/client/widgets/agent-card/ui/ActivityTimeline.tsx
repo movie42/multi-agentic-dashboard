@@ -1,10 +1,12 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { ActivityResponse, ActivityStep, ToolStatus } from "@/common/sessions/types";
+import type { ActivityStep, ToolStatus } from "@/common/sessions/types";
+import { activityQueryOptions } from "@/client/entities/session";
 import { formatClock } from "@/client/shared/lib/format";
+import { StatusLine } from "@/client/shared/ui/StatusLine";
 
-const POLL_MS = 2000;
 const STICK_PX = 48;
 
 const STATUS_DOT: Record<ToolStatus, string> = {
@@ -55,33 +57,10 @@ interface ActivityListProps {
 }
 
 function ActivityList({ sessionId }: ActivityListProps) {
-  const [steps, setSteps] = useState<ActivityStep[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const activity = useQuery(activityQueryOptions(sessionId));
+  const steps = activity.data ?? null;
   const listRef = useRef<HTMLOListElement>(null);
   const stickRef = useRef(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = () =>
-      fetch(`/api/activity?session=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
-        .then((response) => response.json() as Promise<ActivityResponse>)
-        .then((payload) => {
-          if (cancelled) return;
-          if (payload.ok) {
-            setSteps(payload.steps);
-            setError(null);
-          } else setError(payload.error);
-        })
-        .catch((loadError: unknown) => {
-          if (!cancelled) setError(String(loadError));
-        });
-    void load();
-    const timer = setInterval(load, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [sessionId]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -93,7 +72,12 @@ function ActivityList({ sessionId }: ActivityListProps) {
     stickRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < STICK_PX;
   };
 
-  if (error) return <p className="mt-2 text-[12px] text-accent">진행 기록을 읽지 못했어요: {error}</p>;
+  if (activity.error)
+    return (
+      <div className="mt-2">
+        <StatusLine error={activity.error} label="진행 기록을 읽지 못했어요" />
+      </div>
+    );
   if (!steps) return <p className="mt-2 text-[12px] text-muted">불러오는 중…</p>;
   if (steps.length === 0) return <p className="mt-2 text-[12px] text-muted">아직 기록이 없어요</p>;
 
