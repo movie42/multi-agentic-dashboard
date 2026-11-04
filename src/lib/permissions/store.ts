@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { suggestionsOf } from "@/common/permissions/schema";
 import { questionsOf } from "./questions";
 import type {
   PendingPermission,
   PermissionAnswer,
   PermissionHookInput,
   PermissionHookOutput,
-  PermissionSuggestion,
 } from "./types";
 
 const PRESENCE_MS = 10_000;
@@ -25,28 +25,6 @@ const globalState = globalThis as typeof globalThis & { __agentControlPermission
 globalState.__agentControlPermissions ??= { held: new Map(), lastBoardAt: 0 };
 const state = globalState.__agentControlPermissions;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isSuggestion(value: unknown): value is PermissionSuggestion {
-  if (!isRecord(value) || typeof value.destination !== "string") return false;
-  if (value.type === "addRules") return Array.isArray(value.rules) && typeof value.behavior === "string";
-  if (value.type === "addDirectories") return Array.isArray(value.directories);
-  if (value.type === "setMode") return typeof value.mode === "string";
-  return false;
-}
-
-export function isPermissionHookInput(value: unknown): value is PermissionHookInput {
-  return (
-    isRecord(value) &&
-    value.hook_event_name === "PermissionRequest" &&
-    typeof value.tool_name === "string" &&
-    isRecord(value.tool_input) &&
-    typeof value.session_id === "string"
-  );
-}
-
 export function markBoardSeen(now = Date.now()): void {
   state.lastBoardAt = now;
 }
@@ -65,8 +43,8 @@ export function holdPermission(paneKey: string, input: PermissionHookInput): {
     receivedAt: Date.now(),
     toolName: input.tool_name,
     toolInput: input.tool_input,
-    suggestions: (input.permission_suggestions ?? []).filter(isSuggestion),
-    transcriptPath: typeof input.transcript_path === "string" ? input.transcript_path : "",
+    suggestions: suggestionsOf(input.permission_suggestions),
+    transcriptPath: input.transcript_path,
   };
   const result = new Promise<PermissionHookOutput>((resolve) => {
     state.held.set(request.id, { request, settle: resolve });

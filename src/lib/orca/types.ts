@@ -4,53 +4,7 @@ import type { FeatureSummary, FlowTaskSummary, PullRequestInfo, WorkflowMode } f
 
 export type AgentState = "working" | "done" | "blocked" | "waiting" | "idle";
 
-export interface OrcaAgentRaw {
-  paneKey: string;
-  parentPaneKey: string | null;
-  state: string;
-  agentType: string | null;
-  prompt: string | null;
-  taskTitle: string | null;
-  displayName: string | null;
-  lastAssistantMessage: string | null;
-  toolName: string | null;
-  workingMode?: string | null;
-  interrupted: boolean;
-  stateStartedAt: number | null;
-  updatedAt: number | null;
-  hasLivePty: boolean;
-  mainAgent?: { state: string; stateStartedAt: number | null } | null;
-}
-
-export interface OrcaWorktreeRaw {
-  worktreeId: string;
-  repoId: string;
-  repo: string;
-  path: string;
-  branch: string | null;
-  displayName: string | null;
-  isArchived: boolean;
-  isMainWorktree: boolean;
-  isPinned: boolean;
-  parentWorktreeId?: string | null;
-  unread: boolean;
-  status: string;
-  lastActivityAt: number | null;
-  lastOutputAt: number | null;
-  agents: OrcaAgentRaw[];
-}
-
-export interface OrcaTerminalRaw {
-  handle: string;
-  tabId: string;
-  leafId: string;
-  worktreeId: string;
-  title: string | null;
-  connected: boolean;
-  orphaned?: boolean;
-  recordedPaneKey?: string | null;
-  agentIdentity?: string | null;
-}
+export type { OrcaAgentRaw, OrcaTerminalRaw, OrcaWorktreeRaw } from "@/server/orca/schema";
 
 export type ArtifactKind = "html" | "markdown" | "file" | "artifact" | "pr";
 

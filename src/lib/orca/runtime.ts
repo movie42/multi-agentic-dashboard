@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { ORCA_BIN, runOrca } from "./cli";
+import { orcaStatusSchema } from "@/server/orca/schema";
 
 const execFileAsync = promisify(execFile);
 
@@ -12,11 +13,6 @@ export const ORCA_BUNDLE_ID = "com.stablyai.orca";
 export type RuntimeMode = "app" | "headless" | "off";
 
 export type RuntimeResponse = { ok: true; mode: RuntimeMode } | { ok: false; error: string };
-
-interface OrcaStatusRaw {
-  app: { running: boolean; pid: number | null; desktopWindowStatus?: string };
-  runtime: { reachable: boolean };
-}
 
 interface RuntimeStatus {
   mode: RuntimeMode;
@@ -61,7 +57,7 @@ async function commandOf(pid: number): Promise<string | null> {
 }
 
 export async function readRuntime(): Promise<RuntimeStatus> {
-  const status = await runOrca<OrcaStatusRaw>(["status"]).catch(() => null);
+  const status = await runOrca(["status"], orcaStatusSchema).catch(() => null);
   if (!status || !status.app.running || !status.runtime.reachable || status.app.pid === null) {
     return { mode: "off", pid: status?.app.pid ?? null };
   }

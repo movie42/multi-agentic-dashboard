@@ -6,120 +6,13 @@ import { promisify } from "node:util";
 import { featureCheckInput } from "@/lib/orca/board";
 import { runOrca } from "@/lib/orca/cli";
 import { startFeatureCheck } from "@/lib/workflow/remoteCheck";
-import type { ActionRequest, ActionResponse } from "@/lib/orca/actions";
+import { actionRequestSchema, type ActionResponse } from "@/common/actions/schema";
 import { answerPermission } from "@/lib/permissions/store";
-import type { PermissionAnswer } from "@/lib/permissions/types";
 import { ORCA_BUNDLE_ID, readRuntime } from "@/lib/orca/runtime";
-import { BOOKMARK_MEMO_LIMIT, removeBookmark, saveBookmark } from "@/lib/sessions/bookmarks";
-import { renameSession, TITLE_LIMIT } from "@/lib/sessions/sessionTitle";
+import { removeBookmark, saveBookmark } from "@/lib/sessions/bookmarks";
+import { renameSession } from "@/lib/sessions/sessionTitle";
 
 const execFileAsync = promisify(execFile);
-const MAX_PROMPT = 8000;
-const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-function isPermissionAnswer(value: unknown): value is PermissionAnswer {
-  if (typeof value !== "object" || value === null || !("behavior" in value)) return false;
-  const answer = value as Record<string, unknown>;
-  if (answer.behavior === "deny") return typeof answer.message === "string" && answer.message.length <= MAX_PROMPT;
-  if (answer.behavior === "answer") {
-    const answers = answer.answers;
-    return (
-      typeof answers === "object" &&
-      answers !== null &&
-      Object.values(answers).every((text) => typeof text === "string" && text.length <= MAX_PROMPT)
-    );
-  }
-  return (
-    answer.behavior === "allow" &&
-    (answer.suggestionIndex === null || (typeof answer.suggestionIndex === "number" && Number.isInteger(answer.suggestionIndex)))
-  );
-}
-
-function isActionRequest(value: unknown): value is ActionRequest {
-  if (typeof value !== "object" || value === null || !("type" in value)) return false;
-  const body = value as Record<string, unknown>;
-  if (body.type === "open-artifact") {
-    return (
-      typeof body.target === "string" &&
-      (body.via === "system" || body.via === "orca") &&
-      typeof body.worktreePath === "string"
-    );
-  }
-  if (body.type === "focus-terminal" || body.type === "close-terminal") {
-    return typeof body.terminalHandle === "string";
-  }
-  if (body.type === "send-prompt") {
-    return (
-      typeof body.terminalHandle === "string" &&
-      typeof body.text === "string" &&
-      body.text.trim().length > 0 &&
-      body.text.length <= MAX_PROMPT
-    );
-  }
-  if (body.type === "choose-option") {
-    return (
-      typeof body.terminalHandle === "string" &&
-      typeof body.option === "number" &&
-      Number.isInteger(body.option) &&
-      body.option >= 1 &&
-      body.option <= 9
-    );
-  }
-  if (body.type === "launch-agent") {
-    return (
-      typeof body.worktreePath === "string" &&
-      path.isAbsolute(body.worktreePath) &&
-      typeof body.prompt === "string" &&
-      body.prompt.length <= MAX_PROMPT
-    );
-  }
-  if (body.type === "open-terminal") {
-    return typeof body.worktreePath === "string" && path.isAbsolute(body.worktreePath);
-  }
-  if (body.type === "check-feature") {
-    return typeof body.featureId === "string" && body.featureId.length > 0;
-  }
-  if (body.type === "answer-permission") {
-    return typeof body.requestId === "string" && isPermissionAnswer(body.answer);
-  }
-  if (body.type === "rename-session") {
-    return (
-      typeof body.sessionId === "string" &&
-      SESSION_ID.test(body.sessionId) &&
-      typeof body.title === "string" &&
-      body.title.trim().length > 0 &&
-      body.title.length <= TITLE_LIMIT &&
-      !/[\r\n]/.test(body.title)
-    );
-  }
-  if (body.type === "bookmark-session") {
-    return (
-      typeof body.sessionId === "string" &&
-      SESSION_ID.test(body.sessionId) &&
-      typeof body.name === "string" &&
-      body.name.trim().length > 0 &&
-      body.name.length <= TITLE_LIMIT &&
-      typeof body.cwd === "string" &&
-      path.isAbsolute(body.cwd) &&
-      typeof body.memo === "string" &&
-      body.memo.length <= BOOKMARK_MEMO_LIMIT
-    );
-  }
-  if (body.type === "unbookmark-session") {
-    return typeof body.sessionId === "string" && SESSION_ID.test(body.sessionId);
-  }
-  if (body.type === "resume-session") {
-    return (
-      typeof body.sessionId === "string" &&
-      SESSION_ID.test(body.sessionId) &&
-      typeof body.cwd === "string" &&
-      path.isAbsolute(body.cwd) &&
-      typeof body.title === "string"
-    );
-  }
-  return false;
-}
-
 async function resolveTarget(target: string): Promise<{ url: string; filePath: string | null }> {
   if (/^https?:\/\//.test(target)) return { url: target, filePath: null };
   if (!path.isAbsolute(target)) throw new Error("target must be an absolute path or http(s) URL");
@@ -140,12 +33,13 @@ async function bringOrcaForward() {
 }
 
 export async function POST(request: Request) {
-  const body: unknown = await request.json().catch(() => null);
-  if (!isActionRequest(body)) {
+  const parsed = actionRequestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
     return Response.json({ ok: false, error: "invalid action" } satisfies ActionResponse, {
       status: 400,
     });
   }
+  const body = parsed.data;
 
   try {
     if (body.type === "open-artifact") {

@@ -8,6 +8,7 @@ import { readBookmarks } from "@/lib/sessions/bookmarks";
 import { findSession } from "@/lib/sessions/fullMessage";
 import { sessionRefOf } from "@/lib/sessions/sessionTitle";
 import type { SessionBookmark, SessionRef } from "@/lib/sessions/types";
+import { terminalListSchema, worktreePsSchema } from "@/server/orca/schema";
 import { pendingByPane, settleStale } from "@/lib/permissions/store";
 import { runOrca } from "./cli";
 import { reattachOrphans } from "./orphans";
@@ -18,7 +19,6 @@ import type {
   BoardSnapshot,
   ProjectSummary,
   WorktreeSummary,
-  OrcaTerminalRaw,
   OrcaWorktreeRaw,
 } from "./types";
 
@@ -67,8 +67,8 @@ function shortBranch(branch: string | null): string | null {
 
 export async function loadBoard(): Promise<BoardSnapshot> {
   const [ps, terminals, bookmarks] = await Promise.all([
-    runOrca<{ worktrees: OrcaWorktreeRaw[] }>(["worktree", "ps", "--limit", "500"]),
-    runOrca<{ terminals: OrcaTerminalRaw[] }>(["terminal", "list"]).catch(() => ({
+    runOrca(["worktree", "ps", "--limit", "500"], worktreePsSchema),
+    runOrca(["terminal", "list"], terminalListSchema).catch(() => ({
       terminals: [],
     })),
     readBookmarks().catch((error: unknown) => {

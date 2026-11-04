@@ -16,20 +16,26 @@
     "snapshot:uninstall": "node scripts/install-snapshot-hook.mjs --uninstall",
     "skills:install": "node scripts/install-skills.mjs",
     "skills:uninstall": "node scripts/install-skills.mjs --uninstall",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "e2e": "playwright test"
+    "test": "vitest run --project node --project dom",
+    "test:watch": "vitest --project node --project dom",
+    "e2e": "playwright test",
+    "test:contract": "vitest run --project contract"
   },
   "dependencies": {
     "@shikijs/core": "3.23.0",
     "@shikijs/engine-oniguruma": "3.23.0",
     "@shikijs/langs": "3.23.0",
     "@shikijs/themes": "3.23.0",
+    "@tanstack/react-query": "^5.105.3",
+    "lru-cache": "^11.5.3",
     "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1"
+    "remark-gfm": "4.0.1",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

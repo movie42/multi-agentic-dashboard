@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "@/client/shared/ui/Toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
       </head>
-      <body className="min-h-full font-sans text-base leading-[1.75]">{children}</body>
+      <body className="min-h-full font-sans text-base leading-[1.75]">
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

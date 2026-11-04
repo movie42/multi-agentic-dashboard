@@ -5,7 +5,7 @@ import { readTitles, type SessionTitles } from "./claudeSessions";
 import type { SessionRef } from "./types";
 
 const PROJECTS_DIR = process.env.CLAUDE_PROJECTS_DIR ?? path.join(homedir(), ".claude", "projects");
-export const TITLE_LIMIT = 100;
+export { TITLE_LIMIT } from "@/common/sessions/limits";
 
 interface TitleEntry extends SessionTitles {
   size: number;

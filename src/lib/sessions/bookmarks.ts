@@ -6,7 +6,7 @@ import type { SessionBookmark } from "./types";
 // Shared with the `sb` CLI (github.com/david-learner/session-bookmark): one JSON object per line.
 const BOOKMARK_FILE =
   process.env.SB_FILE ?? path.join(homedir(), ".local", "share", "session-bookmark", "bookmarks.jsonl");
-export const BOOKMARK_MEMO_LIMIT = 500;
+export { BOOKMARK_MEMO_LIMIT } from "@/common/sessions/limits";
 
 interface BookmarkLine {
   provider: string;

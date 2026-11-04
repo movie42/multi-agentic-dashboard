@@ -1,24 +1,12 @@
-export type PermissionDestination = "session" | "localSettings" | "projectSettings" | "userSettings" | "cliArg";
+import type { PermissionSuggestion } from "@/common/permissions/schema";
 
-export interface PermissionRule {
-  toolName: string;
-  ruleContent?: string;
-}
-
-export type PermissionSuggestion =
-  | { type: "addRules"; rules: PermissionRule[]; behavior: string; destination: PermissionDestination }
-  | { type: "addDirectories"; directories: string[]; destination: PermissionDestination }
-  | { type: "setMode"; mode: string; destination: PermissionDestination };
-
-export interface PermissionHookInput {
-  session_id: string;
-  transcript_path: string;
-  cwd: string;
-  hook_event_name: "PermissionRequest";
-  tool_name: string;
-  tool_input: Record<string, unknown>;
-  permission_suggestions?: unknown[];
-}
+export type {
+  PermissionAnswer,
+  PermissionDestination,
+  PermissionHookInput,
+  PermissionRule,
+  PermissionSuggestion,
+} from "@/common/permissions/schema";
 
 export interface PendingPermission {
   id: string;
@@ -41,11 +29,6 @@ export interface UserQuestion {
   options: QuestionOption[];
   multiSelect?: boolean;
 }
-
-export type PermissionAnswer =
-  | { behavior: "allow"; suggestionIndex: number | null }
-  | { behavior: "answer"; answers: Record<string, string> }
-  | { behavior: "deny"; message: string };
 
 export type PermissionHookDecision =
   | { behavior: "allow"; updatedPermissions?: PermissionSuggestion[]; updatedInput?: Record<string, unknown> }

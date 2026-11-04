@@ -1,10 +1,9 @@
 "use client";
 
+import { TITLE_LIMIT } from "@/common/sessions/limits";
 import { useState } from "react";
 import type { TitleSource } from "@/lib/sessions/types";
 import { postAction } from "./actions";
-
-const TITLE_LIMIT = 100;
 
 interface SessionTitleProps {
   sessionId: string;

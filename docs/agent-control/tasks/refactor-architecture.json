@@ -597,8 +597,8 @@
       "summary": "질문 3라운드 반영 완료 — 승인 대기",
       "conclusion": [
         "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이에요.",
-        "Phase 1 안전망: 순수 로직·대화 기록 파싱 단위 테스트 40개와, 가짜 orca로 도는 E2E 3개가 지금 동작을 고정해요. 계약 테스트(P1-5)는 Phase 2 스키마가 생긴 뒤 붙여요.",
-        "다음은 Phase 2: 에러 보고 통로·zod 스키마·서버 상태 컨테이너예요."
+        "Phase 1·2: 테스트 안전망(단위·컴포넌트·E2E·계약)과 공용 기반(에러 로그 파일, 토스트·상태 줄, zod 스키마, 서버 서비스 컨테이너)을 깔았어요. 계약 테스트가 첫 실행에서 실제 Orca 출력과 타입의 차이(<code>hasLivePty</code>)를 잡았어요.",
+        "다음은 Phase 3: 서버 상태를 클래스로, 변환은 순수 함수로 나눠요."
       ],
       "blocks": [
         {
@@ -714,19 +714,19 @@
             {
               "id": "P1-5",
               "title": "Orca 계약 테스트와 픽스처 다시 찍기 스크립트",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>scripts/record-orca-fixtures.mjs</code> · <code>package.json</code>(<code>test:contract</code>)"
+                  "<code>test/contract/orca.contract.ts</code> · <code>vitest.config.mts</code>(contract 프로젝트) · <code>package.json</code>(<code>test:contract</code>)"
                 ],
                 [
                   "결정",
-                  "[[R3-Q3]] 진짜 orca 출력을 zod 스키마로 검증, Orca 없으면 건너뜀"
+                  "[[R3-Q3]] 진짜 orca(<code>status</code>, <code>worktree ps</code>, <code>terminal list</code>) 출력과 E2E 가짜 orca 픽스처를 같은 zod 스키마로 검사. Orca가 없으면 진짜 쪽만 건너뜀. 진짜 출력을 픽스처로 다시 찍는 스크립트는 만들지 않음 — 출력에 실제 프롬프트·경로가 들어 있어 저장소에 남기면 안 됨"
                 ],
                 [
-                  "순서",
-                  "P2-2 스키마가 생긴 뒤 연결 — 아직 안 함"
+                  "결과",
+                  "첫 실행에서 실제 차이를 잡음: 진짜 Orca 출력에 <code>hasLivePty</code>가 없는데 기존 타입은 필수로 선언 → optional로 수정(코드에서 쓰는 곳 없음)"
                 ]
               ]
             },
@@ -751,49 +751,66 @@
             {
               "id": "P2-1",
               "title": "에러 보고 통로 — 서버는 맥락 붙은 <code>console.warn</code>/<code>error</code>, 클라이언트는 토스트·패널 상태 줄",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "결정",
-                  "[[R1-Q6]] 동작 실패는 토스트, 배경 작업 실패는 패널 안 상태 줄 · [[R2-Q4]] console과 <code>~/Library/Logs/agent-control/app.log</code>(5MB, 백업 1개)"
+                  "파일",
+                  "<code>src/server/shared/errorLog.ts</code> · <code>src/server/container.ts</code>(<code>reportError</code>/<code>reportWarning</code>) · <code>src/client/shared/model/toastStore.ts</code> · <code>src/client/shared/ui/Toaster.tsx</code> · <code>StatusLine.tsx</code> · <code>src/app/layout.tsx</code>"
                 ],
                 [
-                  "재사용",
-                  "<code>Dashboard.tsx</code>의 <code>notice</code> 상태"
+                  "결정",
+                  "[[R1-Q6]] [[R2-Q4]] 서버 에러는 console과 <code>~/Library/Logs/agent-control/app.log</code>(<code>AGENT_CONTROL_LOG_FILE</code>로 변경 가능)에 한 줄 JSON, 5MB에서 <code>.1</code> 백업 하나. 파일 쓰기 실패도 console.error로 드러냄. 클라이언트는 Zustand 토스트(최대 4개, 6초)와 패널 상태 줄"
+                ],
+                [
+                  "결정",
+                  "새 모듈은 Phase 4에서 다시 옮기지 않도록 처음부터 최종 위치(<code>src/server</code>, <code>src/common</code>, <code>src/client</code>)에 만듦"
                 ]
               ]
             },
             {
               "id": "P2-2",
               "title": "바깥 데이터 zod 스키마 — API 요청 본문, 대화 기록 줄, CLI 출력, 캐시 파일",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "결정",
-                  "[[R1-Q2]] zod"
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code> · <code>src/common/permissions/schema.ts</code> · <code>src/common/sessions/limits.ts</code> · <code>src/server/orca/schema.ts</code> · <code>src/lib/orca/cli.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "<code>src/lib/permissions/store.ts</code>의 <code>isPermissionHookInput</code> 타입 가드를 스키마로 대체"
+                  "결정",
+                  "[[R1-Q2]] API 요청 본문(액션, 권한 훅)과 orca 출력은 zod로 검사하고 타입은 <code>z.infer</code>로 한 곳에서 나옴. <code>runOrca(args, schema)</code>가 결과를 스키마로 검사해 <code>as T</code> 단언이 사라짐"
+                ],
+                [
+                  "결정",
+                  "캐시 파일(북마크, ask 스레드, 스냅샷 기록)과 대화 기록 줄 스키마는 각 서비스를 클래스로 바꾸는 Phase 3에서 같이 붙임"
                 ]
               ]
             },
             {
               "id": "P2-3",
               "title": "서버 상태 컨테이너 — HMR에도 한 번만 만들어지는 서비스 인스턴스 묶음 하나",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "패턴",
-                  "지금 11개 파일에 흩어진 <code>globalThis.__agentControl*</code>를 한 곳으로"
+                  "파일",
+                  "<code>src/server/container.ts</code>"
+                ],
+                [
+                  "결정",
+                  "<code>services()</code>가 <code>globalThis</code>에 서비스 묶음을 한 번만 만들어 HMR에도 유지. 지금은 <code>errorLog</code>만 있고 Phase 3에서 서비스 클래스를 하나씩 옮겨 담음"
                 ]
               ]
             },
             {
               "id": "P2-V",
               "title": "검증: 테스트 · tsc · lint 통과",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "vitest 65개(node+dom) · contract 5개 · playwright 3개 통과 · tsc 0 · lint 경고 2(기존)"
+                ]
+              ]
             }
           ]
         },
