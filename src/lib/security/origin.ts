@@ -31,16 +31,22 @@ function parseOrigin(origin: string): HostParts | null {
 }
 
 export function needsOriginCheck(method: string, pathname: string): boolean {
-  if (pathname !== "/api" && !pathname.startsWith("/api/")) return false;
+  if (!isApiPath(pathname)) return false;
   if (!SAFE_METHODS.has(method.toUpperCase())) return true;
   return STATEFUL_GET_PATHS.has(pathname.replace(/\/+$/, ""));
 }
 
+function isApiPath(pathname: string): boolean {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
 export function isAllowedRequest(method: string, pathname: string, headers: HeaderReader): boolean {
-  if (!needsOriginCheck(method, pathname)) return true;
+  if (!isApiPath(pathname)) return true;
 
   const host = parseHost(headers.get("host") ?? "");
   if (!host || !LOCAL_HOSTNAMES.has(host.hostname)) return false;
+
+  if (!needsOriginCheck(method, pathname)) return true;
 
   if (headers.get("sec-fetch-site") === "cross-site") return false;
 
