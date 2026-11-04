@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { RuntimeMode, RuntimeResponse } from "@/lib/orca/runtime";
+import { OrcaWebPanel } from "./OrcaWebPanel";
 
 const POLL_MS = 15_000;
 
@@ -14,19 +15,25 @@ const OPTIONS: { key: SwitchTarget; label: string; hint: string }[] = [
 
 type RuntimeState =
   | { status: "loading" }
-  | { status: "ready"; mode: RuntimeMode }
+  | { status: "ready"; mode: RuntimeMode; webUrl: string | null }
   | { status: "switching"; mode: RuntimeMode; target: SwitchTarget };
 
-async function requestRuntime(init?: RequestInit): Promise<RuntimeMode> {
+interface RuntimeInfo {
+  mode: RuntimeMode;
+  webUrl: string | null;
+}
+
+async function requestRuntime(init?: RequestInit): Promise<RuntimeInfo> {
   const response = await fetch("/api/runtime", { cache: "no-store", ...init });
   const payload = (await response.json()) as RuntimeResponse;
   if (!payload.ok) throw new Error(payload.error);
-  return payload.mode;
+  return { mode: payload.mode, webUrl: payload.webUrl };
 }
 
 export function RuntimeSwitch() {
   const [state, setState] = useState<RuntimeState>({ status: "loading" });
   const [error, setError] = useState<string | null>(null);
+  const [webOpen, setWebOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,8 +41,8 @@ export function RuntimeSwitch() {
 
     const tick = async () => {
       try {
-        const mode = await requestRuntime();
-        if (!cancelled) setState((previous) => (previous.status === "switching" ? previous : { status: "ready", mode }));
+        const info = await requestRuntime();
+        if (!cancelled) setState((previous) => (previous.status === "switching" ? previous : { status: "ready", ...info }));
       } catch (pollError) {
         console.error("[runtime] poll failed", pollError);
       }
@@ -50,22 +57,23 @@ export function RuntimeSwitch() {
   }, []);
 
   const current = state.status === "loading" ? null : state.mode;
+  const webUrl = state.status === "ready" && state.mode === "headless" ? state.webUrl : null;
 
   const switchTo = async (target: SwitchTarget) => {
     if (state.status !== "ready" || state.mode === target) return;
     setError(null);
     setState({ status: "switching", mode: state.mode, target });
     try {
-      const mode = await requestRuntime({
+      const info = await requestRuntime({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: target }),
       });
-      setState({ status: "ready", mode });
+      setState({ status: "ready", ...info });
     } catch (switchError) {
       setError(switchError instanceof Error ? switchError.message : String(switchError));
-      const mode = await requestRuntime().catch(() => state.mode);
-      setState({ status: "ready", mode });
+      const info = await requestRuntime().catch(() => ({ mode: state.mode, webUrl: null }));
+      setState({ status: "ready", ...info });
     }
   };
 
@@ -94,8 +102,19 @@ export function RuntimeSwitch() {
           {state.status === "switching" && `${state.target === "app" ? "앱" : "헤드리스"}로 전환 중…`}
           {state.status === "ready" && state.mode === "off" && "Orca 꺼짐"}
         </span>
+        {webUrl && (
+          <button
+            type="button"
+            onClick={() => setWebOpen(true)}
+            title="Orca 앱 창 없이 같은 화면을 대시보드 안에서 엽니다"
+            className="ml-auto rounded-full bg-tint px-3 py-1 text-[12px] leading-none font-semibold text-muted hover:text-fg"
+          >
+            Orca 화면
+          </button>
+        )}
       </div>
       {error && <p className="text-[11px] leading-relaxed text-accent">{error}</p>}
+      {webUrl && webOpen && <OrcaWebPanel url={webUrl} onClose={() => setWebOpen(false)} />}
     </div>
   );
 }

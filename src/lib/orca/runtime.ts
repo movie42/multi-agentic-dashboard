@@ -1,5 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import { openSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -11,7 +12,9 @@ export const ORCA_BUNDLE_ID = "com.stablyai.orca";
 
 export type RuntimeMode = "app" | "headless" | "off";
 
-export type RuntimeResponse = { ok: true; mode: RuntimeMode } | { ok: false; error: string };
+export type RuntimeResponse =
+  | { ok: true; mode: RuntimeMode; webUrl: string | null }
+  | { ok: false; error: string };
 
 interface OrcaStatusRaw {
   app: { running: boolean; pid: number | null; desktopWindowStatus?: string };
@@ -86,12 +89,22 @@ async function stopServe(pid: number | null) {
   if (!stopped) throw new Error(`헤드리스 Orca(pid ${pid})가 종료되지 않았어요.`);
 }
 
+const SERVE_LOG = path.join(os.tmpdir(), "agent-control-orca-serve.log");
+const WEB_URL_LINE = /^Web client URL: (http:\/\/127\.0\.0\.1:\d+\/\S+)$/gm;
+
+// The log is appended across runs, so the last line belongs to the serve that is running now.
+export async function readWebClientUrl(): Promise<string | null> {
+  const log = await readFile(SERVE_LOG, "utf8").catch(() => "");
+  const matches = [...log.matchAll(WEB_URL_LINE)];
+  return matches.at(-1)?.[1] ?? null;
+}
+
 function startServe() {
-  const log = openSync(path.join(os.tmpdir(), "agent-control-orca-serve.log"), "a");
+  const log = openSync(SERVE_LOG, "a");
   const { ELECTRON_RUN_AS_NODE, PORT, HOSTNAME, ...rest } = process.env;
   const env: NodeJS.ProcessEnv = { ...rest, NODE_ENV: process.env.NODE_ENV };
   console.log("[runtime] starting orca serve", { ELECTRON_RUN_AS_NODE, PORT, HOSTNAME });
-  const child = spawn(ORCA_BIN, ["serve", "--no-pairing"], {
+  const child = spawn(ORCA_BIN, ["serve"], {
     detached: true,
     stdio: ["ignore", log, log],
     env,

@@ -1,12 +1,16 @@
 import { connection } from "next/server";
-import { readRuntime, switchRuntime, type RuntimeResponse } from "@/lib/orca/runtime";
+import { readRuntime, readWebClientUrl, switchRuntime, type RuntimeMode, type RuntimeResponse } from "@/lib/orca/runtime";
 
 let switching: Promise<unknown> | null = null;
+
+async function webUrlFor(mode: RuntimeMode) {
+  return mode === "headless" ? readWebClientUrl() : null;
+}
 
 export async function GET() {
   await connection();
   const { mode } = await readRuntime();
-  return Response.json({ ok: true, mode } satisfies RuntimeResponse);
+  return Response.json({ ok: true, mode, webUrl: await webUrlFor(mode) } satisfies RuntimeResponse);
 }
 
 export async function POST(request: Request) {
@@ -24,7 +28,7 @@ export async function POST(request: Request) {
   switching = task;
   try {
     const mode = await task;
-    return Response.json({ ok: true, mode } satisfies RuntimeResponse);
+    return Response.json({ ok: true, mode, webUrl: await webUrlFor(mode) } satisfies RuntimeResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[runtime]", target, message);
