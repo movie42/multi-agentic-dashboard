@@ -29,29 +29,20 @@ function clean(line: string): string {
 }
 
 export function parseChoicePrompt(lines: string[]): ChoicePrompt | null {
-  let end = -1;
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    if (OPTION_LINE.test(lines[index])) {
-      end = index;
-      break;
-    }
-  }
+  const end = lines.findLastIndex((line) => OPTION_LINE.test(line));
   if (end < 0) return null;
 
-  let start = end;
-  while (start > 0 && OPTION_LINE.test(lines[start - 1])) start -= 1;
+  const optionsAbove = lines.slice(0, end).reverse().findIndex((line) => !OPTION_LINE.test(line));
+  const start = optionsAbove < 0 ? 0 : end - optionsAbove;
 
-  const options: ChoiceOption[] = [];
-  for (let index = start; index <= end; index += 1) {
-    const match = lines[index].match(OPTION_LINE);
-    if (!match) continue;
-    options.push({ number: Number(match[2]), label: match[3].trim(), selected: Boolean(match[1]) });
-  }
+  const options: ChoiceOption[] = lines.slice(start, end + 1).flatMap((line) => {
+    const match = line.match(OPTION_LINE);
+    return match ? [{ number: Number(match[2]), label: match[3].trim(), selected: Boolean(match[1]) }] : [];
+  });
   if (options.length < 2 || !options.some((option) => option.selected)) return null;
 
   const above = lines.slice(0, start).map(clean);
-  let questionIndex = above.length - 1;
-  while (questionIndex >= 0 && (above[questionIndex] === "" || isFrame(above[questionIndex]))) questionIndex -= 1;
+  const questionIndex = above.findLastIndex((line) => line !== "" && !isFrame(line));
   const question = questionIndex >= 0 ? above[questionIndex] : null;
   const context = above
     .slice(Math.max(0, questionIndex - CONTEXT_LINES), Math.max(0, questionIndex))

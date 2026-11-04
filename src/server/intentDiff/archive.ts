@@ -113,7 +113,6 @@ export async function mergeArchive(
     return { events, completions: await completionsOf(events), restored: 0 };
   }
   const archive = await readArchive(location.file, location.repo);
-  let dirty = false;
 
   const transcriptIds = new Set(transcript.map((event) => event.id));
   const fromArchive: ToolEvent[] = [];
@@ -137,31 +136,23 @@ export async function mergeArchive(
   const events = [...byId.values()].sort((a, b) => a.at - b.at);
   const restored = fromArchive.filter((event) => !addedBySnapshots.has(event.id)).length;
 
-  for (const event of events) {
+  const changedEvents = events.flatMap((event) => {
     const stored = archive.events[event.id];
     const local = range.head === null ? range.worktreePath : (stored?.local ?? null);
-    if (!stored || stored.local !== local || (hasChanges(event) && !hasChanges(stored.event))) {
-      archive.events[event.id] = { event, local };
-      dirty = true;
-    }
-  }
+    const changed = !stored || stored.local !== local || (hasChanges(event) && !hasChanges(stored.event));
+    return changed ? [{ event, local }] : [];
+  });
+  changedEvents.forEach((entry) => {
+    archive.events[entry.event.id] = entry;
+  });
 
   const liveCompletions = await completionsOf(events);
-  const completions = new Map(liveCompletions);
-  if (taskFile) {
-    const storedTimes = archive.completions[taskFile] ?? {};
-    for (const [id, at] of Object.entries(storedTimes)) {
-      if (!completions.has(id)) completions.set(id, at);
-    }
-    for (const [id, at] of liveCompletions) {
-      if (storedTimes[id] === at) continue;
-      storedTimes[id] = at;
-      dirty = true;
-    }
-    archive.completions[taskFile] = storedTimes;
-  }
+  const storedTimes = taskFile ? (archive.completions[taskFile] ?? {}) : {};
+  const completions = new Map([...Object.entries(storedTimes), ...liveCompletions]);
+  const changedTimes = [...liveCompletions].filter(([id, at]) => storedTimes[id] !== at);
+  if (taskFile) archive.completions[taskFile] = { ...storedTimes, ...Object.fromEntries(changedTimes) };
 
-  if (dirty) {
+  if (changedEvents.length > 0 || changedTimes.length > 0) {
     try {
       await mkdir(ARCHIVE_DIR, { recursive: true });
       const temp = `${location.file}.${process.pid}.${Date.now()}.tmp`;

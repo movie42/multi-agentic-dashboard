@@ -5,10 +5,12 @@ const SPECIFIER = /(?:from\s+|import\s*\(\s*|require\s*\(\s*|^\s*import\s+)["'](
 const EXTENSIONS = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", "/index.ts", "/index.tsx", "/index.js"];
 
 export function resolveImport(from: string, specifier: string, files: Set<string>): string | null {
-  let base: string;
-  if (specifier.startsWith("@/")) base = `src/${specifier.slice(2)}`;
-  else if (specifier.startsWith(".")) base = path.posix.join(path.posix.dirname(from), specifier);
-  else return null;
+  const base = specifier.startsWith("@/")
+    ? `src/${specifier.slice(2)}`
+    : specifier.startsWith(".")
+      ? path.posix.join(path.posix.dirname(from), specifier)
+      : null;
+  if (base === null) return null;
   for (const extension of EXTENSIONS) {
     if (files.has(base + extension)) return base + extension;
   }

@@ -34,12 +34,13 @@ export function mergeSnapshots(events: ToolEvent[], steps: SnapshotStep[]): Tool
   const merged = [...events];
   for (const step of steps) {
     const { record } = step;
-    let event = record.toolUseId ? byId.get(record.toolUseId) : undefined;
-    if (!event && record.sessionId) {
-      event = [...events]
-        .reverse()
-        .find((candidate) => candidate.sessionId === record.sessionId && candidate.at <= record.at && candidate.tool === record.tool);
-    }
+    const event =
+      (record.toolUseId ? byId.get(record.toolUseId) : undefined) ??
+      (record.sessionId
+        ? [...events]
+            .reverse()
+            .find((candidate) => candidate.sessionId === record.sessionId && candidate.at <= record.at && candidate.tool === record.tool)
+        : undefined);
     if (event) {
       event.changes = step.changes;
       continue;
@@ -129,16 +130,14 @@ function shellMentions(events: ToolEvent[], files: FileDiff[]): Map<string, Tool
 function findOwner(hunk: Hunk, events: ToolEvent[], mentions: Map<string, ToolEvent[]>): Owner | null {
   const { added, removed } = changedLines(hunk);
   const pick = (lines: string[]) => lines.filter(significant).map(normalize);
-  let needles = pick(added);
-  let side: "added" | "removed" = "added";
-  if (needles.length === 0) {
-    needles = pick(removed);
-    side = "removed";
-  }
-  if (needles.length === 0) {
-    needles = added.map(normalize).filter(Boolean);
-    side = "added";
-  }
+  const fromAdded = pick(added);
+  const fromRemoved = pick(removed);
+  const [needles, side]: [string[], "added" | "removed"] =
+    fromAdded.length > 0
+      ? [fromAdded, "added"]
+      : fromRemoved.length > 0
+        ? [fromRemoved, "removed"]
+        : [added.map(normalize).filter(Boolean), "added"];
 
   const touching = events.filter((event) => event.changes[hunk.file]);
   if (needles.length > 0 && touching.length > 0) {
@@ -148,14 +147,11 @@ function findOwner(hunk: Hunk, events: ToolEvent[], mentions: Map<string, ToolEv
       const writer = [...sets].reverse().find((entry) => entry.lines.has(needle));
       if (writer) votes.set(writer.event, (votes.get(writer.event) ?? 0) + 1);
     }
-    let best: ToolEvent | null = null;
-    let bestVotes = 0;
-    for (const [event, count] of votes) {
-      if (count > bestVotes || (count === bestVotes && best && event.at > best.at)) {
-        best = event;
-        bestVotes = count;
-      }
-    }
+    const best =
+      [...votes].reduce<[ToolEvent, number] | null>(
+        (top, entry) => (!top || entry[1] > top[1] || (entry[1] === top[1] && entry[0].at > top[0].at) ? entry : top),
+        null,
+      )?.[0] ?? null;
     if (best) {
       const precision = best.changes[hunk.file].precision;
       return { event: best, precision };
@@ -196,23 +192,25 @@ function titleOf(event: ToolEvent): string {
 class GroupBuilder {
   private groups = new Map<string, IntentGroup & { events: Set<ToolEvent> }>();
 
+  private create(key: string, event: ToolEvent): IntentGroup & { events: Set<ToolEvent> } {
+    const group = {
+      id: key,
+      title: titleOf(event),
+      source: sourceOf(event),
+      notes: [],
+      sessionId: event.sessionId,
+      startedAt: event.at,
+      hunks: [],
+      outsidePlanFiles: [],
+      events: new Set<ToolEvent>(),
+    };
+    this.groups.set(key, group);
+    return group;
+  }
+
   add(key: string, owner: Owner, hunk: Hunk): IntentGroup {
-    let group = this.groups.get(key);
     const { event } = owner;
-    if (!group) {
-      group = {
-        id: key,
-        title: titleOf(event),
-        source: sourceOf(event),
-        notes: [],
-        sessionId: event.sessionId,
-        startedAt: event.at,
-        hunks: [],
-        outsidePlanFiles: [],
-        events: new Set(),
-      };
-      this.groups.set(key, group);
-    }
+    const group = this.groups.get(key) ?? this.create(key, event);
     if (!group.events.has(event)) {
       group.events.add(event);
       group.startedAt = Math.min(group.startedAt, event.at);
@@ -345,41 +343,36 @@ export function attribute(
     return { ...group, hunks };
   };
 
-  let planView: PlanView | null = null;
-  const missing: MissingItem[] = [];
-  if (plan) {
-    planView = {
-      taskKey: plan.taskKey,
-      title: plan.title,
-      phases: plan.phases.map((phase) => ({
-        id: phase.id,
-        title: phase.title,
-        items: phase.items.map((item) => {
-          const groups = (perItem.get(item.id)?.list() ?? []).map((group) => {
-            const outside = [...(outsideByGroup.get(group.id) ?? [])];
-            return sortHunks({ ...group, outsidePlanFiles: outside });
-          });
-          if (groups.length === 0) missing.push({ id: item.id, title: item.title, done: item.done, sharedWith: null });
-          return { ...item, completedAt: completions.get(item.id) ?? null, groups };
-        }),
-      })),
-    };
-    // A file listed by two items is placed once; name the item that holds it instead of calling
-    // the other one empty.
-    const items = planView.phases.flatMap((phase) => phase.items);
-    for (const entry of missing) {
-      const hints = plan.phases.flatMap((phase) => phase.items).find((item) => item.id === entry.id)?.files ?? [];
-      const holder = items.find((item) =>
-        item.groups.some((group) =>
-          group.hunks.some((ref) => {
-            const file = hunkById.get(ref.hunkId)?.file;
-            return file !== undefined && hints.some((hint) => matchesHint(file, hint));
+  const planView: PlanView | null = plan
+    ? {
+        taskKey: plan.taskKey,
+        title: plan.title,
+        phases: plan.phases.map((phase) => ({
+          id: phase.id,
+          title: phase.title,
+          items: phase.items.map((item) => {
+            const groups = (perItem.get(item.id)?.list() ?? []).map((group) => {
+              const outside = [...(outsideByGroup.get(group.id) ?? [])];
+              return sortHunks({ ...group, outsidePlanFiles: outside });
+            });
+            return { ...item, completedAt: completions.get(item.id) ?? null, groups };
           }),
-        ),
-      );
-      entry.sharedWith = holder?.id ?? null;
-    }
-  }
+        })),
+      }
+    : null;
+  const items = planView?.phases.flatMap((phase) => phase.items) ?? [];
+  const holderOf = (hints: string[]) =>
+    items.find((item) =>
+      item.groups.some((group) =>
+        group.hunks.some((ref) => {
+          const file = hunkById.get(ref.hunkId)?.file;
+          return file !== undefined && hints.some((hint) => matchesHint(file, hint));
+        }),
+      ),
+    )?.id ?? null;
+  const missing: MissingItem[] = items
+    .filter((item) => item.groups.length === 0)
+    .map((item) => ({ id: item.id, title: item.title, done: item.done, sharedWith: holderOf(item.files) }));
 
   return {
     plan: planView,
