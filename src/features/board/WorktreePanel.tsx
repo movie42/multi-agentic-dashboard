@@ -13,6 +13,7 @@ import type {
 import type { BoardGroups } from "./classify";
 import { AgentList } from "./AgentList";
 import { Stepper } from "./Stepper";
+import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "./WorktreeWizard";
 
 interface WorktreePanelProps {
   worktree: WorktreeSummary;
@@ -74,6 +75,7 @@ export function WorktreePanel({
 }: WorktreePanelProps) {
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
+  const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
   const all = [...groups.needsMe, ...groups.working, ...groups.resting];
   const listed = activeFilter ? groups[activeFilter] : all;
@@ -205,6 +207,14 @@ export function WorktreePanel({
           >
             변경 읽기
           </a>
+          <button
+            type="button"
+            onClick={wizard.open}
+            title="에이전트가 어떤 작업인지 묻고, 이 브랜치에서 새 워크트리를 만들어요"
+            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+          >
+            여기서 워크트리
+          </button>
         </p>
         {childLinks.length > 0 && (
           <div className="mt-4 text-[13px]">
@@ -244,6 +254,7 @@ export function WorktreePanel({
       </div>
 
       <div className="flex min-w-0 flex-col gap-6">
+        <WorktreeWizardPanel wizard={wizard} />
         {worktree.flowTasks.length === 0 ? (
           <p className="text-[14px] text-muted">
             진행 중인 flow 작업 문서가 없어요.

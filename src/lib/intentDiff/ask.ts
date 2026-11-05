@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { open, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { CLAUDE_BIN } from "@/lib/claude/bin";
 import { saveThread } from "./askStore";
 import type { AskAnchor, AskContext, AskEvent, AskThread, AskTurn } from "./types";
 
@@ -12,13 +12,6 @@ const HEAD_BYTES = 64 * 1024;
 const TIMEOUT_MS = 10 * 60_000;
 const MAX_DIFF = 20_000;
 
-// The desktop app starts without the login shell's PATH, so the usual install places are tried.
-const CLAUDE_BIN =
-  process.env.CLAUDE_BIN ??
-  [path.join(homedir(), ".local", "bin", "claude"), "/opt/homebrew/bin/claude", "/usr/local/bin/claude"].find((file) =>
-    existsSync(file),
-  ) ??
-  "claude";
 
 // Read-only tools, and no MCP servers: connectors such as Jira or Slack can write.
 const COMMON_ARGS = [

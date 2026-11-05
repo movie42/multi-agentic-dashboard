@@ -17,6 +17,7 @@ import { CommandPalette } from "./CommandPalette";
 import { FeatureGroup } from "./FeatureGroup";
 import { FocusChips, FocusToggle } from "./FocusControls";
 import { LaunchAgent } from "./LaunchAgent";
+import { ProjectWorktreeWizard } from "./WorktreeWizard";
 import { ProjectSidebar, type ProjectCounts } from "./ProjectSidebar";
 import { AgentList } from "./AgentList";
 import { RuntimeSwitch } from "./RuntimeSwitch";
@@ -550,6 +551,7 @@ function ProjectView({
           worktree {worktrees.length}개 ·{" "}
           {mode === "company" ? "회사 워크플로" : "개인 워크플로"}
         </p>
+        {worktrees[0] && <ProjectWorktreeWizard key={repo} anchor={worktrees[0]} />}
         <div className="mt-6">
           <LaunchAgent key={repo} worktrees={worktrees} showRepo={false} />
         </div>
