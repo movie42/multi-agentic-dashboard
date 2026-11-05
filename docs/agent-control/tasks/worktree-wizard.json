@@ -233,7 +233,7 @@
    "status": "done",
    "summary": "구현 완료 · 터미널 스킬 실사용만 남음",
    "conclusion": [
-    "전역 스킬 <code>~/.claude/skills/orca-worktree</code>가 절차를 갖고, 대시보드는 같은 스킬을 claude -p로 불러요 [[P1]].",
+    "절차는 저장소의 <code>skills/orca-worktree</code>가 갖고 <code>bun run skills:install</code>이 <code>~/.claude/skills/</code>로 복사해요. 대시보드는 같은 스킬을 claude -p로 불러요 [[P1]].",
     "에이전트는 도구 없이 질문 또는 구성안 JSON만 돌려주고, 생성은 '만들기'를 누른 뒤 서버가 <code>orca worktree create</code>로 해요 [[P2]] [[P3]].",
     "버튼은 워크트리 패널의 '여기서 워크트리'와 프로젝트 머리글의 '새 워크트리' 두 곳이에요 [[P4]].",
     "터미널에서 /orca-worktree로 직접 만드는 경로는 아직 써 보지 않았어요 [[P1-V]]."
@@ -242,7 +242,7 @@
     {
      "type": "checklist",
      "id": "P1",
-     "title": "Phase 1 · 전역 스킬 orca-worktree",
+     "title": "Phase 1 · 저장소 스킬 orca-worktree",
      "items": [
       {
        "id": "P1-1",
