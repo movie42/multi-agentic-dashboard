@@ -1,6 +1,6 @@
-const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const STATEFUL_GET_PATHS = new Set(["/api/board"]);
-const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "localhost"]);
+const SAFE_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
+const STATEFUL_GET_PATHS: ReadonlySet<string> = new Set(["/api/board"]);
+const LOCAL_HOSTNAMES: ReadonlySet<string> = new Set(["127.0.0.1", "localhost"]);
 
 interface HeaderReader {
   get(name: string): string | null;

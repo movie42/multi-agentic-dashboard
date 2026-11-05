@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isAllowedRequest } from "@/lib/security/origin";
+import { isAllowedRequest } from "@/server/security/origin";
 
 export function proxy(request: NextRequest) {
   if (isAllowedRequest(request.method, request.nextUrl.pathname, request.headers)) return NextResponse.next();

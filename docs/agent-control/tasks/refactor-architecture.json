@@ -596,7 +596,7 @@
       "status": "now",
       "summary": "질문 3라운드 반영 완료 — 승인 대기",
       "conclusion": [
-        "Phase 0(요청 출처 검사)은 별도 세션이 <code>fix/api-origin-check</code>에 끝냈어요. push·PR은 아직이고, 이 브랜치와 합칠 때 <code>src/proxy.ts</code>는 루트 <code>proxy.ts</code>로, <code>@/lib/security/origin</code>은 <code>src/server</code> 쪽으로 옮겨야 해요.",
+        "Phase 0(요청 출처 검사)을 이 브랜치에 머지했어요. <code>proxy.ts</code>는 루트, 판정 함수는 <code>src/server/security/origin.ts</code>예요.",
         "Phase 1–6 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19, 타입·lint 규칙 고정.",
         "남은 빌드 경고: <code>editorTheme.ts</code>가 실행 시점 경로를 읽어 Turbopack이 프로젝트 전체 추적을 경고해요."
       ],
@@ -625,7 +625,11 @@
                 ],
                 [
                   "브랜치",
-                  "<code>fix/api-origin-check</code> (main에서 분기, 별도 세션) · <code>fce1aea</code> <code>7562737</code> · push·PR 전"
+                  "<code>fix/api-origin-check</code> (main에서 분기, 별도 세션) · <code>fce1aea</code> <code>7562737</code> · 이 브랜치에 머지(<code>ce75e2f</code>)"
+                ],
+                [
+                  "머지 후",
+                  "라우트가 루트 <code>app/</code>로 옮겨져 <code>proxy.ts</code>는 루트로, 판정 함수는 <code>src/server/security/origin.ts</code>로 이동. 단위 테스트 <code>origin.test.ts</code> 추가. 빌드에서 Proxy로 인식 확인"
                 ]
               ]
             },
