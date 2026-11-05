@@ -196,12 +196,38 @@ function threadsIn(threads: AskThread[], symbol: FlowSymbol): AskThread[] {
   );
 }
 
+function threadsInHunk(threads: AskThread[], entry: HunkEntry): AskThread[] {
+  const lines = new Set(entry.hunk.lines.flatMap((line) => (line.newNo === null ? [] : [line.newNo])));
+  return threads.filter(({ anchor }) => anchor.kind === "lines" && anchor.file === entry.file.file && lines.has(anchor.endLine));
+}
+
 function useFlowThreadCount(flow: ItemFlow | undefined, data: FlowData): number {
   const threads = use(AskBoardContext)?.threads ?? [];
+  const lookup = use(HunkLookup);
   const ids = new Set<string>();
+  const add = (found: AskThread[]) => found.forEach((thread) => ids.add(thread.id));
   for (const step of flow?.steps ?? []) {
     const symbol = data.symbols[step.symbolId];
-    if (step.kind === "own" && symbol) for (const thread of threadsIn(threads, symbol)) ids.add(thread.id);
+    if (step.kind === "own" && symbol) add(threadsIn(threads, symbol));
+  }
+  for (const id of flow?.types ?? []) {
+    const symbol = data.symbols[id];
+    if (symbol) add(threadsIn(threads, symbol));
+  }
+  for (const ref of flow?.rest ?? []) {
+    const entry = lookup.get(ref.hunkId);
+    if (entry) add(threadsInHunk(threads, entry));
+  }
+  return ids.size;
+}
+
+function useHunkThreadCount(refs: { hunkId: string }[]): number {
+  const threads = use(AskBoardContext)?.threads ?? [];
+  const lookup = use(HunkLookup);
+  const ids = new Set<string>();
+  for (const ref of refs) {
+    const entry = lookup.get(ref.hunkId);
+    if (entry) threadsInHunk(threads, entry).forEach((thread) => ids.add(thread.id));
   }
   return ids.size;
 }
@@ -264,6 +290,9 @@ interface ResultProps {
 }
 
 function Toc({ result }: ResultProps) {
+  const unplannedCount = useFlowThreadCount(result.flow.flows.unplanned, result.flow);
+  const mechanicalCount = useHunkThreadCount(result.mechanical);
+  const unknownCount = useHunkThreadCount(result.unknown);
   return (
     <div className="flex flex-col gap-4">
       {result.plan ? (
@@ -279,19 +308,22 @@ function Toc({ result }: ResultProps) {
         <FlowLinks flow={result.flow.flows["*"]} data={result.flow} />
       )}
       <div className="flex flex-col gap-0.5 border-t border-hair pt-3">
-        <a href="#bucket-unplanned" className={result.unplanned.length > 0 ? "font-semibold text-ask" : "text-muted"}>
-          계획 밖 변경 {result.unplanned.length}
+        <a href="#bucket-unplanned" className={`flex items-center gap-1.5 ${result.unplanned.length > 0 ? "font-semibold text-ask" : "text-muted"}`}>
+          <span className="truncate">계획 밖 변경 {result.unplanned.length}</span>
+          <AskBadge count={unplannedCount} />
         </a>
         {result.plan && (
           <a href="#bucket-missing" className={result.missing.length > 0 ? "font-semibold text-ask" : "text-muted"}>
             계획했는데 변경 없음 {result.missing.length}
           </a>
         )}
-        <a href="#bucket-mechanical" className="text-muted">
-          기계적 변경 {result.mechanical.length}
+        <a href="#bucket-mechanical" className="flex items-center gap-1.5 text-muted">
+          <span className="truncate">기계적 변경 {result.mechanical.length}</span>
+          <AskBadge count={mechanicalCount} />
         </a>
-        <a href="#bucket-unknown" className="text-muted">
-          의도 미상 {result.unknown.length}
+        <a href="#bucket-unknown" className="flex items-center gap-1.5 text-muted">
+          <span className="truncate">의도 미상 {result.unknown.length}</span>
+          <AskBadge count={unknownCount} />
         </a>
       </div>
     </div>

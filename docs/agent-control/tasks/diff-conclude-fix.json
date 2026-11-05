@@ -43,7 +43,15 @@
                   "label": "마지막 답변을 그대로 결론으로 씀"
                 }
               ],
-              "recommended": "draft"
+              "recommended": "draft",
+              "answer": {
+                "choice": "draft",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q2",
@@ -62,7 +70,15 @@
                   "label": "결론이 있으면 전부 보냄 (고칠 필요 없으면 결론에 그렇게 씀)"
                 }
               ],
-              "recommended": "flag"
+              "recommended": "flag",
+              "answer": {
+                "choice": "",
+                "why": "",
+                "note": "고르지 않아도 고치거나 고치지 않는걸 판단할수는 없을까?",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q3",
@@ -81,7 +97,15 @@
                   "label": "확인 없이 이 diff의 결론 전부 바로 보냄"
                 }
               ],
-              "recommended": "confirm"
+              "recommended": "confirm",
+              "answer": {
+                "choice": "confirm",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q4",
@@ -106,7 +130,15 @@
                   "재사용",
                   "<code>src/client/features/launch-agent</code> · 액션 <code>launch-agent</code>(<code>src/common/actions/schema.ts</code>)"
                 ]
-              ]
+              ],
+              "answer": {
+                "choice": "same",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q5",
@@ -114,7 +146,15 @@
               "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "'수정하기'를 두 번 누르면 같은 지시가 두 번 갈 수 있어요. 보낸 결론을 표시해 두면 중복을 막고, 어떤 질문이 이미 반영됐는지 diff에서 바로 보여요.",
               "body": "결론을 보낸 스레드에 '수정 보냄' 표시와 보낸 시각, 수정 세션 이름을 남기고, 다음 '수정하기'에서는 기본으로 빼는 방식이 있어요. 표시하지 않으면 매번 전부 다시 보내요.",
-              "recommendation": "보낸 스레드는 '수정 보냄'으로 표시하고 접어 두며, 다음 '수정하기'에서는 새 결론만 보내기를 추천해요. 결론을 다시 고치면 다시 보낼 대상이 돼요."
+              "recommendation": "보낸 스레드는 '수정 보냄'으로 표시하고 접어 두며, 다음 '수정하기'에서는 새 결론만 보내기를 추천해요. 결론을 다시 고치면 다시 보낼 대상이 돼요.",
+              "answer": {
+                "choice": "yes",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q6",
@@ -137,7 +177,15 @@
                   "label": "이름 + 코드 + 계획 항목 + 질문·답변"
                 }
               ],
-              "recommended": "all"
+              "recommended": "all",
+              "answer": {
+                "choice": "all",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q7",
@@ -156,7 +204,15 @@
                   "label": "화면 안 강조 + 다음 · 이전 이동"
                 }
               ],
-              "recommended": "list"
+              "recommended": "list",
+              "answer": {
+                "choice": "list",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             }
           ]
         }
@@ -185,5 +241,6 @@
       "state": "guess",
       "basis": "사용자 요청"
     }
-  ]
+  ],
+  "pulledAt": 1793877011842
 }
