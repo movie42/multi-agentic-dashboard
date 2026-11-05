@@ -626,8 +626,8 @@
               },
               "decision": "①로 가되, <code>app/</code> 안에서도 파일 종류에 따라 import 범위를 나눠요. 화면 파일(<code>app/**/page.tsx</code> · <code>layout.tsx</code> · <code>providers.tsx</code>)은 화면을 조립하는 입구라서 <code>@/client/views</code>와 <code>@/client/shared/ui</code>를 import하고, 첫 화면 데이터를 읽으려고 <code>@/server/container</code> · <code>@/common</code>도 import해요. API 라우트(<code>app/api/**/route.ts</code>)는 브라우저 코드를 쓸 일이 없어서 <code>@/server/container</code> · <code>@/common</code>만 import해요. <code>@/client/features</code> · <code>widgets</code> · <code>entities</code>는 화면 파일에서도 막아서, 조립은 views 안에서만 일어나게 해요. 폴더 이름은 바꾸지 않아요. 선택지 ①의 설명이 화면 파일을 빠뜨려 views까지 막는 것처럼 적혀 있었던 걸 바로잡은 거예요.",
               "reason": {
-                "text": "page는 client의 views를 그려야 하니 규칙이 그걸 막으면 안 된다. 이름은 그대로 두고 lint 규칙으로 입구의 역할을 드러내는 편이 낫다.",
-                "by": "inferred"
+                "text": "page는 client의 views를 그려야 하니 규칙이 그걸 막으면 안 된다. 이름은 그대로 두고 lint 규칙으로 입구의 역할을 드러내는 편이 낫다. ([[R5-Q1]]에서 a로 확인)",
+                "by": "user"
               },
               "appliedTo": "[[P7-2]]"
             }
@@ -655,16 +655,29 @@
                   "label": "app/ 전체를 한 규칙으로 (container · common · views · shared/ui)"
                 }
               ],
-              "recommended": "a"
+              "recommended": "a",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "[[R4-Q1]]의 규칙을 그대로 확정해요. API 라우트는 <code>@/server/container</code> · <code>@/common</code>만, 화면 파일은 여기에 <code>@/client/views</code> · <code>@/client/shared/ui</code>까지 import해요. 라우트가 브라우저 코드를 불러 서버 번들에 React 컴포넌트가 섞이는 걸 lint가 잡게 돼요.",
+              "reason": {
+                "text": "추정한 이유(page는 views를 그려야 하고, 이름 대신 lint로 역할을 드러낸다)가 맞다고 확인했다.",
+                "by": "user"
+              },
+              "appliedTo": "[[P7-2]]"
             }
           ]
         }
       ],
-      "status": "ask"
+      "status": "done"
     },
     "tasks": {
       "status": "done",
-      "summary": "질문 3라운드 반영 완료 — 승인 대기",
+      "summary": "질문 5라운드 반영 완료 — P7 승인 대기",
       "conclusion": [
         "Phase 0(요청 출처 검사)을 이 브랜치에 머지했어요. <code>proxy.ts</code>는 루트, 판정 함수는 <code>src/server/security/origin.ts</code>예요.",
         "Phase 1–7 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19, 타입·lint 규칙 고정, <code>app/</code>을 얇은 입구로.",
@@ -1276,7 +1289,7 @@
                 ],
                 [
                   "결정",
-                  "[[R4-Q1]] <code>app/</code>·<code>proxy.ts</code>는 <code>@/server/container</code>·<code>@/server/security</code>·<code>@/common</code>·<code>@/client/views</code>·<code>@/client/shared/ui</code>만. 임시 파일로 server 내부·client widgets import가 에러로 잡히는지 확인"
+                  "[[R4-Q1]] [[R5-Q1]] 화면 파일(<code>app/**</code>)은 <code>@/server/container</code> · <code>@/common</code> · <code>@/client/views</code> · <code>@/client/shared/ui</code>, API 라우트(<code>app/api/**</code>)는 <code>@/server/container</code> · <code>@/common</code>만, <code>proxy.ts</code>는 <code>@/server/security</code>만. 임시 파일로 라우트의 client import, server 내부 import가 에러로 잡히는지 확인"
                 ]
               ]
             },
@@ -1328,5 +1341,5 @@
       ]
     }
   ],
-  "pulledAt": 1793877235206
+  "pulledAt": 1793877528728
 }

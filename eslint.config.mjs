@@ -60,6 +60,8 @@ const strictness = {
 
 const testFiles = ["**/*.test.ts", "**/*.test.tsx", "test/**", "e2e/**"];
 
+const appServerMessage = "app/ is the HTTP entry: call services() from @/server/container; move server internals behind a service method.";
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -72,12 +74,20 @@ const eslintConfig = defineConfig([
   ),
   ...layerRules,
   restrict(
-    ["app/**", "proxy.ts"],
+    ["app/**"],
     [
-      { group: ["@/server/*", "!@/server/container", "!@/server/security", "!@/server/security/*"], message: "app/ is the HTTP entry: call services() from @/server/container; move server internals behind a service method." },
-      { group: ["@/client/*", "!@/client/views", "!@/client/views/*", "!@/client/shared", "!@/client/shared/ui", "!@/client/shared/ui/*"], message: "app/ assembles pages from @/client/views and app-wide pieces in @/client/shared/ui only." },
+      { group: ["@/server/*", "!@/server/container"], message: appServerMessage },
+      { group: ["@/client/*", "!@/client/views", "!@/client/views/*", "!@/client/shared", "!@/client/shared/ui", "!@/client/shared/ui/*"], message: "Page files assemble @/client/views and app-wide pieces in @/client/shared/ui only." },
     ],
   ),
+  restrict(
+    ["app/api/**"],
+    [
+      { group: ["@/server/*", "!@/server/container"], message: appServerMessage },
+      { group: ["@/client", "@/client/*"], message: "API routes never import browser code; it would land in the server bundle." },
+    ],
+  ),
+  restrict(["proxy.ts"], [{ group: ["@/server/*", "!@/server/security", "!@/server/security/*"], message: "proxy.ts only runs the request checks in @/server/security." }]),
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "dist/**", "e2e/.tmp/**"]),
 ]);
 
