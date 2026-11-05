@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SymbolLocation, SymbolLookup, SymbolLookupResponse } from "@/lib/intentDiff/types";
 import type { SymbolTarget } from "./CodeLines";
 
@@ -48,7 +48,8 @@ function useSymbolLookup(worktreePath: string, rev: string | null, target: Symbo
 function lineOnPage(location: SymbolLocation): HTMLElement | null {
   if (location.external) return null;
   const selector = `[data-file="${CSS.escape(location.file)}"] tr[data-new="${location.line}"]`;
-  return document.querySelector<HTMLElement>(selector);
+  // A row inside a closed <details> or another tab is in the DOM but has no box to scroll to.
+  return [...document.querySelectorAll<HTMLElement>(selector)].find((row) => row.getClientRects().length > 0) ?? null;
 }
 
 interface LocationRowProps {
@@ -57,6 +58,15 @@ interface LocationRowProps {
 
 function LocationRow({ location }: LocationRowProps) {
   const [open, setOpen] = useState(false);
+  const snippetRef = useRef<HTMLPreElement>(null);
+  const targetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const box = snippetRef.current;
+    const target = targetRef.current;
+    if (!open || !box || !target) return;
+    box.scrollTop = target.offsetTop - box.clientHeight / 3;
+  }, [open]);
 
   const show = () => {
     const element = lineOnPage(location);
@@ -81,12 +91,16 @@ function LocationRow({ location }: LocationRowProps) {
         )}
       </button>
       {open && (
-        <pre className="mx-2 mb-2 overflow-x-auto rounded-md bg-tint px-2 py-1.5 font-mono text-[11px] leading-[1.6]">
+        <pre ref={snippetRef} className="relative mx-2 mb-2 max-h-[60vh] overflow-auto rounded-md bg-tint px-2 py-1.5 font-mono text-[11px] leading-[1.6]">
           {location.snippet.lines.map((text, index) => {
             const lineNo = location.snippet.startLine + index;
             const html = location.snippet.html?.[index];
             return (
-              <div key={lineNo} className={`flex ${lineNo === location.line ? "font-semibold text-fg" : "text-muted"}`}>
+              <div
+                key={lineNo}
+                ref={lineNo === location.line ? targetRef : undefined}
+                className={`flex ${lineNo === location.line ? "bg-ask/15 font-semibold text-fg" : "text-muted"}`}
+              >
                 <span className="mr-3 inline-block w-8 shrink-0 text-right text-faint select-none">{lineNo}</span>
                 {html !== undefined ? <span className={CODE_COLORS} dangerouslySetInnerHTML={{ __html: html }} /> : text}
               </div>
@@ -160,7 +174,7 @@ export function SymbolPanel({ worktreePath, rev, target, onClose }: SymbolPanelP
                 </ul>
               )}
             </section>
-            <p className="px-2 text-[11px] text-faint">줄을 누르면 이 화면에 있는 코드면 그 자리로 가고, 없으면 주변 코드를 펼쳐요.</p>
+            <p className="px-2 text-[11px] text-faint">줄을 누르면 이 화면에 있는 코드면 그 자리로 가고, 없으면 그 줄이 든 함수·타입 전체를 펼쳐요.</p>
           </div>
         )}
       </div>
