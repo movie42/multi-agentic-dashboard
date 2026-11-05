@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentCard, BoardSnapshot } from "@/common/orca/types";
 import { StateBadge } from "@/client/entities/agent";
+import { openAncestors } from "@/client/shared/lib/openAncestors";
 
 type PaletteItem =
   | { kind: "nav"; key: string; label: string; hint: string; run: () => void }
@@ -23,13 +24,6 @@ interface CommandPaletteProps {
   board: BoardSnapshot;
   onSelectRepo: (repo: string | null) => void;
   onOpenSessions: () => void;
-}
-
-function openAncestors(element: Element | null) {
-  const details = element?.closest("details");
-  if (!details) return;
-  details.open = true;
-  openAncestors(details.parentElement);
 }
 
 function focusCard(agentId: string, attempts = 20) {

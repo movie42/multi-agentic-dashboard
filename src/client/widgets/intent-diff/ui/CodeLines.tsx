@@ -4,6 +4,7 @@ import { createContext, Fragment, use, useEffect, useRef, useState } from "react
 import type { AskAnchor, AskContext, DiffLine } from "@/common/intentDiff/types";
 import { AskDraft, AskPlanItem, AskStepContext, ThreadView } from "@/client/features/ask-about-diff";
 import { AskBoardContext } from "@/client/features/ask-about-diff";
+import type { LineTarget } from "../model/searchIndex";
 
 const CONTEXT_AROUND = 2;
 const FOLD_MIN = 6;
@@ -18,6 +19,9 @@ export interface SymbolTarget {
 
 /** Called when an identifier in the code is clicked; the page opens the symbol panel. */
 export const SymbolClick = createContext<((target: SymbolTarget) => void) | null>(null);
+
+/** The line a search picked; every view of its file opens the fold holding it and marks the row. */
+export const SearchFocus = createContext<{ line: LineTarget; nonce: number } | null>(null);
 
 const ROW_STYLE = { add: "bg-done/10", del: "bg-accent/10", ctx: "" } as const;
 const MARK = { add: "+", del: "−", ctx: " " } as const;
@@ -73,6 +77,7 @@ interface CodeLinesProps {
 export function CodeLines({ file, lines }: CodeLinesProps) {
   const onSymbol = use(SymbolClick);
   const board = use(AskBoardContext);
+  const focus = use(SearchFocus);
   const step = use(AskStepContext);
   const planItem = use(AskPlanItem);
   const [pick, setPick] = useState<Pick | null>(null);
@@ -95,7 +100,12 @@ export function CodeLines({ file, lines }: CodeLinesProps) {
   const [opened, setOpened] = useState<Set<number>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const rows = foldRows(lines);
-  const limit = showAll ? Infinity : LONG_ADDED;
+  const focusLine =
+    focus && focus.line.file === file
+      ? lines.find((line) => (focus.line.side === "new" ? line.newNo : line.oldNo) === focus.line.line)
+      : undefined;
+  const focusRow = focusLine ? rows.findIndex((row) => (row.type === "fold" ? row.lines.includes(focusLine) : row.line === focusLine)) : -1;
+  const limit = showAll || focusRow >= LONG_ADDED ? Infinity : LONG_ADDED;
   const visible = rows.slice(0, limit);
   const hidden = rows.length - visible.length;
 
@@ -140,7 +150,7 @@ export function CodeLines({ file, lines }: CodeLinesProps) {
       <table className="w-full border-collapse font-mono text-[12px] leading-[1.6] [&_span]:text-(color:--shiki-light) dark:[&_span]:text-(color:--shiki-dark) [&_.sym]:cursor-pointer [&_.sym:hover]:underline">
         <tbody onClick={handleClick}>
           {visible.map((row, index) => {
-            if (row.type === "fold" && !opened.has(index)) {
+            if (row.type === "fold" && !opened.has(index) && index !== focusRow) {
               return (
                 <tr key={index}>
                   <td colSpan={3} />
@@ -182,7 +192,11 @@ export function CodeLines({ file, lines }: CodeLinesProps) {
               const threads = threadsAt(line);
               return (
                 <Fragment key={`${index}-${offset}`}>
-                  <tr data-new={line.kind === "del" ? undefined : (line.newNo ?? undefined)} className={picked ? "bg-now/10" : ROW_STYLE[line.kind]}>
+                  <tr
+                    data-new={line.kind === "del" ? undefined : (line.newNo ?? undefined)}
+                    data-search-hit={line === focusLine && focus ? focus.nonce : undefined}
+                    className={`${picked ? "bg-now/10" : ROW_STYLE[line.kind]} ${line === focusLine ? "outline-2 -outline-offset-2 outline-now" : ""}`}
+                  >
                     <td className={numberCell} {...numberEvents} title={board ? "눌러서 이 줄 묻기 · 끌거나 Shift로 범위" : undefined}>
                       {line.oldNo ?? ""}
                     </td>

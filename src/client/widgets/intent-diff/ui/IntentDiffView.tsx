@@ -3,7 +3,9 @@
 import { use, useState } from "react";
 import type { AskThread, FlowData, FlowSymbol, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/common/intentDiff/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
-import { SymbolClick, type SymbolTarget } from "./CodeLines";
+import { SearchFocus, SymbolClick, type SymbolTarget } from "./CodeLines";
+import { DiffSearch } from "./DiffSearch";
+import type { LineTarget } from "../model/searchIndex";
 import { FeatureMapView } from "./FeatureMapView";
 import { HunkBlock } from "./HunkBlock";
 import { FlowView, stepAnchor } from "./FlowView";
@@ -71,11 +73,14 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
   const mode: ReadingMode = storedMode[0] === "feature" ? "feature" : "plan";
   const [symbol, setSymbol] = useState<SymbolTarget | null>(null);
   const askBoard = useAskBoard(range.worktreePath, result);
+  const [focus, setFocus] = useState<{ line: LineTarget; nonce: number } | null>(null);
 
   return (
     <HunkLookup.Provider value={lookup}>
       <AskBoardContext.Provider value={askBoard}>
       <SymbolClick.Provider value={setSymbol}>
+      <SearchFocus.Provider value={focus}>
+        <DiffSearch result={result} threads={askBoard.threads} showPlan={() => writeMode(["plan"])} onFocus={setFocus} />
         <header>
           <h1 className="text-[30px] leading-[1.2] font-bold tracking-[-0.02em]">{result.plan?.title ?? name}</h1>
           <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted">
@@ -153,6 +158,7 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
           </main>
         </div>
         {symbol && <SymbolPanel worktreePath={range.worktreePath} rev={range.head} target={symbol} onClose={() => setSymbol(null)} />}
+      </SearchFocus.Provider>
       </SymbolClick.Provider>
       </AskBoardContext.Provider>
     </HunkLookup.Provider>
