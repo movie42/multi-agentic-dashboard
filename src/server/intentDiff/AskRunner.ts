@@ -6,7 +6,8 @@ import { open, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import type { AskAnchor, AskContext, AskEvent, AskThread, AskTurn } from "@/common/intentDiff/types";
+import { z } from "zod";
+import type { AskAnchor, AskConclusion, AskContext, AskEvent, AskThread, AskTurn } from "@/common/intentDiff/types";
 import type { AskStore } from "./AskStore";
 import { isMissing, parseJson, type Warn } from "./report";
 
@@ -94,6 +95,25 @@ export function firstPrompt(anchor: AskAnchor, context: AskContext, question: st
   ]
     .filter((line) => line !== null)
     .join("\n");
+}
+
+export const CONCLUSION_PROMPT = [
+  "지금까지 이 코드에 대해 나눈 대화를 결론 하나로 정리해 주세요. 파일은 고치지 마세요.",
+  "결론은 이 코드를 고칠 다른 세션에게 그대로 넘길 지시예요. 무엇을 어떻게 바꿀지 한두 문장으로, 파일과 함수 이름을 넣어 써 주세요.",
+  "대화 결과 바꿀 필요가 없다면 needsChange를 false로 하고, 왜 그대로 두는지 한 문장으로 써 주세요.",
+  "다른 말 없이 JSON 한 줄만 답해 주세요: {\"needsChange\": true, \"conclusion\": \"...\"}",
+].join("\n");
+
+const draftSchema = z.object({ needsChange: z.boolean(), conclusion: z.string().trim().min(1) });
+
+export function parseConclusionDraft(answer: string): { needsChange: boolean; conclusion: string } | null {
+  const start = answer.indexOf("{");
+  const end = answer.lastIndexOf("}");
+  if (start < 0 || end < start) return null;
+  const parsed = parseJson(answer.slice(start, end + 1));
+  if (!parsed.ok) return null;
+  const draft = draftSchema.safeParse(parsed.value);
+  return draft.success ? draft.data : null;
 }
 
 export function cwdFromHead(head: string): string | null {
@@ -207,6 +227,17 @@ export class AskRunner {
       thread: { ...thread, turns: [...thread.turns, turn], updatedAt: now },
       args: ["-p", question, "--resume", thread.sessionId, ...COMMON_ARGS],
     };
+  }
+
+  async draftConclusion(thread: AskThread): Promise<AskConclusion> {
+    const outcome = await this.runClaude(["-p", CONCLUSION_PROMPT, "--resume", thread.sessionId, ...COMMON_ARGS], thread.cwd, () => {});
+    if (outcome.error || outcome.answer === null) throw new Error(outcome.error ?? "결론 초안을 받지 못했어요");
+    const draft = parseConclusionDraft(outcome.answer);
+    if (!draft) {
+      this.deps.warn("ask", new Error("conclusion draft unreadable"), { threadId: thread.id, answer: outcome.answer.slice(0, 200) });
+      throw new Error("결론 초안을 읽지 못했어요");
+    }
+    return { text: draft.conclusion, needsChange: draft.needsChange, draftedAt: this.now(), confirmedAt: null, sentAt: null };
   }
 
   async run(prepared: PreparedAsk, emit: (event: AskEvent) => void): Promise<void> {

@@ -18,6 +18,14 @@ const askTurnSchema = z.object({
   answeredAt: z.number().nullable(),
 });
 
+const askConclusionSchema = z.object({
+  text: z.string(),
+  needsChange: z.boolean(),
+  draftedAt: z.number(),
+  confirmedAt: z.number().nullable(),
+  sentAt: z.number().nullable(),
+});
+
 export const askThreadSchema = z.object({
   id: z.string(),
   worktreePath: z.string(),
@@ -27,6 +35,7 @@ export const askThreadSchema = z.object({
   sessionId: z.string(),
   cwd: z.string(),
   turns: z.array(askTurnSchema),
+  conclusion: askConclusionSchema.nullish(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

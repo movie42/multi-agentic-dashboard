@@ -2,7 +2,9 @@ import "server-only";
 import { spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import type { SymbolLookup } from "@/common/intentDiff/types";
+import type { ConclusionRequest } from "@/common/intentDiff/conclusion";
+import type { AskThread, SymbolLookup } from "@/common/intentDiff/types";
+import { concludeAsk } from "@/server/intentDiff/conclusions";
 import { buildIntentDiff, type IntentDiffRequest } from "@/server/intentDiff/build";
 import { missingOr, reportAnd } from "@/server/shared/fallback";
 import { readBlobs, git } from "@/server/intentDiff/gitDiff";
@@ -42,16 +44,25 @@ export function createIntentDiffServices({ projectDirOf, warn: reportWarning }: 
     return text.split("\n")[line - 1] ?? null;
   };
 
+  const askRunner = new AskRunner({
+    store: askStore,
+    spawn: (command, args, options) => spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] }),
+    warn: reportWarning,
+    claudeBin: resolveClaudeBin(),
+    projectsDir: DEFAULT_PROJECTS_DIR,
+    timeoutMs: DEFAULT_ASK_TIMEOUT_MS,
+  });
+
   return {
     askStore,
-    askRunner: new AskRunner({
-      store: askStore,
-      spawn: (command, args, options) => spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] }),
-      warn: reportWarning,
-      claudeBin: resolveClaudeBin(),
-      projectsDir: DEFAULT_PROJECTS_DIR,
-      timeoutMs: DEFAULT_ASK_TIMEOUT_MS,
-    }),
+    askRunner,
+    concludeAsk: (request: ConclusionRequest): Promise<AskThread[]> =>
+      concludeAsk(request, {
+        get: (id) => askStore.get(id),
+        update: (ids, change) => askStore.update(ids, change),
+        draft: (thread) => askRunner.draftConclusion(thread),
+        now: Date.now,
+      }),
     snapshotLog,
     transcriptLoader,
     languageServices,

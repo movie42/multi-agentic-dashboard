@@ -334,7 +334,7 @@
       ]
     },
     "tasks": {
-      "status": "ask",
+      "status": "now",
       "summary": "Phase 4개 — 결론 저장 → 결론 화면 → 수정하기 → 검색",
       "conclusion": [
         "질문 스레드마다 세션이 결론 초안과 '수정 필요' 판단을 쓰고, 사람이 확정해요.",
@@ -350,26 +350,30 @@
             {
               "id": "P1-1",
               "title": "타입: <code>AskThread.conclusion</code>(<code>text</code> · <code>needsChange</code> · <code>confirmedAt</code> · <code>sentAt</code>)과 요청 스키마",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/common/intentDiff/types.ts</code> · <code>src/common/intentDiff/askSchema.ts</code>"
+                  "<code>src/common/intentDiff/types.ts</code>(<code>AskConclusion</code>) · <code>src/common/intentDiff/conclusion.ts</code>(요청 스키마 <code>conclusionRequestSchema</code>, 순수 함수 <code>isSendable</code> · <code>isSent</code> 등) · <code>src/server/intentDiff/schema.ts</code>"
                 ],
                 [
                   "패턴",
                   "zod 요청 스키마 <code>src/common/actions/schema.ts</code>"
+                ],
+                [
+                  "결정",
+                  "보낼 대상은 '확정됨 + 수정 필요 + 보낸 뒤 다시 확정됨'. 결론 글을 고치면 확정이 풀리고, 확정된 결론의 판단을 바꾸면 확정 시각만 새로 찍혀 다시 보낼 대상이 돼요. 예전 스레드는 <code>conclusion</code>이 없어도 읽혀요"
                 ]
               ]
             },
             {
               "id": "P1-2",
               "title": "<code>AskStore</code>에 결론 저장 · 보냄 표시, <code>AskRunner</code>에 결론 초안 턴(읽기 전용 세션에 JSON으로 결론과 판단을 받음)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/intentDiff/AskStore.ts</code> · <code>src/server/intentDiff/AskRunner.ts</code>"
+                  "<code>src/server/intentDiff/AskRunner.ts</code>(<code>draftConclusion</code>) · <code>AskStore.ts</code>(<code>update</code>) · <code>conclusions.ts</code>(<code>concludeAsk</code>) · <code>createServices.ts</code> · <code>container.ts</code>"
                 ],
                 [
                   "재사용",
@@ -377,14 +381,14 @@
                 ],
                 [
                   "결정",
-                  "[[R1-Q1]] [[R1-Q2]] [[R1-Q5]]"
+                  "초안은 질문 세션을 <code>--resume</code>으로 이어 읽기 전용 도구로 돌리고, 답에서 JSON <code>{needsChange, conclusion}</code>을 읽어요(<code>parseConclusionDraft</code>). 질문 목록에는 턴으로 남기지 않아요. 갈래 세션을 만들지 않는 건 세션 목록에 이름 없는 세션이 생기지 않게 하려고"
                 ]
               ]
             },
             {
               "id": "P1-3",
               "title": "라우트: 결론 초안(POST) · 결론 수정/확정(PATCH) · 보냄 표시",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -393,14 +397,23 @@
                 [
                   "패턴",
                   "<code>app/api/intent-diff/ask/route.ts</code>의 worktree 검증"
+                ],
+                [
+                  "결정",
+                  "요청 하나(<code>POST /api/intent-diff/ask/conclusion</code>)에 <code>draft · edit · judge · confirm · sent</code>를 zod discriminated union으로. 라우트는 <code>services().concludeAsk</code>만 불러요"
                 ]
               ]
             },
             {
               "id": "P1-V",
               "title": "검증: <code>AskStore</code> · 초안 파싱 단위 테스트, <code>bun run test</code> · tsc · lint",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "<code>conclusions.test.ts</code> 6개 · <code>AskStore.test.ts</code> 추가 1개 통과, tsc 0 · lint 0"
+                ]
+              ]
             }
           ]
         },

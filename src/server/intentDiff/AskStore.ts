@@ -47,13 +47,27 @@ export class AskStore {
     return this.serialized(async () => {
       const current = await this.read();
       const exists = current.some((item) => item.id === thread.id);
-      const threads = exists ? current.map((item) => (item.id === thread.id ? thread : item)) : [...current, thread];
-      await mkdir(path.dirname(this.file), { recursive: true });
-      const temp = `${this.file}.${this.pid}.tmp`;
-      await writeFile(temp, JSON.stringify({ threads }, null, 2));
-      await rename(temp, this.file);
+      await this.write(exists ? current.map((item) => (item.id === thread.id ? thread : item)) : [...current, thread]);
       return thread;
     });
+  }
+
+  /** Rewrites the named threads in one write; ids that are gone are skipped. */
+  update(ids: string[], change: (thread: AskThread) => AskThread): Promise<AskThread[]> {
+    return this.serialized(async () => {
+      const wanted = new Set(ids);
+      const current = await this.read();
+      const threads = current.map((thread) => (wanted.has(thread.id) ? change(thread) : thread));
+      await this.write(threads);
+      return threads.filter((thread) => wanted.has(thread.id));
+    });
+  }
+
+  private async write(threads: AskThread[]): Promise<void> {
+    await mkdir(path.dirname(this.file), { recursive: true });
+    const temp = `${this.file}.${this.pid}.tmp`;
+    await writeFile(temp, JSON.stringify({ threads }, null, 2));
+    await rename(temp, this.file);
   }
 
   async sessionIds(): Promise<Set<string>> {

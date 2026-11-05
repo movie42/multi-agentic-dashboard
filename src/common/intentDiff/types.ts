@@ -270,6 +270,15 @@ export interface AskTurn {
   answeredAt: number | null;
 }
 
+export interface AskConclusion {
+  text: string;
+  /** The answering session's judgment, which the person may flip. */
+  needsChange: boolean;
+  draftedAt: number;
+  confirmedAt: number | null;
+  sentAt: number | null;
+}
+
 /** A conversation about some lines, held by its own Claude session so the original stays untouched. */
 export interface AskThread {
   id: string;
@@ -283,6 +292,7 @@ export interface AskThread {
   /** Where the session lives; `claude --resume` only finds a session from its own directory. */
   cwd: string;
   turns: AskTurn[];
+  conclusion?: AskConclusion | null;
   createdAt: number;
   updatedAt: number;
 }

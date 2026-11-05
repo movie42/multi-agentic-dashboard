@@ -36,6 +36,7 @@ export interface Services {
   buildIntentDiff: IntentDiffServices["buildIntentDiff"];
   lookupSymbol: IntentDiffServices["lookupSymbol"];
   isWorktree: IntentDiffServices["isWorktree"];
+  concludeAsk: IntentDiffServices["concludeAsk"];
   workflow: WorkflowServices;
   orca: OrcaServices;
 }

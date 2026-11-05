@@ -66,4 +66,16 @@ describe("AskStore", () => {
     await utimes(file, new Date(), new Date(Date.now() + 5000));
     expect(await store.sessionIds()).toEqual(new Set(["session-a", "session-b"]));
   });
+
+  it("rewrites only the named threads in one write and keeps old threads without a conclusion readable", async () => {
+    const file = await tempFile();
+    const store = new AskStore(file, vi.fn());
+    await store.save(thread("a"));
+    await store.save(thread("b"));
+    const conclusion = { text: "고쳐요", needsChange: true, draftedAt: 2, confirmedAt: 3, sentAt: null };
+    const updated = await store.update(["b", "gone"], (item) => ({ ...item, conclusion }));
+    expect(updated.map((item) => item.id)).toEqual(["b"]);
+    expect((await store.get("b"))?.conclusion).toEqual(conclusion);
+    expect((await store.get("a"))?.conclusion).toBeUndefined();
+  });
 });
