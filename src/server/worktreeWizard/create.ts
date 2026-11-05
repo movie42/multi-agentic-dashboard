@@ -1,3 +1,4 @@
+import "server-only";
 import { z } from "zod";
 import type { WizardOrigin, WorktreePlan } from "@/common/worktreeWizard/types";
 import { services } from "@/server/container";

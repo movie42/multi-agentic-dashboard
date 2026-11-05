@@ -1,8 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { createWorktree } from "@/server/worktreeWizard/create";
-import { answerWizard, startWizard } from "@/server/worktreeWizard/run";
 import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
+import { services } from "@/server/container";
 
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ANSWER = 2000;
@@ -65,13 +64,13 @@ export async function POST(request: Request) {
     const info = await stat(body.origin.anchorPath);
     if (!info.isDirectory()) throw new Error("워크트리 폴더가 없어요");
     if (body.action === "start") {
-      return Response.json({ ok: true, ...(await startWizard(body.origin)) } satisfies WizardResponse);
+      return Response.json({ ok: true, ...(await services().worktreeWizard.start(body.origin)) } satisfies WizardResponse);
     }
     if (body.action === "answer") {
-      const next = await answerWizard(body.origin.anchorPath, body.sessionId, body.answer.trim());
+      const next = await services().worktreeWizard.answer(body.origin.anchorPath, body.sessionId, body.answer.trim());
       return Response.json({ ok: true, ...next } satisfies WizardResponse);
     }
-    return Response.json({ ok: true, created: await createWorktree(body.origin, body.plan) } satisfies WizardResponse);
+    return Response.json({ ok: true, created: await services().worktreeWizard.create(body.origin, body.plan) } satisfies WizardResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[worktree-wizard]", body.action, message);

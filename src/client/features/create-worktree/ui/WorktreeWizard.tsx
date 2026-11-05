@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { readJson } from "@/client/shared/api/json";
 import type { WorktreeSummary } from "@/common/orca/types";
 import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
 
@@ -20,7 +21,7 @@ async function post(request: WizardRequest): Promise<WizardResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
   });
-  const payload = (await response.json()) as WizardResponse;
+  const payload = await readJson<WizardResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
   return payload;
 }
@@ -28,7 +29,7 @@ async function post(request: WizardRequest): Promise<WizardResponse> {
 /** The origin for a button on one worktree (`from`) or on the project header (`from` null). */
 export function wizardOrigin(worktree: WorktreeSummary, from: boolean): WizardOrigin {
   return {
-    repoId: worktree.worktreeId.split("::")[0],
+    repoId: worktree.worktreeId.split("::")[0] ?? "",
     repo: worktree.repo,
     anchorPath: worktree.path,
     from: from ? { path: worktree.path, branch: worktree.branch } : null,

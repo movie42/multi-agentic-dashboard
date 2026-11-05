@@ -64,16 +64,14 @@ function isReadableUnit(node: ts.Node): boolean {
 
 /** 0-based first and last line of the innermost declaration around `position`, or a few lines around it. */
 function snippetRange(sourceFile: ts.SourceFile, position: number, line: number, lineCount: number): [number, number] {
-  let unit: ts.Node | null = null;
-  const visit = (node: ts.Node) => {
-    if (position < node.getStart(sourceFile) || position >= node.getEnd()) return;
-    if (isReadableUnit(node)) unit = node;
-    ts.forEachChild(node, visit);
+  const innermost = (node: ts.Node, outer: ts.Node | null): ts.Node | null => {
+    if (position < node.getStart(sourceFile) || position >= node.getEnd()) return null;
+    const self = isReadableUnit(node) ? node : outer;
+    return ts.forEachChild(node, (child) => innermost(child, self) ?? undefined) ?? self;
   };
-  ts.forEachChild(sourceFile, visit);
+  const found = ts.forEachChild(sourceFile, (child) => innermost(child, null) ?? undefined) ?? null;
   const around: [number, number] = [Math.max(0, line - SNIPPET_AROUND), Math.min(lineCount - 1, line + SNIPPET_AROUND)];
-  if (!unit) return around;
-  const found: ts.Node = unit;
+  if (!found) return around;
   const first = sourceFile.getLineAndCharacterOfPosition(found.getStart(sourceFile)).line;
   const last = sourceFile.getLineAndCharacterOfPosition(found.getEnd()).line;
   if (last - first + 1 <= SNIPPET_MAX_LINES) return [first, last];

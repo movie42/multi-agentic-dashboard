@@ -18,6 +18,7 @@ import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { ErrorLog } from "./shared/errorLog";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
+import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
 
 export interface Services {
   errorLog: ErrorLog;
@@ -39,6 +40,7 @@ export interface Services {
   concludeAsk: IntentDiffServices["concludeAsk"];
   workflow: WorkflowServices;
   orca: OrcaServices;
+  worktreeWizard: WorktreeWizardServices;
 }
 
 function createServices(): Services {
@@ -70,6 +72,7 @@ function createServices(): Services {
     ...intentDiff,
     workflow,
     orca: createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles }),
+    worktreeWizard: createWorktreeWizardServices(),
   };
 }
 

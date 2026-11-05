@@ -1,3 +1,4 @@
+import "server-only";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveClaudeBin } from "@/server/intentDiff/AskRunner";
@@ -88,19 +89,23 @@ function toTurn(output: unknown): WizardTurn | null {
   return null;
 }
 
-async function runClaude(cwd: string, args: string[]): Promise<{ sessionId: string; turn: WizardTurn }> {
-  let stdout: string;
+async function execClaude(cwd: string, args: string[]): Promise<string> {
   try {
-    ({ stdout } = await execFileAsync(resolveClaudeBin(), [...args, ...COMMON_ARGS], {
+    const { stdout } = await execFileAsync(resolveClaudeBin(), [...args, ...COMMON_ARGS], {
       cwd,
       timeout: TIMEOUT_MS,
       maxBuffer: 16 * 1024 * 1024,
-    }));
+    });
+    return stdout;
   } catch (error) {
     const stderr = isRecord(error) && typeof error.stderr === "string" ? error.stderr.trim() : "";
     console.error("[worktree-wizard] claude failed", stderr);
     throw new Error(stderr.split("\n").pop() || "에이전트를 실행하지 못했어요");
   }
+}
+
+async function runClaude(cwd: string, args: string[]): Promise<{ sessionId: string; turn: WizardTurn }> {
+  const stdout = await execClaude(cwd, args);
   const messages: unknown = JSON.parse(stdout);
   const result = Array.isArray(messages) ? messages.find((message) => isRecord(message) && message.type === "result") : messages;
   if (!isRecord(result) || typeof result.session_id !== "string") throw new Error("에이전트 응답을 읽지 못했어요");
