@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import type { FlowData, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/common/intentDiff/types";
+import type { AskThread, FlowData, FlowSymbol, IntentDiffResult, ItemFlow, MechanicalReason, PlanItemView } from "@/common/intentDiff/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { SymbolClick, type SymbolTarget } from "./CodeLines";
 import { FeatureMapView } from "./FeatureMapView";
@@ -188,19 +188,75 @@ interface FlowLinksProps {
   data: FlowData;
 }
 
+function threadsIn(threads: AskThread[], symbol: FlowSymbol): AskThread[] {
+  return threads.filter(({ anchor }) =>
+    anchor.kind === "step"
+      ? anchor.symbolId === symbol.id
+      : anchor.file === symbol.file && anchor.startLine >= symbol.startLine && anchor.endLine <= symbol.endLine,
+  );
+}
+
+function useFlowThreadCount(flow: ItemFlow | undefined, data: FlowData): number {
+  const threads = use(AskBoardContext)?.threads ?? [];
+  const ids = new Set<string>();
+  for (const step of flow?.steps ?? []) {
+    const symbol = data.symbols[step.symbolId];
+    if (step.kind === "own" && symbol) for (const thread of threadsIn(threads, symbol)) ids.add(thread.id);
+  }
+  return ids.size;
+}
+
+interface AskBadgeProps {
+  count: number;
+}
+
+function AskBadge({ count }: AskBadgeProps) {
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-ask" title={`질문 ${count}`} aria-label={`질문 ${count}`}>
+      <svg viewBox="0 0 16 16" aria-hidden="true" className="size-3 fill-current">
+        <path d="M3 2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7l-3.5 2.8a.3.3 0 0 1-.5-.25V12a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
+      </svg>
+      {count}
+    </span>
+  );
+}
+
 /** The top two levels of functions and components a flow reads, for the table of contents. */
 function FlowLinks({ flow, data }: FlowLinksProps) {
+  const threads = use(AskBoardContext)?.threads ?? [];
   const steps = (flow?.steps ?? []).filter(
     (step) => step.kind === "own" && step.depth <= 1 && data.symbols[step.symbolId]?.kind !== "value",
   );
   return steps.map((step) => {
     const symbol = data.symbols[step.symbolId];
     return (
-      <a key={step.symbolId} href={`#${stepAnchor(step.symbolId)}`} className={`block truncate py-0.5 text-muted hover:text-fg ${["pl-3", "pl-6", "pl-9", "pl-12"][Math.min(step.depth, 3)]}`}>
-        {symbol?.name}
+      <a key={step.symbolId} href={`#${stepAnchor(step.symbolId)}`} className={`flex items-center gap-1.5 py-0.5 text-muted hover:text-fg ${["pl-3", "pl-6", "pl-9", "pl-12"][Math.min(step.depth, 3)]}`}>
+        <span className="truncate">{symbol?.name}</span>
+        {symbol && <AskBadge count={threadsIn(threads, symbol).length} />}
       </a>
     );
   });
+}
+
+interface TocItemProps {
+  item: PlanItemView;
+  data: FlowData;
+}
+
+function TocItem({ item, data }: TocItemProps) {
+  const flow = data.flows[item.id];
+  const count = useFlowThreadCount(flow, data);
+  return (
+    <div>
+      <a href={`#item-${item.id}`} className={`flex items-center gap-1.5 py-0.5 hover:text-fg ${item.groups.length === 0 ? "text-faint" : ""}`}>
+        <span className="shrink-0 font-mono text-[12px] whitespace-nowrap text-muted">{item.id}</span>
+        <span className="truncate">{item.title}</span>
+        <AskBadge count={count} />
+      </a>
+      <FlowLinks flow={flow} data={data} />
+    </div>
+  );
 }
 
 interface ResultProps {
@@ -215,13 +271,7 @@ function Toc({ result }: ResultProps) {
           <div key={phase.id}>
             <p className="mb-1 font-semibold">{phase.title}</p>
             {phase.items.map((item) => (
-              <div key={item.id}>
-                <a href={`#item-${item.id}`} className={`flex gap-1.5 py-0.5 hover:text-fg ${item.groups.length === 0 ? "text-faint" : ""}`}>
-                  <span className="shrink-0 font-mono text-[12px] whitespace-nowrap text-muted">{item.id}</span>
-                  <span className="truncate">{item.title}</span>
-                </a>
-                <FlowLinks flow={result.flow.flows[item.id]} data={result.flow} />
-              </div>
+              <TocItem key={item.id} item={item} data={result.flow} />
             ))}
           </div>
         ))
