@@ -462,11 +462,11 @@
             {
               "id": "P3-1",
               "title": "보낼 결론 고르기와 지시문 만들기(순수 함수): 확정 + 수정 필요 + 보낸 뒤 안 바뀐 것 제외, 파일·줄 범위와 결론을 한 지시문으로",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/features/fix-from-conclusions/model/fixPrompt.ts</code>"
+                  "<code>src/client/features/fix-from-conclusions/model/fixPrompt.ts</code>(<code>sendableThreads</code> · <code>fixPrompt</code>)"
                 ],
                 [
                   "결정",
@@ -477,11 +477,11 @@
             {
               "id": "P3-2",
               "title": "diff 상단 '수정하기' 버튼과 확인 창(체크 목록 · 지시문 미리보기 · 같은 워크트리 세션 경고) → <code>launch-agent</code> → 보냄 표시",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/features/fix-from-conclusions/ui/FixDialog.tsx</code> · <code>widgets/intent-diff/ui/IntentDiffView.tsx</code>"
+                  "<code>src/client/features/fix-from-conclusions/ui/FixFromConclusions.tsx</code> · <code>widgets/intent-diff/ui/IntentDiffView.tsx</code>(머리의 보기 방식 버튼 옆)"
                 ],
                 [
                   "재사용",
@@ -489,7 +489,7 @@
                 ],
                 [
                   "결정",
-                  "[[R1-Q3]] [[R1-Q4]]"
+                  "같은 레이어 슬라이스끼리 import하지 않도록 스레드와 '보냄 표시'는 위젯이 <code>askBoard</code>에서 꺼내 prop으로 넘겨요. 같은 워크트리 세션 확인은 창을 열 때 보드를 한 번 읽어(<code>boardQueryOptions</code>, 폴링 없이) <code>working</code> 상태가 있으면 경고. 세션 열기가 실패하면 창을 닫지 않고 보냄 표시도 하지 않아요"
                 ]
               ]
             },
@@ -497,7 +497,12 @@
               "id": "P3-V",
               "title": "검증: 지시문 단위 테스트, 확인 창 컴포넌트 테스트, 실제 Orca로 세션이 열리는지 확인",
               "done": false,
-              "rows": []
+              "rows": [
+                [
+                  "결과",
+                  "<code>fixPrompt.test.ts</code> 2개 · <code>FixFromConclusions.test.tsx</code> 4개 통과. 실제 Orca로 세션을 여는 확인은 진짜 Claude 세션이 코드를 고치게 되므로 사용자 확인으로 남김"
+                ]
+              ]
             }
           ]
         },

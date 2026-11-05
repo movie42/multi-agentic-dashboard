@@ -11,6 +11,7 @@ import { HunkLookup, type HunkEntry } from "@/client/entities/intent-diff";
 import { AskPlanItem } from "@/client/features/ask-about-diff";
 import { SymbolPanel } from "./SymbolPanel";
 import { AskBoardContext, useAskBoard } from "@/client/features/ask-about-diff";
+import { FixFromConclusions } from "@/client/features/fix-from-conclusions";
 import { useIntentDiff, type IntentDiffQuery } from "@/client/entities/intent-diff";
 
 const MECHANICAL_LABEL: Record<MechanicalReason, string> = {
@@ -98,7 +99,8 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
             <Stat label="의도 미상" value={stats.none} />
             <Stat label="기계적" value={stats.mechanical} />
           </p>
-          <div className="mt-5 flex w-fit rounded-full bg-tint p-0.5 text-[13px] font-semibold">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div className="flex w-fit rounded-full bg-tint p-0.5 text-[13px] font-semibold">
             {MODE_OPTIONS.map((option) => (
               <button
                 key={option.key}
@@ -110,6 +112,14 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
                 {option.label}
               </button>
             ))}
+          </div>
+          <span className="text-[13px]">
+            <FixFromConclusions
+              worktreePath={range.worktreePath}
+              threads={askBoard.threads}
+              markSent={(threadIds) => askBoard.conclude({ type: "sent", threadIds })}
+            />
+          </span>
           </div>
         </header>
 
