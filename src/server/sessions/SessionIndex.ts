@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
 import { sessionCacheFileSchema, SESSION_CACHE_VERSION, type SessionCacheEntry } from "./schema";
@@ -64,7 +64,9 @@ export class SessionIndex {
 
   private async saveDiskCache(): Promise<void> {
     await mkdir(path.dirname(this.options.cacheFile), { recursive: true });
-    await writeFile(this.options.cacheFile, JSON.stringify({ version: SESSION_CACHE_VERSION, entries: [...this.entries.entries()] }));
+    const tmp = `${this.options.cacheFile}.${process.pid}.tmp`;
+    await writeFile(tmp, JSON.stringify({ version: SESSION_CACHE_VERSION, entries: [...this.entries.entries()] }));
+    await rename(tmp, this.options.cacheFile);
     this.persisted = true;
   }
 

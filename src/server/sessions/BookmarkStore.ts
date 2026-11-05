@@ -25,7 +25,13 @@ export function parseBookmarkLines(text: string, warn: Report): BookmarkLine[] {
     });
 }
 
+function isClaudeLine(line: BookmarkLine, sessionId: string): boolean {
+  return line.provider === "claude" && line.session_id === sessionId;
+}
+
 export class BookmarkStore {
+  private queue: Promise<unknown> = Promise.resolve();
+
   constructor(
     private readonly file: string,
     private readonly warn: Report,
@@ -44,24 +50,34 @@ export class BookmarkStore {
     );
   }
 
-  async save(input: { sessionId: string; name: string; cwd: string; memo: string }): Promise<void> {
-    const lines = await this.readLines();
-    const existing = lines.find((line) => line.session_id === input.sessionId);
-    const next: BookmarkLine = {
-      provider: "claude",
-      name: input.name,
-      session_id: input.sessionId,
-      cwd: input.cwd,
-      created_at: existing?.created_at ?? sbTimestamp(this.now()),
-      memo: input.memo,
-      ...(existing?.last_opened_at ? { last_opened_at: existing.last_opened_at } : {}),
-    };
-    await this.writeLines([...lines.filter((line) => line.session_id !== input.sessionId), next]);
+  save(input: { sessionId: string; name: string; cwd: string; memo: string }): Promise<void> {
+    return this.serialized(async () => {
+      const lines = await this.readLines();
+      const existing = lines.find((line) => isClaudeLine(line, input.sessionId));
+      const next: BookmarkLine = {
+        provider: "claude",
+        name: input.name,
+        session_id: input.sessionId,
+        cwd: input.cwd,
+        created_at: existing?.created_at ?? sbTimestamp(this.now()),
+        memo: input.memo,
+        ...(existing?.last_opened_at ? { last_opened_at: existing.last_opened_at } : {}),
+      };
+      await this.writeLines([...lines.filter((line) => !isClaudeLine(line, input.sessionId)), next]);
+    });
   }
 
-  async remove(sessionId: string): Promise<void> {
-    const lines = await this.readLines();
-    await this.writeLines(lines.filter((line) => line.session_id !== sessionId));
+  remove(sessionId: string): Promise<void> {
+    return this.serialized(async () => {
+      const lines = await this.readLines();
+      await this.writeLines(lines.filter((line) => !isClaudeLine(line, sessionId)));
+    });
+  }
+
+  private serialized<T>(work: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(work, work);
+    this.queue = next.catch(() => undefined);
+    return next;
   }
 
   private async readLines(): Promise<BookmarkLine[]> {

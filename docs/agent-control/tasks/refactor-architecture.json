@@ -677,11 +677,12 @@
     },
     "tasks": {
       "status": "done",
-      "summary": "질문 5라운드 반영 완료 — P7 승인 대기",
+      "summary": "P0–P7과 리뷰 지적 수정 완료",
       "conclusion": [
         "Phase 0(요청 출처 검사)을 이 브랜치에 머지했어요. <code>proxy.ts</code>는 루트, 판정 함수는 <code>src/server/security/origin.ts</code>예요.",
         "Phase 1–7 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19, 타입·lint 규칙 고정, <code>app/</code>을 얇은 입구로.",
-        "남은 빌드 경고: <code>editorTheme.ts</code>가 실행 시점 경로를 읽어 Turbopack이 프로젝트 전체 추적을 경고해요."
+        "남은 빌드 경고: <code>editorTheme.ts</code>가 실행 시점 경로를 읽어 Turbopack이 프로젝트 전체 추적을 경고해요.",
+        "코드 리뷰 지적 10건을 7개 항목으로 묶어 모두 고쳤어요(CR-1–CR-7). 북마크 동시 저장, ps 종료 코드, gh 실패 캐시, 제목 스캔 경계, 권한 훅 끊김, IPv6 Host, 캐시 파일 원자적 쓰기예요."
       ],
       "blocks": [
         {
@@ -696,7 +697,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/app/api/actions/route.ts</code> · <code>src/app/api/hooks/permission/route.ts</code> · <code>src/app/api/runtime/route.ts</code> · <code>src/app/api/attachments/route.ts</code> · <code>src/app/api/intent-diff/ask/route.ts</code>"
+                  "<code>proxy.ts</code> · <code>src/server/security/</code> · 옮기기 전 위치 <code>src/app/api/actions/route.ts</code> · <code>src/app/api/hooks/permission/route.ts</code>"
                 ],
                 [
                   "결정",
@@ -741,7 +742,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>vitest.config.mts</code> · <code>package.json</code>(<code>test</code>, <code>test:watch</code>, <code>e2e</code>) · <code>test/fixtures.ts</code>"
+                  "<code>vitest.config.mts</code> · <code>package.json</code> · <code>bun.lock</code> · <code>test/fixtures.ts</code> · <code>test/setup-dom.ts</code> · <code>test/stubs/server-only.ts</code> — 스크립트 test · test:watch · e2e"
                 ]
               ]
             },
@@ -752,7 +753,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/features/board/classify.ts</code> · <code>src/lib/workflow/steps.ts</code> · <code>src/lib/intentDiff/attribute.ts</code> · <code>order.ts</code> · <code>plan.ts</code> · <code>src/lib/orca/screen.ts</code>"
+                  "<code>src/client/entities/agent/model/classify.test.ts</code> · <code>src/common/workflow/steps.test.ts</code> · <code>src/common/orca/screen.test.ts</code> · <code>src/server/intentDiff/attribute.test.ts</code> · <code>src/server/intentDiff/order.test.ts</code> · <code>src/server/intentDiff/plan.test.ts</code> · <code>src/server/intentDiff/__snapshots__/</code>"
                 ],
                 [
                   "결정",
@@ -767,7 +768,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/lib/sessions/claudeSessions.ts</code> · <code>activity.ts</code> · <code>src/lib/intentDiff/transcripts.ts</code>"
+                  "<code>test/sessions.test.ts</code> · <code>test/fixtures/transcript.jsonl</code> · <code>src/server/intentDiff/parseTranscript.test.ts</code> · <code>src/server/sessions/activitySteps.test.ts</code>"
                 ],
                 [
                   "결정",
@@ -805,7 +806,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>test/contract/orca.contract.ts</code> · <code>vitest.config.mts</code>(contract 프로젝트) · <code>package.json</code>(<code>test:contract</code>)"
+                  "<code>test/contract/orca.contract.ts</code> · <code>vitest.config.mts</code> · <code>package.json</code> — contract 프로젝트와 test:contract 스크립트"
                 ],
                 [
                   "결정",
@@ -842,7 +843,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/shared/errorLog.ts</code> · <code>src/server/container.ts</code>(<code>reportError</code>/<code>reportWarning</code>) · <code>src/client/shared/model/toastStore.ts</code> · <code>src/client/shared/ui/Toaster.tsx</code> · <code>StatusLine.tsx</code> · <code>src/app/layout.tsx</code>"
+                  "<code>src/server/shared/errorLog.ts</code> · <code>src/server/shared/fallback.ts</code> · <code>src/server/container.ts</code> · <code>src/client/shared/model/toastStore.ts</code> · <code>src/client/shared/model/errorMessage.ts</code> · <code>src/client/shared/ui/Toaster.tsx</code> · <code>src/client/shared/ui/StatusLine.tsx</code> · <code>app/layout.tsx</code> · 테스트 <code>src/server/shared/errorLog.test.ts</code> · <code>src/server/shared/fallback.test.ts</code>"
                 ],
                 [
                   "결정",
@@ -861,7 +862,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/common/actions/schema.ts</code> · <code>src/common/permissions/schema.ts</code> · <code>src/common/sessions/limits.ts</code> · <code>src/server/orca/schema.ts</code> · <code>src/lib/orca/cli.ts</code>"
+                  "<code>src/common/</code> · <code>src/server/orca/schema.ts</code> — API 요청 본문 · 권한 · 세션 한도 스키마와 서버·브라우저 공용 타입"
                 ],
                 [
                   "결정",
@@ -880,7 +881,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/container.ts</code>"
+                  "<code>src/server/container.ts</code> · <code>src/server/shared/ports.ts</code> · <code>src/server/shared/fakes.ts</code>"
                 ],
                 [
                   "결정",
@@ -913,7 +914,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/permissions/PermissionStore.ts</code> · <code>src/lib/permissions/store.ts</code>(래퍼)"
+                  "<code>src/server/permissions/</code> · 옮기기 전 <code>src/lib/permissions/</code>"
                 ],
                 [
                   "결정",
@@ -928,7 +929,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/sessions/</code> — <code>SessionIndex</code> · <code>SessionLocator</code> · <code>SessionTitles</code> · <code>ActivityReader</code> · <code>BookmarkStore</code> · 순수 함수 <code>summarize.ts</code> · <code>transcriptText.ts</code> · <code>activitySteps.ts</code> · 스키마 <code>schema.ts</code>"
+                  "<code>src/server/sessions/</code> — SessionIndex · SessionLocator · SessionTitles · ActivityReader · BookmarkStore, 순수 함수 summarize · transcriptText · activitySteps · 옮기기 전 <code>src/lib/sessions/</code>"
                 ],
                 [
                   "결정",
@@ -951,7 +952,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/intentDiff/</code> — <code>AskStore</code> · <code>AskRunner</code> · <code>SnapshotLog</code> · <code>TranscriptLoader</code> · <code>LanguageServices</code> · <code>Highlighter</code> · <code>EditorThemeReader</code>"
+                  "<code>src/server/intentDiff/</code> — AskStore · AskRunner · SnapshotLog · TranscriptLoader · LanguageServices · Highlighter · 옮기기 전 <code>src/lib/intentDiff/</code>"
                 ],
                 [
                   "결정",
@@ -970,7 +971,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/workflow/</code> — <code>GitInfo</code> · <code>FlowDocReader</code> · <code>FeatureDocReader</code> · <code>FeatureCheckRunner</code> · 순수 함수 <code>flowTasks.ts</code> · <code>features.ts</code> · <code>featureCheck.ts</code> · <code>github.ts</code>"
+                  "<code>src/server/workflow/</code> — GitInfo · FlowDocReader · FeatureDocReader · FeatureCheckRunner, 순수 함수 flowTasks · features · featureCheck · github · 옮기기 전 <code>src/lib/workflow/</code>"
                 ],
                 [
                   "결정",
@@ -985,7 +986,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/orca/</code> — <code>OrcaCli</code> · <code>OrcaRuntime</code> · <code>OrphanReattacher</code> · <code>BoardService</code> · 순수 함수 <code>boardCards.ts</code> · <code>orphans.ts</code> · <code>runtimeMode.ts</code>"
+                  "<code>src/server/orca/</code> — OrcaCli · OrcaRuntime · OrphanReattacher · BoardService, 순수 함수 boardCards · orphans · runtimeMode · 옮기기 전 <code>src/lib/orca/</code>"
                 ],
                 [
                   "결정",
@@ -1007,8 +1008,17 @@
             {
               "id": "P3-V",
               "title": "검증: 테스트 · tsc · lint 통과, 최상단 <code>let</code>·가변 컬렉션 0개 (<code>grep</code>)",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "<code>bunx tsc --noEmit</code> 0 · <code>bun run lint</code> 에러 0(경고 2, 이전부터) · <code>bun run test</code> 통과"
+                ],
+                [
+                  "grep",
+                  "최상단 <code>let</code> 0개. 최상단 <code>new Set/Map</code>은 모두 <code>ReadonlySet</code>으로 타입이 붙은 조회표이고, 예외는 테스트 파일 <code>attribute.test.ts</code>의 <code>ranks</code> 하나(테스트는 규칙 제외)"
+                ]
+              ]
             }
           ]
         },
@@ -1022,6 +1032,10 @@
               "title": "레이어 배치와 Next 라우트 분리",
               "done": true,
               "rows": [
+                [
+                  "파일",
+                  "<code>app/</code> · <code>src/app/page.tsx</code> · <code>src/features/</code> · <code>scripts/</code> · <code>.gitignore</code> — 라우트를 루트 app/으로, 데스크톱 빌드 스크립트 경로"
+                ],
                 [
                   "결정",
                   "[[R1-Q3]] [[R2-Q2]] 라우트는 루트 <code>app/</code>, <code>src/client</code>(FSD) · <code>src/server</code> · <code>src/common</code>(타입·zod·순수 표시 로직 <code>steps.ts</code>·<code>screen.ts</code>·<code>questions.ts</code>). <code>src/lib</code>와 래퍼 함수는 모두 삭제, 라우트는 <code>services()</code>를 직접 부름"
@@ -1039,7 +1053,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/{shared,entities,features,widgets,views}</code> — 슬라이스마다 바깥에서 쓰는 이름만 내보내는 <code>index.ts</code>"
+                  "<code>src/client/</code> — shared · entities · features · widgets · views, 슬라이스마다 바깥에서 쓰는 이름만 내보내는 index.ts"
                 ],
                 [
                   "결정",
@@ -1095,7 +1109,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>app/providers.tsx</code> · <code>src/client/entities/{board,runtime,terminal,session,intent-diff}/api/</code> · <code>views/dashboard/model/useBoard.ts</code> · <code>ActivityTimeline</code> · <code>SessionsPage</code> · <code>SymbolPanel</code> · <code>ChoicePanel</code> · <code>RuntimeSwitch</code>"
+                  "<code>app/providers.tsx</code> · <code>src/client/entities/</code> · <code>src/client/views/dashboard/model/useBoard.ts</code> · <code>src/client/widgets/agent-card/ui/ActivityTimeline.tsx</code> · <code>src/client/widgets/session-list/ui/SessionsPage.tsx</code> · <code>src/client/widgets/intent-diff/ui/SymbolPanel.tsx</code> · <code>src/client/features/choose-option/ui/ChoicePanel.tsx</code> · <code>src/client/features/switch-runtime/ui/RuntimeSwitch.tsx</code>"
                 ],
                 [
                   "결정",
@@ -1125,7 +1139,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>features/{quick-reply,launch-agent,rename-session,answer-permission,bookmark-session,ask-about-diff}</code> + 폼마다 컴포넌트 테스트"
+                  "<code>src/client/features/</code> — quick-reply · launch-agent · rename-session · answer-permission · bookmark-session · ask-about-diff, 폼마다 컴포넌트 테스트"
                 ],
                 [
                   "결정",
@@ -1140,7 +1154,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/shared/lib/storedListStore.ts</code> · <code>useStoredList.ts</code> · 북마크 덮어쓰기 <code>useBookmarkOverrides</code>"
+                  "<code>src/client/shared/lib/storedListStore.ts</code> · <code>src/client/shared/lib/useStoredList.ts</code> · <code>src/client/features/bookmark-session/model/useSessionBookmark.ts</code> — 북마크 덮어쓰기 useBookmarkOverrides"
                 ],
                 [
                   "결정",
@@ -1155,7 +1169,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>next.config.ts</code>(<code>reactCompiler: true</code>) · <code>babel-plugin-react-compiler</code>"
+                  "<code>next.config.ts</code> · <code>package.json</code> — reactCompiler 옵션과 babel-plugin-react-compiler"
                 ],
                 [
                   "결정",
@@ -1203,7 +1217,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/shared/api/json.ts</code>(<code>readJson</code> · <code>parseJsonLine</code> · <code>errorField</code>) · 각 <code>entities/*/api</code> · <code>useAskBoard</code> · <code>slackClipboard</code> · <code>useKeyboardNav</code> · <code>container.ts</code>"
+                  "<code>src/client/shared/api/json.ts</code> · <code>src/client/entities/</code> · <code>src/client/features/ask-about-diff/model/useAskBoard.ts</code> · <code>src/client/shared/lib/slackClipboard.ts</code> · <code>src/client/shared/lib/useKeyboardNav.ts</code> · <code>src/server/container.ts</code> — readJson · parseJsonLine · errorField"
                 ],
                 [
                   "결정",
@@ -1270,7 +1284,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>app/api/{terminal,actions,hooks/permission,intent-diff,intent-diff/symbol,intent-diff/ask}/route.ts</code> · <code>src/server/intentDiff/createServices.ts</code> · <code>OrcaCli.readScreen</code> · <code>OrcaRuntime.bringForward</code> · <code>PermissionStore.holdMs</code> · <code>container.ts</code>"
+                  "<code>app/api/</code> · <code>src/server/intentDiff/createServices.ts</code> · <code>src/server/orca/OrcaCli.ts</code> · <code>src/server/orca/OrcaRuntime.ts</code> · <code>src/server/permissions/PermissionStore.ts</code> · <code>src/server/container.ts</code> — readScreen · bringForward · holdMs"
                 ],
                 [
                   "결정",
@@ -1301,6 +1315,129 @@
                 [
                   "결과",
                   "vitest 223 · contract 5 · playwright 3 · tsc 0 · lint 0(경고 2 기존) · build 성공. dev 서버로 diff·symbol·ask 응답과 잘못된 worktreePath 400 확인"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "CR",
+          "title": "코드 리뷰 지적 수정 (<code>/code-review main...HEAD</code>)",
+          "items": [
+            {
+              "id": "CR-1",
+              "title": "북마크 저장·삭제를 한 줄로 세우고, 다른 도구(provider)의 같은 세션 id 줄은 건드리지 않음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/BookmarkStore.ts</code> · <code>src/server/sessions/BookmarkStore.test.ts</code>"
+                ],
+                [
+                  "증상",
+                  "동시에 두 번 저장하면 앞의 변경이 사라지던 문제"
+                ]
+              ]
+            },
+            {
+              "id": "CR-2",
+              "title": "<code>ps</code>가 끝난 pid 때문에 1로 끝나도 찍힌 줄은 그대로 씀",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/SessionLocator.ts</code> · <code>src/server/sessions/SessionLocator.test.ts</code>"
+                ],
+                [
+                  "증상",
+                  "남은 세션 파일 하나 때문에 모든 패널이 추정 매칭으로 떨어지던 문제"
+                ]
+              ]
+            },
+            {
+              "id": "CR-3",
+              "title": "<code>gh api user</code> 실패를 캐시하지 않고, 로그인을 모를 때는 모드도 캐시하지 않음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/workflow/GitInfo.ts</code> · <code>src/server/workflow/GitInfo.test.ts</code>"
+                ],
+                [
+                  "증상",
+                  "처음 한 번 gh가 실패하면 개인 저장소가 서버 재시작 전까지 회사로 보이던 문제"
+                ]
+              ]
+            },
+            {
+              "id": "CR-4",
+              "title": "제목 스캔: 4MB 경계에 걸친 한글을 깨지지 않게 읽고, 이어 읽기는 마지막 줄바꿈 위치부터",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/transcriptFile.ts</code> · <code>src/server/sessions/transcriptFile.test.ts</code> · <code>src/server/sessions/SessionTitles.ts</code>"
+                ],
+                [
+                  "증상",
+                  "쓰는 중이던 제목 줄을 놓치거나 깨진 제목이 보이던 문제. 기록 폴더가 없을 때 이름 바꾸기가 ENOENT 대신 안내 문구를 냄"
+                ]
+              ]
+            },
+            {
+              "id": "CR-5",
+              "title": "권한 훅 요청이 대기 전에 이미 끊겼으면 바로 풀어 줌",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/hooks/permission/route.ts</code>"
+                ],
+                [
+                  "증상",
+                  "아무도 기다리지 않는 권한 질문이 590초 동안 보드에 남던 문제"
+                ]
+              ]
+            },
+            {
+              "id": "CR-6",
+              "title": "Host 허용 목록에 IPv6 루프백 <code>[::1]</code> 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/security/origin.ts</code> · <code>src/server/security/origin.test.ts</code>"
+                ],
+                [
+                  "증상",
+                  "http://[::1]:3000으로 열면 모든 API가 403"
+                ]
+              ]
+            },
+            {
+              "id": "CR-7",
+              "title": "세션 캐시 파일을 임시 파일에 쓰고 이름을 바꿔 저장",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/SessionIndex.ts</code>"
+                ],
+                [
+                  "증상",
+                  "쓰는 중에 죽으면 캐시가 반쯤 남아 다음 시작이 느려지던 문제"
+                ]
+              ]
+            },
+            {
+              "id": "CR-V",
+              "title": "검증: <code>bun run test</code> 237개 통과 · 바꾼 파일 lint 0",
+              "done": true,
+              "rows": [
+                [
+                  "메모",
+                  "<code>tsc</code>의 <code>AskThread.test.tsx</code> 에러 1건은 다른 작업(diff 결론 수정하기)이 진행 중인 변경이에요"
                 ]
               ]
             }

@@ -91,4 +91,16 @@ describe("GitInfo.detectMode", () => {
     expect(await git.detectMode("/repo")).toBe("personal");
     expect(warn).not.toHaveBeenCalled();
   });
+
+  it("asks gh again after a failed login lookup instead of caching the wrong mode", async () => {
+    const answers = [execError("offline", { stderr: "network" }), "me"];
+    const execFile = fakeExecFile(({ file, args }) => {
+      if (file === "gh") return answers.shift() ?? "me";
+      if (args.includes("--git-common-dir")) return "/repo/.git";
+      return "git@github.com:me/repo.git";
+    });
+    const git = new GitInfo({ execFile, fs: fakeFileSystem({ "/repo/.git/config": { content: "", mtimeMs: 1 } }), warn: vi.fn() });
+    expect(await git.detectMode("/repo")).toBe("company");
+    expect(await git.detectMode("/repo")).toBe("personal");
+  });
 });

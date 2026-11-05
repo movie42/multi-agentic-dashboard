@@ -4,10 +4,12 @@ import path from "node:path";
 import { LRUCache } from "lru-cache";
 import type { SessionRef } from "@/common/sessions/types";
 import type { SessionTitles as Titles } from "./summarize";
-import { readTitles } from "./transcriptFile";
+import { isMissing } from "../shared/fallback";
+import { readTitlesFrom } from "./transcriptFile";
 
 interface TitleEntry extends Titles {
   size: number;
+  resumeAt: number;
 }
 
 async function endsWithNewline(file: string): Promise<boolean> {
@@ -47,7 +49,10 @@ export class SessionTitles {
   }
 
   async transcriptOf(sessionId: string): Promise<string> {
-    const dirs = await readdir(this.projectsDir, { withFileTypes: true });
+    const dirs = await readdir(this.projectsDir, { withFileTypes: true }).catch((error: unknown) => {
+      if (isMissing(error)) return [];
+      throw error;
+    });
     const candidates = dirs.filter((dir) => dir.isDirectory()).map((dir) => path.join(this.projectsDir, dir.name, `${sessionId}.jsonl`));
     const found = await Promise.all(candidates.map(isFile));
     const file = candidates[found.indexOf(true)];
@@ -73,9 +78,10 @@ export class SessionTitles {
     const cached = this.titles.get(file);
     if (cached && cached.size === size) return cached;
     const resume = cached !== undefined && cached.size < size;
-    const added = await readTitles(file, size, resume ? cached.size : 0);
+    const { titles: added, resumeAt } = await readTitlesFrom(file, size, resume ? cached.resumeAt : 0);
     const entry: TitleEntry = {
       size,
+      resumeAt,
       custom: added.custom ?? (resume ? cached.custom : null),
       ai: added.ai ?? (resume ? cached.ai : null),
     };

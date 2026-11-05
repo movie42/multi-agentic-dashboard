@@ -39,11 +39,17 @@ export interface SessionLocatorOptions {
 
 const execFileAsync = promisify(execFile);
 
+export function psOutputOf(error: unknown): string {
+  if (typeof error === "object" && error !== null && "code" in error && error.code === 1 && "stdout" in error && typeof error.stdout === "string") {
+    return error.stdout;
+  }
+  throw error;
+}
+
 async function psCommands(pids: number[]): Promise<string> {
-  const { stdout } = await execFileAsync("/bin/ps", ["eww", "-o", "pid=,command=", "-p", pids.join(",")], {
+  return execFileAsync("/bin/ps", ["eww", "-o", "pid=,command=", "-p", pids.join(",")], {
     maxBuffer: 16 * 1024 * 1024,
-  });
-  return stdout;
+  }).then(({ stdout }) => stdout, psOutputOf);
 }
 
 export function panesFromPs(stdout: string, byPid: Map<number, LiveSession>): Map<string, LiveSession> {

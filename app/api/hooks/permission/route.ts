@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   const timer = setTimeout(() => services().permissions.release(held.id), services().permissions.holdMs);
   const onAbort = () => services().permissions.release(held.id);
   request.signal.addEventListener("abort", onAbort);
+  if (request.signal.aborted) onAbort();
   try {
     const output = await result;
     console.log("[permission-hook] settled", held.id, output.hookSpecificOutput?.decision.behavior ?? "none");

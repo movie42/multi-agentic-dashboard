@@ -13,6 +13,7 @@ describe("origin check", () => {
   it("rejects API requests whose Host is not local", () => {
     expect(isAllowedRequest("GET", "/api/sessions", headers({ host: "evil.com:3199" }))).toBe(false);
     expect(isAllowedRequest("GET", "/api/sessions", headers({ host: "127.0.0.1:3199" }))).toBe(true);
+    expect(isAllowedRequest("GET", "/api/sessions", headers({ host: "[::1]:3199" }))).toBe(true);
   });
 
   it("checks the origin of state-changing requests and the board poll", () => {

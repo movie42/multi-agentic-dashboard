@@ -63,7 +63,7 @@ export class GitInfo {
     if (cached) return cached;
     const [owner, login] = await Promise.all([this.remoteOwner(repoPath), this.githubLogin()]);
     const mode = modeOf(owner, login);
-    this.modes.set(key, mode);
+    if (owner === null || login !== null) this.modes.set(key, mode);
     return mode;
   }
 
@@ -72,6 +72,7 @@ export class GitInfo {
       ({ stdout }) => stdout.trim() || null,
       (error: unknown) => {
         this.warn("git", error, { step: "gh api user" });
+        this.login = null;
         return null;
       },
     );
