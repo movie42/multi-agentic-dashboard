@@ -129,14 +129,16 @@ bun run desktop
 ```bash
 bun run desktop:build    # .app 빌드만
 bun run desktop:install  # 빌드된 .app을 설치하고 Dock에 고정
+bun run skills:install   # 대시보드가 쓰는 스킬을 ~/.claude/skills에 복사
 ```
 
 | 명령 | 하는 일 | 결과물 |
 |---|---|---|
 | `desktop:build` | `next build`로 서버를 단독 실행 가능한 형태로 빌드한 뒤, Electron으로 감싸 macOS 앱을 만듭니다. 앱 아이콘도 이때 생성합니다. | `dist/Agent Control-darwin-<arch>/Agent Control.app` (`<arch>`는 `arm64` 또는 `x64`) |
 | `desktop:install` | 실행 중인 앱을 종료하고, 빌드된 앱을 복사한 뒤 Dock에 고정합니다. 이미 고정돼 있으면 그대로 둡니다. | `~/Applications/Agent Control.app` |
+| `skills:install` | 이 저장소의 `skills/` 아래 스킬을 복사합니다. 워크트리 만들기 버튼이 쓰는 `orca-worktree`가 여기 있고, 터미널에서 `/orca-worktree`로도 쓸 수 있습니다. 지우려면 `skills:uninstall`. | `~/.claude/skills/<스킬 이름>/` |
 
-앱을 실행하면 내부 서버가 `127.0.0.1:3199`에서 뜹니다. 포트를 바꾸려면 `AGENT_CONTROL_PORT` 환경 변수를 지정합니다. 코드를 고친 뒤에는 `bun run desktop`을 다시 실행해야 앱에 반영됩니다.
+앱을 실행하면 내부 서버가 `127.0.0.1:3199`에서 뜹니다. 포트를 바꾸려면 `AGENT_CONTROL_PORT` 환경 변수를 지정합니다. 코드나 `skills/`를 고친 뒤에는 `bun run desktop`을 다시 실행해야 앱과 스킬에 반영됩니다.
 
 ### 권한 요청 훅 연결
 
@@ -169,5 +171,6 @@ src/
   lib/permissions/  # 권한 요청 대기열
   lib/sessions/     # Claude Code 세션 기록 읽기
 desktop/            # Electron 진입점
-scripts/            # 데스크톱 빌드 · 설치, 권한 훅 설치
+scripts/            # 데스크톱 빌드 · 설치, 권한 훅 · 스킬 설치
+skills/             # 대시보드가 쓰는 Claude Code 스킬 (skills:install로 설치)
 ```

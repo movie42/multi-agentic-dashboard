@@ -169,7 +169,7 @@
         "followUp": "",
         "copy": ""
        },
-       "decision": "절차는 전역 스킬 ~/.claude/skills/orca-worktree/에 둬요. 대시보드는 같은 스킬을 쓰되 'JSON으로만 답한다'는 규칙을 덧붙이고, 터미널 claude 세션에서는 /orca-worktree로 같은 문답 후 직접 만들어요.",
+       "decision": "절차는 이 저장소의 skills/orca-worktree/에 두고, bun run skills:install(bun run desktop에 포함)이 전역 ~/.claude/skills/orca-worktree/로 복사해요. 워크트리 만들기는 Agent Control의 기능이라 dotfiles가 아니라 이 저장소가 스킬을 가져요. 대시보드는 같은 스킬을 쓰되 'JSON으로만 답한다'는 규칙을 덧붙이고, 터미널 claude 세션에서는 /orca-worktree로 같은 문답 후 직접 만들어요.",
        "reason": {
         "text": "대시보드가 없는 환경에서도 클로드에게 같은 방식으로 요청할 수 있다.",
         "by": "user"
@@ -251,7 +251,7 @@
        "rows": [
         [
          "파일",
-         "<code>~/.claude/skills/orca-worktree/SKILL.md</code>"
+         "<code>skills/orca-worktree/SKILL.md</code> (저장소) → <code>bun run skills:install</code>이 <code>~/.claude/skills/</code>로 복사"
         ],
         [
          "패턴",

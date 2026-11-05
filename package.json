@@ -9,11 +9,13 @@
     "lint": "eslint",
     "desktop:build": "next build && node scripts/build-desktop.mjs",
     "desktop:install": "node scripts/install-desktop.mjs",
-    "desktop": "bun run desktop:build && bun run desktop:install",
+    "desktop": "bun run desktop:build && bun run desktop:install && bun run skills:install",
     "hook:install": "node scripts/install-permission-hook.mjs",
     "hook:uninstall": "node scripts/install-permission-hook.mjs --uninstall",
     "snapshot:install": "node scripts/install-snapshot-hook.mjs",
-    "snapshot:uninstall": "node scripts/install-snapshot-hook.mjs --uninstall"
+    "snapshot:uninstall": "node scripts/install-snapshot-hook.mjs --uninstall",
+    "skills:install": "node scripts/install-skills.mjs",
+    "skills:uninstall": "node scripts/install-skills.mjs --uninstall"
   },
   "dependencies": {
     "@shikijs/core": "3.23.0",
