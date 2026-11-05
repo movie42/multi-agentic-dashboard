@@ -6,6 +6,7 @@ import type { SymbolLocation, SymbolLookup } from "./types";
 const CONFIG_TTL_MS = 10_000;
 const REFERENCE_LIMIT = 200;
 const SNIPPET_AROUND = 3;
+const SNIPPET_MAX_LINES = 120;
 
 interface ServiceEntry {
   service: ts.LanguageService;
@@ -69,12 +70,48 @@ function serviceFor(root: string): ts.LanguageService {
   return entry.service;
 }
 
+/** Callbacks and local statements are skipped so a reference shows the function it sits in, not one line of it. */
+function isReadableUnit(node: ts.Node): boolean {
+  return (
+    ts.isFunctionDeclaration(node) ||
+    ts.isMethodDeclaration(node) ||
+    ts.isConstructorDeclaration(node) ||
+    ts.isGetAccessorDeclaration(node) ||
+    ts.isSetAccessorDeclaration(node) ||
+    ts.isClassDeclaration(node) ||
+    ts.isInterfaceDeclaration(node) ||
+    ts.isTypeAliasDeclaration(node) ||
+    ts.isEnumDeclaration(node) ||
+    (ts.isVariableStatement(node) && ts.isSourceFile(node.parent))
+  );
+}
+
+/** 0-based first and last line of the innermost declaration around `position`, or a few lines around it. */
+function snippetRange(sourceFile: ts.SourceFile, position: number, line: number, lineCount: number): [number, number] {
+  let unit: ts.Node | null = null;
+  const visit = (node: ts.Node) => {
+    if (position < node.getStart(sourceFile) || position >= node.getEnd()) return;
+    if (isReadableUnit(node)) unit = node;
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(sourceFile, visit);
+  const around: [number, number] = [Math.max(0, line - SNIPPET_AROUND), Math.min(lineCount - 1, line + SNIPPET_AROUND)];
+  if (!unit) return around;
+  const found: ts.Node = unit;
+  const first = sourceFile.getLineAndCharacterOfPosition(found.getStart(sourceFile)).line;
+  const last = sourceFile.getLineAndCharacterOfPosition(found.getEnd()).line;
+  if (last - first + 1 <= SNIPPET_MAX_LINES) return [first, last];
+  const half = Math.floor(SNIPPET_MAX_LINES / 2);
+  const from = Math.max(first, Math.min(line - half, last - SNIPPET_MAX_LINES + 1));
+  return [from, from + SNIPPET_MAX_LINES - 1];
+}
+
 function locationOf(program: ts.Program, root: string, fileName: string, start: number): SymbolLocation | null {
   const sourceFile = program.getSourceFile(fileName);
   if (!sourceFile) return null;
   const { line } = sourceFile.getLineAndCharacterOfPosition(start);
   const lines = sourceFile.text.split("\n");
-  const from = Math.max(0, line - SNIPPET_AROUND);
+  const [from, to] = snippetRange(sourceFile, start, line, lines.length);
   const relative = path.relative(root, fileName).split(path.sep).join("/");
   const external = relative.startsWith("..") || relative.includes("node_modules/");
   return {
@@ -82,7 +119,7 @@ function locationOf(program: ts.Program, root: string, fileName: string, start: 
     external,
     line: line + 1,
     text: lines[line]?.trim() ?? "",
-    snippet: { startLine: from + 1, lines: lines.slice(from, line + SNIPPET_AROUND + 1) },
+    snippet: { startLine: from + 1, lines: lines.slice(from, to + 1) },
   };
 }
 

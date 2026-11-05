@@ -1,0 +1,489 @@
+{
+ "id": "worktree-wizard",
+ "title": "버튼 하나로 에이전트가 묻고 워크트리 만들기",
+ "type": "기능 개발",
+ "branch": "main-work",
+ "links": [],
+ "stages": {
+  "grill": {
+   "rounds": [
+    {
+     "id": "R1",
+     "askedAt": "11/05",
+     "from": "워크트리 생성 버튼 요청",
+     "questions": [
+      {
+       "id": "Q1",
+       "title": "에이전트와의 문답을 어디서 할까요",
+       "said": "\"agent control 위에서 그 버튼을 누르면 에이전트가 자동으로 나에게 어떻게 워크트리를 구성할지 물어보도록 하면 좋겠어. 이건 claude -p로 해도 될 것 같아\"",
+       "intent": "문답 자리가 대시보드 안이냐 터미널이냐에 따라 화면 구현량과, 버튼을 누른 뒤 사용자가 시선을 옮겨야 하는지가 정해져요.",
+       "body": "<code>claude -p</code>는 한 번 묻고 한 번 답하고 끝나는 실행이라, 에이전트가 사용자에게 되묻는 대화 창이 따로 없어요. 그래서 두 가지 길이 있어요. (가) 대시보드가 문답 창이 된다 — 에이전트는 '물어볼 질문 목록' 또는 '최종 구성안'을 정해진 JSON으로만 답하고, 대시보드가 그걸 선택지 카드로 그려요. 답을 고르면 같은 세션을 <code>--resume</code>으로 이어 다음 질문을 받아요. 이미 diff 화면의 '쓴 세션에게 묻기'(<code>src/lib/intentDiff/ask.ts</code>)가 같은 방식으로 <code>claude -p</code>를 돌리고 있어요. (나) 버튼이 Orca에 일반 claude 터미널 세션을 열고 스킬을 실행 — 에이전트가 터미널 안에서 평소처럼 선택지로 묻고 직접 만들어요. <code>claude -p</code>는 쓰지 않아요.",
+       "options": [
+        {
+         "value": "dashboard",
+         "label": "대시보드 안 문답 창 — 질문이 선택지 카드로 뜨고, 고르면 다음 질문 (claude -p)"
+        },
+        {
+         "value": "terminal",
+         "label": "Orca 터미널에 claude 세션이 열리고 그 안에서 문답 (claude -p 아님)"
+        }
+       ],
+       "recommended": "dashboard",
+       "recommendation": "대시보드 안 문답 창을 추천해요. 버튼을 누른 자리에서 끝나고, 같은 구조가 이미 diff 화면에 있어 재사용할 수 있어요. 터미널 방식은 만들 건 적지만 지금 손으로 하던 것과 거의 같아요.",
+       "answer": {
+        "choice": "dashboard",
+        "why": "이건 ananymous??? 세션이라 특정 프로젝트에 속하는게 아니라서 claude -p가 더 적절해보임 내가 이해한 원리가 맞니?",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "문답은 대시보드 안 문답 창에서 해요. 에이전트는 claude -p로 실행되고 질문 또는 구성안을 정해진 JSON으로만 답하며, 대시보드가 선택지 카드로 그려요. 답을 고르면 같은 세션을 --resume으로 이어요.",
+       "reason": {
+        "text": "터미널 세션 없이 대시보드에서 묻고 끝내는 일이라 claude -p가 맞다.",
+        "by": "user"
+       },
+       "appliedTo": "[[P2]] [[P3]] [[P4]]"
+      },
+      {
+       "id": "Q2",
+       "title": "실제 git 워크트리 생성은 누가 실행할까요",
+       "said": "대시보드는 지금 claude -p에 읽기 도구(Read, Grep, Glob)만 주고, 쓰기 가능한 MCP 서버는 모두 끊어요.",
+       "intent": "에이전트가 명령을 직접 실행하면 잘못 이해한 구성이 확인 없이 만들어질 수 있어요. 누가 실행하느냐가 '확인 한 번'이 보장되는지를 정해요.",
+       "body": "에이전트는 브랜치 목록과 저장소 상태를 읽고 구성안(저장소, 기준 브랜치, 새 브랜치 이름, 워크트리 이름, 부모 워크트리)을 만들어요. 그 다음 <code>orca worktree create</code>를 (가) 대시보드 서버가 사용자 확인 버튼을 받은 뒤 실행하거나, (나) 에이전트에게 Bash 권한을 줘서 직접 실행하게 할 수 있어요.",
+       "options": [
+        {
+         "value": "server",
+         "label": "구성안 확인 카드에서 '만들기'를 누르면 대시보드가 실행 — 에이전트는 읽기만"
+        },
+        {
+         "value": "agent",
+         "label": "에이전트가 문답이 끝나면 바로 직접 실행"
+        }
+       ],
+       "recommended": "server",
+       "recommendation": "대시보드 실행을 추천해요. 생성 직전 한 장의 확인 카드에서 이름·기준 브랜치를 고칠 수 있고, 에이전트가 엉뚱한 명령을 칠 길이 없어요.",
+       "answer": {
+        "choice": "server",
+        "why": "",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "실제 생성은 구성안 카드에서 '만들기'를 누른 뒤 대시보드 서버가 orca worktree create를 실행해요. 에이전트에게는 읽기 도구만 줘요.",
+       "reason": {
+        "text": "생성 직전에 구성을 한 번 보고 고칠 수 있어야 한다.",
+        "by": "user"
+       },
+       "appliedTo": "[[P2-3]] [[P4-1]]"
+      },
+      {
+       "id": "Q3",
+       "title": "버튼을 어디에 둘까요",
+       "said": "\"어느 브랜치, 어느 워크트리에 있던지간에 워크트리를 생성할 수 있는 기능\"",
+       "intent": "버튼을 누른 자리가 곧 '기준'이 돼요. 자리에 따라 에이전트가 묻지 않아도 되는 것(기준 브랜치, 부모)이 달라져요.",
+       "body": "후보는 두 자리예요. 각 워크트리 패널 머리글(지금 '터미널 열기' 버튼 옆, <code>WorktreePanel.tsx</code>) — 그 워크트리의 브랜치를 기준·부모로 미리 채워요. 프로젝트 화면 머리글('새 세션 시작' 줄 근처, <code>Dashboard.tsx</code>) — 저장소만 정해지고 기준 브랜치는 에이전트가 물어요.",
+       "options": [
+        {
+         "value": "both",
+         "label": "워크트리 패널마다 + 프로젝트 머리글에 하나 (둘 다)"
+        },
+        {
+         "value": "panel",
+         "label": "워크트리 패널마다만"
+        },
+        {
+         "value": "header",
+         "label": "프로젝트 머리글에 하나만"
+        }
+       ],
+       "recommended": "both",
+       "recommendation": "둘 다를 추천해요. '이 브랜치에서 하나 더'는 패널 버튼, '저장소 기본 브랜치에서 새로'는 머리글 버튼으로 갈려서 첫 질문이 하나 줄어요.",
+       "answer": {
+        "choice": "both",
+        "why": "UX가 어떨지 예상이 안되서 일단 사용해보고 수정하자",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "버튼은 워크트리 패널마다 하나, 프로젝트 머리글에 하나 둬요. 패널 버튼은 그 워크트리 브랜치를 기준·부모로 채우고, 머리글 버튼은 저장소 기본 브랜치에서 시작해요. 써 보고 위치를 다시 정해요.",
+       "reason": {
+        "text": "UX가 어떨지 예상이 안 돼서 일단 둘 다 써 보고 수정하자.",
+        "by": "user"
+       },
+       "appliedTo": "[[P4-2]] [[P4-3]]"
+      },
+      {
+       "id": "Q4",
+       "title": "만든 뒤 바로 claude 세션도 시작할까요",
+       "said": "orca worktree create는 --agent claude --prompt \"…\"로 만들면서 첫 요청을 보낼 수 있어요.",
+       "intent": "워크트리를 만드는 이유는 대개 바로 그 안에서 작업을 시키려는 것이라, 이 단계를 붙이면 버튼 한 번으로 작업 시작까지 이어져요.",
+       "body": "확인 카드에 '첫 요청' 입력칸을 둬서, 채우면 새 워크트리에서 claude 세션이 그 요청으로 시작되고, 비우면 터미널만 열리게 할 수 있어요. 아니면 생성만 하고 세션은 기존 '새 세션 시작'으로 따로 열어요.",
+       "options": [
+        {
+         "value": "optional",
+         "label": "확인 카드에 '첫 요청' 칸 — 채우면 세션 시작, 비우면 생성만"
+        },
+        {
+         "value": "none",
+         "label": "워크트리만 만든다"
+        }
+       ],
+       "recommended": "optional",
+       "recommendation": "'첫 요청' 칸을 추천해요. 비워 두면 지금과 같고, 채우면 한 단계가 줄어요.",
+       "answer": {
+        "choice": "optional",
+        "why": "",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "구성안 카드에 '첫 요청' 칸을 둬요. 채우면 새 워크트리에서 claude 세션이 그 요청으로 시작되고, 비우면 워크트리와 터미널만 만들어져요.",
+       "reason": {
+        "text": "워크트리를 만드는 건 대개 바로 그 안에서 작업을 시키려는 것이다.",
+        "by": "user"
+       },
+       "appliedTo": "[[P4-1]] [[P2-3]]"
+      },
+      {
+       "id": "Q5",
+       "title": "절차를 담은 스킬은 어디에 둘까요",
+       "said": "\"orca 전용 스킬을 만들어서\"",
+       "intent": "스킬 위치가 '대시보드 버튼에서만 쓰는 절차'인지 '어느 claude 세션에서도 /명령으로 쓰는 절차'인지를 정해요.",
+       "body": "스킬은 에이전트가 따를 절차예요: 어떤 브랜치 정보를 먼저 읽고, 무엇은 묻지 않고 기본값을 쓰며, 무엇을 묻는지(예: 기준 브랜치, 브랜치 이름 규칙 <code>feat/&lt;KEY&gt;</code>, 부모 연결). (가) 전역 <code>~/.claude/skills/orca-worktree/</code> — 대시보드의 claude -p도 쓰고, 아무 터미널 세션에서 <code>/orca-worktree</code>로도 같은 문답을 할 수 있어요. 다만 대시보드 모드에서는 'JSON으로만 답한다'는 규칙을 대시보드가 덧붙여요. (나) 이 저장소 안 <code>.claude/skills/</code> — 대시보드 전용.",
+       "options": [
+        {
+         "value": "global",
+         "label": "전역 스킬 — 대시보드와 터미널 /orca-worktree 둘 다에서 사용"
+        },
+        {
+         "value": "repo",
+         "label": "대시보드 저장소 안에만"
+        }
+       ],
+       "recommended": "global",
+       "recommendation": "전역 스킬을 추천해요. 손으로 '워크트리 열어줘'라고 하던 세션에서도 같은 질문 순서를 쓰게 돼요.",
+       "answer": {
+        "choice": "global",
+        "why": "클로드 세션에서도 따로 명령하면 대시보드가 없는 환경에서도 클로드에게 요청할수 있어 좋을듯",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "절차는 이 저장소의 skills/orca-worktree/에 두고, bun run skills:install(bun run desktop에 포함)이 전역 ~/.claude/skills/orca-worktree/로 복사해요. 워크트리 만들기는 Agent Control의 기능이라 dotfiles가 아니라 이 저장소가 스킬을 가져요. 대시보드는 같은 스킬을 쓰되 'JSON으로만 답한다'는 규칙을 덧붙이고, 터미널 claude 세션에서는 /orca-worktree로 같은 문답 후 직접 만들어요.",
+       "reason": {
+        "text": "대시보드가 없는 환경에서도 클로드에게 같은 방식으로 요청할 수 있다.",
+        "by": "user"
+       },
+       "appliedTo": "[[P1]]"
+      },
+      {
+       "id": "Q6",
+       "title": "에이전트가 꼭 물어야 하는 것과 묻지 않을 것",
+       "said": "orca worktree create 입력: --repo, --name, --base-branch, --branch, --parent-worktree / --no-parent, --reference(Jira 키), --comment",
+       "intent": "질문이 많으면 손으로 치는 것보다 느려져요. 기본값으로 넘길 항목을 정해야 '버튼 한 번'의 의미가 살아요.",
+       "body": "추천 기본값: 저장소·기준 브랜치·부모는 버튼 자리에서 채우고 묻지 않음. 에이전트가 묻는 건 '무슨 작업인지(한 줄 또는 Jira 키)' 하나이고, 그걸로 브랜치 이름과 워크트리 이름을 제안해요. 구성안 카드에서 각 칸은 고칠 수 있어요. 더 묻고 싶은 항목이 있으면 메모로 적어 주세요.",
+       "recommendation": "위 기본값을 추천해요. 첫 질문 하나 → 구성안 카드 → 만들기, 세 번의 클릭으로 끝나요.",
+       "answer": {
+        "choice": "yes",
+        "why": "티키타카를 최대한 줄이는게 좋다고 생각 했다. 목표에 최대한 묻는거 없이 그런데 생각한대로 동작하는게 좋을것같다.",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "저장소·기준 브랜치·부모는 버튼 자리에서 채우고 묻지 않아요. 에이전트는 '무슨 작업인지'만 묻고, 첫 요청에 이미 담겨 있으면 묻지도 않고 바로 구성안을 내요. 구성안 카드의 모든 칸은 고칠 수 있어요.",
+       "reason": {
+        "text": "티키타카를 최대한 줄이고, 묻지 않아도 생각한 대로 동작하는 게 좋다.",
+        "by": "user"
+       },
+       "appliedTo": "[[P1-1]] [[P4-1]]"
+      }
+     ]
+    },
+    {
+     "id": "R2",
+     "askedAt": "11/05",
+     "from": "[[R1-Q1]]의 되물음, [[R1-Q2]] · [[R1-Q4]] 추정 이유 확인",
+     "questions": [
+      {
+       "id": "Q1",
+       "title": "claude -p 원리 설명 · 추정한 이유가 맞나요",
+       "said": "\"이건 anonymous 세션이라 특정 프로젝트에 속하는 게 아니라서 claude -p가 더 적절해 보임. 내가 이해한 원리가 맞니?\"",
+       "intent": "원리를 잘못 이해한 채 쓰면, 이 세션들이 어디에 기록되는지 몰라 나중에 헷갈려요. 이유 두 개는 추정이라 확인이 필요해요.",
+       "body": "반은 맞아요. claude -p는 '익명'이 아니라 '터미널 화면 없이 한 번 실행되는' 세션이에요. 실행할 폴더(cwd)가 있어서 그 프로젝트에 속하고, 기록도 ~/.claude/projects/&lt;폴더&gt;/에 남아요. 이번 기능에 맞는 진짜 이유는 두 가지예요: 사람이 볼 터미널이 필요 없고, 답을 JSON으로 받아 대시보드가 그릴 수 있어요. 대시보드 세션 목록은 이런 세션을 이미 '헤드리스'로 걸러 내서(<code>claudeSessions.ts</code>) 목록이 지저분해지지 않아요. 브랜치 목록은 대시보드 서버가 git과 orca로 미리 읽어 질문에 넣어 줘요 — 에이전트에게 명령 실행 권한을 주지 않으려고요.<br><br>추정한 이유: [[R1-Q2]] '생성 직전에 구성을 한 번 보고 고칠 수 있어야 한다', [[R1-Q4]] '워크트리를 만드는 건 대개 바로 그 안에서 작업을 시키려는 것'. 맞으면 추천대로를 눌러 주세요.",
+       "recommendation": "설명을 확인하고 두 추정 이유가 맞으면 추천대로, 다르면 메모에 적어 주세요.",
+       "answer": {
+        "choice": "yes",
+        "why": "",
+        "note": "",
+        "followUp": "",
+        "copy": ""
+       },
+       "decision": "claude -p는 익명이 아니라 실행 폴더에 속한 헤드리스 세션이라는 설명을 확인했어요. [[R1-Q2]] · [[R1-Q4]]의 추정 이유도 맞다고 확인했어요.",
+       "reason": {
+        "text": "설명과 추정 이유가 사용자의 생각과 같다.",
+        "by": "user"
+       },
+       "appliedTo": "[[R1-Q2]] [[R1-Q4]]"
+      }
+     ]
+    }
+   ]
+  },
+  "tasks": {
+   "status": "done",
+   "summary": "구현 완료 · 터미널 스킬 실사용만 남음",
+   "conclusion": [
+    "절차는 저장소의 <code>skills/orca-worktree</code>가 갖고 <code>bun run skills:install</code>이 <code>~/.claude/skills/</code>로 복사해요. 대시보드는 같은 스킬을 claude -p로 불러요 [[P1]].",
+    "에이전트는 도구 없이 질문 또는 구성안 JSON만 돌려주고, 생성은 '만들기'를 누른 뒤 서버가 <code>orca worktree create</code>로 해요 [[P2]] [[P3]].",
+    "버튼은 워크트리 패널의 '여기서 워크트리'와 프로젝트 머리글의 '새 워크트리' 두 곳이에요 [[P4]].",
+    "터미널에서 /orca-worktree로 직접 만드는 경로는 아직 써 보지 않았어요 [[P1-V]]."
+   ],
+   "blocks": [
+    {
+     "type": "checklist",
+     "id": "P1",
+     "title": "Phase 1 · 저장소 스킬 orca-worktree",
+     "items": [
+      {
+       "id": "P1-1",
+       "title": "절차 문서: 모을 정보 → 기본값 → 묻는 것(작업 한 줄) → 구성안 → 확인 → 생성",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>skills/orca-worktree/SKILL.md</code> (저장소) → <code>bun run skills:install</code>이 <code>~/.claude/skills/</code>로 복사"
+        ],
+        [
+         "패턴",
+         "브랜치 이름 규칙은 AGENTS.md의 <code>feat/&lt;KEY&gt;</code> · 스토리 브랜치 규칙을 따름"
+        ],
+        [
+         "결정",
+         "[[R1-Q5]] [[R1-Q6]]"
+        ]
+       ]
+      },
+      {
+       "id": "P1-2",
+       "title": "두 모드: 터미널(AskUserQuestion으로 묻고 확인 후 <code>orca worktree create</code> 실행) · 대시보드(실행 없이 JSON만)",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>SKILL.md</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P1-V",
+       "title": "검증: 터미널에서 <code>/orca-worktree</code>로 실제 워크트리 하나 만들고 지우기",
+       "done": false,
+       "rows": [
+        [
+         "결정",
+         "대시보드 경로(claude -p)에서 스킬이 로드되는 것만 확인했어요. 터미널에서 직접 /orca-worktree로 만드는 건 아직 써 보지 않았어요."
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "id": "P2",
+     "title": "Phase 2 · 서버 로직",
+     "items": [
+      {
+       "id": "P2-1",
+       "title": "타입: 문답 한 턴 <code>{kind: 'ask'} | {kind: 'plan'}</code> · 구성안 필드",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/lib/worktreeWizard/types.ts</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P2-2",
+       "title": "저장소 정보 모으기: 로컬 브랜치 · 원격 브랜치 · 기존 워크트리 · 기본 브랜치 · 버튼을 누른 워크트리",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/lib/worktreeWizard/context.ts</code>"
+        ],
+        [
+         "재사용",
+         "<code>runOrca</code> (<code>src/lib/orca/cli.ts</code>) · <code>src/lib/workflow/git.ts</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P2-3",
+       "title": "claude -p 실행: 첫 턴 · <code>--resume</code> 이어 답하기 · <code>--json-schema</code>로 응답 고정 · 읽기 도구만 · MCP 없음",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/lib/worktreeWizard/run.ts</code> · <code>src/lib/claude/bin.ts</code> · <code>src/lib/intentDiff/ask.ts</code>"
+        ],
+        [
+         "재사용",
+         "<code>CLAUDE_BIN</code> 찾는 방식과 인자 (<code>src/lib/intentDiff/ask.ts</code>)"
+        ],
+        [
+         "결정",
+         "모델은 기본 sonnet이고 <code>WORKTREE_WIZARD_MODEL</code>로 바꿀 수 있어요. 질문 한 턴이 5~10초 걸려요."
+        ],
+        [
+         "결정",
+         "도구는 하나도 주지 않아요(<code>--tools \"\"</code>). 저장소 정보는 서버가 프롬프트에 넣어요."
+        ],
+        [
+         "재사용",
+         "claude 실행 파일 찾기를 <code>src/lib/claude/bin.ts</code>로 옮기고 diff 화면 묻기와 같이 써요"
+        ]
+       ]
+      },
+      {
+       "id": "P2-4",
+       "title": "생성: 구성안 → <code>orca worktree create --repo --name --base-branch --branch --parent-worktree|--no-parent [--agent claude --prompt]</code>",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/lib/worktreeWizard/create.ts</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P2-V",
+       "title": "검증: <code>bunx tsc --noEmit</code> · 스크립트로 첫 턴 JSON 받아 보기",
+       "done": true,
+       "rows": []
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "id": "P3",
+     "title": "Phase 3 · API",
+     "items": [
+      {
+       "id": "P3-1",
+       "title": "<code>POST /api/worktree-wizard</code>: start · answer · create",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/app/api/worktree-wizard/route.ts</code>"
+        ],
+        [
+         "패턴",
+         "입력 검증은 <code>src/app/api/actions/route.ts</code>의 타입 가드 방식"
+        ]
+       ]
+      },
+      {
+       "id": "P3-V",
+       "title": "검증: curl로 start → answer → plan 응답",
+       "done": true,
+       "rows": []
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "id": "P4",
+     "title": "Phase 4 · 화면",
+     "items": [
+      {
+       "id": "P4-1",
+       "title": "문답 패널: 질문 카드(선택지 + 직접 입력) → 구성안 카드(칸 수정 · 첫 요청 · 만들기)",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/features/board/WorktreeWizard.tsx</code>"
+        ],
+        [
+         "재사용",
+         "선택지 모양은 <code>ChoicePanel.tsx</code>, 입력칸은 <code>LaunchAgent.tsx</code>"
+        ],
+        [
+         "결정",
+         "문답 패널은 워크트리 패널 오른쪽 넓은 칸 맨 위에 펼쳐져요. 왼쪽 176px 칸은 입력칸이 들어가기에 좁았어요."
+        ],
+        [
+         "결정",
+         "구성안 카드에서 '고칠 점 말하기'로 에이전트에게 다시 맡길 수 있어요."
+        ]
+       ]
+      },
+      {
+       "id": "P4-2",
+       "title": "워크트리 패널 버튼 '여기서 워크트리'",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/features/board/WorktreePanel.tsx</code> ('새 세션' 버튼 줄)"
+        ]
+       ]
+      },
+      {
+       "id": "P4-3",
+       "title": "프로젝트 머리글 버튼 '새 워크트리'",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/features/board/Dashboard.tsx</code> (머리글 <code>LaunchAgent</code> 근처)"
+        ]
+       ]
+      },
+      {
+       "id": "P4-V",
+       "title": "검증: <code>bun run lint</code> · 개발 서버에서 버튼 → 문답 → 생성까지 실제로 한 번, 그 뒤 <code>bun run desktop</code>",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "개발 서버에서 버튼 → 질문 → 구성안 → 만들기까지 실제로 돌려 <code>wizard-test</code> 워크트리가 main-work 하위로 생기는 걸 확인하고 지웠어요."
+        ]
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "intent": [
+  {
+   "text": "\"이 브랜치에서 워크트리 열어줘\"를 매번 타이핑하지 않고, 대시보드 버튼 하나로 시작한다.",
+   "state": "confirmed",
+   "basis": "사용자 요청"
+  },
+  {
+   "text": "어느 브랜치·어느 워크트리에서 눌러도, 그 자리를 기준으로 새 워크트리 구성을 에이전트가 물어본다.",
+   "state": "confirmed",
+   "basis": "사용자 요청"
+  },
+  {
+   "text": "묻는 일은 claude -p 에이전트가, 실제 생성은 확인을 거친 뒤 한 번만 일어난다.",
+   "state": "confirmed",
+   "basis": "[[R1-Q1]] [[R1-Q2]]"
+  },
+  {
+   "text": "묻는 건 최소한으로 — 첫 요청에 담긴 것은 다시 묻지 않고 생각한 대로 만든다.",
+   "state": "confirmed",
+   "basis": "[[R1-Q6]]"
+  },
+  {
+   "text": "같은 절차를 대시보드 없이 터미널 claude 세션에서도 쓸 수 있다.",
+   "state": "confirmed",
+   "basis": "[[R1-Q5]]"
+  }
+ ],
+ "pulledAt": 1793843185220
+}
