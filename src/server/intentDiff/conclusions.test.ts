@@ -65,8 +65,6 @@ describe("concludeAsk", () => {
     expect(isSent(latest().conclusion)).toBe(true);
     expect(isSendable(latest().conclusion)).toBe(false);
 
-    await concludeAsk({ type: "edit", threadId: "t1", text: "다시" }, { ...deps, now: () => 300 });
-    expect(isSendable(latest().conclusion)).toBe(false);
     await concludeAsk({ type: "confirm", threadId: "t1", text: "다시" }, { ...deps, now: () => 400 });
     expect(isSendable(latest().conclusion)).toBe(true);
   });

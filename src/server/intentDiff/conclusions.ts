@@ -1,6 +1,5 @@
 import {
   confirmConclusion,
-  editConclusion,
   judgeConclusion,
   markSent,
   type ConclusionRequest,
@@ -33,7 +32,6 @@ export async function concludeAsk(request: ConclusionRequest, deps: ConclusionDe
   }
   return deps.update([thread.id], (current) => {
     const conclusion = current.conclusion ?? { text: "", needsChange: true, draftedAt: now, confirmedAt: null, sentAt: null };
-    if (request.type === "edit") return withConclusion(current, editConclusion(conclusion, request.text), now);
     if (request.type === "judge") return withConclusion(current, judgeConclusion(conclusion, request.needsChange, now), now);
     return withConclusion(current, confirmConclusion(conclusion, request.text, now), now);
   });

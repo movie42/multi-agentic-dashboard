@@ -5,7 +5,6 @@ const threadId = z.string().min(1);
 
 export const conclusionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("draft"), threadId }),
-  z.object({ type: z.literal("edit"), threadId, text: z.string().max(4000) }),
   z.object({ type: z.literal("judge"), threadId, needsChange: z.boolean() }),
   z.object({ type: z.literal("confirm"), threadId, text: z.string().trim().min(1).max(4000) }),
   z.object({ type: z.literal("sent"), threadIds: z.array(threadId).min(1) }),
@@ -14,10 +13,6 @@ export const conclusionRequestSchema = z.discriminatedUnion("type", [
 export type ConclusionRequest = z.infer<typeof conclusionRequestSchema>;
 
 export type ConclusionResponse = { ok: true; threads: AskThread[] } | { ok: false; error: string };
-
-export function editConclusion(conclusion: AskConclusion, text: string): AskConclusion {
-  return { ...conclusion, text, confirmedAt: null };
-}
 
 export function judgeConclusion(conclusion: AskConclusion, needsChange: boolean, now: number): AskConclusion {
   return { ...conclusion, needsChange, confirmedAt: conclusion.confirmedAt === null ? null : now };

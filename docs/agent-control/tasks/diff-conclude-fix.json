@@ -425,11 +425,11 @@
             {
               "id": "P2-1",
               "title": "<code>ThreadView</code>에 '결론 정리' → 초안 편집 → 확정, '수정 필요 / 수정 안 함' 표시(눌러서 바꿈), 보낸 스레드는 '수정 보냄 · 시각'으로 접힘",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/features/ask-about-diff/ui/ConclusionBox.tsx</code> · <code>AskThread.tsx</code> · <code>model/useAskBoard.ts</code>"
+                  "<code>src/client/features/ask-about-diff/ui/ConclusionBox.tsx</code> · <code>AskThread.tsx</code> · <code>model/useAskBoard.ts</code>(<code>conclude</code>)"
                 ],
                 [
                   "재사용",
@@ -437,15 +437,20 @@
                 ],
                 [
                   "결정",
-                  "[[R1-Q1]] [[R1-Q2]] [[R1-Q5]]"
+                  "결론 글은 확정 전까지 화면 안에서만 고치고 '확정' 때 한 번에 보내요(서버 <code>edit</code> 요청은 빼서 요청이 <code>draft · judge · confirm · sent</code> 네 가지). 확정된 결론은 글을 눌러 다시 고칠 수 있고, 다시 확정하면 다시 보낼 대상이 돼요. 보낸 스레드는 처음부터 접힌 채로, 머리에 '수정 보냄 · 시각'"
                 ]
               ]
             },
             {
               "id": "P2-V",
               "title": "검증: <code>ConclusionBox</code> 컴포넌트 테스트(초안 → 확정, 판단 바꾸기)",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "<code>ConclusionBox.test.tsx</code> 5개 통과(초안 요청 · 답 전 비활성 · 고쳐서 확정 · 판단 뒤집기 · 보냄 표시와 다시 고치기 · 실패 표시)"
+                ]
+              ]
             }
           ]
         },

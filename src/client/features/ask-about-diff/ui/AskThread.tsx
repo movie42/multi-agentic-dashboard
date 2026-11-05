@@ -4,7 +4,10 @@ import { createContext, startTransition, use, useActionState, useState } from "r
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import type { AskAnchor, AskContext, AskTarget, AskThread } from "@/common/intentDiff/types";
+import { isSent } from "@/common/intentDiff/conclusion";
+import { formatClock } from "@/client/shared/lib/format";
 import { AnswerMarkdown } from "./AnswerMarkdown";
+import { ConclusionBox } from "./ConclusionBox";
 import { AskBoardContext } from "../model/useAskBoard";
 
 /** The plan item whose flow is on screen, for the question's context. */
@@ -139,7 +142,7 @@ interface ThreadViewProps {
 /** A saved conversation, shown under the lines it is about. */
 export function ThreadView({ thread }: ThreadViewProps) {
   const board = use(AskBoardContext);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => !isSent(thread.conclusion));
   const [terminalError, setTerminalError] = useState<string | null>(null);
   if (!board) return null;
   const live = board.live[thread.id];
@@ -173,6 +176,7 @@ export function ThreadView({ thread }: ThreadViewProps) {
         <span className="font-semibold text-fg">질문 {thread.turns.length}</span>
         <span>{anchorText(thread.anchor)}</span>
         <span>· {targetText(thread.target)}</span>
+        {isSent(thread.conclusion) && thread.conclusion?.sentAt != null && <span>· 수정 보냄 · {formatClock(thread.conclusion.sentAt)}</span>}
       </button>
       {open && (
         <div className="flex flex-col gap-3 border-t border-hair px-3 py-3">
@@ -198,6 +202,7 @@ export function ThreadView({ thread }: ThreadViewProps) {
               )}
             </div>
           ))}
+          <ConclusionBox thread={thread} waiting={waiting} conclude={board.conclude} />
           {!waiting && (
             <QuestionBox placeholder="이어서 묻기 (⌘↵ 보내기)" submitLabel="이어 묻기" scope="ask" notice={terminalError} onSubmit={followUp}>
               <button type="button" onClick={continueInTerminal} className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg">

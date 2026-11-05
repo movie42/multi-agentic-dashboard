@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useEffect, useState } from "react";
+import type { ConclusionRequest, ConclusionResponse } from "@/common/intentDiff/conclusion";
 import type { AskEvent, AskRequest, AskThread, AskThreadsResponse, IntentDiffResult } from "@/common/intentDiff/types";
 import { readJson, parseJsonLine, errorField } from "@/client/shared/api/json";
 
@@ -16,6 +17,8 @@ export interface AskBoard {
   live: Record<string, LiveAnswer>;
   /** Sends a question; resolves once the answer is saved. Throws when no thread could be started. */
   ask: (input: AskInput, onThread?: (thread: AskThread) => void) => Promise<void>;
+  /** Drafts, judges, confirms or marks conclusions as sent; throws on failure. */
+  conclude: (request: ConclusionRequest) => Promise<void>;
   reload: () => void;
   /** The session that last changed lines `start..end` of `file`, by the intent groups over them. */
   writerOf: (file: string, start: number, end: number) => string | null;
@@ -132,11 +135,22 @@ export function useAskBoard(worktreePath: string, result: IntentDiffResult): Ask
     }
   };
 
+  const conclude: AskBoard["conclude"] = async (request) => {
+    const response = await fetch("/api/intent-diff/ask/conclusion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    const body = await readJson<ConclusionResponse>(response);
+    if (!body.ok) throw new Error(body.error);
+    setThreads((previous) => body.threads.reduce(upsert, previous));
+  };
+
   const writerOf: AskBoard["writerOf"] = (file, start, end) => {
     const hits = spans.filter((span) => span.file === file && span.start <= end && span.end >= start);
     if (hits.length === 0) return null;
     return hits.reduce((latest, span) => (span.startedAt > latest.startedAt ? span : latest)).sessionId;
   };
 
-  return { threads, live, ask, reload: () => setReloadKey((key) => key + 1), writerOf };
+  return { threads, live, ask, conclude, reload: () => setReloadKey((key) => key + 1), writerOf };
 }

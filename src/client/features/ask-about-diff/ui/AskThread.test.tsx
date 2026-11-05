@@ -28,7 +28,7 @@ const thread: AskThread = {
 };
 
 function boardWith(ask: AskBoard["ask"]): AskBoard {
-  return { threads: [], live: {}, ask, reload: () => {}, writerOf: () => "writer-session" };
+  return { threads: [], live: {}, ask, conclude: async () => {}, reload: () => {}, writerOf: () => "writer-session" };
 }
 
 beforeEach(() => {
