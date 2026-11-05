@@ -1,0 +1,176 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`attribute > matches the current grouping with a plan 1`] = `
+{
+  "groups": [],
+  "mechanical": [
+    {
+      "file": "src/imports.ts",
+      "hunkId": "src/imports.ts#0",
+      "reason": "imports",
+    },
+    {
+      "file": "bun.lock",
+      "hunkId": "bun.lock#0",
+      "reason": "lockfile",
+    },
+  ],
+  "missing": [
+    {
+      "done": false,
+      "id": "P1-3",
+      "sharedWith": null,
+      "title": "Untouched",
+    },
+  ],
+  "plan": {
+    "phases": [
+      {
+        "id": "P1",
+        "items": [
+          {
+            "completedAt": 1793786403500,
+            "done": true,
+            "files": [
+              "src/Button.tsx",
+            ],
+            "groups": [
+              {
+                "hunks": [
+                  {
+                    "hunkId": "src/Button.tsx#0",
+                    "precision": "exact",
+                  },
+                ],
+                "id": "P1-1|todo:sess-1:버튼 색 변경",
+                "notes": [
+                  "Button.tsx의 색을 primary로 바꿀게요.",
+                  "버튼 색을 바꿔줘",
+                ],
+                "outsidePlanFiles": [],
+                "sessionId": "sess-1",
+                "source": "todo",
+                "startedAt": 1793786402000,
+                "title": "버튼 색 변경",
+              },
+            ],
+            "id": "P1-1",
+            "title": "Button",
+          },
+          {
+            "completedAt": 1793786430000,
+            "done": true,
+            "files": [
+              "src/new.ts",
+            ],
+            "groups": [
+              {
+                "hunks": [
+                  {
+                    "hunkId": "src/new.ts#0",
+                    "precision": "exact",
+                  },
+                  {
+                    "hunkId": "src/x.ts#0",
+                    "precision": "file",
+                  },
+                ],
+                "id": "P1-2|todo:sess-1:버튼 색 변경",
+                "notes": [
+                  "Button.tsx의 색을 primary로 바꿀게요.",
+                  "버튼 색을 바꿔줘",
+                  "치환",
+                ],
+                "outsidePlanFiles": [
+                  "src/x.ts",
+                ],
+                "sessionId": "sess-1",
+                "source": "todo",
+                "startedAt": 1793786404000,
+                "title": "버튼 색 변경",
+              },
+            ],
+            "id": "P1-2",
+            "title": "New module",
+          },
+          {
+            "completedAt": null,
+            "done": false,
+            "files": [
+              "src/never.ts",
+            ],
+            "groups": [],
+            "id": "P1-3",
+            "title": "Untouched",
+          },
+        ],
+        "title": "Phase 1",
+      },
+    ],
+    "taskKey": "domain/task",
+    "title": "Task",
+  },
+  "unknown": [
+    {
+      "hunkId": "src/orphan.ts#0",
+      "precision": "none",
+    },
+  ],
+  "unplanned": [],
+}
+`;
+
+exports[`attribute > matches the current grouping without a plan 1`] = `
+{
+  "groups": [
+    {
+      "hunks": [
+        {
+          "hunkId": "src/Button.tsx#0",
+          "precision": "exact",
+        },
+        {
+          "hunkId": "src/new.ts#0",
+          "precision": "exact",
+        },
+        {
+          "hunkId": "src/x.ts#0",
+          "precision": "file",
+        },
+      ],
+      "id": "todo:sess-1:버튼 색 변경",
+      "notes": [
+        "Button.tsx의 색을 primary로 바꿀게요.",
+        "버튼 색을 바꿔줘",
+        "치환",
+      ],
+      "outsidePlanFiles": [],
+      "sessionId": "sess-1",
+      "source": "todo",
+      "startedAt": 1793786402000,
+      "title": "버튼 색 변경",
+    },
+  ],
+  "mechanical": [
+    {
+      "file": "src/imports.ts",
+      "hunkId": "src/imports.ts#0",
+      "reason": "imports",
+    },
+    {
+      "file": "bun.lock",
+      "hunkId": "bun.lock#0",
+      "reason": "lockfile",
+    },
+  ],
+  "missing": [],
+  "plan": null,
+  "unknown": [
+    {
+      "hunkId": "src/orphan.ts#0",
+      "precision": "none",
+    },
+  ],
+  "unplanned": [],
+}
+`;

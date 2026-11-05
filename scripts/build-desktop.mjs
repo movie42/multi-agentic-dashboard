@@ -9,7 +9,7 @@ const stage = path.join(dist, "desktop-stage");
 const standalone = path.join(root, ".next", "standalone");
 
 function readTokens() {
-  const css = readFileSync(path.join(root, "src", "app", "globals.css"), "utf8");
+  const css = readFileSync(path.join(root, "app", "globals.css"), "utf8");
   const rootBlock = css.slice(css.indexOf(":root {"), css.indexOf("}", css.indexOf(":root {")));
   const tokens = {};
   for (const match of rootBlock.matchAll(/(--[\w-]+):\s*([^;]+);/g)) tokens[match[1]] = match[2].trim();

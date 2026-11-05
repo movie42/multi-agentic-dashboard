@@ -1,0 +1,87 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`stepsOf > matches the current activity steps 1`] = `
+[
+  {
+    "at": 1793786400000,
+    "id": "u1:prompt",
+    "kind": "prompt",
+    "text": "버튼 색을 바꿔줘",
+  },
+  {
+    "at": 1793786401000,
+    "detail": null,
+    "id": "t-todo",
+    "kind": "tool",
+    "name": "TodoWrite",
+    "status": "stopped",
+    "summary": "할 일 목록 갱신",
+  },
+  {
+    "at": 1793786402000,
+    "id": "a2:0",
+    "kind": "text",
+    "text": "Button.tsx의 색을 primary로 바꿀게요.",
+  },
+  {
+    "at": 1793786402000,
+    "detail": null,
+    "id": "t-edit",
+    "kind": "tool",
+    "name": "Edit",
+    "status": "ok",
+    "summary": "src/Button.tsx",
+  },
+  {
+    "at": 1793786404000,
+    "detail": null,
+    "id": "t-write",
+    "kind": "tool",
+    "name": "Write",
+    "status": "ok",
+    "summary": "src/new.ts",
+  },
+  {
+    "at": 1793786404000,
+    "detail": "sed -i '' 's/a/b/' src/x.ts",
+    "id": "t-bash",
+    "kind": "tool",
+    "name": "Bash",
+    "status": "error",
+    "summary": "치환",
+  },
+  {
+    "at": 1793786404000,
+    "detail": null,
+    "id": "t-read",
+    "kind": "tool",
+    "name": "Read",
+    "status": "stopped",
+    "summary": "src/y.ts",
+  },
+  {
+    "at": 1793786461000,
+    "detail": null,
+    "id": "t-out",
+    "kind": "tool",
+    "name": "Edit",
+    "status": "stopped",
+    "summary": "/elsewhere/z.ts",
+  },
+  {
+    "at": 1793786461000,
+    "detail": "sleep 100",
+    "id": "t-cut",
+    "kind": "tool",
+    "name": "Bash",
+    "status": "stopped",
+    "summary": "sleep 100",
+  },
+  {
+    "at": 1793786520000,
+    "id": "u5:prompt",
+    "kind": "prompt",
+    "text": "멈춰",
+  },
+]
+`;

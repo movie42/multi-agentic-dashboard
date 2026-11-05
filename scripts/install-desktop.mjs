@@ -13,7 +13,9 @@ mkdirSync(applications, { recursive: true });
 try {
   execFileSync("pkill", ["-TERM", "-f", "Agent Control.app/Contents/MacOS/Agent Control"], { stdio: "ignore" });
   execFileSync("sleep", ["2"]);
-} catch {}
+} catch (error) {
+  if (error?.status !== 1) console.warn("[install-desktop] could not stop the running app", error);
+}
 
 rmSync(target, { recursive: true, force: true });
 execFileSync("ditto", [built, target]);

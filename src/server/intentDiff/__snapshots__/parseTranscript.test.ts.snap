@@ -1,0 +1,97 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseTranscript > matches the current events for a local transcript 1`] = `
+[
+  {
+    "at": 1793786402000,
+    "changes": {
+      "src/Button.tsx": {
+        "added": [
+          "color: primary",
+        ],
+        "precision": "exact",
+        "removed": [
+          "color: red",
+        ],
+      },
+    },
+    "command": null,
+    "description": null,
+    "id": "t-edit",
+    "inputText": "color: primary",
+    "narration": "Button.tsx의 색을 primary로 바꿀게요.",
+    "prompt": "버튼 색을 바꿔줘",
+    "segmentId": "sess-1:n:a2",
+    "sessionId": "sess-1",
+    "todo": "버튼 색 변경",
+    "tool": "Edit",
+  },
+  {
+    "at": 1793786404000,
+    "changes": {
+      "src/new.ts": {
+        "added": [
+          "export const a = 1;",
+          "export const b = 2;",
+        ],
+        "precision": "exact",
+        "removed": [],
+      },
+    },
+    "command": null,
+    "description": null,
+    "id": "t-write",
+    "inputText": "export const a = 1;
+export const b = 2;
+",
+    "narration": "Button.tsx의 색을 primary로 바꿀게요.",
+    "prompt": "버튼 색을 바꿔줘",
+    "segmentId": "sess-1:n:a2",
+    "sessionId": "sess-1",
+    "todo": "버튼 색 변경",
+    "tool": "Write",
+  },
+  {
+    "at": 1793786404000,
+    "changes": {},
+    "command": "sed -i '' 's/a/b/' src/x.ts",
+    "description": "치환",
+    "id": "t-bash",
+    "inputText": "sed -i '' 's/a/b/' src/x.ts",
+    "narration": "Button.tsx의 색을 primary로 바꿀게요.",
+    "prompt": "버튼 색을 바꿔줘",
+    "segmentId": "sess-1:n:a2",
+    "sessionId": "sess-1",
+    "todo": "버튼 색 변경",
+    "tool": "Bash",
+  },
+  {
+    "at": 1793786461000,
+    "changes": {},
+    "command": null,
+    "description": null,
+    "id": "t-out",
+    "inputText": "b",
+    "narration": null,
+    "prompt": "/flow",
+    "segmentId": "sess-1:p2",
+    "sessionId": "sess-1",
+    "todo": "버튼 색 변경",
+    "tool": "Edit",
+  },
+  {
+    "at": 1793786461000,
+    "changes": {},
+    "command": "sleep 100",
+    "description": null,
+    "id": "t-cut",
+    "inputText": "sleep 100",
+    "narration": null,
+    "prompt": "/flow",
+    "segmentId": "sess-1:p2",
+    "sessionId": "sess-1",
+    "todo": "버튼 색 변경",
+    "tool": "Bash",
+  },
+]
+`;

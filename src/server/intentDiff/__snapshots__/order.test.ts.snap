@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`importGraph + readingRanks > ranks types before implementations before screens, cutting cycles 1`] = `
+{
+  "src/Screen.tsx": 3,
+  "src/cycle.ts": 1,
+  "src/impl.ts": 2,
+  "src/types.ts": 0,
+}
+`;

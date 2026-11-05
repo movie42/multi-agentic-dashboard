@@ -1,0 +1,146 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseUnifiedDiff > matches the current parse of a mixed diff 1`] = `
+[
+  {
+    "binary": false,
+    "change": "modified",
+    "file": "src/a.ts",
+    "hunks": [
+      {
+        "file": "src/a.ts",
+        "header": "export function a() {",
+        "id": "src/a.ts#0",
+        "lines": [
+          {
+            "kind": "ctx",
+            "newNo": 1,
+            "oldNo": 1,
+            "text": "const one = 1;",
+          },
+          {
+            "kind": "del",
+            "newNo": null,
+            "oldNo": 2,
+            "text": "const two = 2;",
+          },
+          {
+            "kind": "add",
+            "newNo": 2,
+            "oldNo": null,
+            "text": "const two = 3;",
+          },
+          {
+            "kind": "add",
+            "newNo": 3,
+            "oldNo": null,
+            "text": "const three = 3;",
+          },
+          {
+            "kind": "ctx",
+            "newNo": 4,
+            "oldNo": 3,
+            "text": "const four = 4;",
+          },
+        ],
+        "newStart": 1,
+        "oldStart": 1,
+      },
+      {
+        "file": "src/a.ts",
+        "header": "",
+        "id": "src/a.ts#1",
+        "lines": [
+          {
+            "kind": "del",
+            "newNo": null,
+            "oldNo": 10,
+            "text": "old",
+          },
+          {
+            "kind": "add",
+            "newNo": 11,
+            "oldNo": null,
+            "text": "new",
+          },
+          {
+            "kind": "ctx",
+            "newNo": 12,
+            "oldNo": 11,
+            "text": "tail",
+          },
+        ],
+        "newStart": 11,
+        "oldStart": 10,
+      },
+    ],
+    "oldFile": null,
+  },
+  {
+    "binary": false,
+    "change": "added",
+    "file": "src/new.ts",
+    "hunks": [
+      {
+        "file": "src/new.ts",
+        "header": "",
+        "id": "src/new.ts#0",
+        "lines": [
+          {
+            "kind": "add",
+            "newNo": 1,
+            "oldNo": null,
+            "text": "export const x = 1;",
+          },
+          {
+            "kind": "add",
+            "newNo": 2,
+            "oldNo": null,
+            "text": "export const y = 2;",
+          },
+        ],
+        "newStart": 1,
+        "oldStart": 0,
+      },
+    ],
+    "oldFile": null,
+  },
+  {
+    "binary": false,
+    "change": "deleted",
+    "file": "src/gone.ts",
+    "hunks": [
+      {
+        "file": "src/gone.ts",
+        "header": "",
+        "id": "src/gone.ts#0",
+        "lines": [
+          {
+            "kind": "del",
+            "newNo": null,
+            "oldNo": 1,
+            "text": "export const gone = true;",
+          },
+        ],
+        "newStart": 0,
+        "oldStart": 1,
+      },
+    ],
+    "oldFile": null,
+  },
+  {
+    "binary": false,
+    "change": "renamed",
+    "file": "src/new-name.ts",
+    "hunks": [],
+    "oldFile": "src/old-name.ts",
+  },
+  {
+    "binary": true,
+    "change": "modified",
+    "file": "img.png",
+    "hunks": [],
+    "oldFile": null,
+  },
+]
+`;
