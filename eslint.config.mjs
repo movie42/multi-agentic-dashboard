@@ -71,6 +71,13 @@ const eslintConfig = defineConfig([
     [{ group: ["@/server", "@/server/*", "@/client", "@/client/*", "node:*", "server-only"], message: "@/common is shared by server and client and imports neither." }],
   ),
   ...layerRules,
+  restrict(
+    ["app/**", "proxy.ts"],
+    [
+      { group: ["@/server/*", "!@/server/container", "!@/server/security", "!@/server/security/*"], message: "app/ is the HTTP entry: call services() from @/server/container; move server internals behind a service method." },
+      { group: ["@/client/*", "!@/client/views", "!@/client/views/*", "!@/client/shared", "!@/client/shared/ui", "!@/client/shared/ui/*"], message: "app/ assembles pages from @/client/views and app-wide pieces in @/client/shared/ui only." },
+    ],
+  ),
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "dist/**", "e2e/.tmp/**"]),
 ]);
 

@@ -2,6 +2,7 @@ import "server-only";
 import type { z } from "zod";
 import { errorField, type ExecFileFn } from "@/server/shared/ports";
 import { orcaEnvelopeSchema } from "./schema";
+import { terminalReadSchema } from "./schema";
 
 export const DEFAULT_ORCA_BIN = "/Applications/Orca.app/Contents/Resources/bin/orca";
 export const DEFAULT_ORCA_TIMEOUT_MS = 15_000;
@@ -43,6 +44,11 @@ export class OrcaCli {
     readonly bin: string,
     private readonly execFile: ExecFileFn,
   ) {}
+
+  async readScreen(handle: string): Promise<string[]> {
+    const result = await this.run(["terminal", "read", "--terminal", handle, "--screen"], terminalReadSchema);
+    return result.terminal.tail.map((line) => line.replace(/\s+$/, ""));
+  }
 
   async run(args: string[], timeoutMs?: number): Promise<unknown>;
   async run<T extends z.ZodType>(args: string[], schema: T, timeoutMs?: number): Promise<z.infer<T>>;

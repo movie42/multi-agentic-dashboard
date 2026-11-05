@@ -2,6 +2,8 @@ import "server-only";
 import type { AskRunner } from "./intentDiff/AskRunner";
 import type { AskStore } from "./intentDiff/AskStore";
 import { createIntentDiffServices } from "./intentDiff/createServices";
+
+type IntentDiffServices = ReturnType<typeof createIntentDiffServices>;
 import { createOrcaServices, type OrcaServices } from "./orca/services";
 import type { Highlighter } from "./intentDiff/Highlighter";
 import type { LanguageServices } from "./intentDiff/LanguageServices";
@@ -31,6 +33,9 @@ export interface Services {
   transcriptLoader: TranscriptLoader;
   languageServices: LanguageServices;
   highlighter: Highlighter;
+  buildIntentDiff: IntentDiffServices["buildIntentDiff"];
+  lookupSymbol: IntentDiffServices["lookupSymbol"];
+  isWorktree: IntentDiffServices["isWorktree"];
   workflow: WorkflowServices;
   orca: OrcaServices;
 }

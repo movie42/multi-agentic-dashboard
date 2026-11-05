@@ -1,7 +1,6 @@
 import { permissionHookInputSchema } from "@/common/permissions/schema";
 import type { PermissionHookOutput } from "@/common/permissions/types";
 import { services } from "@/server/container";
-import { HOLD_MS } from "@/server/permissions/PermissionStore";
 
 const PANE_KEY = /^[0-9a-f-]+:[0-9a-f-]+$/;
 
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
 
   const { request: held, result } = services().permissions.hold(paneKey, parsed.data);
   console.log("[permission-hook] held", held.id, held.toolName, paneKey);
-  const timer = setTimeout(() => services().permissions.release(held.id), HOLD_MS);
+  const timer = setTimeout(() => services().permissions.release(held.id), services().permissions.holdMs);
   const onAbort = () => services().permissions.release(held.id);
   request.signal.addEventListener("abort", onAbort);
   try {

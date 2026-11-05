@@ -30,6 +30,7 @@ export function decisionFor(request: PendingPermission, answer: PermissionAnswer
 }
 
 export class PermissionStore {
+  readonly holdMs = HOLD_MS;
   private readonly held = new Map<string, HeldRequest>();
   private lastBoardAt = 0;
 

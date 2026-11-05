@@ -126,6 +126,11 @@ export class OrcaRuntime {
     return false;
   }
 
+  async bringForward(): Promise<void> {
+    if ((await this.read()).mode === "headless") return;
+    await this.execFile("open", ["-b", ORCA_BUNDLE_ID]);
+  }
+
   private async quitApp(pid: number | null): Promise<void> {
     await this.execFile("osascript", ["-e", `quit app id "${ORCA_BUNDLE_ID}"`]);
     if (pid === null) return;

@@ -616,18 +616,58 @@
                   "label": "③ 그대로 두고 문서에만"
                 }
               ],
-              "recommended": "rules"
+              "recommended": "rules",
+              "answer": {
+                "choice": "rules",
+                "why": "",
+                "note": "1번으로 하긴 하되 client의 views는 import가 되어야하는데?",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "①로 가되, <code>app/</code> 안에서도 파일 종류에 따라 import 범위를 나눠요. 화면 파일(<code>app/**/page.tsx</code> · <code>layout.tsx</code> · <code>providers.tsx</code>)은 화면을 조립하는 입구라서 <code>@/client/views</code>와 <code>@/client/shared/ui</code>를 import하고, 첫 화면 데이터를 읽으려고 <code>@/server/container</code> · <code>@/common</code>도 import해요. API 라우트(<code>app/api/**/route.ts</code>)는 브라우저 코드를 쓸 일이 없어서 <code>@/server/container</code> · <code>@/common</code>만 import해요. <code>@/client/features</code> · <code>widgets</code> · <code>entities</code>는 화면 파일에서도 막아서, 조립은 views 안에서만 일어나게 해요. 폴더 이름은 바꾸지 않아요. 선택지 ①의 설명이 화면 파일을 빠뜨려 views까지 막는 것처럼 적혀 있었던 걸 바로잡은 거예요.",
+              "reason": {
+                "text": "page는 client의 views를 그려야 하니 규칙이 그걸 막으면 안 된다. 이름은 그대로 두고 lint 규칙으로 입구의 역할을 드러내는 편이 낫다.",
+                "by": "inferred"
+              },
+              "appliedTo": "[[P7-2]]"
+            }
+          ]
+        },
+        {
+          "id": "R5",
+          "askedAt": "11/05",
+          "from": "[[R4-Q1]] 메모",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "<code>app/</code>의 import 범위를 파일 종류별로 나눠도 될까요?",
+              "said": "R4-Q1 메모: “1번으로 하긴 하되 client의 views는 import가 되어야하는데?”",
+              "intent": "[[R4-Q1]]의 결정을 이렇게 이해했는데 맞는지 확인해요. 이유 칸이 비어 있어서 메모로 추정했어요.",
+              "body": "맞아요. <code>app/page.tsx</code>는 지금도 <code>@/client/views/dashboard</code>를 그리고, <code>app/layout.tsx</code>는 <code>@/client/shared/ui/Toaster</code>를 써요. 그래서 규칙을 이렇게 나눴어요.<br>· 화면 파일(<code>page.tsx</code> · <code>layout.tsx</code> · <code>providers.tsx</code>): <code>@/client/views</code> · <code>@/client/shared/ui</code> · <code>@/server/container</code> · <code>@/common</code><br>· API 라우트(<code>app/api/**/route.ts</code>): <code>@/server/container</code> · <code>@/common</code><br>· 둘 다 막는 것: <code>@/client/features</code> · <code>widgets</code> · <code>entities</code>, <code>@/server</code>의 내부 파일(지금 라우트 6곳이 <code>OrcaRuntime</code> · <code>AskRunner</code> 같은 내부 파일을 직접 불러요 — [[P7-1]]에서 서비스 메서드로 옮겨요)<br>이유는 “page는 views를 그려야 하니 규칙이 막으면 안 되고, 이름은 그대로 두고 lint로 역할을 드러낸다”로 적었어요.",
+              "recommendation": "a로 가요. 라우트가 브라우저 코드를 import하면 서버 번들에 React 컴포넌트가 섞이는데, 라우트를 좁게 막으면 그걸 lint가 바로 잡아요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "이대로 — 라우트는 좁게, 화면 파일은 views까지"
+                },
+                {
+                  "value": "b",
+                  "label": "app/ 전체를 한 규칙으로 (container · common · views · shared/ui)"
+                }
+              ],
+              "recommended": "a"
             }
           ]
         }
-      ]
+      ],
+      "status": "ask"
     },
     "tasks": {
-      "status": "now",
+      "status": "done",
       "summary": "질문 3라운드 반영 완료 — 승인 대기",
       "conclusion": [
         "Phase 0(요청 출처 검사)을 이 브랜치에 머지했어요. <code>proxy.ts</code>는 루트, 판정 함수는 <code>src/server/security/origin.ts</code>예요.",
-        "Phase 1–6 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19, 타입·lint 규칙 고정.",
+        "Phase 1–7 끝: 테스트 안전망, 공용 기반, 서버 클래스화, FSD 구조와 레이어 lint, React 19, 타입·lint 규칙 고정, <code>app/</code>을 얇은 입구로.",
         "남은 빌드 경고: <code>editorTheme.ts</code>가 실행 시점 경로를 읽어 Turbopack이 프로젝트 전체 추적을 경고해요."
       ],
       "blocks": [
@@ -1204,6 +1244,54 @@
               ]
             }
           ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "P7 <code>app/</code>을 얇은 입구로 ([[R4-Q1]])",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "라우트가 쓰던 서버 내부 값을 서비스 메서드와 <code>src/common</code>으로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/{terminal,actions,hooks/permission,intent-diff,intent-diff/symbol,intent-diff/ask}/route.ts</code> · <code>src/server/intentDiff/createServices.ts</code> · <code>OrcaCli.readScreen</code> · <code>OrcaRuntime.bringForward</code> · <code>PermissionStore.holdMs</code> · <code>container.ts</code>"
+                ],
+                [
+                  "결정",
+                  "라우트가 쓰던 내부 값은 서비스 메서드로: <code>services().buildIntentDiff</code> · <code>lookupSymbol</code> · <code>isWorktree</code>. 타입 <code>PreparedAsk</code>는 라우트 함수 반환 타입 추론으로 import 없이"
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "lint: 화면 파일은 <code>@/client/views</code> · <code>@/client/shared/ui</code> · <code>@/server/container</code> · <code>@/common</code>, API 라우트는 <code>@/server/container</code> · <code>@/common</code>만 import",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>eslint.config.mjs</code>"
+                ],
+                [
+                  "결정",
+                  "[[R4-Q1]] <code>app/</code>·<code>proxy.ts</code>는 <code>@/server/container</code>·<code>@/server/security</code>·<code>@/common</code>·<code>@/client/views</code>·<code>@/client/shared/ui</code>만. 임시 파일로 server 내부·client widgets import가 에러로 잡히는지 확인"
+                ]
+              ]
+            },
+            {
+              "id": "P7-V",
+              "title": "검증: 테스트 · contract · E2E · tsc · lint · build",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "vitest 223 · contract 5 · playwright 3 · tsc 0 · lint 0(경고 2 기존) · build 성공. dev 서버로 diff·symbol·ask 응답과 잘못된 worktreePath 400 확인"
+                ]
+              ]
+            }
+          ]
         }
       ]
     }
@@ -1240,5 +1328,5 @@
       ]
     }
   ],
-  "pulledAt": 1793799253550
+  "pulledAt": 1793877235206
 }

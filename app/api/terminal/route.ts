@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import { terminalReadSchema } from "@/server/orca/schema";
 import { parseChoicePrompt, type TerminalScreenResponse } from "@/common/orca/screen";
 import { services } from "@/server/container";
 
@@ -12,8 +11,7 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "invalid handle" } satisfies TerminalScreenResponse, { status: 400 });
   }
   try {
-    const result = await services().orca.cli.run(["terminal", "read", "--terminal", handle, "--screen"], terminalReadSchema);
-    const lines = result.terminal.tail.map((line) => line.replace(/\s+$/, ""));
+    const lines = await services().orca.cli.readScreen(handle);
     return Response.json({ ok: true, screen: { lines, choice: parseChoicePrompt(lines) } } satisfies TerminalScreenResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

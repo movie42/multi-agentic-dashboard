@@ -1,6 +1,5 @@
 import { connection, type NextRequest } from "next/server";
 import { services } from "@/server/container";
-import { buildIntentDiff } from "@/server/intentDiff/build";
 import type { IntentDiffResponse } from "@/common/intentDiff/types";
 
 export async function GET(request: NextRequest) {
@@ -11,12 +10,12 @@ export async function GET(request: NextRequest) {
     return Response.json({ ok: false, error: "path가 필요해요" } satisfies IntentDiffResponse, { status: 400 });
   }
   try {
-    const result = await buildIntentDiff({
+    const result = await services().buildIntentDiff({
       worktreePath,
       base: params.get("base") || null,
       head: params.get("head") || null,
       task: params.get("task") || null,
-    }, services());
+    });
     return Response.json({ ok: true, result } satisfies IntentDiffResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

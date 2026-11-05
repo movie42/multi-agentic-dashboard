@@ -5,7 +5,6 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { actionRequestSchema, type ActionResponse } from "@/common/actions/schema";
 import { services } from "@/server/container";
-import { ORCA_BUNDLE_ID } from "@/server/orca/OrcaRuntime";
 
 const execFileAsync = promisify(execFile);
 async function resolveTarget(target: string): Promise<{ url: string; filePath: string | null }> {
@@ -20,11 +19,6 @@ const HEADLESS_ERROR = "헤드리스 모드에는 Orca 창이 없어요. 사이�
 
 async function requireAppWindow() {
   if ((await services().orca.runtime.read()).mode === "headless") throw new Error(HEADLESS_ERROR);
-}
-
-async function bringOrcaForward() {
-  if ((await services().orca.runtime.read()).mode === "headless") return;
-  await execFileAsync("open", ["-b", ORCA_BUNDLE_ID]);
 }
 
 export async function POST(request: Request) {
@@ -44,12 +38,12 @@ export async function POST(request: Request) {
       } else {
         await requireAppWindow();
         await services().orca.cli.run(["tab", "create", "--url", url, "--worktree", `path:${body.worktreePath}`]);
-        await bringOrcaForward();
+        await services().orca.runtime.bringForward();
       }
     } else if (body.type === "focus-terminal") {
       await requireAppWindow();
       await services().orca.cli.run(["terminal", "switch", "--terminal", body.terminalHandle]);
-      await bringOrcaForward();
+      await services().orca.runtime.bringForward();
     } else if (body.type === "close-terminal") {
       await services().orca.cli.run(["terminal", "close", "--terminal", body.terminalHandle]);
     } else if (body.type === "send-prompt") {
@@ -84,7 +78,7 @@ export async function POST(request: Request) {
     } else if (body.type === "open-terminal") {
       await requireAppWindow();
       await services().orca.cli.run(["terminal", "create", "--worktree", `path:${body.worktreePath}`, "--focus"]);
-      await bringOrcaForward();
+      await services().orca.runtime.bringForward();
     } else if (body.type === "rename-session") {
       await services().sessionTitles.rename(body.sessionId, body.title.trim());
     } else if (body.type === "bookmark-session") {
@@ -107,7 +101,7 @@ export async function POST(request: Request) {
         `claude --resume ${body.sessionId}`,
         "--focus",
       ]);
-      await bringOrcaForward();
+      await services().orca.runtime.bringForward();
     }
     return Response.json({ ok: true } satisfies ActionResponse);
   } catch (error) {

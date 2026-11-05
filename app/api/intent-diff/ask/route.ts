@@ -1,10 +1,6 @@
-import { stat } from "node:fs/promises";
-import path from "node:path";
 import { connection, type NextRequest } from "next/server";
-import { reportWarning, services } from "@/server/container";
-import { missingOr } from "@/server/shared/fallback";
+import { services } from "@/server/container";
 import type { AskAnchor, AskContext, AskEvent, AskThreadsResponse } from "@/common/intentDiff/types";
-import type { PreparedAsk } from "@/server/intentDiff/AskRunner";
 
 const MAX_QUESTION = 8000;
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -30,12 +26,6 @@ function isContext(value: unknown): value is AskContext {
   return item === null || (isRecord(item) && typeof item.id === "string" && typeof item.title === "string");
 }
 
-async function isWorktree(worktreePath: unknown): Promise<boolean> {
-  if (typeof worktreePath !== "string" || !path.isAbsolute(worktreePath)) return false;
-  const info = await stat(worktreePath).catch(missingOr(null, reportWarning, "intent-diff/ask", { worktreePath }));
-  return info?.isDirectory() ?? false;
-}
-
 function badRequest(error: string): Response {
   return Response.json({ ok: false, error }, { status: 400 });
 }
@@ -53,7 +43,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function prepare(body: Record<string, unknown>, worktreePath: string, question: string): Promise<PreparedAsk | Response> {
+async function prepare(body: Record<string, unknown>, worktreePath: string, question: string) {
   if (typeof body.threadId === "string") {
     const thread = await services().askStore.get(body.threadId);
     if (!thread || thread.worktreePath !== worktreePath) return badRequest("대화를 찾지 못했어요");
@@ -77,7 +67,7 @@ export async function POST(request: NextRequest) {
   await connection();
   const body: unknown = await request.json().catch(() => null);
   const worktreePath = isRecord(body) && typeof body.worktreePath === "string" ? body.worktreePath : null;
-  if (!isRecord(body) || !worktreePath || !(await isWorktree(worktreePath))) return badRequest("worktreePath가 올바르지 않아요");
+  if (!isRecord(body) || !worktreePath || !(await services().isWorktree(worktreePath))) return badRequest("worktreePath가 올바르지 않아요");
   const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question || question.length > MAX_QUESTION) return badRequest("질문이 비었거나 너무 길어요");
 
