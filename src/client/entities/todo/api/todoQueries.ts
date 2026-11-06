@@ -1,5 +1,6 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { moveCard } from "@/common/todos/board";
+import type { TodoAgentResponse, TodoAgentTurn } from "@/common/todos/agentTurn";
 import type { TodoOp } from "@/common/todos/ops";
 import type { TodoBoard, TodoResponse } from "@/common/todos/types";
 import { readJson } from "@/client/shared/api/json";
@@ -79,4 +80,15 @@ export function useTodoOp() {
     },
     pending: mutation.isPending,
   };
+}
+
+export async function sendTodoAgentMessage(request: { conversationId: string | null; message: string }): Promise<TodoAgentTurn> {
+  const response = await fetch("/api/todos/agent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const payload = await readJson<TodoAgentResponse>(response);
+  if (!payload.ok) throw new Error(payload.error);
+  return { conversationId: payload.conversationId, reply: payload.reply, changes: payload.changes, failures: payload.failures };
 }

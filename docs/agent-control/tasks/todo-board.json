@@ -1245,6 +1245,25 @@
               ]
             },
             {
+              "id": "P4-6",
+              "title": "할일 에이전트 — 대화로 열린 · 지난 세션을 찾아 읽고 보드를 바로 바꾼다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/agentTurn.ts</code> · <code>src/common/todos/agentTurn.test.ts</code> · <code>src/server/todos/TodoAgent.ts</code> · <code>src/server/todos/TodoAgent.test.ts</code> · <code>app/api/todos/agent/route.ts</code> · <code>src/client/widgets/todo-board/ui/TodoAgentDialog.tsx</code> · <code>src/client/widgets/todo-board/ui/TodoBoardPage.tsx</code> 헤더 버튼"
+                ],
+                [
+                  "결정",
+                  "11/06 사용자 요청. 버튼은 항상 열리는 대화창이고, 카드에 안 붙은 열린 세션은 첫 메시지에 넣고 개수만 버튼에 보인다. 지난 세션은 에이전트가 응답의 <code>search</code>에 검색어를 넣으면 서버가 세션 목록에서 찾아 같은 대화로 돌려준다(한 메시지에 최대 3번, headless 세션 제외). 에이전트는 도구 없는 <code>claude -p</code>를 <code>--resume</code>으로 이어 간다."
+                ],
+                [
+                  "결정",
+                  "11/06 사용자 요청. 에이전트가 보드를 직접 바꾼다: 새 카드, 제목 · 메모 · 상태 · 지라 · 프로젝트 · 워크트리 수정, 세션 붙이기 · 떼기, 삭제. 에이전트는 계속 도구 없이(<code>--tools \"\"</code>) 돌고 응답으로 변경 목록(<code>ops</code>)만 돌려주며, 서버가 하나씩 <code>todoOpSchema</code>로 검사해 <code>TodoStore.apply</code>로 바로 반영한다. [반영] 버튼은 없애고, 바꾼 내용과 거절된 변경을 대화창에 한 줄씩 보여 준다. 상태 이동은 사용자가 시킨 것이라 사람의 이동으로 기록해 끝 상태까지 옮길 수 있다. 붙일 세션은 이 대화에서 보여 준 세션이나 이미 보드에 있는 세션만 받고, 검색 중인 응답의 <code>ops</code>는 무시한다. 새 카드의 프로젝트 · 워크트리는 에이전트가 정하지 않으면 세션에서 채운다."
+                ]
+              ]
+            },
+            {
               "id": "P4-V",
               "title": "검증: <code>bun run test</code>(dom) 카드 만들기 · 드래그 · 메모 저장 · 숨기기 + <code>/browse</code>로 화면 확인",
               "done": true,

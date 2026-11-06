@@ -13,6 +13,7 @@ import { errorMessage } from "@/client/shared/model/errorMessage";
 import { NO_PROJECT } from "../model/kinds";
 import { sessionLookup } from "../model/sessions";
 import type { ColumnMenuActions } from "./ColumnMenu";
+import { TodoAgentDialog } from "./TodoAgentDialog";
 import { TodoCardDetail } from "./TodoCardDetail";
 import { TodoColumn } from "./TodoColumn";
 import { WorkflowEditor } from "./WorkflowEditor";
@@ -43,6 +44,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
   const [editingWorkflow, setEditingWorkflow] = useState(false);
   const [showHiddenColumns, setShowHiddenColumns] = useState(false);
   const [columnDraft, setColumnDraft] = useState<string | null>(null);
+  const [talking, setTalking] = useState(false);
 
   const board: TodoBoard | undefined = boardQuery.data;
   const liveSessions = new Set(agents.flatMap((agent) => (agent.session ? [agent.session.id] : [])));
@@ -104,6 +106,8 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
   };
 
   const cardCount = board.cards.filter(visible).length;
+  const heldSessions = new Set(board.cards.flatMap((card) => card.sessionIds));
+  const openSessionCount = [...liveSessions].filter((id) => !heldSessions.has(id)).length;
 
   return (
     <>
@@ -129,6 +133,10 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
           </select>
           <button type="button" onClick={() => setEditingWorkflow(true)} className={PILL}>
             워크플로
+          </button>
+          <button type="button" onClick={() => setTalking(true)} className={PILL}>
+            할일 에이전트
+            {openSessionCount > 0 && <span className="ml-1.5 text-muted">{`· 새 세션 ${openSessionCount}`}</span>}
           </button>
           {hiddenColumns.length > 0 && (
             <span className="relative">
@@ -211,6 +219,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
           onClose={() => setOpenCardId(null)}
         />
       )}
+      {talking && <TodoAgentDialog sessionCount={openSessionCount} onClose={() => setTalking(false)} />}
       {editingWorkflow && <WorkflowEditor board={board} onRun={run} onClose={() => setEditingWorkflow(false)} />}
     </>
   );
