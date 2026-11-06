@@ -770,7 +770,7 @@
             {
               "id": "P2-1",
               "title": "TodoStore: JSON 파일 읽기 · 쓰기 (쓰기 직렬화, 임시 파일 후 rename)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -793,7 +793,7 @@
             {
               "id": "P2-2",
               "title": "<code>/api/todos</code> GET(보드 전체) · POST(작업 하나)",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -810,13 +810,21 @@
                 [
                   "패턴",
                   "<code>app/api/actions/route.ts</code> + <code>src/common/actions/schema.ts</code>"
+                ],
+                [
+                  "결정",
+                  "세션 하나는 카드 하나에만 붙는다. 다른 카드에 붙이면 원래 카드에서 떨어진다."
+                ],
+                [
+                  "결정",
+                  "규칙이 거절한 작업(처음 · 끝 상태 삭제 등)은 409와 한국어 문구로 돌려준다. 파일은 쓰지 않는다."
                 ]
               ]
             },
             {
               "id": "P2-3",
               "title": "container에 TodoStore 연결",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -827,8 +835,17 @@
             {
               "id": "P2-V",
               "title": "검증: <code>bun run test src/server/todos</code> + 임시 <code>TODO_FILE</code>로 GET · POST 왕복",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/todos/TodoStore.test.ts</code>, <code>src/common/todos/ops.test.ts</code>, <code>test/todosRoute.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "사용자의 <code>next dev</code>가 3100 포트를 쓰고 있어서, 왕복 확인은 라우트 핸들러를 임시 <code>TODO_FILE</code>로 직접 부르는 테스트로 했다."
+                ]
+              ]
             }
           ]
         },
