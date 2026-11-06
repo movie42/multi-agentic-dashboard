@@ -857,7 +857,7 @@
             {
               "id": "P3-1",
               "title": "TodoAutoMover: 보드 스냅샷을 보고 사건을 찾아 card-move",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -874,13 +874,21 @@
                 [
                   "재사용",
                   "<code>AgentCard.session.id</code> · <code>state</code>, <code>WorktreeSummary.pullRequest</code>"
+                ],
+                [
+                  "결정",
+                  "PR은 결과가 나온 상태(없음 또는 찾음)만 기억한다. 조회 중이던 PR이 처음 OPEN으로 보이면 새로 열린 것으로 치지 않는다 — 앱을 켜기 전부터 열려 있던 PR을 잘못 옮기지 않게."
+                ],
+                [
+                  "결정",
+                  "자동 이동이 실패해도 보드 응답은 막지 않고 경고 로그만 남긴다."
                 ]
               ]
             },
             {
               "id": "P3-2",
               "title": "[새 세션]으로 연 세션을 카드에 붙이기",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -893,14 +901,27 @@
                 [
                   "결정",
                   "[[R1-Q6]] [새 세션]은 카드에 워크트리가 있을 때만"
+                ],
+                [
+                  "결정",
+                  "‘그 뒤에 생긴 세션’은 대시보드가 그 세션을 처음 본 시각으로 판단한다. 앱을 켠 첫 스냅샷에 있던 세션은 후보에서 뺀다."
+                ],
+                [
+                  "결정",
+                  "pendingLaunch는 별도 작업 <code>card-launch</code>로 남긴다. 화면은 이 작업 다음에 <code>launch-agent</code> 액션을 부른다."
                 ]
               ]
             },
             {
               "id": "P3-V",
               "title": "검증: <code>bun run test src/server/todos</code> — 가짜 스냅샷 순서로 session-started · pr-opened · 첫 스냅샷 무시 · 사용자가 뒤로 옮긴 카드를 다시 안 옮김",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/todos/TodoAutoMover.test.ts</code>"
+                ]
+              ]
             }
           ]
         },

@@ -18,6 +18,7 @@ import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { ErrorLog } from "./shared/errorLog";
 import { TODO_FILE } from "./todos/paths";
+import { TodoAutoMover } from "./todos/TodoAutoMover";
 import { TodoStore } from "./todos/TodoStore";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
@@ -44,6 +45,7 @@ export interface Services {
   orca: OrcaServices;
   worktreeWizard: WorktreeWizardServices;
   todos: TodoStore;
+  todoAutoMover: TodoAutoMover;
 }
 
 function createServices(): Services {
@@ -58,6 +60,7 @@ function createServices(): Services {
   const sessionLocator = new SessionLocator({ projectsDir: PROJECTS_DIR, liveSessionsDir: LIVE_SESSIONS_DIR, warn });
   const permissions = new PermissionStore();
   const bookmarks = new BookmarkStore(BOOKMARK_FILE, warn);
+  const todos = new TodoStore(TODO_FILE, warn);
   const intentDiff = createIntentDiffServices({ projectDirOf: (cwd) => sessionLocator.projectDirOf(cwd), warn });
   return {
     errorLog,
@@ -76,7 +79,8 @@ function createServices(): Services {
     workflow,
     orca: createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles }),
     worktreeWizard: createWorktreeWizardServices(),
-    todos: new TodoStore(TODO_FILE, warn),
+    todos,
+    todoAutoMover: new TodoAutoMover(todos),
   };
 }
 
