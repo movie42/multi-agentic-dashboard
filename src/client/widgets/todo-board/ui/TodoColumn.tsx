@@ -91,10 +91,15 @@ export function TodoColumn({ board, column, visible, now, sessionOf, onOpen, onD
             aria-label="새 카드 제목"
             placeholder="할 일 제목"
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
-            onBlur={submit}
+            onBlur={(event: React.FocusEvent<HTMLInputElement>) => {
+              if (!event.currentTarget.dataset.cancelled) submit();
+            }}
             onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
               if (event.key === "Enter" && !event.nativeEvent.isComposing) submit();
-              if (event.key === "Escape") setDraft(null);
+              if (event.key === "Escape") {
+                event.currentTarget.dataset.cancelled = "true";
+                setDraft(null);
+              }
             }}
             className="rounded-[10px] bg-bg px-3 py-2 text-[14px] shadow-[inset_0_0_0_1.5px_var(--faint)] outline-none"
           />

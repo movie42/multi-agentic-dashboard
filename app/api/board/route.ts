@@ -8,7 +8,7 @@ export async function GET() {
   services().sessionIndex.warm();
   try {
     const board = await services().orca.board.load();
-    await services()
+    void services()
       .todoAutoMover.observe(board)
       .catch((error: unknown) => reportWarning("todos", error, { step: "auto move" }));
     return Response.json({ ok: true, board } satisfies BoardResponse);

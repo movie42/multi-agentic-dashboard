@@ -27,7 +27,8 @@ function StatusRow({ board, status, index, onRun }: StatusRowProps) {
   const [deleting, setDeleting] = useState(false);
   const fixed = isFixedStatus(board, status.id);
   const others = board.statuses.filter((each) => each.id !== status.id);
-  const [moveTo, setMoveTo] = useState(others[0]?.id ?? "");
+  const [picked, setMoveTo] = useState(others[0]?.id ?? "");
+  const moveTo = others.some((each) => each.id === picked) ? picked : (others[0]?.id ?? "");
   const cardCount = board.cards.filter((card) => card.statusId === status.id).length;
   const ids = board.statuses.map((each) => each.id);
   const canMove = (offset: -1 | 1) => !fixed && !isFixedStatus(board, ids[index + offset] ?? "") && ids[index + offset] !== undefined;

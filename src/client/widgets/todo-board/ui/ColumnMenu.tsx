@@ -25,7 +25,8 @@ export function ColumnMenu({ board, column, actions }: ColumnMenuProps) {
   const [name, setName] = useState(column.name);
   const [deleting, setDeleting] = useState(false);
   const others = board.columns.filter((each) => each.id !== column.id);
-  const [moveTo, setMoveTo] = useState(others[0]?.id ?? "");
+  const [picked, setMoveTo] = useState(others[0]?.id ?? "");
+  const moveTo = others.some((each) => each.id === picked) ? picked : (others[0]?.id ?? "");
   const index = board.columns.findIndex((each) => each.id === column.id);
 
   const close = () => {

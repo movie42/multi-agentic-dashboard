@@ -57,6 +57,8 @@ export class TodoAutoMover {
       this.sessions.set(sessionId, { state: agent.state, firstSeenAt: seen?.firstSeenAt ?? (firstPass ? 0 : snapshot.fetchedAt) });
     });
 
+    const present = new Set(snapshot.worktrees.map((worktree) => worktree.path));
+    [...this.openPrs.keys()].filter((path) => !present.has(path)).forEach((path) => this.openPrs.delete(path));
     snapshot.worktrees.forEach((worktree) => {
       const pr = worktree.pullRequest;
       if (pr.kind !== "found" && pr.kind !== "none") return;

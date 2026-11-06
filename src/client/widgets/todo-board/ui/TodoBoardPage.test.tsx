@@ -107,3 +107,20 @@ describe("TodoBoardPage", () => {
     expect(within(column("할일")).getByRole("button", { name: "숨길 카드" })).toBeTruthy();
   });
 });
+
+describe("TodoBoardPage inputs", () => {
+  beforeEach(() => {
+    board = defaultBoard();
+    posted = [];
+    vi.stubGlobal("fetch", vi.fn(fakeServer));
+  });
+
+  it("drops a typed card title when Escape cancels the input", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await within(await screen.findByRole("region", { name: "할일" })).findByRole("button", { name: "+ 카드" }));
+    await user.type(screen.getByRole("textbox", { name: "새 카드 제목" }), "버릴 제목{Escape}");
+    await user.click(document.body);
+    expect(posted).toEqual([]);
+  });
+});

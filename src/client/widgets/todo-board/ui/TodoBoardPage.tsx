@@ -35,7 +35,6 @@ function matchesProject(card: TodoCard, project: string): boolean {
 
 export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoBoardPageProps) {
   const boardQuery = useQuery(todoBoardQueryOptions());
-  const sessionsQuery = useQuery({ ...sessionListQueryOptions(), enabled: false });
   const { run } = useTodoOp();
   const [projectKeys, writeProject] = useStoredList("agent-control:todo-project");
   const project = projectKeys[0] ?? "";
@@ -45,6 +44,9 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoB
   const [columnDraft, setColumnDraft] = useState<string | null>(null);
 
   const board: TodoBoard | undefined = boardQuery.data;
+  const liveSessions = new Set(agents.flatMap((agent) => (agent.session ? [agent.session.id] : [])));
+  const hasClosedSessions = board?.cards.some((card) => card.sessionIds.some((id) => !liveSessions.has(id))) ?? false;
+  const sessionsQuery = useQuery({ ...sessionListQueryOptions(), enabled: hasClosedSessions });
   if (!board) {
     return (
       <header>
@@ -179,10 +181,15 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoB
             placeholder="칸 이름"
             value={columnDraft}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => setColumnDraft(event.target.value)}
-            onBlur={addColumn}
+            onBlur={(event: React.FocusEvent<HTMLInputElement>) => {
+              if (!event.currentTarget.dataset.cancelled) addColumn();
+            }}
             onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
               if (event.key === "Enter" && !event.nativeEvent.isComposing) addColumn();
-              if (event.key === "Escape") setColumnDraft(null);
+              if (event.key === "Escape") {
+                event.currentTarget.dataset.cancelled = "true";
+                setColumnDraft(null);
+              }
             }}
             className="w-56 shrink-0 rounded-[12px] bg-tint px-3 py-2.5 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
           />
