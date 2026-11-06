@@ -23,6 +23,7 @@ interface TodoBoardPageProps {
   worktrees: WorktreeSummary[];
   now: number;
   onAction: (action: ActionRequest) => void;
+  onJumpToAgent: (agent: AgentCard) => void;
 }
 
 const PILL = "rounded-full bg-tint px-3.5 py-1.5 text-[13px] leading-none font-semibold text-muted hover:text-fg";
@@ -33,7 +34,7 @@ function matchesProject(card: TodoCard, project: string): boolean {
   return card.repo === project;
 }
 
-export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoBoardPageProps) {
+export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpToAgent }: TodoBoardPageProps) {
   const boardQuery = useQuery(todoBoardQueryOptions());
   const { run } = useTodoOp();
   const [projectKeys, writeProject] = useStoredList("agent-control:todo-project");
@@ -206,6 +207,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoB
           sessionOf={sessionOf}
           onRun={run}
           onAction={onAction}
+          onJumpToAgent={onJumpToAgent}
           onClose={() => setOpenCardId(null)}
         />
       )}

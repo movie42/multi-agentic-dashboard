@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
 import { columnOfStatus } from "@/common/todos/board";
 import { parseJiraUrl } from "@/common/todos/jira";
 import type { TodoOp } from "@/common/todos/ops";
@@ -22,20 +22,20 @@ interface TodoCardDetailProps {
   sessionOf: SessionLookup;
   onRun: RunTodoOp;
   onAction: (action: ActionRequest) => void;
+  onJumpToAgent: (agent: AgentCard) => void;
   onClose: () => void;
 }
 
 const FIELD_LABEL = "text-[11px] font-semibold text-muted";
 const SELECT = "rounded-md bg-tint px-2 py-1.5 text-[13px] outline-none";
 
-function openAction(session: TodoSessionView): ActionRequest | null {
-  if (session.agent?.terminalHandle) return { type: "focus-terminal", terminalHandle: session.agent.terminalHandle };
+function resumeAction(session: TodoSessionView): ActionRequest | null {
   const { summary } = session;
   if (summary?.cwd && summary.cwdExists) return { type: "resume-session", sessionId: session.id, cwd: summary.cwd, title: summary.title };
   return null;
 }
 
-export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun, onAction, onClose }: TodoCardDetailProps) {
+export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun, onAction, onJumpToAgent, onClose }: TodoCardDetailProps) {
   const [title, setTitle] = useState(card.title);
   const [jiraDraft, setJiraDraft] = useState("");
   const [jiraError, setJiraError] = useState<string | null>(null);
@@ -206,19 +206,34 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
         )}
         <ul className="flex flex-col gap-1.5">
           {sessions.map((session) => {
-            const action = openAction(session);
+            const { agent } = session;
+            const resume = agent ? null : resumeAction(session);
             return (
               <li key={session.id} className="flex items-center gap-2 text-[13px]">
                 {session.agent ? <StateBadge agent={session.agent} /> : <span className="text-[11px] text-muted">닫힘</span>}
                 <span className="min-w-0 flex-1 truncate">{session.title}</span>
-                <button
-                  type="button"
-                  disabled={!action}
-                  onClick={() => action && onAction(action)}
-                  className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg disabled:no-underline disabled:opacity-40"
-                >
-                  열기
-                </button>
+                {agent ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onJumpToAgent(agent);
+                    }}
+                    className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg"
+                  >
+                    에이전트로 이동
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!resume}
+                    title={resume ? undefined : "세션 폴더가 없어 다시 열 수 없어요"}
+                    onClick={() => resume && onAction(resume)}
+                    className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg disabled:no-underline disabled:opacity-40"
+                  >
+                    Orca에서 다시 열기
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => void onRun({ type: "session-detach", cardId: card.id, sessionId: session.id })}

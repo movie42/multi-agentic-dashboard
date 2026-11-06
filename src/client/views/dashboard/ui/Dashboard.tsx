@@ -312,6 +312,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             worktrees={board.worktrees}
             now={board.fetchedAt}
             onAction={runAction}
+            onJumpToAgent={jumpToAgent}
           />
         ) : prefs.showingDiff ? (
           <DiffTab worktrees={board.worktrees} />

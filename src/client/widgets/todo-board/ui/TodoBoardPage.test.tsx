@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultBoard } from "@/common/todos/board";
 import { applyTodoOp, todoOpSchema, type TodoOp } from "@/common/todos/ops";
 import type { TodoBoard } from "@/common/todos/types";
+import { agentCard } from "../../../../../test/fixtures";
 import { TodoBoardPage } from "./TodoBoardPage";
 
 let board: TodoBoard;
@@ -28,7 +29,7 @@ function renderPage() {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} onAction={() => undefined} />
+      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} onAction={() => undefined} onJumpToAgent={() => undefined} />
     </QueryClientProvider>,
   );
 }
@@ -151,5 +152,32 @@ describe("TodoBoardPage workflow", () => {
     await user.click(await screen.findByRole("button", { name: "제안" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "끝 상태로 옮기기" }));
     await waitFor(() => expect(board.cards[0]).toMatchObject({ statusId: "st-done", doneSuggestedAt: null }));
+  });
+});
+
+describe("TodoBoardPage sessions", () => {
+  const SESSION = "0b8c1a7e-1234-4abc-8def-0123456789ab";
+
+  beforeEach(() => {
+    board = applyTodoOp(defaultBoard(), { type: "card-create", title: "세션 카드", sessionIds: [SESSION] }, { now: 1, newId: () => "c1" }).board;
+    posted = [];
+    vi.stubGlobal("fetch", vi.fn(fakeServer));
+  });
+
+  it("jumps to the live agent inside Agent Control instead of opening Orca", async () => {
+    const agent = agentCard({ id: "pane-9", repo: "repo", state: "working", session: { id: SESSION, title: "작업 세션", titleSource: "custom", bookmark: null } });
+    const onJump = vi.fn();
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <TodoBoardPage repos={[]} agents={[agent]} worktrees={[]} now={1} onAction={onAction} onJumpToAgent={onJump} />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "세션 카드" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "에이전트로 이동" }));
+    expect(onJump).toHaveBeenCalledWith(agent);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
