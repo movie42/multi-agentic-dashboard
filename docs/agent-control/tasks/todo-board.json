@@ -1052,11 +1052,15 @@
             {
               "id": "P4-V",
               "title": "검증: <code>bun run test</code>(dom) 카드 만들기 · 드래그 · 메모 저장 · 숨기기 + <code>/browse</code>로 화면 확인",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "결정",
                   "dom 테스트 4개(카드 만들기 · 드래그 · 메모 저장 · 숨기기)는 통과했다. 화면 진입점이 P5-1에 있어서 /browse 화면 확인은 P5-1 다음에 한다."
+                ],
+                [
+                  "결정",
+                  "화면 확인은 사용자의 <code>next dev</code>(3100)를 건드리지 않으려고 <code>next build</code> 후 임시 <code>TODO_FILE</code>로 <code>next start</code>(3111)를 띄워 했다. 보드 · 카드 상세 · 워크플로 편집 · 에이전트 카드의 ‘할일에 붙이기’를 봤다."
                 ]
               ]
             }
@@ -1070,7 +1074,7 @@
             {
               "id": "P5-1",
               "title": "사이드바 ‘지난 세션’ 아래 ‘할일’ 진입점과 화면 전환",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -1089,7 +1093,7 @@
             {
               "id": "P5-2",
               "title": "‘할일에 붙이기’: 에이전트 카드 · 지난 세션 행",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -1106,6 +1110,18 @@
                 [
                   "결정",
                   "[[R1-Q5]] 즐겨찾기는 그대로, [[R1-Q6]] 세션 쪽에서 붙이기가 기본 길"
+                ],
+                [
+                  "결정",
+                  "지난 세션 행의 프로젝트는 세션 기록의 <code>project</code>(폴더 이름)를 쓴다. Orca의 repo 이름과 다르면 필터에서 따로 보인다."
+                ],
+                [
+                  "결정",
+                  "‘할일에 붙이기’는 보드를 30초 캐시로 읽고 따로 폴링하지 않는다. 4초 폴링은 할일 화면이 열려 있을 때만 돈다."
+                ],
+                [
+                  "파일",
+                  "<code>src/client/features/attach-to-todo/ui/AttachToTodo.test.tsx</code>"
                 ]
               ]
             },

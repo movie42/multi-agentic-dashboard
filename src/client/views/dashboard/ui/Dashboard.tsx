@@ -25,6 +25,7 @@ import { AgentList } from "@/client/widgets/agent-list";
 import { RuntimeSwitch } from "@/client/features/switch-runtime";
 import { SessionsPage } from "@/client/widgets/session-list";
 import { StageBoard } from "@/client/widgets/stage-board";
+import { TodoBoardPage } from "@/client/widgets/todo-board";
 import { useAttention } from "../model/useAttention";
 import { useKeyboardNav } from "@/client/shared/lib/useKeyboardNav";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
@@ -304,6 +305,14 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       <main className="mx-auto flex max-w-[1920px] min-w-0 flex-col gap-16 px-5 pt-14 pb-36 md:px-12">
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />
+        ) : prefs.showingTodo ? (
+          <TodoBoardPage
+            repos={board.projects.map((project) => project.repo)}
+            agents={board.agents}
+            worktrees={board.worktrees}
+            now={board.fetchedAt}
+            onAction={runAction}
+          />
         ) : prefs.showingDiff ? (
           <DiffTab worktrees={board.worktrees} />
         ) : selectedRepo === null ? (

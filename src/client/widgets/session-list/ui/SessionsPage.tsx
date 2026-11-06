@@ -8,6 +8,7 @@ import { sessionListQueryOptions, type SessionList } from "@/client/entities/ses
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
+import { AttachToTodo } from "@/client/features/attach-to-todo";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
 import { SessionTitle } from "@/client/features/rename-session";
 
@@ -210,6 +211,14 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                     </span>
                   )}
                   <span className="ml-auto flex shrink-0 items-center gap-2">
+                    <AttachToTodo
+                      target={{
+                        sessionId: session.sessionId,
+                        title: session.title,
+                        repo: session.project,
+                        worktreePath: session.cwd && session.cwdExists ? session.cwd : null,
+                      }}
+                    />
                     <BookmarkStar target={target} onChanged={onBookmarkChanged} />
                   </span>
                 </p>

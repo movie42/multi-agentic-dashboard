@@ -6,14 +6,17 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 
 const SESSIONS_PAGE = "@sessions";
 const DIFF_PAGE = "@diff";
-const PAGES: ReadonlySet<string> = new Set([SESSIONS_PAGE, DIFF_PAGE]);
+const TODO_PAGE = "@todo";
+const PAGES: ReadonlySet<string> = new Set([SESSIONS_PAGE, DIFF_PAGE, TODO_PAGE]);
 
 export interface WorkspacePrefs {
   selectedRepo: string | null;
   showingSessions: boolean;
   showingDiff: boolean;
+  showingTodo: boolean;
   openSessions: () => void;
   openDiff: () => void;
+  openTodo: () => void;
   selectRepo: (repo: string | null) => void;
   modeOf: (project: ProjectSummary) => WorkflowMode;
   isModeOverridden: (repo: string) => boolean;
@@ -36,8 +39,10 @@ export function useWorkspacePrefs(): WorkspacePrefs {
     selectedRepo: selected[0] && !PAGES.has(selected[0]) ? selected[0] : null,
     showingSessions: selected[0] === SESSIONS_PAGE,
     showingDiff: selected[0] === DIFF_PAGE,
+    showingTodo: selected[0] === TODO_PAGE,
     openSessions: () => writeSelected([SESSIONS_PAGE]),
     openDiff: () => writeSelected([DIFF_PAGE]),
+    openTodo: () => writeSelected([TODO_PAGE]),
     selectRepo: (repo) => writeSelected(repo ? [repo] : []),
     modeOf,
     isModeOverridden: (repo) => overrideOf(repo) !== null,
