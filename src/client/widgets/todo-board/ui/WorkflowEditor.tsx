@@ -176,7 +176,7 @@ export function WorkflowEditor({ board, onRun, onClose }: WorkflowEditorProps) {
       </div>
       <ol className="border-t-2 border-fg">
         {board.statuses.map((status, index) => (
-          <StatusRow key={`${status.id}:${status.name}:${status.description}`} board={board} status={status} index={index} onRun={onRun} />
+          <StatusRow key={status.id} board={board} status={status} index={index} onRun={onRun} />
         ))}
       </ol>
       <div className="flex flex-wrap items-center gap-2">

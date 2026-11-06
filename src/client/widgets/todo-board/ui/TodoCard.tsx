@@ -67,7 +67,7 @@ export function TodoCard({ card, status, tone, now, sessionOf, onOpen }: TodoCar
           </a>
         ))}
         {agentMoved && <span className="rounded-full px-2 py-1 text-focus shadow-[inset_0_0_0_1px_var(--focus)]">에이전트가 옮김</span>}
-        {card.doneSuggestedAt !== null && <span className="rounded-full bg-done/15 px-2 py-1 text-done">끝으로 옮겨도 될 것 같아요</span>}
+        {card.doneSuggestedAt !== null && tone !== "last" && <span className="rounded-full bg-done/15 px-2 py-1 text-done">끝으로 옮겨도 될 것 같아요</span>}
         {card.hidden && <span className="text-muted">숨김</span>}
       </div>
       {(live.length > 0 || closed > 0) && (

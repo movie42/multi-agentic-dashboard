@@ -114,6 +114,13 @@ describe("moveCard", () => {
     expect(() => moveCard(board, "a", "st-done", 5, "agent")).toThrow("끝 상태");
     expect(suggestDone(board, "a", 5).cards[0]?.doneSuggestedAt).toBe(5);
   });
+
+  it("refuses a done suggestion on a card already at the end and clears it on any move", () => {
+    const done = withCards(defaultBoard(), card("a", "st-done"));
+    expect(() => suggestDone(done, "a", 5)).toThrow("끝 상태");
+    const suggested = suggestDone(withCards(defaultBoard(), card("a", "st-progress")), "a", 5);
+    expect(moveCard(suggested, "a", "st-review", 6, "agent").cards[0]?.doneSuggestedAt).toBeNull();
+  });
 });
 
 describe("transitions", () => {

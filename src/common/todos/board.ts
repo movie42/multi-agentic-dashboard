@@ -86,13 +86,14 @@ export function moveCard(board: TodoBoard, cardId: string, statusId: string, now
     ...card,
     statusId,
     agentMovedAt: source === "agent" ? now : null,
-    doneSuggestedAt: source === "agent" ? card.doneSuggestedAt : null,
+    doneSuggestedAt: null,
     updatedAt: now,
   };
   return { ...board, cards: [...board.cards.filter((each) => each.id !== cardId), moved] };
 }
 
 export function suggestDone(board: TodoBoard, cardId: string, now: number): TodoBoard {
+  if (requireCard(board, cardId).statusId === board.statuses.at(-1)?.id) fail("이미 끝 상태인 카드예요");
   return updateCard(board, cardId, { doneSuggestedAt: now }, now);
 }
 
@@ -150,7 +151,7 @@ export function deleteStatus(board: TodoBoard, statusId: string, moveTo: string 
       .map((status) => ({ ...status, next: status.next.filter((id) => id !== statusId) })),
     columns: board.columns.map((column) => ({ ...column, statusIds: column.statusIds.filter((id) => id !== statusId) })),
     cards: board.cards.map((card) =>
-      card.statusId === statusId && moveTo ? { ...card, statusId: moveTo, agentMovedAt: null, updatedAt: now } : card,
+      card.statusId === statusId && moveTo ? { ...card, statusId: moveTo, agentMovedAt: null, doneSuggestedAt: null, updatedAt: now } : card,
     ),
   };
 }
