@@ -924,7 +924,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/common/todos/autoMove.ts</code>, <code>src/common/todos/jira.ts</code>"
+                  "<code>src/common/todos/jira.ts</code>"
                 ],
                 [
                   "내용",
@@ -1044,7 +1044,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/todos/TodoAutoMover.ts</code>, <code>app/api/board/route.ts</code>"
+                  "<code>src/server/todos/TodoLaunchAttacher.ts</code>, <code>app/api/board/route.ts</code>"
                 ],
                 [
                   "내용",
@@ -1106,7 +1106,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/todos/TodoAutoMover.test.ts</code>"
+                  "<code>src/server/todos/TodoLaunchAttacher.test.ts</code>"
                 ],
                 [
                   "결정",
@@ -1395,7 +1395,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/todos/TodoAutoMover.ts</code>, <code>src/common/todos/autoMove.ts</code>, <code>src/server/container.ts</code>, <code>app/api/board/route.ts</code>"
+                  "<code>src/server/todos/TodoLaunchAttacher.ts</code>, <code>src/server/container.ts</code>, <code>app/api/board/route.ts</code>"
                 ],
                 [
                   "내용",
