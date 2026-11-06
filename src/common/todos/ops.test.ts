@@ -16,8 +16,10 @@ describe("todoOpSchema", () => {
     [{ type: "card-create", title: "  " }, false],
     [{ type: "card-update", cardId: "c", worktreePath: "relative" }, false],
     [{ type: "session-attach", cardId: "c", sessionId: "nope" }, false],
-    [{ type: "status-create", name: "막힘", kind: "block" }, true],
-    [{ type: "status-create", name: "막힘", kind: "blocked" }, false],
+    [{ type: "status-create", name: "막힘", description: "다른 일을 기다릴 때" }, true],
+    [{ type: "status-create", name: "막힘", description: "두\n줄" }, false],
+    [{ type: "card-move", cardId: "c", statusId: "s", source: "agent" }, true],
+    [{ type: "card-move", cardId: "c", statusId: "s", source: "auto" }, false],
   ])("%j → %s", (value, ok) => {
     expect(todoOpSchema.safeParse(value).success).toBe(ok);
   });

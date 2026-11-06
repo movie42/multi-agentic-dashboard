@@ -1,4 +1,4 @@
-import type { StatusKind, TodoBoard, TodoCard, TodoColumn, TodoStatus } from "./types";
+import type { TodoBoard, TodoCard, TodoColumn, TodoMoveSource, TodoStatus } from "./types";
 
 export class TodoRuleError extends Error {}
 
@@ -8,10 +8,10 @@ function fail(message: string): never {
 
 export function defaultBoard(): TodoBoard {
   const statuses: TodoStatus[] = [
-    { id: "st-todo", name: "할일", kind: "standby" },
-    { id: "st-progress", name: "진행 중", kind: "progress" },
-    { id: "st-review", name: "리뷰", kind: "review" },
-    { id: "st-done", name: "끝", kind: "done" },
+    { id: "st-todo", name: "할일", description: "아직 손대지 않은 일", next: ["st-progress"] },
+    { id: "st-progress", name: "진행 중", description: "세션이 이 일을 하고 있을 때", next: ["st-review", "st-todo"] },
+    { id: "st-review", name: "리뷰", description: "PR이 열려 리뷰를 기다릴 때", next: ["st-done", "st-progress"] },
+    { id: "st-done", name: "끝", description: "머지되었거나 더 할 일이 없을 때", next: ["st-progress"] },
   ];
   return {
     version: 1,
@@ -20,7 +20,7 @@ export function defaultBoard(): TodoBoard {
       id: `col-${status.id.slice(3)}`,
       name: status.name,
       statusIds: [status.id],
-      hidden: status.kind === "review",
+      hidden: status.id === "st-review",
     })),
     cards: [],
   };
@@ -74,19 +74,34 @@ export function updateCard(board: TodoBoard, cardId: string, patch: Partial<Todo
   };
 }
 
-export function moveCard(board: TodoBoard, cardId: string, statusId: string, now: number, auto = false): TodoBoard {
+/** People move anywhere; an agent follows the current status's transitions and never reaches the last status. */
+export function moveCard(board: TodoBoard, cardId: string, statusId: string, now: number, source: TodoMoveSource = "user"): TodoBoard {
   const card = requireCard(board, cardId);
   requireStatus(board, statusId);
-  const moved: TodoCard = { ...card, statusId, autoMovedAt: auto ? now : null, updatedAt: now };
+  if (source === "agent") {
+    if (board.statuses.at(-1)?.id === statusId) fail("끝 상태로는 사람이 옮겨요. 대신 card-suggest-done으로 제안하세요");
+    if (!statusOf(board, card.statusId)?.next.includes(statusId)) fail("지금 상태에서 그 상태로 가는 전환이 없어요");
+  }
+  const moved: TodoCard = {
+    ...card,
+    statusId,
+    agentMovedAt: source === "agent" ? now : null,
+    doneSuggestedAt: source === "agent" ? card.doneSuggestedAt : null,
+    updatedAt: now,
+  };
   return { ...board, cards: [...board.cards.filter((each) => each.id !== cardId), moved] };
+}
+
+export function suggestDone(board: TodoBoard, cardId: string, now: number): TodoBoard {
+  return updateCard(board, cardId, { doneSuggestedAt: now }, now);
 }
 
 export function createStatus(
   board: TodoBoard,
-  input: { id: string; name: string; kind: StatusKind; columnId?: string },
+  input: { id: string; name: string; description?: string; columnId?: string },
 ): TodoBoard {
   const last = board.statuses.at(-1) ?? fail("상태 목록이 비어 있어요");
-  const status: TodoStatus = { id: input.id, name: input.name, kind: input.kind };
+  const status: TodoStatus = { id: input.id, name: input.name, description: input.description ?? "", next: [] };
   const statuses = [...board.statuses.slice(0, -1), status, last];
   if (input.columnId) {
     requireColumn(board, input.columnId);
@@ -101,11 +116,21 @@ export function createStatus(
   return { ...board, statuses, columns: [...board.columns.slice(0, at), column, ...board.columns.slice(at)] };
 }
 
-export function updateStatus(board: TodoBoard, statusId: string, patch: { name?: string; kind?: StatusKind }): TodoBoard {
+export function updateStatus(
+  board: TodoBoard,
+  statusId: string,
+  patch: { name?: string; description?: string; next?: readonly string[] },
+): TodoBoard {
   requireStatus(board, statusId);
+  if (patch.next) {
+    patch.next.forEach((id) => requireStatus(board, id));
+    if (patch.next.includes(statusId)) fail("자기 자신으로 가는 전환은 둘 수 없어요");
+  }
   return {
     ...board,
-    statuses: board.statuses.map((status) => (status.id === statusId ? { ...status, ...patch } : status)),
+    statuses: board.statuses.map((status) =>
+      status.id === statusId ? { ...status, ...patch, next: patch.next ? [...new Set(patch.next)] : status.next } : status,
+    ),
   };
 }
 
@@ -120,10 +145,12 @@ export function deleteStatus(board: TodoBoard, statusId: string, moveTo: string 
   }
   return {
     ...board,
-    statuses: board.statuses.filter((status) => status.id !== statusId),
+    statuses: board.statuses
+      .filter((status) => status.id !== statusId)
+      .map((status) => ({ ...status, next: status.next.filter((id) => id !== statusId) })),
     columns: board.columns.map((column) => ({ ...column, statusIds: column.statusIds.filter((id) => id !== statusId) })),
     cards: board.cards.map((card) =>
-      card.statusId === statusId && moveTo ? { ...card, statusId: moveTo, autoMovedAt: null, updatedAt: now } : card,
+      card.statusId === statusId && moveTo ? { ...card, statusId: moveTo, agentMovedAt: null, updatedAt: now } : card,
     ),
   };
 }

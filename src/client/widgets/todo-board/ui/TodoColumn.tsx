@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cardsOfColumn, firstStatusOfColumn, statusOf } from "@/common/todos/board";
 import type { TodoBoard, TodoCard as TodoCardData, TodoColumn as TodoColumnData } from "@/common/todos/types";
-import { CARD_DRAG_TYPE } from "../model/kinds";
+import { CARD_DRAG_TYPE, statusTone } from "../model/kinds";
 import type { SessionLookup } from "../model/sessions";
 import { ColumnMenu, type ColumnMenuActions } from "./ColumnMenu";
 import { TodoCard } from "./TodoCard";
@@ -64,7 +64,7 @@ export function TodoColumn({ board, column, visible, now, sessionOf, onOpen, onD
       </header>
       {!droppable && <p className="px-1 text-[12px] text-muted">담은 상태가 없어요. ⋯에서 상태를 고르세요.</p>}
       {shown.map((card) => (
-        <TodoCard key={card.id} card={card} status={statusOf(board, card.statusId)} now={now} sessionOf={sessionOf} onOpen={onOpen} />
+        <TodoCard key={card.id} card={card} status={statusOf(board, card.statusId)} tone={statusTone(board, card.statusId)} now={now} sessionOf={sessionOf} onOpen={onOpen} />
       ))}
       {hidden.length > 0 && (
         <button
@@ -77,7 +77,7 @@ export function TodoColumn({ board, column, visible, now, sessionOf, onOpen, onD
       )}
       {showHidden &&
         hidden.map((card) => (
-          <TodoCard key={card.id} card={card} status={statusOf(board, card.statusId)} now={now} sessionOf={sessionOf} onOpen={onOpen} />
+          <TodoCard key={card.id} card={card} status={statusOf(board, card.statusId)} tone={statusTone(board, card.statusId)} now={now} sessionOf={sessionOf} onOpen={onOpen} />
         ))}
       {droppable &&
         (draft === null ? (

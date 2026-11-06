@@ -124,3 +124,32 @@ describe("TodoBoardPage inputs", () => {
     expect(posted).toEqual([]);
   });
 });
+
+describe("TodoBoardPage workflow", () => {
+  beforeEach(() => {
+    board = defaultBoard();
+    posted = [];
+    vi.stubGlobal("fetch", vi.fn(fakeServer));
+  });
+
+  it("edits which statuses an agent may move to next", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "워크플로" }));
+    const dialog = screen.getByRole("dialog");
+    const fromTodo = within(dialog).getByRole("group", { name: "할일에서 갈 수 있는 상태" });
+    await user.click(within(fromTodo).getByRole("checkbox", { name: "리뷰" }));
+    expect(posted).toEqual([{ type: "status-update", statusId: "st-todo", next: ["st-progress", "st-review"] }]);
+    await waitFor(() => expect(within(fromTodo).getByRole("checkbox", { name: "리뷰" })).toHaveProperty("checked", true));
+  });
+
+  it("moves a card the agent suggested to the last status when the person confirms", async () => {
+    board = applyTodoOp(board, { type: "card-create", title: "제안", statusId: "st-progress" }, { now: 1, newId: () => "c1" }).board;
+    board = applyTodoOp(board, { type: "card-suggest-done", cardId: "c1" }, { now: 1, newId: () => "x" }).board;
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "제안" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "끝 상태로 옮기기" }));
+    await waitFor(() => expect(board.cards[0]).toMatchObject({ statusId: "st-done", doneSuggestedAt: null }));
+  });
+});

@@ -9,8 +9,8 @@ export async function GET() {
   try {
     const board = await services().orca.board.load();
     void services()
-      .todoAutoMover.observe(board)
-      .catch((error: unknown) => reportWarning("todos", error, { step: "auto move" }));
+      .todoLaunches.observe(board)
+      .catch((error: unknown) => reportWarning("todos", error, { step: "attach launched session" }));
     return Response.json({ ok: true, board } satisfies BoardResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

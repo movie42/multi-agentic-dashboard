@@ -62,6 +62,7 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
 
   const worktreeChoices = worktrees.filter((worktree) => !card.repo || worktree.repo === card.repo);
   const sessions = card.sessionIds.map(sessionOf);
+  const lastStatus = board.statuses.at(-1);
 
   const launch = async () => {
     if (!card.worktreePath) return;
@@ -87,6 +88,19 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
           ×
         </button>
       </div>
+
+      {card.doneSuggestedAt !== null && lastStatus && card.statusId !== lastStatus.id && (
+        <div className="flex items-center gap-3 rounded-[10px] bg-done/10 px-4 py-2.5 text-[13px]">
+          <span className="flex-1">에이전트가 끝으로 옮겨도 될 것 같다고 했어요.</span>
+          <button
+            type="button"
+            onClick={() => void onRun({ type: "card-move", cardId: card.id, statusId: lastStatus.id })}
+            className="rounded-md bg-done px-3 py-1 font-semibold text-st-ink"
+          >
+            {`${lastStatus.name} 상태로 옮기기`}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1">

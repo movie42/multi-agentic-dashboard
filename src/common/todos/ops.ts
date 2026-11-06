@@ -10,14 +10,15 @@ import {
   reorderStatuses,
   setColumnStatuses,
   statusOf,
+  suggestDone,
   TodoRuleError,
   updateCard,
   updateColumn,
   updateStatus,
 } from "./board";
 import { parseJiraUrl } from "./jira";
-import { TODO_MEMO_LIMIT, TODO_NAME_LIMIT, TODO_TITLE_LIMIT } from "./schema";
-import { STATUS_KINDS, type TodoBoard, type TodoCard, type TodoJira } from "./types";
+import { TODO_DESCRIPTION_LIMIT, TODO_MEMO_LIMIT, TODO_NAME_LIMIT, TODO_TITLE_LIMIT } from "./schema";
+import type { TodoBoard, TodoCard, TodoJira } from "./types";
 
 const id = z.string().min(1).max(100);
 const absolutePath = z.string().refine((value) => value.startsWith("/"), "absolute path required");
@@ -30,7 +31,7 @@ const name = z
   .string()
   .max(TODO_NAME_LIMIT)
   .refine((value) => value.trim().length > 0 && !/[\r\n]/.test(value));
-const kind = z.enum(STATUS_KINDS);
+const description = z.string().max(TODO_DESCRIPTION_LIMIT).refine((value) => !/[\r\n]/.test(value));
 
 export const todoOpSchema = z.discriminatedUnion("type", [
   z.object({
@@ -51,14 +52,21 @@ export const todoOpSchema = z.discriminatedUnion("type", [
     repo: z.string().nullable().optional(),
     worktreePath: absolutePath.nullable().optional(),
   }),
-  z.object({ type: z.literal("card-move"), cardId: id, statusId: id, source: z.enum(["user", "auto"]).optional() }),
+  z.object({ type: z.literal("card-move"), cardId: id, statusId: id, source: z.enum(["user", "agent"]).optional() }),
+  z.object({ type: z.literal("card-suggest-done"), cardId: id }),
   z.object({ type: z.literal("card-delete"), cardId: id }),
   z.object({ type: z.literal("card-hide"), cardId: id, hidden: z.boolean() }),
   z.object({ type: z.literal("card-launch"), cardId: id }),
   z.object({ type: z.literal("session-attach"), cardId: id, sessionId }),
   z.object({ type: z.literal("session-detach"), cardId: id, sessionId }),
-  z.object({ type: z.literal("status-create"), name, kind, columnId: id.optional() }),
-  z.object({ type: z.literal("status-update"), statusId: id, name: name.optional(), kind: kind.optional() }),
+  z.object({ type: z.literal("status-create"), name, description: description.optional(), columnId: id.optional() }),
+  z.object({
+    type: z.literal("status-update"),
+    statusId: id,
+    name: name.optional(),
+    description: description.optional(),
+    next: z.array(id).max(50).optional(),
+  }),
   z.object({ type: z.literal("status-delete"), statusId: id, moveTo: id.optional() }),
   z.object({ type: z.literal("status-reorder"), statusIds: z.array(id).max(50) }),
   z.object({ type: z.literal("column-create"), name }),
@@ -117,7 +125,8 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
         repo: op.repo ?? null,
         worktreePath: op.worktreePath ?? null,
         hidden: false,
-        autoMovedAt: null,
+        agentMovedAt: null,
+        doneSuggestedAt: null,
         pendingLaunch: null,
         createdAt: now,
         updatedAt: now,
@@ -136,7 +145,9 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
       return { board: updateCard(board, op.cardId, patch, now) };
     }
     case "card-move":
-      return { board: moveCard(board, op.cardId, op.statusId, now, op.source === "auto") };
+      return { board: moveCard(board, op.cardId, op.statusId, now, op.source ?? "user") };
+    case "card-suggest-done":
+      return { board: suggestDone(board, op.cardId, now) };
     case "card-delete":
       cardOf(board, op.cardId);
       return { board: { ...board, cards: board.cards.filter((card) => card.id !== op.cardId) } };
@@ -164,10 +175,14 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
     }
     case "status-create": {
       const statusId = newId();
-      return { board: createStatus(board, { id: statusId, name: op.name.trim(), kind: op.kind, columnId: op.columnId }), createdId: statusId };
+      return { board: createStatus(board, { id: statusId, name: op.name.trim(), description: op.description?.trim(), columnId: op.columnId }), createdId: statusId };
     }
     case "status-update":
-      return { board: updateStatus(board, op.statusId, { ...(op.name !== undefined && { name: op.name.trim() }), ...(op.kind !== undefined && { kind: op.kind }) }) };
+      return { board: updateStatus(board, op.statusId, {
+        ...(op.name !== undefined && { name: op.name.trim() }),
+        ...(op.description !== undefined && { description: op.description.trim() }),
+        ...(op.next !== undefined && { next: op.next }),
+      }) };
     case "status-delete":
       return { board: deleteStatus(board, op.statusId, op.moveTo, now) };
     case "status-reorder":

@@ -18,7 +18,7 @@ import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { ErrorLog } from "./shared/errorLog";
 import { TODO_FILE } from "./todos/paths";
-import { TodoAutoMover } from "./todos/TodoAutoMover";
+import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
 import { TodoStore } from "./todos/TodoStore";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
@@ -45,7 +45,7 @@ export interface Services {
   orca: OrcaServices;
   worktreeWizard: WorktreeWizardServices;
   todos: TodoStore;
-  todoAutoMover: TodoAutoMover;
+  todoLaunches: TodoLaunchAttacher;
 }
 
 function createServices(): Services {
@@ -80,7 +80,7 @@ function createServices(): Services {
     orca: createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles }),
     worktreeWizard: createWorktreeWizardServices(),
     todos,
-    todoAutoMover: new TodoAutoMover(todos),
+    todoLaunches: new TodoLaunchAttacher(todos),
   };
 }
 

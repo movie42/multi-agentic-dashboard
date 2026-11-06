@@ -1,11 +1,10 @@
-export const STATUS_KINDS = ["standby", "progress", "block", "review", "done"] as const;
-
-export type StatusKind = (typeof STATUS_KINDS)[number];
-
 export interface TodoStatus {
   id: string;
   name: string;
-  kind: StatusKind;
+  /** When a card belongs here, in one line; agents read it to decide moves. */
+  description: string;
+  /** Statuses an agent may move a card to from here. People may move anywhere. */
+  next: string[];
 }
 
 export interface TodoColumn {
@@ -35,7 +34,8 @@ export interface TodoCard {
   repo: string | null;
   worktreePath: string | null;
   hidden: boolean;
-  autoMovedAt: number | null;
+  agentMovedAt: number | null;
+  doneSuggestedAt: number | null;
   pendingLaunch: TodoPendingLaunch | null;
   createdAt: number;
   updatedAt: number;
@@ -48,7 +48,7 @@ export interface TodoBoard {
   cards: TodoCard[];
 }
 
-export type TodoAutoEvent = "session-started" | "pr-opened";
+export type TodoMoveSource = "user" | "agent";
 
 export type TodoResponse =
   | { ok: true; board: TodoBoard; createdId?: string }

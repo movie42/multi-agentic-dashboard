@@ -2,12 +2,13 @@
 
 import type { TodoCard as TodoCardData, TodoStatus } from "@/common/todos/types";
 import { StateBadge } from "@/client/entities/agent";
-import { AUTO_MARK_MS, CARD_DRAG_TYPE, KIND_CHIP } from "../model/kinds";
+import { AGENT_MARK_MS, CARD_DRAG_TYPE, type StatusTone, TONE_CHIP } from "../model/kinds";
 import type { SessionLookup } from "../model/sessions";
 
 interface TodoCardProps {
   card: TodoCardData;
   status: TodoStatus | undefined;
+  tone: StatusTone;
   now: number;
   sessionOf: SessionLookup;
   onOpen: (cardId: string) => void;
@@ -18,11 +19,11 @@ function memoLead(memo: string): string {
   return line.replace(/^[#>\-*\s]+/, "").trim();
 }
 
-export function TodoCard({ card, status, now, sessionOf, onOpen }: TodoCardProps) {
+export function TodoCard({ card, status, tone, now, sessionOf, onOpen }: TodoCardProps) {
   const sessions = card.sessionIds.map(sessionOf);
   const live = sessions.filter((session) => session.agent !== null);
   const closed = sessions.length - live.length;
-  const autoMoved = card.autoMovedAt !== null && now - card.autoMovedAt < AUTO_MARK_MS;
+  const agentMoved = card.agentMovedAt !== null && now - card.agentMovedAt < AGENT_MARK_MS;
   const lead = memoLead(card.memo);
 
   return (
@@ -50,7 +51,7 @@ export function TodoCard({ card, status, now, sessionOf, onOpen }: TodoCardProps
       <p className="line-clamp-2 text-[14px] leading-snug font-semibold">{card.title}</p>
       {lead && <p className="line-clamp-1 text-[12px] text-muted">{lead}</p>}
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-none font-semibold">
-        {status && <span className={`rounded-full px-2 py-1 ${KIND_CHIP[status.kind]}`}>{status.name}</span>}
+        {status && <span className={`rounded-full px-2 py-1 ${TONE_CHIP[tone]}`}>{status.name}</span>}
         {card.repo && <span className="rounded-full bg-tint px-2 py-1 text-muted">{card.repo}</span>}
         {card.jira.map((jira) => (
           <a
@@ -65,7 +66,8 @@ export function TodoCard({ card, status, now, sessionOf, onOpen }: TodoCardProps
             {jira.key}
           </a>
         ))}
-        {autoMoved && <span className="rounded-full px-2 py-1 text-focus shadow-[inset_0_0_0_1px_var(--focus)]">자동으로 옮겨짐</span>}
+        {agentMoved && <span className="rounded-full px-2 py-1 text-focus shadow-[inset_0_0_0_1px_var(--focus)]">에이전트가 옮김</span>}
+        {card.doneSuggestedAt !== null && <span className="rounded-full bg-done/15 px-2 py-1 text-done">끝으로 옮겨도 될 것 같아요</span>}
         {card.hidden && <span className="text-muted">숨김</span>}
       </div>
       {(live.length > 0 || closed > 0) && (

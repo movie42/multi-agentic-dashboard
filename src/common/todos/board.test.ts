@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { autoMoveTarget } from "./autoMove";
 import {
   createColumn,
   createStatus,
@@ -9,9 +8,12 @@ import {
   moveCard,
   reorderStatuses,
   setColumnStatuses,
+  suggestDone,
   TodoRuleError,
+  updateStatus,
 } from "./board";
 import { parseJiraUrl } from "./jira";
+import { todoBoardSchema } from "./schema";
 import type { TodoBoard, TodoCard } from "./types";
 
 function card(id: string, statusId: string): TodoCard {
@@ -25,7 +27,8 @@ function card(id: string, statusId: string): TodoCard {
     repo: null,
     worktreePath: null,
     hidden: false,
-    autoMovedAt: null,
+    agentMovedAt: null,
+    doneSuggestedAt: null,
     pendingLaunch: null,
     createdAt: 0,
     updatedAt: 0,
@@ -37,7 +40,12 @@ const withCards = (board: TodoBoard, ...cards: TodoCard[]): TodoBoard => ({ ...b
 describe("defaultBoard", () => {
   it("lays out four statuses with the review column hidden", () => {
     const board = defaultBoard();
-    expect(board.statuses.map((status) => `${status.name}:${status.kind}`)).toEqual(["할일:standby", "진행 중:progress", "리뷰:review", "끝:done"]);
+    expect(board.statuses.map((status) => `${status.name}→${status.next.join(",")}`)).toEqual([
+      "할일→st-progress",
+      "진행 중→st-review,st-todo",
+      "리뷰→st-done,st-progress",
+      "끝→st-progress",
+    ]);
     expect(board.columns.filter((column) => column.hidden).map((column) => column.name)).toEqual(["리뷰"]);
   });
 });
@@ -61,7 +69,7 @@ describe("deleteStatus", () => {
 
 describe("statuses and columns", () => {
   it("inserts a new status before the last one in its own column", () => {
-    const next = createStatus(defaultBoard(), { id: "st-block", name: "막힘", kind: "block" });
+    const next = createStatus(defaultBoard(), { id: "st-block", name: "막힘" });
     expect(next.statuses.map((status) => status.id)).toEqual(["st-todo", "st-progress", "st-review", "st-block", "st-done"]);
     expect(next.columns.map((column) => column.id)).toEqual(["col-todo", "col-progress", "col-review", "col-st-block", "col-done"]);
   });
@@ -89,31 +97,57 @@ describe("statuses and columns", () => {
 });
 
 describe("moveCard", () => {
-  it("marks auto moves and clears the mark on a user move", () => {
+  it("lets a person move anywhere and clears the agent marks", () => {
+    const board = withCards(defaultBoard(), { ...card("a", "st-progress"), agentMovedAt: 3, doneSuggestedAt: 3 });
+    const moved = moveCard(board, "a", "st-done", 6);
+    expect(moved.cards[0]).toMatchObject({ statusId: "st-done", agentMovedAt: null, doneSuggestedAt: null });
+  });
+
+  it("makes an agent follow the transitions and marks its move", () => {
     const board = withCards(defaultBoard(), card("a", "st-todo"));
-    const auto = moveCard(board, "a", "st-progress", 5, true);
-    expect(auto.cards[0]?.autoMovedAt).toBe(5);
-    expect(moveCard(auto, "a", "st-todo", 6).cards[0]?.autoMovedAt).toBeNull();
+    expect(() => moveCard(board, "a", "st-review", 5, "agent")).toThrow("전환");
+    expect(moveCard(board, "a", "st-progress", 5, "agent").cards[0]?.agentMovedAt).toBe(5);
+  });
+
+  it("never lets an agent reach the last status, only suggest it", () => {
+    const board = withCards(defaultBoard(), card("a", "st-review"));
+    expect(() => moveCard(board, "a", "st-done", 5, "agent")).toThrow("끝 상태");
+    expect(suggestDone(board, "a", 5).cards[0]?.doneSuggestedAt).toBe(5);
   });
 });
 
-describe("autoMoveTarget", () => {
-  const board = defaultBoard();
-
-  it("moves forward to the first status of the matching kind", () => {
-    expect(autoMoveTarget(board, card("a", "st-todo"), "session-started")).toBe("st-progress");
-    expect(autoMoveTarget(board, card("a", "st-progress"), "pr-opened")).toBe("st-review");
+describe("transitions", () => {
+  it("refuses a transition to itself or to a missing status", () => {
+    const board = defaultBoard();
+    expect(() => updateStatus(board, "st-todo", { next: ["st-todo"] })).toThrow(TodoRuleError);
+    expect(() => updateStatus(board, "st-todo", { next: ["nope"] })).toThrow(TodoRuleError);
   });
 
-  it("never moves backward or out of done", () => {
-    expect(autoMoveTarget(board, card("a", "st-review"), "session-started")).toBeNull();
-    expect(autoMoveTarget(board, card("a", "st-done"), "pr-opened")).toBeNull();
+  it("drops a deleted status from every transition", () => {
+    const next = deleteStatus(defaultBoard(), "st-review", undefined, 1);
+    expect(next.statuses.find((status) => status.id === "st-progress")?.next).toEqual(["st-todo"]);
   });
+});
 
-  it("never moves out of a done-kind status in the middle of the workflow", () => {
-    const shipped = createStatus(board, { id: "st-shipped", name: "배포", kind: "done" });
-    const reordered = reorderStatuses(shipped, ["st-todo", "st-shipped", "st-progress", "st-review", "st-done"]);
-    expect(autoMoveTarget(reordered, card("a", "st-shipped"), "session-started")).toBeNull();
+describe("todoBoardSchema", () => {
+  it("reads a file written with status kinds and fills linear transitions", () => {
+    const legacy = {
+      version: 1,
+      statuses: [
+        { id: "a", name: "A", kind: "standby" },
+        { id: "b", name: "B", kind: "progress" },
+        { id: "c", name: "C", kind: "done" },
+      ],
+      columns: [{ id: "col", name: "all", statusIds: ["a", "b", "c"], hidden: false }],
+      cards: [{ ...card("x", "b"), agentMovedAt: undefined, doneSuggestedAt: undefined, autoMovedAt: 9 }],
+    };
+    const board = todoBoardSchema.parse(legacy);
+    expect(board.statuses).toEqual([
+      { id: "a", name: "A", description: "", next: ["b"] },
+      { id: "b", name: "B", description: "", next: ["c", "a"] },
+      { id: "c", name: "C", description: "", next: ["b"] },
+    ]);
+    expect(board.cards[0]).toMatchObject({ agentMovedAt: 9, doneSuggestedAt: null });
   });
 });
 

@@ -155,7 +155,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoB
         </div>
       </header>
 
-      <div className="-mx-5 flex items-start gap-3 overflow-x-auto px-5 pb-4 md:-mx-12 md:px-12">
+      <div className="-mx-5 -mb-36 flex min-h-[calc(100dvh-15.5rem)] gap-3 overflow-x-auto px-5 pb-6 md:-mx-12 md:px-12">
         {shownColumns.map((column) => (
           <TodoColumn
             key={column.id}
@@ -171,7 +171,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoB
           />
         ))}
         {columnDraft === null ? (
-          <button type="button" onClick={() => setColumnDraft("")} className="w-40 shrink-0 rounded-[12px] px-3 py-2.5 text-left text-[13px] text-muted hover:bg-tint hover:text-fg">
+          <button type="button" onClick={() => setColumnDraft("")} className="w-40 shrink-0 self-start rounded-[12px] px-3 py-2.5 text-left text-[13px] text-muted hover:bg-tint hover:text-fg">
             + 칸 추가
           </button>
         ) : (
@@ -191,7 +191,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction }: TodoB
                 setColumnDraft(null);
               }
             }}
-            className="w-56 shrink-0 rounded-[12px] bg-tint px-3 py-2.5 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
+            className="w-56 shrink-0 self-start rounded-[12px] bg-tint px-3 py-2.5 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
           />
         )}
       </div>
