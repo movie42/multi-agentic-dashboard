@@ -17,6 +17,10 @@ import { SessionIndex } from "./sessions/SessionIndex";
 import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { ErrorLog } from "./shared/errorLog";
+import { TODO_FILE } from "./todos/paths";
+import { TodoAgent } from "./todos/TodoAgent";
+import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
+import { TodoStore } from "./todos/TodoStore";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
 
@@ -41,6 +45,9 @@ export interface Services {
   workflow: WorkflowServices;
   orca: OrcaServices;
   worktreeWizard: WorktreeWizardServices;
+  todos: TodoStore;
+  todoLaunches: TodoLaunchAttacher;
+  todoAgent: TodoAgent;
 }
 
 function createServices(): Services {
@@ -55,24 +62,34 @@ function createServices(): Services {
   const sessionLocator = new SessionLocator({ projectsDir: PROJECTS_DIR, liveSessionsDir: LIVE_SESSIONS_DIR, warn });
   const permissions = new PermissionStore();
   const bookmarks = new BookmarkStore(BOOKMARK_FILE, warn);
+  const todos = new TodoStore(TODO_FILE, warn);
   const intentDiff = createIntentDiffServices({ projectDirOf: (cwd) => sessionLocator.projectDirOf(cwd), warn });
+  const sessionIndex = new SessionIndex({
+    projectsDir: PROJECTS_DIR,
+    cacheFile: SESSION_CACHE_FILE,
+    askSessionIds: () => intentDiff.askStore.sessionIds(),
+    warn,
+  });
+  const orca = createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles });
   return {
     errorLog,
     permissions,
-    sessionIndex: new SessionIndex({
-      projectsDir: PROJECTS_DIR,
-      cacheFile: SESSION_CACHE_FILE,
-      askSessionIds: () => intentDiff.askStore.sessionIds(),
-      warn,
-    }),
+    sessionIndex,
     sessionLocator,
     sessionTitles,
     activity: new ActivityReader((sessionId) => sessionTitles.cachedTranscriptOf(sessionId)),
     bookmarks,
     ...intentDiff,
     workflow,
-    orca: createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles }),
+    orca,
     worktreeWizard: createWorktreeWizardServices(),
+    todos,
+    todoLaunches: new TodoLaunchAttacher(todos),
+    todoAgent: new TodoAgent({
+      loadBoard: () => orca.board.load(),
+      listSessions: () => sessionIndex.list(),
+      todos,
+    }),
   };
 }
 

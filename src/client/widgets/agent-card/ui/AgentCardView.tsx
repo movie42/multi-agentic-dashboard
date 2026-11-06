@@ -9,6 +9,7 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { ChoicePanel } from "@/client/features/choose-option";
 import { MessageView } from "./MessageView";
 import { PermissionPanel } from "@/client/features/answer-permission";
+import { AttachToTodo } from "@/client/features/attach-to-todo";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
 import { QuickReply } from "@/client/features/quick-reply";
 import { SessionTitle } from "@/client/features/rename-session";
@@ -132,6 +133,16 @@ export function AgentCardView({
             >
               {dismissed ? "되돌리기" : "정리"}
             </button>
+          )}
+          {agent.session && (
+            <AttachToTodo
+              target={{
+                sessionId: agent.session.id,
+                title: agent.session.title ?? fallbackTitle,
+                repo: agent.repo,
+                worktreePath: agent.worktreePath,
+              }}
+            />
           )}
           {bookmark ? (
             <BookmarkStar target={bookmark} />

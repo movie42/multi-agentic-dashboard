@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import type { BoardResponse } from "@/common/orca/types";
-import { services } from "@/server/container";
+import { reportWarning, services } from "@/server/container";
 
 export async function GET() {
   await connection();
@@ -8,6 +8,9 @@ export async function GET() {
   services().sessionIndex.warm();
   try {
     const board = await services().orca.board.load();
+    void services()
+      .todoLaunches.observe(board)
+      .catch((error: unknown) => reportWarning("todos", error, { step: "attach launched session" }));
     return Response.json({ ok: true, board } satisfies BoardResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
