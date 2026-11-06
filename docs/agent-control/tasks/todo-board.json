@@ -933,7 +933,7 @@
             {
               "id": "P4-1",
               "title": "todo 엔티티: 보드 쿼리 · 작업 뮤테이션",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -942,13 +942,21 @@
                 [
                   "패턴",
                   "<code>src/client/entities/session/api/sessionQueries.ts</code> (react-query <code>queryOptions</code>)"
+                ],
+                [
+                  "결정",
+                  "카드 이동과 숨기기는 서버 응답 전에 화면에 먼저 반영하고, 실패하면 되돌린 뒤 토스트로 알린다. 나머지 작업은 서버가 돌려준 보드로 바꾼다."
+                ],
+                [
+                  "결정",
+                  "자동 이동이 화면에 보이도록 보드를 4초마다 다시 읽는다."
                 ]
               ]
             },
             {
               "id": "P4-2",
               "title": "칸반 보드: 칸 · 카드 · 드래그 · 프로젝트 필터",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -965,13 +973,17 @@
                 [
                   "결정",
                   "칸은 그릇이라, 칸 안의 모든 카드에 지금 상태 이름을 칩으로 붙인다. 칩 색은 상태 종류(standby · progress · block · review · done)를 따른다 — 사용자 요청(11/06)."
+                ],
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/ui/TodoBoardPage.test.tsx</code>, <code>model/kinds.ts</code>, <code>model/sessions.ts</code>, <code>ui/Modal.tsx</code>"
                 ]
               ]
             },
             {
               "id": "P4-3",
               "title": "카드 상세: 수정 · 마크다운 메모 · 지라 · 세션 · 삭제",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -988,13 +1000,21 @@
                 [
                   "결정",
                   "[[R1-Q4]] 수정 · 삭제 버튼, 메모는 md 에디터. 끝으로 옮겨도 지우지 않음"
+                ],
+                [
+                  "결정",
+                  "메모 미리보기는 <code>AnswerMarkdown</code>을 쓰지 않고 <code>react-markdown</code> + <code>remark-gfm</code>을 직접 쓴다. <code>AnswerMarkdown</code>은 diff 기능의 코드 하이라이트 조회에 묶여 있고 그 기능 밖으로 내보내지 않기 때문이다."
+                ],
+                [
+                  "결정",
+                  "[새 세션]은 빈 프롬프트로 연다. 카드 제목이나 메모를 프롬프트로 넣는 것은 정하지 않았다."
                 ]
               ]
             },
             {
               "id": "P4-4",
               "title": "워크플로 편집: 상태 목록",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -1013,7 +1033,7 @@
             {
               "id": "P4-5",
               "title": "칸 편집: 칸 머리 메뉴",
-              "done": false,
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -1033,7 +1053,12 @@
               "id": "P4-V",
               "title": "검증: <code>bun run test</code>(dom) 카드 만들기 · 드래그 · 메모 저장 · 숨기기 + <code>/browse</code>로 화면 확인",
               "done": false,
-              "rows": []
+              "rows": [
+                [
+                  "결정",
+                  "dom 테스트 4개(카드 만들기 · 드래그 · 메모 저장 · 숨기기)는 통과했다. 화면 진입점이 P5-1에 있어서 /browse 화면 확인은 P5-1 다음에 한다."
+                ]
+              ]
             }
           ]
         },
