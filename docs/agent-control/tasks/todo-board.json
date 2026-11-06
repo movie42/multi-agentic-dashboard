@@ -961,7 +961,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/todo-board/ui/TodoBoardPage.tsx</code>, <code>TodoColumn.tsx</code>, <code>TodoCard.tsx</code>"
+                  "<code>src/client/widgets/todo-board/ui/TodoBoardPage.tsx</code>, <code>src/client/widgets/todo-board/ui/TodoColumn.tsx</code>, <code>src/client/widgets/todo-board/ui/TodoCard.tsx</code>, <code>src/client/widgets/todo-board/index.ts</code>"
                 ],
                 [
                   "내용",
@@ -977,7 +977,7 @@
                 ],
                 [
                   "파일",
-                  "<code>src/client/widgets/todo-board/ui/TodoBoardPage.test.tsx</code>, <code>model/kinds.ts</code>, <code>model/sessions.ts</code>, <code>ui/Modal.tsx</code>"
+                  "<code>src/client/widgets/todo-board/ui/TodoBoardPage.test.tsx</code>, <code>src/client/widgets/todo-board/model/kinds.ts</code>, <code>src/client/widgets/todo-board/model/sessions.ts</code>, <code>src/client/widgets/todo-board/model/run.ts</code>, <code>src/client/widgets/todo-board/ui/Modal.tsx</code>"
                 ]
               ]
             },
@@ -988,7 +988,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/todo-board/ui/TodoCardDetail.tsx</code>, <code>MemoEditor.tsx</code>"
+                  "<code>src/client/widgets/todo-board/ui/TodoCardDetail.tsx</code>, <code>src/client/widgets/todo-board/ui/MemoEditor.tsx</code>"
                 ],
                 [
                   "내용",
@@ -1098,7 +1098,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/features/attach-to-todo/</code>, <code>AgentCardView.tsx</code>, <code>SessionsPage.tsx</code>"
+                  "<code>src/client/features/attach-to-todo/</code>, <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>, <code>src/client/widgets/session-list/ui/SessionsPage.tsx</code>"
                 ],
                 [
                   "내용",
