@@ -91,6 +91,39 @@ interface JumpTarget {
 
 const FALLBACK_PROJECT: ProjectSummary = { repo: "", autoMode: "company" };
 
+const SEARCH_INPUT_CLASS =
+  "w-full max-w-md rounded-full bg-tint px-4 py-1.5 text-[14px] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]";
+
+function worktreeMatches(worktree: WorktreeSummary, needle: string) {
+  return [
+    worktree.repo,
+    worktree.name,
+    worktree.branch,
+    ...worktree.flowTasks.map((task) => `${task.taskId} ${task.title}`),
+  ].some((value) => value?.toLowerCase().includes(needle));
+}
+
+function agentMatches(
+  agent: AgentCard,
+  worktree: WorktreeSummary | undefined,
+  needle: string,
+) {
+  if (!needle) return true;
+  return (
+    (worktree ? worktreeMatches(worktree, needle) : false) ||
+    [
+      agent.repo,
+      agent.worktreeName,
+      agent.branch,
+      agent.prompt,
+      agent.lastMessage,
+    ].some((value) => value?.toLowerCase().includes(needle))
+  );
+}
+
+const worktreeOrderKey = (repo: string) =>
+  `agent-control:worktree-order:${repo}`;
+
 export function DashboardLoading() {
   return (
     <main className="flex flex-col items-start gap-4 px-12 py-14 text-[14px] text-muted">
@@ -230,32 +263,13 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   );
 
   const needle = query.trim().toLowerCase();
-  const worktreeMatches = (worktree: WorktreeSummary) =>
-    [
-      worktree.repo,
-      worktree.name,
-      worktree.branch,
-      ...worktree.flowTasks.map((task) => `${task.taskId} ${task.title}`),
-    ].some((value) => value?.toLowerCase().includes(needle));
-  const agentMatches = (agent: AgentCard) => {
-    if (!needle) return true;
-    const worktree = worktreeById.get(agent.worktreeId);
-    return (
-      (worktree ? worktreeMatches(worktree) : false) ||
-      [
-        agent.repo,
-        agent.worktreeName,
-        agent.branch,
-        agent.prompt,
-        agent.lastMessage,
-      ].some((value) => value?.toLowerCase().includes(needle))
-    );
-  };
-  const visibleAgents = focusedAgents.filter(agentMatches);
+  const visibleAgents = focusedAgents.filter((agent) =>
+    agentMatches(agent, worktreeById.get(agent.worktreeId), needle),
+  );
   const visibleWorktrees = needle
     ? focusedWorktrees.filter(
         (worktree) =>
-          worktreeMatches(worktree) ||
+          worktreeMatches(worktree, needle) ||
           visibleAgents.some(
             (agent) => agent.worktreeId === worktree.worktreeId,
           ),
@@ -363,7 +377,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                     setQuery(event.target.value)
                   }
                   placeholder="이 화면 거르기 · 프로젝트, 브랜치, 작업, 요청, 답변"
-                  className="w-full max-w-md rounded-full bg-tint px-4 py-1.5 text-[14px] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
+                  className={SEARCH_INPUT_CLASS}
                 />
                 {needle && (
                   <span className="text-[12px] text-muted">
@@ -450,6 +464,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
           </>
         ) : (
           <ProjectView
+            key={selectedRepo}
             repo={selectedRepo}
             worktrees={board.worktrees.filter(
               (worktree) => worktree.repo === selectedRepo,
@@ -512,20 +527,58 @@ function ProjectView({
   focused,
   onToggleFocus,
 }: ProjectViewProps) {
-  const allPanels = worktrees.map((worktree) => ({
+  const [query, setQuery] = useState("");
+  const [storedOrder, writeOrder] = useStoredList(worktreeOrderKey(repo));
+  const needle = query.trim().toLowerCase();
+
+  const rank = new Map(storedOrder.map((id, index) => [id, index]));
+  const ordered = worktrees
+    .map((worktree, index) => ({ worktree, index }))
+    .sort(
+      (a, b) =>
+        (rank.get(a.worktree.worktreeId) ?? storedOrder.length + a.index) -
+        (rank.get(b.worktree.worktreeId) ?? storedOrder.length + b.index),
+    )
+    .map(({ worktree }) => worktree);
+  const moveWorktree = (
+    draggedId: string,
+    targetId: string,
+    placeAfter: boolean,
+  ) => {
+    const rest = ordered
+      .map((worktree) => worktree.worktreeId)
+      .filter((id) => id !== draggedId);
+    const at = rest.indexOf(targetId);
+    if (at === -1) return;
+    writeOrder([
+      ...rest.slice(0, at + Number(placeAfter)),
+      draggedId,
+      ...rest.slice(at + Number(placeAfter)),
+    ]);
+  };
+
+  const worktreeById = new Map(
+    worktrees.map((worktree) => [worktree.worktreeId, worktree]),
+  );
+  const visibleTop = agents.top.filter((agent) =>
+    agentMatches(agent, worktreeById.get(agent.worktreeId), needle),
+  );
+  const visibleWorktrees = needle
+    ? ordered.filter(
+        (worktree) =>
+          worktreeMatches(worktree, needle) ||
+          visibleTop.some((agent) => agent.worktreeId === worktree.worktreeId),
+      )
+    : ordered;
+
+  const allPanels = visibleWorktrees.map((worktree) => ({
     worktree,
     groups: groupAgents(
-      agents.top.filter((agent) => agent.worktreeId === worktree.worktreeId),
+      visibleTop.filter((agent) => agent.worktreeId === worktree.worktreeId),
       isDismissed,
     ),
   }));
-  allPanels.sort(
-    (a, b) =>
-      b.groups.needsMe.length - a.groups.needsMe.length ||
-      b.groups.working.length - a.groups.working.length ||
-      (b.worktree.lastActivityAt ?? 0) - (a.worktree.lastActivityAt ?? 0),
-  );
-  const ids = new Set(worktrees.map((worktree) => worktree.worktreeId));
+  const ids = new Set(visibleWorktrees.map((worktree) => worktree.worktreeId));
   const isChild = (worktree: WorktreeSummary) =>
     worktree.parentWorktreeId !== null && ids.has(worktree.parentWorktreeId);
   const panels = allPanels.filter((panel) => !isChild(panel.worktree));
@@ -563,10 +616,29 @@ function ProjectView({
           {mode === "company" ? "회사 워크플로" : "개인 워크플로"}
         </p>
         {worktrees[0] && <ProjectWorktreeWizard key={repo} anchor={worktrees[0]} />}
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            value={query}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setQuery(event.target.value)
+            }
+            placeholder="이 화면 거르기 · 워크트리, 브랜치, 작업, 요청, 답변"
+            className={SEARCH_INPUT_CLASS}
+          />
+          {needle && (
+            <span className="text-[12px] text-muted">
+              에이전트 {visibleTop.length} · worktree {visibleWorktrees.length}
+            </span>
+          )}
+        </div>
+        <div className="mt-4">
           <LaunchAgent key={repo} worktrees={worktrees} showRepo={false} />
         </div>
       </header>
+      {needle && visibleWorktrees.length === 0 && (
+        <p className="text-[15px] text-muted">거른 결과가 없어요.</p>
+      )}
       {sections.map(({ feature, panels: sectionPanels }) => {
         const linkOf = ({
           worktree,
@@ -603,6 +675,9 @@ function ProjectView({
               ancestors={ancestors}
               childLinks={children.map(linkOf)}
               onAction={onAction}
+              onDropWorktree={(draggedId, placeAfter) =>
+                moveWorktree(draggedId, worktree.worktreeId, placeAfter)
+              }
             />,
             ...children.flatMap((child) =>
               renderPanel(child, [...ancestors, linkOf(panel)]),

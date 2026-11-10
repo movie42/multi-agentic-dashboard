@@ -23,6 +23,7 @@ interface WorktreePanelProps {
   ancestors: WorktreeLink[];
   childLinks: WorktreeLink[];
   onAction: (action: ActionRequest) => void;
+  onDropWorktree?: (draggedId: string, placeAfter: boolean) => void;
 }
 
 export interface WorktreeLink {
@@ -31,6 +32,15 @@ export interface WorktreeLink {
   needsMe: number;
   working: number;
 }
+
+const WORKTREE_DRAG_TYPE = "application/x-agent-control-worktree";
+
+type DropEdge = "before" | "after";
+
+const DROP_EDGE_CLASS: Record<DropEdge, string> = {
+  before: "shadow-[inset_0_2px_0_0_var(--focus)]",
+  after: "shadow-[inset_0_-2px_0_0_var(--focus)]",
+};
 
 const INDENT = ["", "pl-3.5", "pl-7"] as const;
 const indentOf = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];
@@ -46,6 +56,20 @@ function Elbow() {
       aria-hidden
       className="mr-1.5 inline-block h-2.5 w-2 -translate-y-1 border-b border-l border-muted"
     />
+  );
+}
+
+function GripIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 10 16"
+      className="mt-[0.2em] h-[1em] w-[0.6em] shrink-0 fill-current text-faint group-hover:text-muted"
+    >
+      {[3, 8, 13].flatMap((cy) =>
+        [3, 7].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.4} />),
+      )}
+    </svg>
   );
 }
 
@@ -65,9 +89,15 @@ export function WorktreePanel({
   ancestors,
   childLinks,
   onAction,
+  onDropWorktree,
 }: WorktreePanelProps) {
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
+  const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
+  const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+  };
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
   const all = [...groups.needsMe, ...groups.working, ...groups.resting];
@@ -91,7 +121,35 @@ export function WorktreePanel({
   return (
     <section
       data-jump={worktree.worktreeId}
-      className="grid scroll-mt-6 grid-cols-1 gap-x-6 gap-y-4 border-t border-hair pt-6 pb-10 lg:grid-cols-[176px_minmax(0,1fr)]"
+      onDragOver={(event: React.DragEvent<HTMLElement>) => {
+        if (
+          !onDropWorktree ||
+          !event.dataTransfer.types.includes(WORKTREE_DRAG_TYPE)
+        )
+          return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setDropEdge(edgeOf(event));
+      }}
+      onDragLeave={(event: React.DragEvent<HTMLElement>) => {
+        if (
+          event.relatedTarget instanceof Node &&
+          event.currentTarget.contains(event.relatedTarget)
+        )
+          return;
+        setDropEdge(null);
+      }}
+      onDrop={(event: React.DragEvent<HTMLElement>) => {
+        setDropEdge(null);
+        const draggedId = event.dataTransfer.getData(WORKTREE_DRAG_TYPE);
+        if (!onDropWorktree || !draggedId) return;
+        event.preventDefault();
+        if (draggedId !== worktree.worktreeId)
+          onDropWorktree(draggedId, edgeOf(event) === "after");
+      }}
+      className={`grid scroll-mt-6 grid-cols-1 gap-x-6 gap-y-4 border-t border-hair pt-6 pb-10 lg:grid-cols-[176px_minmax(0,1fr)] ${
+        dropEdge ? DROP_EDGE_CLASS[dropEdge] : ""
+      }`}
     >
       <div className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
         {ancestors.map((ancestor, depth) => (
@@ -107,10 +165,23 @@ export function WorktreePanel({
           </button>
         ))}
         <h3
-          className={`text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)}`}
+          draggable={onDropWorktree !== undefined}
+          onDragStart={(event: React.DragEvent<HTMLHeadingElement>) => {
+            event.dataTransfer.setData(WORKTREE_DRAG_TYPE, worktree.worktreeId);
+            event.dataTransfer.effectAllowed = "move";
+          }}
+          title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
+          className={`group text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)} ${
+            onDropWorktree
+              ? "-mx-1.5 flex cursor-grab items-start gap-1 rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing"
+              : ""
+          }`}
         >
-          {ancestors.length > 0 && <Elbow />}
-          {worktree.name}
+          {onDropWorktree && <GripIcon />}
+          <span className="min-w-0">
+            {ancestors.length > 0 && <Elbow />}
+            {worktree.name}
+          </span>
         </h3>
         {worktree.branch && worktree.branch !== worktree.name && (
           <p className="mt-1 font-mono text-[12px] break-all text-muted">
