@@ -116,7 +116,8 @@ export function mergeRepoFlowTasks(scans: WorktreeFlowScan[]): FlowTaskSummary[]
 
 /**
  * current — tasks whose recorded branch is this worktree's branch; with none, the unfinished
- * tasks in this worktree's own checkout. other — every remaining task in the repo.
+ * tasks in this worktree's own checkout that record no branch. A task recording another branch
+ * is only a copy inherited from the base branch, so it goes to other with every remaining task.
  */
 export function splitFlowTasks(repoTasks: FlowTaskSummary[], own: WorktreeFlowScan): WorktreeFlowTasks {
   const ownKeys = new Set(own.tasks.map(flowTaskKey));
@@ -128,6 +129,8 @@ export function splitFlowTasks(repoTasks: FlowTaskSummary[], own: WorktreeFlowSc
       ? activeMatched
       : matched.length > 0
         ? matched.slice(0, 1)
-        : repoTasks.filter((task) => ownKeys.has(flowTaskKey(task)) && !isFinishedFlowTask(task));
+        : repoTasks.filter(
+            (task) => task.branch === null && ownKeys.has(flowTaskKey(task)) && !isFinishedFlowTask(task),
+          );
   return { current, other: repoTasks.filter((task) => !current.includes(task)) };
 }

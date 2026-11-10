@@ -78,9 +78,16 @@ describe("splitFlowTasks", () => {
     expect(split.other).toEqual([done, other]);
   });
 
-  it("falls back to unfinished tasks from this checkout when no branch matches", () => {
-    const local = flowTask({ taskId: "a", branch: "feat/z" });
+  it("falls back to unfinished branchless tasks from this checkout when no branch matches", () => {
+    const local = flowTask({ taskId: "a", branch: null });
     const split = splitFlowTasks([local], { branch: "feat/a", tasks: [local] });
     expect(split.current).toEqual([local]);
+  });
+
+  it("keeps a checkout's task recorded on another branch out of current", () => {
+    const inherited = flowTask({ taskId: "a", branch: "feat/z" });
+    const split = splitFlowTasks([inherited], { branch: "feat/a", tasks: [inherited] });
+    expect(split.current).toEqual([]);
+    expect(split.other).toEqual([inherited]);
   });
 });
