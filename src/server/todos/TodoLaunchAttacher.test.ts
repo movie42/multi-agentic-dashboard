@@ -36,6 +36,7 @@ function worktree(path: string, pullRequest: PullRequestInfo): WorktreeSummary {
     name: path,
     branch: "feat/x",
     path,
+    isMain: false,
     parentWorktreeId: null,
     unread: false,
     lastActivityAt: null,

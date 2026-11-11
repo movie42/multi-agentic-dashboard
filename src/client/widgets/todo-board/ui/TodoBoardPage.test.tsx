@@ -29,7 +29,7 @@ function renderPage() {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} onAction={() => undefined} onJumpToAgent={() => undefined} />
+      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} onAction={async () => undefined} onJumpToAgent={() => undefined} />
     </QueryClientProvider>,
   );
 }

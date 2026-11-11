@@ -33,10 +33,13 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("choose-option"), terminalHandle: z.string(), option: z.number().int().min(1).max(9) }),
   z.object({ type: z.literal("launch-agent"), worktreePath: absolutePath, prompt: z.string().max(MAX_PROMPT) }),
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
+  z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
+  z.object({ type: z.literal("import-project"), path: absolutePath }),
   z.object({ type: z.literal("check-feature"), featureId: z.string().min(1) }),
   z.object({ type: z.literal("answer-permission"), requestId: z.string(), answer: permissionAnswerSchema }),
 ]);
 
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionResponse = { ok: true } | { ok: false; error: string };
+export type FolderPickResponse = { ok: true; path: string | null } | { ok: false; error: string };
 export type AttachmentResponse = { ok: true; path: string } | { ok: false; error: string };

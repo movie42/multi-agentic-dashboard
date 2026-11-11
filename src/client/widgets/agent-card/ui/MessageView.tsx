@@ -1,33 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { parseMessage } from "@/client/shared/lib/message";
 import { copyForSlack } from "@/client/shared/lib/slackClipboard";
-
-interface MarkdownProps {
-  text: string;
-}
-
-function Markdown({ text }: MarkdownProps) {
-  return (
-    <div className="md">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ children, href }) => (
-            <a href={href} target="_blank" rel="noreferrer">
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {text}
-      </ReactMarkdown>
-    </div>
-  );
-}
+import { Markdown } from "./Markdown";
 
 interface MessageViewProps {
   message: string | null;

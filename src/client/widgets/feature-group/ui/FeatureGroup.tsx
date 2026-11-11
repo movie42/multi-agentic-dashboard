@@ -3,10 +3,11 @@
 import type { ActionRequest } from "@/common/actions/schema";
 import type { FeatureCheck, FeatureSummary, FileOverlap, SharedWait } from "@/common/workflow/types";
 import { formatClock } from "@/client/shared/lib/format";
+import { PendingButton } from "@/client/shared/ui/PendingButton";
 
 interface FeatureGroupProps {
   feature: FeatureSummary;
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
   children: React.ReactNode;
 }
 
@@ -90,15 +91,14 @@ export function FeatureGroup({ feature, onAction, children }: FeatureGroupProps)
             </button>
           )}
           <span className="text-muted">{checkStatus(feature.check)}</span>
-          <button
-            type="button"
+          <PendingButton
             disabled={!canCheck}
-            onClick={() => onAction({ type: "check-feature", featureId: feature.id })}
+            onRun={() => onAction({ type: "check-feature", featureId: feature.id })}
             title={feature.root ? `git fetch origin ${feature.root} 후 rebase 필요 · 같은 파일 수정을 확인해요` : "기능 문서에 루트 브랜치가 없어요"}
             className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent"
           >
             원격 확인
-          </button>
+          </PendingButton>
         </span>
       </div>
       {warnings.length > 0 && (

@@ -15,6 +15,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  window.localStorage.clear();
   useToastStore.setState({ toasts: [] });
 });
 
@@ -63,5 +64,25 @@ describe("QuickReply", () => {
     expect(await screen.findByText("보냈어요. 상태가 곧 바뀌어요.")).toBeTruthy();
     await userEvent.type(screen.getByRole("textbox"), "a");
     expect(screen.queryByText("보냈어요. 상태가 곧 바뀌어요.")).toBeNull();
+  });
+
+  it("keeps an unsent draft per terminal across a remount", async () => {
+    const { unmount } = render(<QuickReply terminalHandle="term-1" working={false} />);
+    await userEvent.type(screen.getByRole("textbox"), "아직 안 보냄");
+    unmount();
+
+    render(<QuickReply terminalHandle="term-1" working={false} />);
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("아직 안 보냄");
+  });
+
+  it("drops the stored draft once the message is sent", async () => {
+    post.mockResolvedValue();
+    const { unmount } = render(<QuickReply terminalHandle="term-1" working={false} />);
+    await userEvent.type(screen.getByRole("textbox"), "계속해{Enter}");
+    expect(await screen.findByText("보냈어요. 상태가 곧 바뀌어요.")).toBeTruthy();
+    unmount();
+
+    render(<QuickReply terminalHandle="term-1" working={false} />);
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
   });
 });

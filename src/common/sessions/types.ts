@@ -48,3 +48,14 @@ export type ActivityStep =
 export type ActivityResponse =
   | { ok: true; steps: ActivityStep[]; updatedAt: number }
   | { ok: false; error: string };
+
+export interface ConversationTurn {
+  id: string;
+  at: number | null;
+  prompt: string;
+  answer: string | null;
+}
+
+export type ConversationResponse =
+  | { ok: true; turns: ConversationTurn[]; updatedAt: number }
+  | { ok: false; error: string };

@@ -67,6 +67,7 @@ function worktree(path: string, repo: string): WorktreeSummary {
     name: "gift",
     branch: null,
     path,
+    isMain: false,
     parentWorktreeId: null,
     unread: false,
     lastActivityAt: null,

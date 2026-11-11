@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { readJson } from "@/client/shared/api/json";
+import { Spinner } from "@/client/shared/ui/Spinner";
 import type { WorktreeSummary } from "@/common/orca/types";
 import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
 
@@ -92,7 +93,9 @@ export function useWorktreeWizard(origin: WizardOrigin) {
     setError(null);
   };
 
-  return { origin, step, error, open, answer, editPlan, create, close };
+  const busy = step.kind === "thinking" || step.kind === "creating";
+
+  return { origin, step, busy, error, open, answer, editPlan, create, close };
 }
 
 export type WorktreeWizard = ReturnType<typeof useWorktreeWizard>;
@@ -231,7 +234,12 @@ export function WorktreeWizardPanel({ wizard }: WorktreeWizardPanelProps) {
           닫기
         </button>
       </div>
-      {step.kind === "thinking" && <p className="text-[13px] text-muted">{step.label}…</p>}
+      {step.kind === "thinking" && (
+        <p className="flex items-center gap-1.5 text-[13px] text-muted">
+          <Spinner />
+          {step.label}…
+        </p>
+      )}
       {step.kind === "ask" && (
         <div className="flex flex-col gap-2">
           <p className="text-[14px] font-bold">{step.question}</p>
@@ -254,7 +262,8 @@ export function WorktreeWizardPanel({ wizard }: WorktreeWizardPanelProps) {
       )}
       {step.kind === "plan" && <PlanCard wizard={wizard} plan={step.plan} />}
       {step.kind === "creating" && (
-        <p className="text-[13px] text-muted">
+        <p className="flex items-center gap-1.5 text-[13px] text-muted">
+          <Spinner />
           <span className="font-mono">{step.plan.name}</span> 워크트리를 만드는 중…
         </p>
       )}
@@ -289,9 +298,12 @@ export function ProjectWorktreeWizard({ anchor }: ProjectWorktreeWizardProps) {
       <button
         type="button"
         onClick={wizard.open}
+        disabled={wizard.busy}
+        aria-busy={wizard.busy}
         title="에이전트가 어떤 작업인지 묻고 기본 브랜치에서 새 워크트리를 만들어요"
-        className="self-start rounded-full border border-hair px-3 py-1 text-[13px] hover:bg-tint"
+        className="inline-flex items-center gap-1.5 self-start rounded-full border border-hair px-3 py-1 text-[13px] hover:bg-tint disabled:cursor-progress disabled:text-muted"
       >
+        {wizard.busy && <Spinner />}
         새 워크트리
       </button>
       <WorktreeWizardPanel wizard={wizard} />

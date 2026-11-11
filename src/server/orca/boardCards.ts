@@ -83,6 +83,7 @@ export function buildWorktreeSummary({ worktree, liveIds, flow, pullRequest }: W
     name: worktreeName(worktree),
     branch: shortBranch(worktree.branch),
     path: worktree.path,
+    isMain: worktree.isMainWorktree,
     parentWorktreeId:
       worktree.parentWorktreeId && liveIds.has(worktree.parentWorktreeId) ? worktree.parentWorktreeId : null,
     unread: worktree.unread,

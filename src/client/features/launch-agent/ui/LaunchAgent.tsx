@@ -4,8 +4,10 @@ import { startTransition, useActionState, useState } from "react";
 import type { WorktreeSummary } from "@/common/orca/types";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
+import { Spinner } from "@/client/shared/ui/Spinner";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
+import { useDraft } from "@/client/shared/lib/useDraft";
 
 type LaunchResult = { kind: "idle" } | { kind: "sent"; where: string } | { kind: "error"; message: string };
 type LaunchStatus = LaunchResult | { kind: "sending" };
@@ -18,6 +20,8 @@ interface LaunchRequest {
 interface LaunchAgentProps {
   worktrees: WorktreeSummary[];
   showRepo: boolean;
+  /** Separates stored drafts, so each launcher keeps its own unsent prompt. */
+  draftKey: string;
 }
 
 function labelOf(worktree: WorktreeSummary, showRepo: boolean): string {
@@ -25,10 +29,10 @@ function labelOf(worktree: WorktreeSummary, showRepo: boolean): string {
   return showRepo ? `${worktree.repo} / ${name}` : name;
 }
 
-export function LaunchAgent({ worktrees, showRepo }: LaunchAgentProps) {
+export function LaunchAgent({ worktrees, showRepo, draftKey }: LaunchAgentProps) {
   const sorted = [...worktrees].sort((a, b) => a.repo.localeCompare(b.repo) || (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0));
   const [chosenPath, setChosenPath] = useState("");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useDraft(`launch-agent-draft:${draftKey}`);
   const attachments = useAttachments("launch-agent");
   const target = sorted.find((worktree) => worktree.path === chosenPath) ?? sorted[0];
 
@@ -103,8 +107,10 @@ export function LaunchAgent({ worktrees, showRepo }: LaunchAgentProps) {
             type="button"
             onClick={launch}
             disabled={sending || attachments.uploading}
-            className="shrink-0 rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
+            aria-busy={sending}
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
           >
+            {(sending || attachments.uploading) && <Spinner />}
             {status.kind === "sending" ? "시작하는 중" : attachments.uploading ? "올리는 중" : "새 세션 시작"}
           </button>
         </div>

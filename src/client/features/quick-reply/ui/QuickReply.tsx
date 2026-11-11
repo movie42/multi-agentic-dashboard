@@ -5,6 +5,7 @@ import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
+import { useDraft } from "@/client/shared/lib/useDraft";
 
 type SendResult = { kind: "idle"; id: number } | { kind: "sent"; id: number } | { kind: "error"; id: number; message: string };
 type SendStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string };
@@ -16,7 +17,7 @@ interface QuickReplyProps {
 }
 
 export function QuickReply({ terminalHandle, working, autoFocus = false }: QuickReplyProps) {
-  const [text, setText] = useState("");
+  const [text, setText] = useDraft(`quick-reply-draft:${terminalHandle}`);
   const [dismissedId, setDismissedId] = useState(0);
   const attachments = useAttachments("quick-reply");
 

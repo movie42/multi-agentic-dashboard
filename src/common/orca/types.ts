@@ -43,6 +43,8 @@ export interface WorktreeSummary {
   name: string;
   branch: string | null;
   path: string;
+  /** The repo's original checkout, which Orca cannot remove. */
+  isMain: boolean;
   parentWorktreeId: string | null;
   unread: boolean;
   lastActivityAt: number | null;

@@ -23,7 +23,7 @@ interface TodoBoardPageProps {
   agents: AgentCard[];
   worktrees: WorktreeSummary[];
   now: number;
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
   onJumpToAgent: (agent: AgentCard) => void;
 }
 

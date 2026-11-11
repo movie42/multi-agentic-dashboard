@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "invalid session" } satisfies ActivityResponse, { status: 400 });
   }
   try {
-    const { steps, updatedAt } = await services().activity.read(sessionId);
+    const { items: steps, updatedAt } = await services().activity.read(sessionId);
     return Response.json({ ok: true, steps, updatedAt } satisfies ActivityResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

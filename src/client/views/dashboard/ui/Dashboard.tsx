@@ -254,9 +254,14 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     );
   const inFocus = (repo: string) => focused.size === 0 || focused.has(repo);
   const focusedAgents = board.agents.filter((agent) => inFocus(agent.repo));
-  const focusedWorktrees = board.worktrees.filter((worktree) =>
-    inFocus(worktree.repo),
-  );
+  const focusedWorktrees = board.worktrees
+    .filter((worktree) => inFocus(worktree.repo))
+    .sort(
+      (a, b) =>
+        a.repo.localeCompare(b.repo) ||
+        a.name.localeCompare(b.name) ||
+        a.worktreeId.localeCompare(b.worktreeId),
+    );
   const focusGroups = groupAgents(
     foldWorkers(focusedAgents).top,
     dismissed.isDismissed,
@@ -387,7 +392,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                 )}
               </div>
               <div className="mt-4">
-                <LaunchAgent worktrees={focusedWorktrees} showRepo />
+                <LaunchAgent worktrees={focusedWorktrees} showRepo draftKey="all" />
               </div>
             </header>
 
@@ -508,7 +513,7 @@ interface ProjectViewProps {
   isDismissed: (agent: AgentCard) => boolean;
   renderCard: (agent: AgentCard) => React.ReactNode;
   expandedId: string | null;
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
   focused: boolean;
   onToggleFocus: () => void;
 }
@@ -532,14 +537,14 @@ function ProjectView({
   const needle = query.trim().toLowerCase();
 
   const rank = new Map(storedOrder.map((id, index) => [id, index]));
-  const ordered = worktrees
-    .map((worktree, index) => ({ worktree, index }))
-    .sort(
-      (a, b) =>
-        (rank.get(a.worktree.worktreeId) ?? storedOrder.length + a.index) -
-        (rank.get(b.worktree.worktreeId) ?? storedOrder.length + b.index),
-    )
-    .map(({ worktree }) => worktree);
+  // The server passes Orca's order, which reshuffles on every agent event.
+  const ordered = [...worktrees].sort(
+    (a, b) =>
+      (rank.get(a.worktreeId) ?? storedOrder.length) -
+        (rank.get(b.worktreeId) ?? storedOrder.length) ||
+      a.name.localeCompare(b.name) ||
+      a.worktreeId.localeCompare(b.worktreeId),
+  );
   const moveWorktree = (
     draggedId: string,
     targetId: string,
@@ -633,7 +638,7 @@ function ProjectView({
           )}
         </div>
         <div className="mt-4">
-          <LaunchAgent key={repo} worktrees={worktrees} showRepo={false} />
+          <LaunchAgent key={repo} worktrees={worktrees} showRepo={false} draftKey={repo} />
         </div>
       </header>
       {needle && visibleWorktrees.length === 0 && (
@@ -662,9 +667,10 @@ function ProjectView({
               featureRow={feature ? rowOf(feature, worktree) : null}
               mode={mode}
               groups={groups}
-              renderAgents={(listed) => (
+              renderAgents={(listed, onReorder) => (
                 <AgentList
                   agents={listed}
+                  onReorder={onReorder}
                   now={now}
                   showRepo={false}
                   renderCard={renderCard}

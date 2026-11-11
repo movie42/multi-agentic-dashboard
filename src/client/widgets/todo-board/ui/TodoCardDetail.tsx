@@ -13,6 +13,7 @@ import type { RunTodoOp } from "../model/run";
 import type { SessionLookup, TodoSessionView } from "../model/sessions";
 import { MemoEditor } from "./MemoEditor";
 import { Modal } from "./Modal";
+import { PendingButton } from "@/client/shared/ui/PendingButton";
 
 interface TodoCardDetailProps {
   board: TodoBoard;
@@ -21,7 +22,7 @@ interface TodoCardDetailProps {
   worktrees: WorktreeSummary[];
   sessionOf: SessionLookup;
   onRun: RunTodoOp;
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
   onJumpToAgent: (agent: AgentCard) => void;
   onClose: () => void;
 }
@@ -67,7 +68,7 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
   const launch = async () => {
     if (!card.worktreePath) return;
     if ((await onRun({ type: "card-launch", cardId: card.id })) === null) return;
-    onAction({ type: "launch-agent", worktreePath: card.worktreePath, prompt: "" });
+    await onAction({ type: "launch-agent", worktreePath: card.worktreePath, prompt: "" });
   };
 
   return (
@@ -224,15 +225,17 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
                     에이전트로 이동
                   </button>
                 ) : (
-                  <button
-                    type="button"
+                  <PendingButton
                     disabled={!resume}
                     title={resume ? undefined : "세션 폴더가 없어 다시 열 수 없어요"}
-                    onClick={() => resume && onAction(resume)}
+                    onRun={async () => {
+                      if (resume) await onAction(resume);
+                    }}
+                    pendingLabel="여는 중"
                     className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg disabled:no-underline disabled:opacity-40"
                   >
                     Orca에서 다시 열기
-                  </button>
+                  </PendingButton>
                 )}
                 <button
                   type="button"
@@ -246,14 +249,14 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
           })}
         </ul>
         {card.worktreePath && (
-          <button
-            type="button"
-            onClick={() => void launch()}
+          <PendingButton
+            onRun={launch}
             disabled={card.pendingLaunch !== null}
+            pendingLabel="여는 중"
             className="mt-1 self-start rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-none font-semibold text-bg hover:opacity-85 disabled:opacity-40"
           >
             {card.pendingLaunch ? "새 세션을 찾는 중…" : "새 세션"}
-          </button>
+          </PendingButton>
         )}
       </section>
 

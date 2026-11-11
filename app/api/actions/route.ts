@@ -15,6 +15,9 @@ async function resolveTarget(target: string): Promise<{ url: string; filePath: s
   return { url: pathToFileURL(target).href, filePath: target };
 }
 
+// Removal stops the worktree's terminals and deletes its folder, which outlasts the default CLI timeout.
+const REMOVE_TIMEOUT_MS = 60_000;
+
 const HEADLESS_ERROR = "헤드리스 모드에는 Orca 창이 없어요. 사이드바에서 앱 모드로 바꿔 주세요.";
 
 async function requireAppWindow() {
@@ -79,6 +82,13 @@ export async function POST(request: Request) {
       await requireAppWindow();
       await services().orca.cli.run(["terminal", "create", "--worktree", `path:${body.worktreePath}`, "--focus"]);
       await services().orca.runtime.bringForward();
+    } else if (body.type === "remove-worktree") {
+      await services().orca.cli.run(
+        ["worktree", "rm", "--worktree", `path:${body.worktreePath}`, ...(body.force ? ["--force"] : [])],
+        REMOVE_TIMEOUT_MS,
+      );
+    } else if (body.type === "import-project") {
+      await services().orca.importProject(body.path);
     } else if (body.type === "rename-session") {
       await services().sessionTitles.rename(body.sessionId, body.title.trim());
     } else if (body.type === "bookmark-session") {

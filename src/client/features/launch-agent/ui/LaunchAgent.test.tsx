@@ -16,6 +16,7 @@ const worktree: WorktreeSummary = {
   name: "main",
   branch: "main",
   path: "/work/repo",
+  isMain: false,
   parentWorktreeId: null,
   unread: false,
   lastActivityAt: 1,
@@ -31,13 +32,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  window.localStorage.clear();
   useToastStore.setState({ toasts: [] });
 });
 
 describe("LaunchAgent", () => {
   it("launches in the chosen worktree and says where", async () => {
     post.mockResolvedValue();
-    render(<LaunchAgent worktrees={[worktree]} showRepo />);
+    render(<LaunchAgent worktrees={[worktree]} showRepo draftKey="all" />);
     await userEvent.type(screen.getByRole("textbox"), "테스트 고쳐줘");
     await userEvent.click(screen.getByRole("button", { name: "새 세션 시작" }));
     expect(post).toHaveBeenCalledWith({ type: "launch-agent", worktreePath: "/work/repo", prompt: "테스트 고쳐줘" });
@@ -47,7 +49,7 @@ describe("LaunchAgent", () => {
 
   it("shows the failure inline and as a toast", async () => {
     post.mockRejectedValue(new Error("orca 응답 없음"));
-    render(<LaunchAgent worktrees={[worktree]} showRepo={false} />);
+    render(<LaunchAgent worktrees={[worktree]} showRepo={false} draftKey="repo" />);
     await userEvent.click(screen.getByRole("button", { name: "새 세션 시작" }));
     expect(await screen.findByText("시작하지 못했어요: orca 응답 없음")).toBeTruthy();
     expect(useToastStore.getState().toasts).toMatchObject([{ tone: "error", message: "orca 응답 없음" }]);
@@ -57,7 +59,7 @@ describe("LaunchAgent", () => {
   it("ignores a second click while launching", async () => {
     const request = Promise.withResolvers<void>();
     post.mockReturnValue(request.promise);
-    render(<LaunchAgent worktrees={[worktree]} showRepo={false} />);
+    render(<LaunchAgent worktrees={[worktree]} showRepo={false} draftKey="repo" />);
     await userEvent.click(screen.getByRole("button", { name: "새 세션 시작" }));
     const button = await screen.findByRole("button", { name: "시작하는 중" });
     expect((button as HTMLButtonElement).disabled).toBe(true);
@@ -65,5 +67,14 @@ describe("LaunchAgent", () => {
     expect(post).toHaveBeenCalledTimes(1);
     request.resolve();
     expect(await screen.findByRole("button", { name: "새 세션 시작" })).toBeTruthy();
+  });
+
+  it("keeps an unsent prompt per launcher across a remount", async () => {
+    const { unmount } = render(<LaunchAgent worktrees={[worktree]} showRepo draftKey="all" />);
+    await userEvent.type(screen.getByRole("textbox"), "아직 안 보냄");
+    unmount();
+
+    render(<LaunchAgent worktrees={[worktree]} showRepo draftKey="all" />);
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("아직 안 보냄");
   });
 });

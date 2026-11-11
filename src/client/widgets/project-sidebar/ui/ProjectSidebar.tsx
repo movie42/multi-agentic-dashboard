@@ -3,6 +3,7 @@
 import type { ProjectSummary } from "@/common/orca/types";
 import { formatClock } from "@/client/shared/lib/format";
 import { RuntimeSwitch } from "@/client/features/switch-runtime";
+import { ImportProject } from "@/client/features/import-project";
 import type { WorkspacePrefs } from "@/client/entities/workspace";
 
 export interface ProjectCounts {
@@ -170,6 +171,7 @@ export function ProjectSidebar({
           );
         })}
       </div>
+      <ImportProject />
 
       <div className="mt-8 hidden flex-col gap-1 text-[11px] text-muted md:flex">
         <p className="mb-1 font-bold tracking-[0.04em]">단축키</p>

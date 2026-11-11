@@ -16,9 +16,27 @@ interface AgentListProps {
   expandedId?: string | null;
   onJump?: (agent: AgentCard) => void;
   workersOf?: (agent: AgentCard) => AgentCard[];
+  onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
 }
 
-export function AgentList({ agents, now, showRepo, renderCard, expandedId = null, onJump, workersOf }: AgentListProps) {
+const SESSION_DRAG_TYPE = "application/x-agent-control-session";
+
+type DropEdge = "before" | "after";
+
+const DROP_EDGE_CLASS: Record<DropEdge, string> = {
+  before: "shadow-[inset_0_2px_0_0_var(--focus)]",
+  after: "shadow-[inset_0_-2px_0_0_var(--focus)]",
+};
+
+function GripIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 10 16" className="h-3.5 w-2 fill-current">
+      {[3, 8, 13].flatMap((cy) => [3, 7].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.4} />))}
+    </svg>
+  );
+}
+
+export function AgentList({ agents, now, showRepo, renderCard, expandedId = null, onJump, workersOf, onReorder }: AgentListProps) {
   return (
     <ul className="border-t border-hair">
       {agents.map((agent) => (
@@ -31,6 +49,7 @@ export function AgentList({ agents, now, showRepo, renderCard, expandedId = null
           initiallyExpanded={agent.id === expandedId}
           onJump={onJump}
           workers={workersOf?.(agent) ?? []}
+          onReorder={onReorder}
         />
       ))}
     </ul>
@@ -45,10 +64,16 @@ interface AgentRowProps {
   initiallyExpanded: boolean;
   onJump?: (agent: AgentCard) => void;
   workers: AgentCard[];
+  onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
 }
 
-function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump, workers }: AgentRowProps) {
+function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump, workers, onReorder }: AgentRowProps) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
+  const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
+  const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+  };
   const [replying, setReplying] = useState(false);
   const working = agent.state === "working";
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr").length;
@@ -56,8 +81,43 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump,
   const workersBusy = workers.filter((worker) => worker.state === "working").length;
 
   return (
-    <li data-jump={agent.id} className="scroll-mt-6 border-b border-hair">
-      <div className="flex items-center gap-2 hover:bg-tint">
+    <li
+      data-jump={agent.id}
+      onDragOver={(event: React.DragEvent<HTMLLIElement>) => {
+        if (!onReorder || !event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "move";
+        setDropEdge(edgeOf(event));
+      }}
+      onDragLeave={(event: React.DragEvent<HTMLLIElement>) => {
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+        setDropEdge(null);
+      }}
+      onDrop={(event: React.DragEvent<HTMLLIElement>) => {
+        setDropEdge(null);
+        const draggedId = event.dataTransfer.getData(SESSION_DRAG_TYPE);
+        if (!onReorder || !draggedId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (draggedId !== agent.id) onReorder(draggedId, agent.id, edgeOf(event) === "after");
+      }}
+      className={`scroll-mt-6 border-b border-hair ${dropEdge ? DROP_EDGE_CLASS[dropEdge] : ""}`}
+    >
+      <div className="group flex items-center gap-2 hover:bg-tint">
+        {onReorder && (
+          <span
+            draggable
+            onDragStart={(event: React.DragEvent<HTMLSpanElement>) => {
+              event.dataTransfer.setData(SESSION_DRAG_TYPE, agent.id);
+              event.dataTransfer.effectAllowed = "move";
+            }}
+            title="끌어서 세션 순서를 바꿔요"
+            className="-mr-1 flex shrink-0 cursor-grab self-stretch items-center px-1 text-faint group-hover:text-muted active:cursor-grabbing"
+          >
+            <GripIcon />
+          </span>
+        )}
         <button
           type="button"
           aria-expanded={expanded}

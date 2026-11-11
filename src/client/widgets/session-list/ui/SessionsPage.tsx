@@ -11,6 +11,7 @@ import { parseMessage } from "@/client/shared/lib/message";
 import { AttachToTodo } from "@/client/features/attach-to-todo";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
 import { SessionTitle } from "@/client/features/rename-session";
+import { PendingButton } from "@/client/shared/ui/PendingButton";
 
 type TitleFilter = "all" | "not-custom" | "none";
 
@@ -29,7 +30,7 @@ const TITLE_BADGE: Record<TitleSource, { label: string; className: string }> = {
 const PAGE_SIZE = 100;
 
 interface SessionsPageProps {
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
 }
 
 function matchesTitle(session: SessionSummary, filter: TitleFilter): boolean {
@@ -229,9 +230,8 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                 {reply && <p className="line-clamp-2 text-[14px] leading-relaxed">{reply}</p>}
                 <div className="flex flex-wrap items-center gap-3 pt-1 text-[13px]">
                   {session.cwd && session.cwdExists ? (
-                    <button
-                      type="button"
-                      onClick={() =>
+                    <PendingButton
+                      onRun={() =>
                         onAction({
                           type: "resume-session",
                           sessionId: session.sessionId,
@@ -239,10 +239,11 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                           title: session.title,
                         })
                       }
-                      className="rounded-full bg-fg px-3.5 py-1.5 leading-none font-semibold text-bg hover:opacity-85"
+                      pendingLabel="여는 중"
+                      className="rounded-full bg-fg px-3.5 py-1.5 leading-none font-semibold text-bg hover:opacity-85 disabled:opacity-70"
                     >
                       Orca에서 다시 열기 →
-                    </button>
+                    </PendingButton>
                   ) : (
                     <span className="text-muted" title={session.cwd ?? undefined}>
                       폴더 없음 · 지워진 worktree

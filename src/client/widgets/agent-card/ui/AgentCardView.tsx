@@ -6,6 +6,7 @@ import type { AgentCard, Artifact } from "@/common/orca/types";
 import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { ConversationHistory } from "./ConversationHistory";
 import { ChoicePanel } from "@/client/features/choose-option";
 import { MessageView } from "./MessageView";
 import { PermissionPanel } from "@/client/features/answer-permission";
@@ -15,6 +16,7 @@ import { QuickReply } from "@/client/features/quick-reply";
 import { SessionTitle } from "@/client/features/rename-session";
 import { Stepper } from "@/client/entities/workflow";
 import { StateBadge } from "@/client/entities/agent";
+import { PendingButton } from "@/client/shared/ui/PendingButton";
 
 export interface CardProgress {
   taskId: string;
@@ -73,7 +75,7 @@ interface AgentCardViewProps {
   worktreePr: PullRequestInfo | null;
   dismissed: boolean;
   onToggleDismiss: () => void;
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
 }
 
 export function AgentCardView({
@@ -204,13 +206,15 @@ export function AgentCardView({
         </div>
       )}
 
+      {agent.session && <ConversationHistory key={`conversation-${agent.session.id}`} sessionId={agent.session.id} />}
+
       {agent.prompt && (
         <p className="line-clamp-2 text-[14px] leading-relaxed text-muted">“{agent.prompt}”</p>
       )}
 
       <MessageView message={agent.lastMessage} />
 
-      {agent.session && <ActivityTimeline key={agent.session.id} sessionId={agent.session.id} />}
+      {agent.session && <ActivityTimeline key={`activity-${agent.session.id}`} sessionId={agent.session.id} />}
 
       {agent.permission ? (
         <PermissionPanel key={agent.permission.id} permission={agent.permission} />
@@ -247,16 +251,16 @@ export function AgentCardView({
             (confirmingClose ? (
               <span className="ml-auto flex items-center gap-1.5 text-[13px]">
                 <span className="text-muted">이 세션을 닫을까요?</span>
-                <button
-                  type="button"
-                  onClick={() => {
+                <PendingButton
+                  onRun={async () => {
+                    await onAction({ type: "close-terminal", terminalHandle });
                     setConfirmingClose(false);
-                    onAction({ type: "close-terminal", terminalHandle });
                   }}
-                  className="rounded-full bg-accent px-3 py-1 leading-none font-semibold text-accent-ink hover:opacity-85"
+                  pendingLabel="닫는 중"
+                  className="rounded-full bg-accent px-3 py-1 leading-none font-semibold text-accent-ink hover:opacity-85 disabled:opacity-70"
                 >
                   닫기
-                </button>
+                </PendingButton>
                 <button
                   type="button"
                   onClick={() => setConfirmingClose(false)}
@@ -276,14 +280,14 @@ export function AgentCardView({
               </button>
             ))}
           {terminalHandle && (
-            <button
-              type="button"
+            <PendingButton
               data-continue
-              onClick={() => onAction({ type: "focus-terminal", terminalHandle })}
-              className="rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-none font-semibold text-bg hover:opacity-85"
+              onRun={() => onAction({ type: "focus-terminal", terminalHandle })}
+              pendingLabel="여는 중"
+              className="rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-none font-semibold text-bg hover:opacity-85 disabled:opacity-70"
             >
               Orca에서 이어가기 →
-            </button>
+            </PendingButton>
           )}
         </footer>
       )}

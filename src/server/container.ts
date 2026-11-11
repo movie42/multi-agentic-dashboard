@@ -10,7 +10,10 @@ import type { LanguageServices } from "./intentDiff/LanguageServices";
 import type { SnapshotLog } from "./intentDiff/SnapshotLog";
 import type { TranscriptLoader } from "./intentDiff/TranscriptLoader";
 import { PermissionStore } from "./permissions/PermissionStore";
-import { ActivityReader } from "./sessions/ActivityReader";
+import type { ActivityStep, ConversationTurn } from "@/common/sessions/types";
+import { STEP_LIMIT, stepsOf } from "./sessions/activitySteps";
+import { TURN_LIMIT, turnsOf } from "./sessions/conversationTurns";
+import { TranscriptTailReader } from "./sessions/TranscriptTailReader";
 import { BookmarkStore } from "./sessions/BookmarkStore";
 import { BOOKMARK_FILE, LIVE_SESSIONS_DIR, PROJECTS_DIR, SESSION_CACHE_FILE } from "./sessions/paths";
 import { SessionIndex } from "./sessions/SessionIndex";
@@ -30,7 +33,8 @@ export interface Services {
   sessionIndex: SessionIndex;
   sessionLocator: SessionLocator;
   sessionTitles: SessionTitles;
-  activity: ActivityReader;
+  activity: TranscriptTailReader<ActivityStep>;
+  conversation: TranscriptTailReader<ConversationTurn>;
   bookmarks: BookmarkStore;
   askStore: AskStore;
   askRunner: AskRunner;
@@ -70,6 +74,7 @@ function createServices(): Services {
     askSessionIds: () => intentDiff.askStore.sessionIds(),
     warn,
   });
+  const transcriptOf = (sessionId: string) => sessionTitles.cachedTranscriptOf(sessionId);
   const orca = createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles });
   return {
     errorLog,
@@ -77,7 +82,8 @@ function createServices(): Services {
     sessionIndex,
     sessionLocator,
     sessionTitles,
-    activity: new ActivityReader((sessionId) => sessionTitles.cachedTranscriptOf(sessionId)),
+    activity: new TranscriptTailReader(transcriptOf, { parse: stepsOf, enough: STEP_LIMIT }),
+    conversation: new TranscriptTailReader(transcriptOf, { parse: turnsOf, enough: TURN_LIMIT }),
     bookmarks,
     ...intentDiff,
     workflow,

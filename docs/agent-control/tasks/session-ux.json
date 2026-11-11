@@ -1157,5 +1157,16 @@
       "basis": "[[R2-Q2]]"
     }
   ],
-  "pulledAt": 1793764717092
+  "pulledAt": 1793764717092,
+  "followUps": [
+    {
+      "date": "2026-11-11",
+      "text": "에이전트 카드에 '이전 대화 보기' 추가 — 지난 질문·답변 턴을 접힌 목록으로, 누를 때만 펼침 (/api/conversation, TranscriptTailReader로 진행 기록 리더 일반화)",
+      "files": [
+        "src/client/widgets/agent-card/ui/ConversationHistory.tsx",
+        "src/server/sessions/conversationTurns.ts"
+      ],
+      "sha": "869efa3"
+    }
+  ]
 }

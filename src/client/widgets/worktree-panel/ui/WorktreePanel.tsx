@@ -13,16 +13,23 @@ import type {
 import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
+import { RemoveWorktree } from "@/client/features/remove-worktree";
+import { PendingButton } from "@/client/shared/ui/PendingButton";
+import { Spinner } from "@/client/shared/ui/Spinner";
+import { useSessionOrder } from "../model/useSessionOrder";
 
 interface WorktreePanelProps {
   worktree: WorktreeSummary;
   featureRow: FeatureRowSummary | null;
   mode: WorkflowMode;
   groups: BoardGroups;
-  renderAgents: (agents: AgentCard[]) => React.ReactNode;
+  renderAgents: (
+    agents: AgentCard[],
+    onReorder: (draggedId: string, targetId: string, placeAfter: boolean) => void,
+  ) => React.ReactNode;
   ancestors: WorktreeLink[];
   childLinks: WorktreeLink[];
-  onAction: (action: ActionRequest) => void;
+  onAction: (action: ActionRequest) => Promise<void>;
   onDropWorktree?: (draggedId: string, placeAfter: boolean) => void;
 }
 
@@ -100,8 +107,15 @@ export function WorktreePanel({
   };
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
-  const all = [...groups.needsMe, ...groups.working, ...groups.resting];
-  const listed = activeFilter ? groups[activeFilter] : all;
+  const sessions = useSessionOrder(worktree.worktreeId, [
+    ...groups.needsMe,
+    ...groups.working,
+    ...groups.resting,
+  ]);
+  const all = sessions.ordered;
+  const listed = activeFilter
+    ? all.filter((agent) => groups[activeFilter].includes(agent))
+    : all;
   const terminalHandle =
     all.find((agent) => agent.terminalHandle)?.terminalHandle ?? null;
   const toTerminal = () =>
@@ -237,31 +251,31 @@ export function WorktreePanel({
             </p>
           )}
         <p className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
-          <button
-            type="button"
-            onClick={() =>
+          <PendingButton
+            onRun={() =>
               onAction({
                 type: "launch-agent",
                 worktreePath: worktree.path,
                 prompt: "",
               })
             }
-            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+            pendingLabel="여는 중"
+            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:text-muted"
           >
             새 세션
-          </button>
-          <button
-            type="button"
-            onClick={toTerminal}
+          </PendingButton>
+          <PendingButton
+            onRun={toTerminal}
+            pendingLabel="여는 중"
             title={
               terminalHandle
                 ? "에이전트 터미널로 이동해요"
                 : "이 워크트리에 새 터미널을 열어요"
             }
-            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:text-muted"
           >
             터미널로
-          </button>
+          </PendingButton>
           <a
             href={intentDiffHref({ worktreePath: worktree.path })}
             target="_blank"
@@ -274,12 +288,16 @@ export function WorktreePanel({
           <button
             type="button"
             onClick={wizard.open}
+            disabled={wizard.busy}
+            aria-busy={wizard.busy}
             title="에이전트가 어떤 작업인지 묻고, 이 브랜치에서 새 워크트리를 만들어요"
-            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
+            className="inline-flex items-center gap-1.5 rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:cursor-progress disabled:text-muted"
           >
+            {wizard.busy && <Spinner />}
             여기서 워크트리
           </button>
         </p>
+        <RemoveWorktree worktree={worktree} sessionCount={all.length} />
         {childLinks.length > 0 && (
           <div className="mt-4 text-[13px]">
             <p
@@ -407,7 +425,7 @@ export function WorktreePanel({
           </details>
         )}
 
-        {listed.length > 0 && renderAgents(listed)}
+        {listed.length > 0 && renderAgents(listed, sessions.move)}
       </div>
     </section>
   );
