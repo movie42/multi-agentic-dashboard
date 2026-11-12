@@ -151,170 +151,66 @@
             {
               "id": "Q1",
               "title": "선택지 패널의 데이터를 어디서 받을까요?",
-              "said": "[[S8]]~[[S12]]: 맥락·질문·선택지가 모두 터미널 화면 글자를 정규식으로 읽은 값이에요.",
-              "body": "지금은 2초마다 터미널 화면을 읽어 번호 줄을 찾고, 누르면 숫자 키를 보내요. Claude Code 화면 모양이 바뀌면 패널이 사라지고, 화면이 다른 질문으로 바뀐 사이에 누르면 엉뚱한 답이 들어갈 수 있어요. Claude Code에는 권한 요청 직전에 실행되는 <code>PermissionRequest</code> 훅이 있어요. 이 훅은 도구 이름·입력값·제안 규칙을 JSON으로 받고, 허용/거부 결정을 돌려줄 수 있어요.",
-              "recommendation": "a로 가요. 데이터와 응답이 모두 구조화돼서 화면 모양에 흔들리지 않고, 어떤 요청에 대한 답인지도 분명해져요. 훅이 처리하지 못한 경우를 위해 지금의 화면 파싱은 대체 경로로 남겨요.",
-              "context": [
-                [
-                  "케이스",
-                  "① 대시보드에서 답함 [[C1-2]]"
-                ],
-                [
-                  "지금 앱",
-                  "<code>src/lib/orca/screen.ts</code> 정규식 → <code>orca terminal send --text 1</code>"
-                ],
-                [
-                  "훅 입력",
-                  "<code>tool_name</code> · <code>tool_input</code> · <code>permission_suggestions</code> · <code>session_id</code> · <code>transcript_path</code>"
-                ]
-              ],
-              "options": [
-                {
-                  "value": "a",
-                  "label": "훅이 대시보드 답을 기다렸다가 결정을 돌려줌 (화면 파싱은 대체 경로로 유지)"
-                },
-                {
-                  "value": "b",
-                  "label": "훅은 요청 내용만 알려 주고, 답은 지금처럼 숫자 키로 보냄"
-                },
-                {
-                  "value": "c",
-                  "label": "지금 방식 유지"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "a",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "권한 요청은 <code>PermissionRequest</code> 훅으로 받고, 대시보드 답을 훅 응답으로 돌려주기로 했어요. 화면 파싱 패널은 훅 요청이 없는 선택지(AskUserQuestion 등)를 위한 대체 경로로 남겨요.",
-              "appliedTo": "[[S8]] [[S9]] [[S10]] · [[P2-1]] [[P4-1]]"
+              "appliedTo": "[[S8]] [[S9]] [[S10]] · [[P2-1]] [[P4-1]]",
+              "intent": "패널 데이터를 화면 글자에서 읽으면 Claude Code 화면이 바뀔 때 패널이 사라지거나 엉뚱한 답이 들어가요. 어떤 경로로 받을지가 답의 정확성을 정해요.",
+              "reason": {
+                "text": "골라진 답과 이후 구현에서 추정했어요.",
+                "by": "inferred"
+              }
             },
             {
               "id": "Q2",
               "title": "대시보드가 답하지 않으면 훅은 얼마나 기다릴까요?",
-              "said": "[[C1-3]] [[C1-4]]: 훅이 기다리는 동안 Claude는 멈춰 있어요.",
-              "body": "훅 기본 제한 시간은 600초(10분)예요. 대시보드가 켜져 있는데 사용자가 자리를 비우면 그동안 Claude가 멈춰요. 훅이 기다리는 동안 터미널에 대화상자가 뜨는지는 문서에 없어서, 사용자가 터미널에서 먼저 답하려 할 때의 동작도 실험해 봐야 알아요.",
-              "recommendation": "a로 가요. 대시보드에 답할 사람이 없을 때 오래 막히지 않으면서, 대시보드 탭이 열려 있으면 답할 시간을 충분히 줘요.",
-              "context": [
-                [
-                  "케이스",
-                  "① [[C1-3]] [[C1-4]]"
-                ],
-                [
-                  "문서",
-                  "기본 600초 · 대시보드가 꺼져 연결이 실패하면 막지 않고 넘어감"
-                ]
-              ],
-              "options": [
-                {
-                  "value": "a",
-                  "label": "대시보드 화면이 열려 있을 때만 기다림 (최대 10분), 닫혀 있으면 바로 터미널로"
-                },
-                {
-                  "value": "b",
-                  "label": "항상 정해진 시간(예: 60초)만 기다리고 터미널로"
-                },
-                {
-                  "value": "c",
-                  "label": "기다리지 않음 — 요청 내용만 보여 주고 답은 숫자 키"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "a",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "훅은 대시보드 화면이 열려 있을 때만 기다려요. 보드를 10초 넘게 가져가지 않으면 열려 있지 않은 것으로 보고 바로 결정 없이 돌려보내요. 열려 있어도 최대 10분이 지나면 터미널로 넘겨요.",
-              "appliedTo": "[[X8]] [[X9]] · [[P1-2]] [[P2-1]]"
+              "appliedTo": "[[X8]] [[X9]] · [[P1-2]] [[P2-1]]",
+              "intent": "훅이 대시보드 답을 기다리는 동안 터미널 세션은 멈춰 있어요. 얼마나 기다릴지가 사용자가 자리를 비웠을 때 세션이 묶이는 시간을 정해요.",
+              "reason": {
+                "text": "골라진 답과 이후 구현에서 추정했어요.",
+                "by": "inferred"
+              }
             },
             {
               "id": "Q3",
               "title": "권한 카드 버튼을 허용 · 규칙 저장 허용 · 사유 있는 거부로 나눌까요?",
-              "said": "[[S11]] '다시 묻지 않기'는 화면 문장으로만 있고, [[S12]] 거부는 사유를 함께 보낼 수 없어요.",
-              "body": "훅은 Claude Code가 제안한 규칙 목록(<code>permission_suggestions</code>)을 받아요. 그래서 '다시 묻지 않기'를 누르면 어떤 규칙이 저장되는지(예: <code>Bash(yarn test:*)</code>) 카드에 그대로 보여 줄 수 있어요. 거부할 때는 사유(<code>message</code>)를 함께 돌려줄 수 있어서, 지금처럼 빠른 답장으로 따로 보낼 필요가 없어요.",
-              "recommendation": "그렇게 나눠요. 저장될 규칙이 눈에 보여야 '다시 묻지 않기'를 안심하고 누를 수 있고, 거부 사유가 같은 요청에 붙어야 Claude가 바로 방향을 바꿔요.",
-              "context": [
-                [
-                  "케이스",
-                  "① [[C1-2]]"
-                ],
-                [
-                  "훅 출력",
-                  "<code>decision.behavior</code> · <code>updatedPermissions</code> · <code>message</code>"
-                ]
-              ],
-              "answer": {
-                "choice": "yes",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "권한 카드 버튼은 허용, 제안 규칙마다 '다시 묻지 않기', 사유 입력이 붙은 거부로 나눠요. 저장될 규칙 문자열을 버튼에 그대로 보여요.",
-              "appliedTo": "[[S10]] [[S11]] [[S12]] · [[P4-1]]"
+              "appliedTo": "[[S10]] [[S11]] [[S12]] · [[P4-1]]",
+              "intent": "권한 카드의 버튼 구성이 사용자가 대시보드에서 할 수 있는 응답의 범위를 정해요.",
+              "reason": {
+                "text": "골라진 답과 이후 구현에서 추정했어요.",
+                "by": "inferred"
+              }
             },
             {
               "id": "Q4",
               "title": "Claude가 묻는 선택지(AskUserQuestion)는 이번 범위에서 빼도 될까요?",
-              "said": "[[X6]]: Claude가 직접 질문을 던지는 선택지는 권한 요청과 다른 경로예요.",
-              "body": "공식 문서에는 훅이 AskUserQuestion에 답을 대신 넣어 줄 수 있다는 내용이 없어요. 넣으려면 문서에 없는 동작을 실험해야 해요. 빼면 이 선택지는 지금처럼 화면 파싱 패널로 보여요.",
-              "recommendation": "이번에는 빼요. 권한 요청을 먼저 안정적으로 바꾸고, AskUserQuestion은 실제 화면을 확인한 뒤 별도 작업으로 다뤄요.",
-              "answer": {
-                "choice": "yes",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "처음에는 AskUserQuestion을 빼기로 했지만 뒤집었어요. 오르카 세션이 모두 <code>--dangerously-skip-permissions</code>로 떠서 일반 권한 요청은 오지 않고, 사람 입력을 기다리는 것은 사실상 AskUserQuestion뿐이에요. 실험해 보니 이 모드에서도 훅이 불리고, 허용 결정에 <code>updatedInput.answers</code>를 실으면 답이 들어가서 이번 범위에 넣었어요.",
-              "appliedTo": "[[X6]] · [[P6-1]] [[P6-2]]"
+              "appliedTo": "[[X6]] · [[P6-1]] [[P6-2]]",
+              "intent": "사람 입력을 기다리는 경우가 권한 요청인지 선택지인지에 따라 이번 작업이 실제로 쓸모 있는지가 갈려요.",
+              "reason": {
+                "text": "골라진 답과 이후 구현에서 추정했어요.",
+                "by": "inferred"
+              }
             },
             {
               "id": "Q5",
               "title": "훅을 어디에 설치할까요?",
-              "said": "오르카도 같은 방식으로 상태를 받아요 (<code>~/.orca/agent-hooks/claude-hook.sh</code>).",
-              "body": "Claude Code 설정에는 HTTP 훅(<code>type: \"http\"</code>)이 있어서, 스크립트 없이 대시보드 주소로 요청을 바로 보낼 수 있어요. 헤더에 오르카가 넣어 주는 환경 변수 <code>ORCA_PANE_KEY</code>를 실을 수 있고, 이 값이 대시보드 카드 ID와 같아서 어느 카드의 요청인지 바로 알 수 있어요. 오르카 밖에서 띄운 Claude 세션은 이 값이 없으니 대시보드가 바로 '결정 없음'으로 돌려보내면 돼요.",
-              "recommendation": "a로 가요. 모든 프로젝트에서 한 번에 동작하고, 대시보드가 꺼져 있으면 연결 실패로 넘어가 평소처럼 터미널 대화상자가 떠서 부작용이 없어요.",
-              "context": [
-                [
-                  "카드 매칭",
-                  "<code>agents[].paneKey</code> = 카드 <code>id</code> (<code>src/lib/orca/board.ts</code>)"
-                ]
-              ],
-              "options": [
-                {
-                  "value": "a",
-                  "label": "사용자 전역 설정 ~/.claude/settings.json에 HTTP 훅 하나"
-                },
-                {
-                  "value": "b",
-                  "label": "프로젝트마다 .claude/settings.local.json에 설치"
-                },
-                {
-                  "value": "c",
-                  "label": "오르카처럼 Claude 플러그인으로 묶어 설치"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "a",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "훅은 사용자 전역 설정 <code>~/.claude/settings.json</code>에 HTTP 훅 하나로 설치해요. 헤더에 <code>ORCA_PANE_KEY</code>를 실어 카드와 맞추고, 값이 없으면 바로 결정 없이 돌려보내요.",
-              "appliedTo": "[[X10]] · [[P5-1]]"
+              "appliedTo": "[[X10]] · [[P5-1]]",
+              "intent": "훅 설치 위치가 어떤 세션에서 대시보드 응답이 동작하는지를 정해요.",
+              "reason": {
+                "text": "골라진 답과 이후 구현에서 추정했어요.",
+                "by": "inferred"
+              }
             }
           ]
         }
-      ]
+      ],
+      "status": "done"
     },
     "tasks": {
-      "status": "ask",
-      "summary": "구현 완료 · 전역 훅 설치 대기",
+      "status": "done",
+      "summary": "완료",
       "conclusion": [
         "오르카 세션은 모두 <code>--dangerously-skip-permissions</code>로 떠서, 대시보드가 실제로 받는 것은 대부분 AskUserQuestion이에요. 이 질문을 훅으로 받아 질문 카드에서 답해요. [[P6]]",
         "권한 카드(일반 도구)는 권한 모드가 default인 세션을 위해 남겨 두고, 누를 수 있게 보이도록 버튼 모양을 고쳤어요. [[B1]]",
@@ -335,45 +231,18 @@
                 [
                   "파일",
                   "실험 서버는 실험 후 삭제했어요"
-                ],
-                [
-                  "결과",
-                  "훅이 응답을 붙잡고 있는 동안에도 터미널 대화상자가 함께 떠요."
-                ],
-                [
-                  "결과",
-                  "빈 JSON <code>{}</code>을 돌려주면 대화상자가 그대로 남아요. 허용을 돌려주면 대화상자가 닫히고 실행돼요."
-                ],
-                [
-                  "결과",
-                  "터미널에서 먼저 답하면 실행되지만 훅 연결은 끊기지 않아요. 그 뒤에 보낸 결정은 무시돼요."
-                ],
-                [
-                  "결과",
-                  "<code>X-Orca-Pane</code> 헤더 값이 오르카 <code>paneKey</code>와 같아요. 훅이 오면 1초 안에 오르카 상태가 <code>waiting</code>이 되고, 터미널에서 답하면 <code>done</code>으로 바뀌어요."
-                ],
-                [
-                  "결과",
-                  "요청 본문에 <code>transcript_path</code>, <code>permission_suggestions</code>(<code>addDirectories</code> · <code>setMode</code> 등)가 들어와요."
                 ]
               ]
             },
             {
               "id": "P1-2",
               "title": "실험 결과를 SOT · 케이스 표에 반영",
-              "done": true,
-              "rows": [
-                [
-                  "SOT",
-                  "[[X9]] [[S11]] · [[C1-2]] [[C1-4]]"
-                ]
-              ]
+              "done": true
             },
             {
               "id": "P1-V",
               "title": "검증: 오르카 터미널에서 Claude를 띄워 Bash 권한 요청 1회를 받아 결과 기록",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -392,14 +261,6 @@
                   "<code>src/lib/permissions/types.ts</code> · <code>src/lib/permissions/store.ts</code>"
                 ],
                 [
-                  "SOT",
-                  "[[S8]] [[S11]]"
-                ],
-                [
-                  "패턴",
-                  "<code>globalThis</code>에 상태를 두는 방식 — <code>src/lib/sessions/claudeSessions.ts</code>의 캐시와 같게. 요청마다 ID, 카드 ID, 받은 시각, 응답을 풀어 줄 함수를 둬요."
-                ],
-                [
                   "결정",
                   "대시보드가 열려 있는지는 마지막 보드 요청 시각으로 판단해요(10초). [[R1-Q2]]"
                 ]
@@ -408,8 +269,7 @@
             {
               "id": "P2-V",
               "title": "검증: <code>yarn tsc --noEmit</code> · <code>yarn lint</code> 통과",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -426,14 +286,6 @@
                 [
                   "파일",
                   "<code>src/app/api/hooks/permission/route.ts</code>"
-                ],
-                [
-                  "동작",
-                  "헤더가 없거나 대시보드가 닫혀 있으면 바로 <code>{}</code>. 아니면 대기 목록에 넣고 결정·10분·요청 끊김 중 먼저 온 것으로 응답해요."
-                ],
-                [
-                  "재사용",
-                  "입력 검증 방식은 <code>src/app/api/actions/route.ts</code>의 타입 가드와 같게"
                 ]
               ]
             },
@@ -445,10 +297,6 @@
                 [
                   "파일",
                   "<code>src/lib/orca/types.ts</code> <code>AgentCard.permission</code> · <code>src/lib/orca/board.ts</code> · <code>src/app/api/board/route.ts</code>(요청 시각 기록)"
-                ],
-                [
-                  "SOT",
-                  "[[S8]] [[S9]]"
                 ],
                 [
                   "결정",
@@ -464,27 +312,13 @@
                 [
                   "파일",
                   "<code>src/lib/orca/actions.ts</code> <code>answer-permission</code> 추가 · <code>src/app/api/actions/route.ts</code>"
-                ],
-                [
-                  "SOT",
-                  "[[S10]] [[S11]] [[S12]]"
-                ],
-                [
-                  "동작",
-                  "이미 끝난 요청이면 오류 '이미 끝난 요청이에요'"
                 ]
               ]
             },
             {
               "id": "P3-V",
               "title": "검증: <code>curl</code>로 훅 요청 → 보드 응답에 실림 → 액션으로 허용 → 훅 응답이 풀림",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "훅 요청이 보드 응답의 <code>permission</code>에 실리고, 허용(규칙 포함) 답이 훅 응답으로 풀렸어요. 늦은 답은 '이미 끝난 요청이에요', 헤더 없는 요청은 바로 <code>{}</code>예요."
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -503,18 +337,6 @@
                   "<code>src/features/board/PermissionPanel.tsx</code>"
                 ],
                 [
-                  "SOT",
-                  "[[S8]] [[S9]] [[S10]] [[S11]] [[S12]]"
-                ],
-                [
-                  "재사용",
-                  "겉모양·버튼 스타일은 <code>ChoicePanel.tsx</code>, 보내기 상태는 <code>QuickReply.tsx</code>의 <code>SendStatus</code> 유니온과 같게"
-                ],
-                [
-                  "문구",
-                  "질문 '{도구} 실행 허락이 필요해요' · 버튼 '허용' · '다시 묻지 않기 · {규칙}' · '폴더 허용 · {경로}' · '모드 전환 · {모드}' · '거부' · 사유 입력칸 '거부 사유 (Claude에게 전달돼요)' · 오류 '이미 끝난 요청이에요'"
-                ],
-                [
                   "결정",
                   "제안 버튼 아래에 저장 범위를 '이번 세션' · '이 프로젝트 (나만)' · '이 프로젝트' · '모든 프로젝트'로 보여요."
                 ]
@@ -528,27 +350,13 @@
                 [
                   "파일",
                   "<code>src/features/board/AgentCardView.tsx</code>"
-                ],
-                [
-                  "SOT",
-                  "[[X6]]"
-                ],
-                [
-                  "동작",
-                  "<code>agent.permission</code>이 있으면 권한 카드, 없고 대기 상태면 기존 선택지 패널"
                 ]
               ]
             },
             {
               "id": "P4-V",
               "title": "검증: 샘플 요청을 넣고 /browse로 카드 렌더 · 세 버튼 동작 확인",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "실제 서버에 훅 요청을 넣고 /browse로 카드 렌더 확인. 거부 → 사유 입력 → 보내기로 <code>decision.message</code>에 사유가 실렸어요."
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -567,45 +375,15 @@
                   "<code>scripts/install-permission-hook.mjs</code> · <code>package.json</code> <code>hook:install</code> / <code>hook:uninstall</code>"
                 ],
                 [
-                  "동작",
-                  "<code>~/.claude/settings.json</code>을 백업한 뒤 <code>PermissionRequest</code> HTTP 훅 하나만 추가·제거해요. 헤더 <code>X-Orca-Pane: $ORCA_PANE_KEY</code>, <code>allowedEnvVars</code>, timeout 600"
-                ],
-                [
                   "결정",
                   "훅 주소는 데스크톱 앱 <code>127.0.0.1:3199</code>이에요. 개발 서버(3100)로 시험할 때는 <code>--port 3100</code>으로 다시 설치해요."
-                ],
-                [
-                  "결과",
-                  "임시 설정 파일로 시험: 다시 설치해도 중복되지 않고, 제거하면 이 훅만 빠지고 다른 훅·설정은 남아요."
                 ]
               ]
             },
             {
               "id": "P5-V",
               "title": "검증: 오르카에서 Claude 권한 요청 → 대시보드에서 허용 · 규칙 저장 · 거부(사유) 각각 1회, 대시보드 종료 상태에서 터미널 대화상자 확인",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "세션 전용 설정(<code>--settings</code>, 3100)으로 오르카에서 실제 Claude를 띄워 Bash 권한 요청을 받았어요. 대시보드 '허용' → 터미널에 'Allowed by PermissionRequest hook' 후 실행됐어요."
-                ],
-                [
-                  "결과",
-                  "터미널에서 먼저 답하면 오르카 상태가 <code>done</code>이 되고 다음 보드 갱신에서 권한 카드가 내려갔어요. [[X9]]"
-                ],
-                [
-                  "결과",
-                  "대시보드 요청이 10초 넘게 없으면 훅이 62ms 만에 <code>{}</code>를 돌려줘 평소 대화상자로 넘어가요. [[X8]]"
-                ],
-                [
-                  "결과",
-                  "11/03 전역 훅 설치(<code>bun run hook:install</code>) 뒤 데스크톱 앱(3199)으로 새 오르카 세션의 AskUserQuestion이 질문 카드로 떴고, 대시보드에서 답이 들어갔어요."
-                ],
-                [
-                  "남은 것",
-                  "복수 선택 · 직접 입력 질문, default 모드 세션의 권한 카드(허용 · 규칙 저장 · 거부), 대시보드 종료 상태의 터미널 대화상자"
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -617,17 +395,7 @@
             {
               "id": "P6-0",
               "title": "실험: bypass 모드에서 AskUserQuestion이 훅을 부르고 훅이 답할 수 있는지",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "<code>--dangerously-skip-permissions</code> 세션에서도 AskUserQuestion은 <code>PreToolUse</code>와 <code>PermissionRequest</code>를 불러요. 입력에 <code>questions[]</code>(질문 · <code>header</code> · 선택지 라벨/설명 · <code>multiSelect</code>)가 들어와요."
-                ],
-                [
-                  "결과",
-                  "허용 결정에 <code>updatedInput: {questions, answers: {질문: 라벨}}</code>을 실으면 터미널에 '→ B · Allowed by PermissionRequest hook'이 찍히고 Claude가 그 답으로 이어가요."
-                ]
-              ]
+              "done": true
             },
             {
               "id": "P6-1",
@@ -658,14 +426,6 @@
                   "<code>src/features/board/PermissionPanel.tsx</code> <code>QuestionPermission</code>"
                 ],
                 [
-                  "SOT",
-                  "[[X6]]"
-                ],
-                [
-                  "문구",
-                  "직접 입력칸 '직접 입력' · 버튼 '보내기'"
-                ],
-                [
                   "결정",
                   "질문이 하나이고 단일 선택이면 누르는 즉시 보내요. 그 밖에는 고른 뒤 '보내기'를 눌러요."
                 ]
@@ -674,45 +434,116 @@
             {
               "id": "B1",
               "title": "권한 카드 버튼이 누를 수 없어 보임",
-              "done": true,
-              "rows": [
-                [
-                  "증상",
-                  "사용자가 '선택을 할 수 없어 보인다'고 함"
-                ],
-                [
-                  "원인",
-                  "클릭은 됐어요. 버튼에 손가락 커서가 없고(Tailwind v4 기본값), 꽉 찬 검은 막대 '허용'이 터미널의 '선택된 줄'처럼, 테두리만 있는 '거부'가 입력칸처럼 보였어요."
-                ],
-                [
-                  "수정",
-                  "허용 · 거부를 한 줄의 둥근 버튼으로, 제안 항목을 작은 칩으로 바꾸고 모든 버튼에 <code>cursor-pointer</code>를 넣었어요. 거부는 누르면 사유 입력칸과 '취소' · '거부' 버튼으로 바뀌어요."
-                ]
-              ]
+              "done": true
             },
             {
               "id": "P6-V",
               "title": "검증: 실제 마우스 클릭과 bypass 모드 실제 세션",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "/browse 실제 클릭으로 질문 카드 단일 · 복수 선택 → <code>answers</code> 확인, 권한 카드 제안 칩 → <code>updatedPermissions</code> 확인. 커서는 <code>pointer</code>."
-                ],
-                [
-                  "결과",
-                  "<code>--dangerously-skip-permissions</code> 실제 Claude 세션의 질문에 대시보드에서 'Blue'를 누르자 '→ Blue · Allowed by PermissionRequest hook' 후 'You picked Blue.'"
-                ],
-                [
-                  "결과",
-                  "<code>tsc --noEmit</code> · <code>eslint</code> 통과 (패키지 매니저가 bun으로 바뀌어 <code>node_modules/.bin</code>으로 실행)"
-                ]
-              ]
+              "done": true
             }
           ]
         }
       ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
     }
   },
-  "pulledAt": 1793677644062
+  "intent": [
+    {
+      "text": "에이전트가 권한이나 선택을 기다릴 때 터미널로 가지 않고 대시보드에서 정확하게 답하게 한다.",
+      "state": "guess",
+      "basis": "질문 라운드의 결정"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "확인 대기",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    },
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }

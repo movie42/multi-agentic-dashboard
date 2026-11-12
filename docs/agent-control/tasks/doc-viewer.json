@@ -7,7 +7,7 @@
   "stages": {
     "tasks": {
       "status": "done",
-      "summary": "구현 완료 · 앱에서 탭 떼어내기 확인함",
+      "summary": "완료",
       "conclusion": [
         "\"문서 열기\"를 누르면 <code>docs/</code> 아래 HTML은 오른쪽 패널의 탭으로 열려요. 다른 파일은 지금처럼 기본 앱으로 열려요 [[P2]].",
         "Control 서버가 Orca가 아는 워크트리의 <code>docs/</code> 아래 파일만 내려줘요. 밖의 경로는 403이에요 [[P1]].",
@@ -32,10 +32,6 @@
                 [
                   "결정",
                   "실경로(realpath)가 Orca가 아는 워크트리 안이고, 경로에 <code>docs</code> 폴더가 있고, 확장자가 html · css · js · json · png · jpg · svg · webp · gif · md 중 하나일 때만 허용해요"
-                ],
-                [
-                  "패턴",
-                  "<code>src/server/workflow/FlowDocReader.ts</code>의 <code>FileSystemPort</code> 주입"
                 ]
               ]
             },
@@ -47,10 +43,6 @@
                 [
                   "파일",
                   "<code>src/server/orca/BoardService.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "캐시된 <code>lastBoard</code>, 없으면 <code>load()</code>"
                 ]
               ]
             },
@@ -66,10 +58,6 @@
                 [
                   "결정",
                   "URL은 <code>/api/doc/Users/…/docs/<domain>/<task>/index.html</code>처럼 절대경로를 그대로 이어 붙여요. 상대 링크와 flow 페이지의 저장 키(경로 기반)가 문서마다 따로 유지돼요"
-                ],
-                [
-                  "패턴",
-                  "<code>app/api/actions/route.ts</code>의 <code>services()</code> 사용"
                 ],
                 [
                   "결정",
@@ -112,10 +100,6 @@
                 [
                   "파일",
                   "<code>src/client/features/view-doc/model/docViewerStore.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>src/client/shared/model/toastStore.ts</code> (zustand)"
                 ],
                 [
                   "결정",
@@ -173,10 +157,6 @@
                 [
                   "결정",
                   "대시보드 위에 겹치는 오른쪽 패널, 너비는 화면의 약 55%예요. Esc로 패널을 닫고, 탭을 모두 닫으면 패널도 닫혀요"
-                ],
-                [
-                  "패턴",
-                  "색은 <code>app/globals.css</code> 토큰만 사용"
                 ]
               ]
             },
@@ -203,10 +183,6 @@
                 [
                   "파일",
                   "<code>app/doc/page.tsx</code> · <code>src/client/views/doc/ui/DocContent.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>app/diff/page.tsx</code>"
                 ]
               ]
             },
@@ -262,9 +238,11 @@
       ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -273,27 +251,62 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             }
           ]
         },
@@ -312,5 +325,12 @@
       "basis": "사용자 요청 (대화)"
     }
   ],
-  "pulledAt": 1794450107252
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }

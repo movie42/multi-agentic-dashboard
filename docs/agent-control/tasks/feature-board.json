@@ -17,160 +17,36 @@
             {
               "id": "Q1",
               "title": "기능별 묶음을 어디에 보여 줄까요?",
-              "said": "work-flow 세션 요청: “기능별로 워크트리를 묶어 에이전트 상태 · 단계 진척 · Jira 상태 / [새 세션] · [터미널로] / 같은 파일 수정 · rebase 필요 · 공용 작업 대기 경고 / flow 기능 문서 페이지와 서로 링크”",
-              "body": "지금 프로젝트 화면은 워크트리마다 한 칸씩 단계 진척과 에이전트 카드를 보여 줘요. 기능 문서(<code>docs/features/&lt;id&gt;/feature.json</code>)가 생기면 같은 기능의 워크트리 서너 개가 흩어져 보이게 돼요. 이 묶음을 기존 프로젝트 화면 안에서 할지, 따로 '기능' 화면을 둘지 정해야 해요.",
-              "recommendation": "프로젝트 화면 안에서 기능 단위로 묶는 걸 추천해요. 화면이 하나 늘지 않고, 기능 문서가 없는 워크트리는 맨 아래 '기능 문서 없음' 묶음에 지금처럼 남아요.",
-              "options": [
-                {
-                  "value": "a",
-                  "label": "프로젝트 화면 안에서 기능별로 묶음 (머리에 기능 이름 · 루트 브랜치 · 경고, 아래에 워크트리 행)"
-                },
-                {
-                  "value": "b",
-                  "label": "사이드바에 '기능' 화면을 따로 추가, 프로젝트 화면은 그대로"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "a",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "프로젝트 화면 안에서 기능 단위로 묶어요. 기능 머리에 기능 이름 · 루트 브랜치 · 경고를 두고, 그 아래에 기능에 속한 워크트리 칸을 둬요. 기능 문서가 없는 워크트리는 맨 아래 '기능 문서 없음' 묶음에 지금처럼 남아요.",
               "appliedTo": "[[P3-1]] [[P3-2]]"
             },
             {
               "id": "Q2",
               "title": "Jira 상태는 어디서 읽을까요?",
-              "said": "work-flow 세션 요청: “기능별로 워크트리를 묶어 에이전트 상태 · 단계 진척 · Jira 상태 / [새 세션] · [터미널로] / 같은 파일 수정 · rebase 필요 · 공용 작업 대기 경고 / flow 기능 문서 페이지와 서로 링크”",
-              "body": "flow는 Jira 이슈를 옮길 때마다 기능 문서의 행(<code>rows[].jira.status</code>)에 현재 상태를 적어 둬요. 이걸 그대로 읽으면 Jira를 직접 부르지 않지만, 사람이 Jira에서 손으로 옮긴 건 다음 flow 실행 전까지 반영되지 않아요. 매번 <code>acli</code>로 Jira에 물어보면 최신이지만 원본이 둘이 돼요.",
-              "recommendation": "기능 문서에 적힌 값만 읽는 걸 추천해요. '데이터 원본은 기능 문서와 작업 JSON 하나'라는 결정과 맞고, 사람이 옮길 것(<code>jira.todo</code>)도 같이 빨갛게 보여 줄 수 있어요.",
-              "options": [
-                {
-                  "value": "a",
-                  "label": "기능 문서에 기록된 Jira 상태만 표시 (flow가 옮긴 시점 기준)"
-                },
-                {
-                  "value": "b",
-                  "label": "몇 분마다 acli로 Jira에서 직접 조회"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "a",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "Jira 상태는 기능 문서 행에 flow가 적어 둔 값(rows[].jira.status)만 읽어요. Jira를 직접 부르지 않아서, 사람이 Jira에서 손으로 옮긴 건 다음 flow 실행 전까지 화면에 반영되지 않아요. 사람이 옮길 것(jira.todo)은 빨간 글씨로 보여 줘요.",
               "appliedTo": "[[P1-2]] [[P3-2]]"
             },
             {
               "id": "Q3",
               "title": "'rebase 필요'를 판단할 때 원격 브랜치를 새로 받아 올까요?",
-              "said": "work-flow 세션 요청: “기능별로 워크트리를 묶어 에이전트 상태 · 단계 진척 · Jira 상태 / [새 세션] · [터미널로] / 같은 파일 수정 · rebase 필요 · 공용 작업 대기 경고 / flow 기능 문서 페이지와 서로 링크”",
-              "body": "rebase가 필요한지는 루트 브랜치(<code>feature.json</code>의 <code>root</code>, 예: <code>develop</code>)가 이 워크트리의 시작점 뒤로 움직였는지로 봐요. 내 컴퓨터에 있는 <code>origin/&lt;root&gt;</code>는 마지막 <code>git fetch</code> 시점에 멈춰 있어서, 받아 오지 않으면 팀원이 머지한 걸 놓쳐요.",
-              "recommendation": "앱이 10분에 한 번 <code>git fetch origin &lt;root&gt;</code>만 조용히 실행하는 걸 추천해요. 루트 브랜치 하나만 받아 오고 내 브랜치는 건드리지 않아요.",
-              "options": [
-                {
-                  "value": "a",
-                  "label": "10분마다 루트 브랜치만 fetch해서 비교"
-                },
-                {
-                  "value": "b",
-                  "label": "fetch하지 않고 마지막으로 받아 둔 상태로만 비교"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "unsure",
-                "note": "음... fetch 10분마다 하는건 오바고 그냥 fetch 버튼이 있으면 좋겠는데 10분마다는 좀...",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "앱이 주기적으로 fetch하지 않아요. 기능 머리의 [원격 확인] 버튼을 누를 때만 git fetch origin <root>로 루트 브랜치를 받아 오고 rebase 필요 여부를 판단해요. 결과 옆에 마지막 확인 시각을 보여 줘요(사용자 메모: 10분마다는 과하고 버튼이면 충분).",
               "appliedTo": "[[P2-1]] [[P3-1]]"
             },
             {
               "id": "Q4",
               "title": "'같은 파일 수정' 경고는 어느 범위에서 비교할까요?",
-              "said": "work-flow 세션 요청: “기능별로 워크트리를 묶어 에이전트 상태 · 단계 진척 · Jira 상태 / [새 세션] · [터미널로] / 같은 파일 수정 · rebase 필요 · 공용 작업 대기 경고 / flow 기능 문서 페이지와 서로 링크”",
-              "body": "워크트리마다 시작점 이후 바꾼 파일(커밋된 것 + 아직 커밋 안 한 것)을 모아 다른 워크트리와 겹치는지 봐요. 같은 기능 안에서만 비교하면 조용하지만, 다른 기능 브랜치가 같은 파일을 고쳐 머지 때 충돌하는 경우는 놓쳐요.",
-              "recommendation": "같은 저장소의 모든 워크트리끼리 비교하는 걸 추천해요. 충돌은 기능 경계와 상관없이 나기 때문이에요. 경고 한 줄에 겹친 파일과 상대 워크트리 이름을 보여 줘요.",
-              "options": [
-                {
-                  "value": "a",
-                  "label": "같은 저장소의 모든 워크트리끼리 비교"
-                },
-                {
-                  "value": "b",
-                  "label": "같은 기능 안의 워크트리끼리만 비교"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "unsure",
-                "note": "음.. 이것도 rebase할때만 하면 되지 않나? 굳이 이걸 작업 끝나기 전에 계속 해야하나?",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "같은 파일 수정 확인도 rebase 판단과 같이 [원격 확인] 버튼을 누를 때만 해요(사용자 메모: rebase할 때만 보면 됨). 비교 범위는 같은 저장소의 모든 워크트리예요. 다른 기능 브랜치와의 충돌도 rebase · 머지 때 나기 때문이에요.",
               "appliedTo": "[[P2-1]] [[P3-1]]"
             },
             {
               "id": "Q5",
               "title": "'공용 작업 대기'는 언제 풀린 걸로 볼까요?",
-              "said": "work-flow 세션 요청: “기능별로 워크트리를 묶어 에이전트 상태 · 단계 진척 · Jira 상태 / [새 세션] · [터미널로] / 같은 파일 수정 · rebase 필요 · 공용 작업 대기 경고 / flow 기능 문서 페이지와 서로 링크”",
-              "body": "기능 문서의 <code>shared</code> 항목은 두 스토리가 함께 쓰는 코드를 어느 브랜치에서 만드는지(<code>buildIn</code>)와 상태를 적어 둬요. 상태 칸은 사람이 쓰는 자유 문장이라 기계가 읽기 어려워요.",
-              "recommendation": "만드는 쪽 브랜치의 PR이 루트에 머지되면 풀린 걸로 보는 걸 추천해요. 그 전에는 이 공용 작업을 쓰는 행(<code>usedBy</code>)마다 '공용 작업 ○○ 대기 중 (PR #n 리뷰)' 한 줄을 띄워요. 체리픽으로 미리 받아 온 경우도 머지 전까지는 경고가 남아요.",
-              "options": [
-                {
-                  "value": "a",
-                  "label": "만드는 브랜치의 PR이 머지되면 해제"
-                },
-                {
-                  "value": "b",
-                  "label": "사용 브랜치에 그 커밋이 체리픽돼 들어오면 바로 해제"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "a",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "공용 작업은 만드는 쪽 브랜치(shared[].buildIn)의 PR이 루트에 머지되면 대기가 풀린 것으로 봐요. 그 전까지는 그 공용 작업을 쓰는 행마다 '공용 작업 대기' 한 줄을 띄워요. 체리픽으로 미리 받아 온 경우도 머지 전까지는 경고가 남아요.",
               "appliedTo": "[[P1-3]] [[P3-2]]"
             },
             {
               "id": "Q6",
               "title": "flow 기능 문서 페이지에서 Agent Control로 가는 링크는 어떻게 열까요?",
-              "said": "work-flow 세션 요청: “기능별로 워크트리를 묶어 에이전트 상태 · 단계 진척 · Jira 상태 / [새 세션] · [터미널로] / 같은 파일 수정 · rebase 필요 · 공용 작업 대기 경고 / flow 기능 문서 페이지와 서로 링크”",
-              "body": "Agent Control → 기능 문서 방향은 '기능 문서 열기' 버튼으로 바로 돼요. 반대 방향은 기능 문서 페이지를 만드는 flow 스킬(<code>~/.claude/skills/flow/scripts/render.py</code>, 이 저장소 밖)을 고쳐야 해요. 링크를 <code>http://127.0.0.1:3199</code>로 걸면 Dock 앱이 아니라 브라우저 탭에서 열려요. Dock 앱으로 열려면 앱이 <code>agent-control://</code> 같은 주소를 받도록 등록하고 <code>bun run desktop</code>으로 다시 설치해야 해요.",
-              "recommendation": "<code>agent-control://feature/&lt;id&gt;</code> 주소를 앱에 등록하고, flow 기능 문서 페이지 머리에 'Agent Control에서 보기' 링크를 넣는 걸 추천해요. 클릭하면 Dock 앱이 앞으로 오면서 그 기능 묶음으로 스크롤돼요.",
-              "options": [
-                {
-                  "value": "a",
-                  "label": "agent-control:// 주소 등록 + flow 페이지에 링크 (flow 스킬도 수정)"
-                },
-                {
-                  "value": "b",
-                  "label": "flow 페이지에 http://127.0.0.1:3199 링크 (브라우저 탭으로 열림)"
-                },
-                {
-                  "value": "c",
-                  "label": "이번엔 Agent Control → 기능 문서 방향만"
-                }
-              ],
-              "recommended": "a",
-              "answer": {
-                "choice": "c",
-                "note": "agent-control이 없어도 사용할수 있게 해야해서 링크는 남기지 않는게 좋겠어.",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "flow 기능 문서 페이지에는 Agent Control 링크를 넣지 않아요. 기능 문서는 Agent Control 없이도 쓸 수 있어야 하기 때문이에요(사용자 결정). Agent Control → 기능 문서 방향의 '기능 문서 열기'만 만들어요. work-flow 세션이 넘긴 결정 5번(서로 링크)은 한 방향으로 줄었어요.",
               "appliedTo": "[[P3-1]]"
             }
@@ -180,7 +56,7 @@
     },
     "tasks": {
       "status": "done",
-      "summary": "구현 완료 · Dock 앱 확인은 첫 기능 문서가 생길 때",
+      "summary": "완료",
       "conclusion": [
         "프로젝트 화면이 기능 문서(feature.json) 단위로 워크트리를 묶어요. 기능 문서가 없는 워크트리는 맨 아래 '기능 문서 없음'에 남아요. [[P1]] [[P3-3]]",
         "기능 머리에 기능 이름 · 루트 브랜치 · '기능 문서 열기'(기능 페이지가 빌드돼 있을 때) · [원격 확인] 버튼과 경고가 나와요. flow 기능 문서 페이지에서 Agent Control로 가는 링크는 넣지 않았어요. [[R1-Q6]] [[P3-1]]",
@@ -203,10 +79,6 @@
                 [
                   "파일",
                   "<code>src/lib/workflow/types.ts</code> · <code>src/lib/orca/types.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "기존 <code>FlowTaskSummary</code>처럼 화면에 필요한 값만 담은 요약 타입. <code>BoardSnapshot</code>에 <code>features</code>, <code>WorktreeSummary</code>에 <code>featureId</code> 추가"
                 ]
               ]
             },
@@ -218,14 +90,6 @@
                 [
                   "파일",
                   "<code>src/lib/workflow/flowDocs.ts</code> · 새 <code>src/lib/workflow/featureDocs.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>flowDocs.ts</code>의 파일 수정 시각 캐시(<code>readTask</code>)를 같은 방식으로"
-                ],
-                [
-                  "내용",
-                  "작업 JSON의 <code>feature.doc</code>(절대 경로)와 각 워크트리의 <code>docs/features/*/feature.json</code>을 모아 기능별로 rows(이슈 · 브랜치 · 워크트리 · <code>jira.status</code> · <code>jira.todo</code>), root, 기능 페이지(<code>index.html</code>) 경로를 읽어요 [[R1-Q2]]"
                 ],
                 [
                   "결정",
@@ -241,14 +105,6 @@
                 [
                   "파일",
                   "<code>src/lib/workflow/featureDocs.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>getPullRequest</code> (<code>src/lib/workflow/git.ts</code>, 60초 캐시)"
-                ],
-                [
-                  "내용",
-                  "<code>shared[].buildIn</code>이 행 id면 그 행의 브랜치, <code>feat/</code>로 시작하면 브랜치 이름으로 보고 PR이 MERGED가 아니면 <code>usedBy</code> 행마다 대기 경고. 어느 쪽도 아니면 '만드는 곳 확인 불가'로 표시 [[R1-Q5]]"
                 ]
               ]
             },
@@ -270,8 +126,7 @@
             {
               "id": "P1-V",
               "title": "검증: <code>bunx tsc --noEmit</code> 통과, 임시 feature.json으로 <code>/api/board</code> 응답에 features가 나오는지",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -288,10 +143,6 @@
                 [
                   "파일",
                   "새 <code>src/lib/workflow/remoteCheck.ts</code>"
-                ],
-                [
-                  "내용",
-                  "<code>git fetch origin <root></code> 한 번, 기능의 워크트리마다 <code>git merge-base --is-ancestor origin/<root> HEAD</code>가 실패하면 rebase 필요. 같은 저장소의 모든 워크트리에서 <code>git diff --name-only <merge-base></code> + <code>git status --porcelain</code> 파일을 모아 겹치는 파일과 상대 워크트리를 계산 [[R1-Q3]] [[R1-Q4]]"
                 ],
                 [
                   "결정",
@@ -311,18 +162,13 @@
                 [
                   "파일",
                   "<code>src/lib/orca/actions.ts</code> · <code>src/app/api/actions/route.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "기존 <code>ActionRequest</code> 유니온에 <code>check-feature</code> 추가"
                 ]
               ]
             },
             {
               "id": "P2-V",
               "title": "검증: sample-app 워크트리 두 개로 확인 — rebase 경고(41 · 70커밋)와 공용 작업 대기(PR 없음)는 화면에서 봤고, 같은 파일 겹침은 실제로 0개라 손으로 비교해 0개임만 확인",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -339,10 +185,6 @@
                 [
                   "파일",
                   "새 <code>src/features/board/FeatureGroup.tsx</code>"
-                ],
-                [
-                  "내용",
-                  "기능 이름 · id · 루트 브랜치, '기능 문서 열기'(기능 페이지가 빌드돼 있을 때), [원격 확인] 버튼과 마지막 확인 시각, 경고 한 줄씩 [[R1-Q1]] [[R1-Q6]]"
                 ]
               ]
             },
@@ -354,10 +196,6 @@
                 [
                   "파일",
                   "<code>src/features/board/WorktreePanel.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "새 세션은 기존 <code>launch-agent</code> 액션(빈 프롬프트), 터미널은 그 워크트리 에이전트의 <code>focus-terminal</code>"
                 ],
                 [
                   "결정",
@@ -373,23 +211,13 @@
                 [
                   "파일",
                   "<code>src/features/board/Dashboard.tsx</code> (<code>ProjectView</code>)"
-                ],
-                [
-                  "내용",
-                  "기능 묶음은 최근 활동 순, 맨 아래 '기능 문서 없음' 묶음"
                 ]
               ]
             },
             {
               "id": "P3-V",
               "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run lint</code> 통과, /browse로 프로젝트 화면 캡처",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "tsc · lint 통과(기존 경고 1건은 AttachmentControls의 img). /browse로 프로젝트 화면 캡처해 기능 머리 · 경고 4줄 · Jira 상태 · 버튼 확인. [새 세션] · [터미널로]는 실제 세션이 열려서 누르지 않았어요."
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -401,30 +229,109 @@
             {
               "id": "P4-1",
               "title": "임시 기능 문서 · 임시 워크트리 삭제",
-              "done": true,
-              "rows": []
+              "done": true
             },
             {
               "id": "P4-2",
               "title": "Dock 앱 다시 빌드 · 설치 (<code>bun run desktop</code>)",
-              "done": true,
-              "rows": []
+              "done": true
             },
             {
               "id": "P4-V",
               "title": "검증: 첫 기능 문서가 생기면 Dock 앱에서 기능 묶음 확인",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "지금은 기능 문서가 없어 Dock 앱에 묶음이 나오지 않아요. 화면 구성은 임시 기능 문서로 /browse 캡처해 확인했어요(P3-V)."
-                ]
-              ]
+              "done": true
             }
           ]
         }
       ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
     }
   },
-  "pulledAt": 1793678166748
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }

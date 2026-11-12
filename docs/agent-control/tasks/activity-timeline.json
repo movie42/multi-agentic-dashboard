@@ -7,7 +7,7 @@
   "stages": {
     "tasks": {
       "status": "done",
-      "summary": "구현 · 검증 끝",
+      "summary": "완료",
       "conclusion": [
         "Claude Code가 세션마다 쓰는 대화 기록 파일(jsonl)의 끝부분을 읽어, 도구 호출 · 에이전트 메시지 · 사용자 입력을 시간 순 단계 목록으로 바꿔요.",
         "카드의 마지막 메시지 아래에 '진행 기록' 토글을 두고, 펼친 동안만 2초마다 새로 읽어요. 접혀 있으면 요청하지 않아요.",
@@ -30,10 +30,6 @@
                 [
                   "파일",
                   "<code>src/lib/sessions/types.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "판별 유니온: kind = prompt | text | tool, tool은 status = running | ok | error"
                 ]
               ]
             },
@@ -45,14 +41,6 @@
                 [
                   "파일",
                   "<code>src/lib/sessions/activity.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>sessionTitle.ts</code>의 <code>transcriptOf</code>를 export해서 사용, 끝 읽기는 <code>fullMessage.ts</code>의 <code>readTail</code> 방식"
-                ],
-                [
-                  "패턴",
-                  "파일 mtime이 같으면 캐시 반환(<code>fullMessage.ts</code>의 <code>tails</code> 캐시)"
                 ],
                 [
                   "결정",
@@ -78,8 +66,7 @@
             {
               "id": "P1-V",
               "title": "검증: 이 세션의 기록 파일로 변환 스크립트를 돌려 최근 단계가 실제 작업 순서와 맞는지 확인",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -96,22 +83,13 @@
                 [
                   "파일",
                   "<code>src/app/api/activity/route.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "세션 ID 검사 정규식 <code>SESSION_ID</code> (<code>src/app/api/actions/route.ts</code>)"
-                ],
-                [
-                  "패턴",
-                  "<code>src/app/api/terminal/route.ts</code>의 ok/error 응답 형태"
                 ]
               ]
             },
             {
               "id": "P2-V",
               "title": "검증: dev 서버(3100)에 curl로 이 세션 ID를 요청해 단계가 나오는지, 잘못된 ID는 400인지",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -128,10 +106,6 @@
                 [
                   "파일",
                   "<code>src/features/board/ActivityTimeline.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "폴링은 <code>ChoicePanel.tsx</code>, 접기는 <code>MessageView.tsx</code>의 details"
                 ],
                 [
                   "결정",
@@ -153,10 +127,89 @@
             {
               "id": "P3-V",
               "title": "검증: 타입체크 · 린트, browse로 dev 서버에서 이 세션 카드를 펼쳐 스크린샷",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
         }
       ]
     }
@@ -167,5 +220,13 @@
       "state": "confirmed",
       "basis": "사용자 요청: 'claude 작업 진행중인 상태를 모니터링할수 있냐'"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }

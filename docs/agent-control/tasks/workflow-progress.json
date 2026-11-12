@@ -7,7 +7,7 @@
   "stages": {
     "tasks": {
       "status": "done",
-      "summary": "구현 완료",
+      "summary": "완료",
       "conclusion": [
         "worktree마다 flow 작업 문서를 찾아 단계별 진척도를 보여줘요. 브랜치가 같은 문서를 그 worktree의 작업으로 봐요. [[P1-2]]",
         "단계 구성은 회사와 개인이 달라요. 회사는 기획서가 이미 있어서 질문·기획·화면을 '기획·질문' 한 칸으로 묶고, 개인은 PRD부터 질문·기획을 따로 보여줘요. [[P1-3]]",
@@ -283,10 +283,6 @@
                 [
                   "파일",
                   "<code>globals.css</code>, <code>layout.tsx</code>, <code>ProjectSidebar.tsx</code>, <code>Stepper.tsx</code>, <code>AgentCardView.tsx</code>, <code>WorktreePanel.tsx</code>, <code>Dashboard.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "flow 스킬 <code>assets/page.css</code>의 토큰·<code>.nav</code>·<code>.step</code>·<code>.conclusion</code>·<code>.k</code>를 Tailwind 토큰으로 옮김"
                 ]
               ]
             },
@@ -366,10 +362,6 @@
                 [
                   "파일",
                   "<code>src/lib/orca/board.ts</code>, <code>AgentCardView.tsx</code>"
-                ],
-                [
-                  "원인",
-                  "에이전트가 백그라운드 명령을 띄워 두면 Orca는 <code>state: working</code>, <code>workingMode: monitoring</code>을 주지만 본체 <code>mainAgent.state</code>는 <code>done</code>이에요."
                 ],
                 [
                   "결정",
@@ -675,9 +667,88 @@
           "items": []
         }
       ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
     }
   },
-  "pulledAt": 1793673124461,
   "followUps": [
     {
       "date": "2026-11-03",
@@ -702,5 +773,13 @@
       ],
       "sha": "3314abe"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }

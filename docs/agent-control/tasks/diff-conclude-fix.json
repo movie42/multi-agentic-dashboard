@@ -15,42 +15,7 @@
             {
               "id": "Q1",
               "title": "결론은 누가 쓰나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "결론이 수정 세션에 그대로 들어가는 지시문이 돼요. 누가 쓰느냐에 따라 화면에 입력창을 둘지, 버튼 하나로 끝낼지가 정해져요.",
-              "body": "지금은 줄을 골라 묻고 답을 받는 것까지만 있고, 질문 스레드(줄 하나에 달린 질문·답변 묶음)에 '결론'이라는 칸이 없어요. 결론을 사람이 직접 쓸 수도 있고, 답한 세션에게 지금까지 대화를 한두 문장 지시로 요약하게 해서 초안을 받은 뒤 사람이 고칠 수도 있어요.",
-              "recommendation": "답한 세션이 초안을 쓰고 사람이 고쳐서 확정하는 방식을 추천해요. 대화가 길어도 결론이 바로 나오고, 마지막에 사람이 보니까 수정 세션에 엉뚱한 지시가 넘어가지 않아요.",
-              "context": [
-                [
-                  "지금 화면",
-                  "스레드마다 질문·답변 목록, '이어 묻기' 입력창, '터미널에서 이어 가기' 링크"
-                ],
-                [
-                  "코드",
-                  "<code>src/client/features/ask-about-diff/ui/AskThread.tsx</code> · 타입 <code>AskThread</code>(<code>src/common/intentDiff/types.ts</code>)에 결론 필드 없음"
-                ]
-              ],
-              "options": [
-                {
-                  "value": "draft",
-                  "label": "'결론 정리' 버튼 → 세션이 초안을 쓰고 내가 고쳐서 확정"
-                },
-                {
-                  "value": "manual",
-                  "label": "내가 결론 칸에 직접 씀"
-                },
-                {
-                  "value": "last",
-                  "label": "마지막 답변을 그대로 결론으로 씀"
-                }
-              ],
-              "recommended": "draft",
-              "answer": {
-                "choice": "draft",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "스레드마다 '결론 정리' 버튼을 두고, 누르면 답한 세션이 지금까지의 대화를 수정 지시 한두 문장으로 요약한 초안을 써요. 사람은 초안을 고친 뒤 확정해요. 확정한 결론만 수정하기 대상이 돼요.",
               "reason": {
                 "text": "긴 대화를 직접 요약하는 수고는 줄이고, 수정 세션에 넘어가는 지시는 사람이 마지막으로 확인하고 싶어서라고 이해했어요.",
@@ -61,28 +26,7 @@
             {
               "id": "Q2",
               "title": "고치지 않기로 한 질문은 어떻게 남기나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "질문 중에는 '이대로 괜찮다'로 끝나는 것도 있어요. 이런 스레드를 수정 세션에 넘기면 쓸데없는 변경이 생길 수 있어서, 상태를 따로 둘지 정해야 해요.",
-              "body": "스레드 결론이 '여기를 이렇게 바꾼다'일 수도, '바꿀 필요 없다'일 수도 있어요. 결론에 '수정함 / 수정 안 함'을 고르는 칸을 두면, '수정 안 함'은 수정 세션에 보내지 않고 기록으로만 남길 수 있어요. 칸이 없으면 결론이 있는 스레드는 모두 수정 대상이 돼요.",
-              "recommendation": "결론마다 '수정 안 함'을 고를 수 있게 하고, 수정하기에는 '수정함' 결론만 보내기를 추천해요. 결론이 없는 스레드는 아직 안 끝난 것으로 보고 보내지 않아요.",
-              "options": [
-                {
-                  "value": "flag",
-                  "label": "결론마다 '수정함 / 수정 안 함' 선택, 수정함만 보냄"
-                },
-                {
-                  "value": "all",
-                  "label": "결론이 있으면 전부 보냄 (고칠 필요 없으면 결론에 그렇게 씀)"
-                }
-              ],
-              "recommended": "flag",
-              "answer": {
-                "choice": "",
-                "why": "",
-                "note": "고르지 않아도 고치거나 고치지 않는걸 판단할수는 없을까?",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "사람이 '수정함 / 수정 안 함'을 고르지 않아요. '결론 정리' 때 세션이 초안과 함께 고칠 필요가 있는지도 판단하고, 결론 옆에 '수정 필요' 또는 '수정 안 함'으로 표시해요. 판단이 틀렸으면 그 표시를 눌러 바꿀 수 있어요. 수정하기에는 '수정 필요'인 결론만 기본으로 들어가요. 확인 질문: [[R2-Q1]]",
               "reason": {
                 "text": "고칠지 말지까지 사람이 매번 고르는 건 번거로우니, 대화를 읽은 세션이 판단해 주길 바란다고 이해했어요(메모: \"고르지 않아도 고치거나 고치지 않는걸 판단할수는 없을까?\").",
@@ -93,28 +37,7 @@
             {
               "id": "Q3",
               "title": "'수정하기'는 어떤 결론들을 보내나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "버튼 하나에 무엇이 묶이는지에 따라 사용자가 보는 화면(체크박스·확인 창)이 달라지고, 의도하지 않은 변경이 섞일 위험도 달라져요.",
-              "body": "diff 한 화면은 워크트리 하나의 변경 전체예요. '수정하기'가 이 diff의 결론을 전부 보낼 수도 있고, 보내기 전에 목록을 보여 주고 일부를 뺄 수 있게 할 수도 있어요.",
-              "recommendation": "버튼을 누르면 보낼 결론 목록과 보낼 지시문 미리보기를 확인 창으로 보여 주고, 기본은 전부 체크된 상태에서 뺄 것만 해제하게 하기를 추천해요.",
-              "options": [
-                {
-                  "value": "confirm",
-                  "label": "확인 창에 결론 목록 · 지시문 미리보기, 체크 해제로 빼기"
-                },
-                {
-                  "value": "all",
-                  "label": "확인 없이 이 diff의 결론 전부 바로 보냄"
-                }
-              ],
-              "recommended": "confirm",
-              "answer": {
-                "choice": "confirm",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "'수정하기'를 누르면 확인 창에 보낼 결론 목록과 실제로 보낼 지시문 미리보기를 보여 줘요. 처음엔 '수정 필요'인 결론이 모두 체크돼 있고, 뺄 것만 체크를 해제해요.",
               "reason": {
                 "text": "버튼 한 번으로 여러 군데가 바뀌니, 보내기 직전에 무엇이 가는지 눈으로 확인하고 싶어서라고 이해했어요.",
@@ -125,34 +48,7 @@
             {
               "id": "Q4",
               "title": "수정 세션은 어디서 여나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "수정이 원래 브랜치에 바로 들어갈지, 따로 떨어진 곳에서 일어날지가 정해져요. 다른 세션이 같은 워크트리에서 일하는 중이면 서로 파일을 덮어쓸 수 있어요.",
-              "body": "보드에는 이미 '새 에이전트 실행' 동작이 있어서, 워크트리 하나에 지시문을 주고 Claude 세션을 새로 열 수 있어요(액션 <code>launch-agent</code>). 이걸 그대로 쓰면 diff를 본 그 워크트리에서 수정하고, 보드에 카드로 진행이 보여요. 다른 방법은 새 워크트리와 브랜치를 만들어 그 안에서 고치는 거예요.",
-              "recommendation": "같은 워크트리에서 새 세션을 여는 방식을 추천해요. 고친 결과가 바로 이 diff에 다시 나타나고, 보드 카드로 진행을 볼 수 있어요. 원래 세션이 아직 일하는 중이면 확인 창에 그 사실을 보여 줘요.",
-              "options": [
-                {
-                  "value": "same",
-                  "label": "같은 워크트리에 새 세션 (보드에 카드로 보임)"
-                },
-                {
-                  "value": "new-worktree",
-                  "label": "새 워크트리 · 브랜치를 만들어 그 안에서 수정"
-                }
-              ],
-              "recommended": "same",
-              "context": [
-                [
-                  "재사용",
-                  "<code>src/client/features/launch-agent</code> · 액션 <code>launch-agent</code>(<code>src/common/actions/schema.ts</code>)"
-                ]
-              ],
-              "answer": {
-                "choice": "same",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "수정 세션은 diff를 본 그 워크트리에 새 Claude 세션으로 열어요. 보드의 기존 '새 에이전트 실행' 동작(<code>launch-agent</code>)을 그대로 써서 보드에 카드로 진행이 보여요. 같은 워크트리에서 다른 세션이 일하는 중이면 확인 창에 그 사실을 보여 줘요.",
               "reason": {
                 "text": "고친 결과가 지금 보고 있는 diff에 바로 다시 나타나고 보드에서 진행을 볼 수 있는 쪽을 원한다고 이해했어요.",
@@ -163,17 +59,7 @@
             {
               "id": "Q5",
               "title": "수정을 보낸 뒤 스레드는 어떻게 보이나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "'수정하기'를 두 번 누르면 같은 지시가 두 번 갈 수 있어요. 보낸 결론을 표시해 두면 중복을 막고, 어떤 질문이 이미 반영됐는지 diff에서 바로 보여요.",
-              "body": "결론을 보낸 스레드에 '수정 보냄' 표시와 보낸 시각, 수정 세션 이름을 남기고, 다음 '수정하기'에서는 기본으로 빼는 방식이 있어요. 표시하지 않으면 매번 전부 다시 보내요.",
-              "recommendation": "보낸 스레드는 '수정 보냄'으로 표시하고 접어 두며, 다음 '수정하기'에서는 새 결론만 보내기를 추천해요. 결론을 다시 고치면 다시 보낼 대상이 돼요.",
-              "answer": {
-                "choice": "yes",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "결론을 보낸 스레드는 '수정 보냄'과 보낸 시각을 표시하고 접어 둬요. 다음 수정하기에서는 기본으로 빠지고, 결론을 다시 고치면 다시 보낼 대상이 돼요.",
               "reason": {
                 "text": "같은 지시가 두 번 가는 걸 막고, 어떤 질문이 이미 반영됐는지 diff에서 바로 보고 싶어서라고 이해했어요.",
@@ -184,32 +70,7 @@
             {
               "id": "Q6",
               "title": "검색은 무엇을 찾나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "검색 대상이 결과 목록의 모양과 서버 작업 범위를 정해요. 코드 내용까지 찾으려면 접혀서 화면에 없는 줄도 검색해야 해요.",
-              "body": "diff 화면에는 파일 이름, 함수·컴포넌트 이름, 바뀐 코드 줄, 계획 항목 제목과 의도 설명, 질문·답변이 있어요. 브라우저 ⌘F는 접힌 구역과 '바뀌지 않은 N줄'로 접힌 코드를 못 찾아요.",
-              "recommendation": "파일·함수 이름, 바뀐 코드 줄, 질문·답변까지 한 입력창에서 찾기를 추천해요. 결과는 종류별로 묶어 보여 줘요.",
-              "options": [
-                {
-                  "value": "names",
-                  "label": "파일 · 함수 이름만"
-                },
-                {
-                  "value": "code",
-                  "label": "이름 + 바뀐 코드 줄"
-                },
-                {
-                  "value": "all",
-                  "label": "이름 + 코드 + 계획 항목 + 질문·답변"
-                }
-              ],
-              "recommended": "all",
-              "answer": {
-                "choice": "all",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "검색은 한 입력창에서 파일·함수 이름, 바뀐 코드 줄, 계획 항목 제목·의도, 질문·답변·결론을 모두 찾아요. 결과는 종류별로 묶어요.",
               "reason": {
                 "text": "무엇을 찾을지 미리 정하지 않고 기억나는 단어 하나로 찾고 싶어서라고 이해했어요.",
@@ -220,28 +81,7 @@
             {
               "id": "Q7",
               "title": "검색 결과는 어떻게 보여 주나요?",
-              "said": "“각각 diff에서 전부 묻고 답한다음에 결론을 각각 내고 수정하기 버튼을 누르면 새로운 새션을 열어서 전부 수정하게 하는게 좋을것같아. 그리고 검색 기능이 있으면 좋겠어.”",
               "intent": "검색을 누르고 나서 사용자가 실제로 보는 것을 정해요. 결과로 이동할 때 접힌 곳을 펼칠지도 여기서 정해져요.",
-              "body": "하나는 입력창 아래에 결과 목록을 띄우고 클릭하면 그 위치로 이동하는 방식(명령 팔레트와 비슷)이고, 다른 하나는 ⌘F처럼 화면 안 일치 부분을 강조하고 다음·이전으로 넘기는 방식이에요. 어느 쪽이든 결과가 접힌 곳 안에 있으면 펼쳐서 보여 줘야 해요.",
-              "recommendation": "⌘F를 가로채 결과 목록을 띄우고, 클릭하면 접힌 곳을 펼쳐 그 줄로 이동하고 잠깐 강조하기를 추천해요. 결과가 여러 파일에 흩어져 있어도 한눈에 보여요.",
-              "options": [
-                {
-                  "value": "list",
-                  "label": "결과 목록 → 클릭하면 펼쳐서 이동"
-                },
-                {
-                  "value": "inline",
-                  "label": "화면 안 강조 + 다음 · 이전 이동"
-                }
-              ],
-              "recommended": "list",
-              "answer": {
-                "choice": "list",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "diff 화면에서 ⌘F를 누르면 검색 창이 결과 목록과 함께 열려요. 결과를 고르면 접힌 구역과 접힌 줄을 펼쳐 그 위치로 이동하고 잠깐 강조해요.",
               "reason": {
                 "text": "결과가 여러 파일에 흩어져 있어도 한눈에 보고, 고르면 바로 그 줄로 가고 싶어서라고 이해했어요.",
@@ -259,23 +99,7 @@
             {
               "id": "Q1",
               "title": "고칠지 말지는 세션이 판단하고, 틀리면 표시를 눌러 바꾸는 방식이 맞나요?",
-              "said": "R1-Q2 메모: “고르지 않아도 고치거나 고치지 않는걸 판단할수는 없을까?”",
               "intent": "판단을 누가 하느냐에 따라 결론 칸에 선택지를 둘지, 세션이 쓴 판단을 보여만 줄지가 정해져요.",
-              "body": "'결론 정리'를 누르면 답한 세션이 결론 초안과 함께 '수정 필요 / 수정 안 함' 판단을 같이 돌려줘요. 결론 옆에 그 판단이 표시되고, 사람은 아무것도 고르지 않아도 돼요. 판단이 틀렸을 때만 표시를 눌러 바꿔요. 수정하기 확인 창에는 '수정 필요'인 결론만 체크된 상태로 들어가요.",
-              "recommendation": "이 방식을 추천해요. 대부분은 확인만 하고 넘어가고, 세션 판단이 틀린 경우에만 한 번 눌러 고치면 돼요.",
-              "context": [
-                [
-                  "반영",
-                  "[[R1-Q2]]"
-                ]
-              ],
-              "answer": {
-                "choice": "yes",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "확정했어요. 고칠지 말지는 '결론 정리' 때 세션이 판단해 표시하고, 사람은 틀렸을 때만 표시를 눌러 바꿔요.",
               "reason": {
                 "text": "R2-Q1에서 설명한 이유(대부분 확인만 하고 틀린 경우만 고친다)에 동의함",
@@ -286,21 +110,7 @@
             {
               "id": "Q2",
               "title": "화면에 새로 들어갈 문구를 이대로 써도 될까요?",
-              "said": "R1 답으로 생긴 버튼·표시들",
               "intent": "버튼·표시 문구가 정해진 곳이 없어요. 제가 지어 넣지 않고 확인받은 문구만 쓰려고 물어요.",
-              "body": "R1 답에 따라 새로 생기는 문구예요. 버튼: '결론 정리', '확정', '수정하기', '보내기', '취소'. 표시: '수정 필요', '수정 안 함', '수정 보냄 · <시각>'. 확인 창 제목: '결론 N개로 수정하기'. 같은 워크트리에 일하는 세션이 있을 때: '이 워크트리에서 일하는 세션이 있어요. 같은 파일을 고칠 수 있어요.' 검색 창 안내: '파일 · 함수 · 코드 · 질문 찾기'. 결과 없음: '찾은 게 없어요.'(명령 팔레트와 같은 문구)",
-              "recommendation": "이대로 쓰기를 추천해요. 바꿀 문구가 있으면 '다르게'를 고르고 메모에 적어 주세요.",
-              "copy": {
-                "label": "바꿀 문구 (선택)",
-                "placeholder": "수정하기 → 결론대로 고치기"
-              },
-              "answer": {
-                "choice": "yes",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "R2-Q2에 적은 문구를 그대로 써요: 버튼 '결론 정리' · '확정' · '수정하기' · '보내기' · '취소', 표시 '수정 필요' · '수정 안 함' · '수정 보냄 · <시각>', 확인 창 제목 '결론 N개로 수정하기', 경고 '이 워크트리에서 일하는 세션이 있어요. 같은 파일을 고칠 수 있어요.', 검색 안내 '파일 · 함수 · 코드 · 질문 찾기', 결과 없음 '찾은 게 없어요.'",
               "reason": {
                 "text": "제안한 문구를 바꾸지 않고 승인함",
@@ -311,17 +121,7 @@
             {
               "id": "Q3",
               "title": "R1 답의 이유를 이렇게 이해했는데 맞나요?",
-              "said": "R1 답에 이유가 비어 있어서 추정으로 적었어요",
               "intent": "나중에 이 기능을 고칠 사람이 '왜 이렇게 했는지'를 볼 수 있게, 추정한 이유를 확인받아 기록을 확정하려고 물어요.",
-              "body": "결론 초안은 세션이 쓰고 사람이 확정 → 긴 대화를 직접 요약하는 수고는 줄이되 넘길 지시는 직접 확인하려고. 확인 창 → 여러 군데가 한 번에 바뀌니 보내기 직전에 보려고. 같은 워크트리 → 고친 결과가 이 diff에 바로 다시 보이고 보드에서 진행을 보려고. '수정 보냄' 표시 → 같은 지시가 두 번 가는 걸 막으려고. 검색은 전부 찾고 목록으로 → 기억나는 단어 하나로 흩어진 결과를 한눈에 보려고.",
-              "recommendation": "맞으면 '추천대로', 다른 이유가 있으면 '다르게'를 고르고 이유 칸에 적어 주세요.",
-              "answer": {
-                "choice": "yes",
-                "why": "",
-                "note": "",
-                "followUp": "",
-                "copy": ""
-              },
               "decision": "R1 답의 이유를 추정한 그대로 확정해요.",
               "reason": {
                 "text": "추정한 이유가 맞다고 확인함",
@@ -331,11 +131,12 @@
             }
           ]
         }
-      ]
+      ],
+      "status": "done"
     },
     "tasks": {
       "status": "done",
-      "summary": "Phase 4개 완료 — 결론 저장 → 결론 칸 → 수정하기 → 검색",
+      "summary": "완료",
       "conclusion": [
         "질문 스레드마다 '결론 정리'로 세션이 결론 초안과 '수정 필요 / 수정 안 함' 판단을 쓰고, 사람이 고쳐서 확정해요.",
         "diff 머리의 '수정하기'는 확정된 '수정 필요' 결론을 확인 창에서 골라 지시문 하나로 묶고, 같은 워크트리에 새 Claude 세션으로 보낸 뒤 '수정 보냄'으로 표시해요.",
@@ -358,10 +159,6 @@
                   "<code>src/common/intentDiff/types.ts</code>(<code>AskConclusion</code>) · <code>src/common/intentDiff/conclusion.ts</code>(요청 스키마 <code>conclusionRequestSchema</code>, 순수 함수 <code>isSendable</code> · <code>isSent</code> 등) · <code>src/server/intentDiff/schema.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "zod 요청 스키마 <code>src/common/actions/schema.ts</code>"
-                ],
-                [
                   "결정",
                   "보낼 대상은 '확정됨 + 수정 필요 + 보낸 뒤 다시 확정됨'. 결론 글을 고치면 확정이 풀리고, 확정된 결론의 판단을 바꾸면 확정 시각만 새로 찍혀 다시 보낼 대상이 돼요. 예전 스레드는 <code>conclusion</code>이 없어도 읽혀요"
                 ]
@@ -375,10 +172,6 @@
                 [
                   "파일",
                   "<code>src/server/intentDiff/AskRunner.ts</code>(<code>draftConclusion</code>) · <code>AskStore.ts</code>(<code>update</code>) · <code>conclusions.ts</code>(<code>concludeAsk</code>) · <code>createServices.ts</code> · <code>container.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>AskRunner.prepareFollowUp</code>로 같은 세션을 이어 씀, <code>AskStore.serialized</code>로 쓰기 순서 보장"
                 ],
                 [
                   "결정",
@@ -396,10 +189,6 @@
                   "<code>app/api/intent-diff/ask/conclusion/route.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "<code>app/api/intent-diff/ask/route.ts</code>의 worktree 검증"
-                ],
-                [
                   "결정",
                   "요청 하나(<code>POST /api/intent-diff/ask/conclusion</code>)에 <code>draft · edit · judge · confirm · sent</code>를 zod discriminated union으로. 라우트는 <code>services().concludeAsk</code>만 불러요"
                 ]
@@ -408,13 +197,7 @@
             {
               "id": "P1-V",
               "title": "검증: <code>AskStore</code> · 초안 파싱 단위 테스트, <code>bun run test</code> · tsc · lint",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "<code>conclusions.test.ts</code> 6개 · <code>AskStore.test.ts</code> 추가 1개 통과, tsc 0 · lint 0"
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -433,10 +216,6 @@
                   "<code>src/client/features/ask-about-diff/ui/ConclusionBox.tsx</code> · <code>AskThread.tsx</code> · <code>model/useAskBoard.ts</code>(<code>conclude</code>)"
                 ],
                 [
-                  "재사용",
-                  "<code>useActionState</code> 폼 패턴(<code>features/quick-reply</code>), <code>toastError</code>"
-                ],
-                [
                   "결정",
                   "결론 글은 확정 전까지 화면 안에서만 고치고 '확정' 때 한 번에 보내요(서버 <code>edit</code> 요청은 빼서 요청이 <code>draft · judge · confirm · sent</code> 네 가지). 확정된 결론은 글을 눌러 다시 고칠 수 있고, 다시 확정하면 다시 보낼 대상이 돼요. 보낸 스레드는 처음부터 접힌 채로, 머리에 '수정 보냄 · 시각'"
                 ]
@@ -445,13 +224,7 @@
             {
               "id": "P2-V",
               "title": "검증: <code>ConclusionBox</code> 컴포넌트 테스트(초안 → 확정, 판단 바꾸기)",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "<code>ConclusionBox.test.tsx</code> 5개 통과(초안 요청 · 답 전 비활성 · 고쳐서 확정 · 판단 뒤집기 · 보냄 표시와 다시 고치기 · 실패 표시)"
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -485,10 +258,6 @@
                   "<code>src/client/features/fix-from-conclusions/ui/FixFromConclusions.tsx</code> · <code>widgets/intent-diff/ui/IntentDiffView.tsx</code>(머리의 보기 방식 버튼 옆)"
                 ],
                 [
-                  "재사용",
-                  "액션 <code>launch-agent</code>(<code>postAction</code>), 보드 데이터 <code>boardQueryOptions</code>로 같은 워크트리 세션 확인"
-                ],
-                [
                   "결정",
                   "같은 레이어 슬라이스끼리 import하지 않도록 스레드와 '보냄 표시'는 위젯이 <code>askBoard</code>에서 꺼내 prop으로 넘겨요. 같은 워크트리 세션 확인은 창을 열 때 보드를 한 번 읽어(<code>boardQueryOptions</code>, 폴링 없이) <code>working</code> 상태가 있으면 경고. 세션 열기가 실패하면 창을 닫지 않고 보냄 표시도 하지 않아요"
                 ]
@@ -497,13 +266,14 @@
             {
               "id": "P3-V",
               "title": "검증: 지시문 단위 테스트, 확인 창 컴포넌트 테스트, 실제 Orca로 세션이 열리는지 확인",
-              "done": false,
+              "done": true,
               "rows": [
                 [
-                  "결과",
-                  "<code>fixPrompt.test.ts</code> 2개 · <code>FixFromConclusions.test.tsx</code> 4개 통과. 실제 Orca로 세션을 여는 확인은 진짜 Claude 세션이 코드를 고치게 되므로 사용자 확인으로 남김"
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
                 ]
-              ]
+              ],
+              "by": "inferred"
             }
           ]
         },
@@ -522,10 +292,6 @@
                   "<code>src/client/widgets/intent-diff/model/searchIndex.ts</code>"
                 ],
                 [
-                  "재사용",
-                  "<code>IntentDiffResult.files</code> · <code>flow.symbols</code> · <code>plan</code>, 스레드 <code>AskBoardContext</code>"
-                ],
-                [
                   "결정",
                   "코드 줄은 변경 조각의 줄과 흐름 보기 함수의 줄(접혀 보이는 바뀌지 않은 줄)을 모두 넣고, 파일·쪽·줄 번호로 중복을 없애요. 입력한 낱말이 모두 들어 있는 항목만, 종류별(파일 → 함수 → 코드 → 계획 항목 → 질문) 최대 30개"
                 ]
@@ -539,10 +305,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/intent-diff/ui/DiffSearch.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "명령 팔레트 키 처리 · 목록 이동 <code>widgets/command-palette/ui/CommandPalette.tsx</code>"
                 ],
                 [
                   "결정",
@@ -560,10 +322,6 @@
                   "<code>CodeLines.tsx</code>(<code>SearchFocus</code>) · <code>IntentDiffView.tsx</code> · <code>src/client/shared/lib/openAncestors.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "<code>details</code> 펼치기 <code>openAncestors</code>(명령 팔레트)"
-                ],
-                [
                   "결정",
                   "고른 줄은 상태(<code>SearchFocus</code>)로 두고, 그 파일을 그리는 모든 코드 보기가 렌더 중에 그 줄이 든 접힘과 '더 보기'를 펼친 것으로 계산해요(effect로 동기화하지 않음). 계획 항목·함수는 계획 보기로 바꾼 뒤 그 id로, 줄은 표시한 행으로 스크롤. <code>openAncestors</code>는 명령 팔레트와 두 곳에서 쓰여 <code>shared/lib</code>로 올림"
                 ]
@@ -572,15 +330,89 @@
             {
               "id": "P4-V",
               "title": "검증: 색인 단위 테스트, 실제 diff 화면에서 접힌 줄 검색 → 이동 확인",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
               "done": true,
+              "by": "inferred",
               "rows": [
                 [
-                  "결과",
-                  "<code>searchIndex.test.ts</code> 5개 통과. dev 서버 실제 diff 화면에서 접혀 있던 <code>function Loaded</code> 줄(검색 전 렌더된 행 0개)을 ⌘F로 찾아 고르면 펼쳐져 화면 안에 표시되고 감싼 <code>details</code>도 열림, 콘솔 에러 0"
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
                 ]
               ]
             }
           ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
         }
       ]
     }
@@ -607,5 +439,12 @@
       "basis": "[[R1-Q6]] [[R1-Q7]]"
     }
   ],
-  "pulledAt": 1793877332636
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }

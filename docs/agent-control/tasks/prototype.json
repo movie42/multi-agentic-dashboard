@@ -12,7 +12,7 @@
   "stages": {
     "tasks": {
       "status": "done",
-      "summary": "프로토타입 구현 완료",
+      "summary": "완료",
       "conclusion": [
         "에이전트를 여러 개 띄워 두면 무엇을 이어서 해야 하는지, 보고 싶은 worktree가 어디 있는지, 산출물이 어디 있는지 찾기 어려웠어요. 이 세 가지를 한 화면에서 해결하는 로컬 웹앱을 만들었어요.",
         "데이터는 Orca CLI <code>orca … --json</code>만 사용해요. Orca 내부 WebSocket 프로토콜은 문서가 없어 업데이트 때 깨질 수 있어서 쓰지 않았어요. [[P1]]",
@@ -226,10 +226,6 @@
                 [
                   "결정",
                   "정리 키는 <code>paneKey@stateStartedAt</code>예요. 에이전트가 새 일을 시작하면 키가 바뀌어 자동으로 '내 차례'에 다시 올라와요. 저장은 최근 300개까지예요."
-                ],
-                [
-                  "패턴",
-                  "React 훅 <code>useSyncExternalStore</code>로 localStorage를 구독 (effect 안 setState를 린트가 막아서)"
                 ]
               ]
             },
@@ -305,22 +301,50 @@
             {
               "id": "V5",
               "title": "HTML 산출물 버튼 → 기본 브라우저에서 바로 열림",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "V6",
               "title": "산출물 옆 'Orca' 버튼 → 해당 워크트리에 Orca 브라우저 탭으로 열리고 Orca가 앞으로 옴",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "V7",
               "title": "'Orca에서 이어가기' → Orca가 그 에이전트 터미널로 전환됨",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "V8",
               "title": "권한 요청 중(<code>blocked</code>/<code>waiting</code>)인 에이전트가 '내 차례' 맨 위에 '막힘'/'응답 대기'로 뜸",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             }
           ]
         },
@@ -330,6 +354,94 @@
           "items": []
         }
       ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 코드 리뷰 · 재검증 없이 완료 처리했어요. PR은 만들지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
     }
-  }
+  },
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "리뷰 · 재검증 · PR 확인",
+      "why": "사용자가 문서상 구현 안 된 것이 없다며 모든 문서를 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-12"
 }
