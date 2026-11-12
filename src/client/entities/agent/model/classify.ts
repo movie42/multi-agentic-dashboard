@@ -48,7 +48,7 @@ export interface FoldedAgents {
 
 // Orca sets parentPaneKey on orchestration workers. A worker answers to its coordinator, so it leaves the top level
 // unless it waits on a human (permission, blocked prompt) or its coordinator is no longer on the board.
-function needsHuman(agent: AgentCard): boolean {
+export function needsInput(agent: AgentCard): boolean {
   return agent.permission !== null || agent.state === "blocked" || agent.state === "waiting";
 }
 
@@ -59,7 +59,7 @@ export function foldWorkers(agents: AgentCard[]): FoldedAgents {
   const foldedIds = new Set<string>();
   for (const agent of agents) {
     const coordinatorId = agent.parentId;
-    if (coordinatorId && coordinatorId !== agent.id && ids.has(coordinatorId) && !needsHuman(agent)) {
+    if (coordinatorId && coordinatorId !== agent.id && ids.has(coordinatorId) && !needsInput(agent)) {
       byCoordinator.set(coordinatorId, [...(byCoordinator.get(coordinatorId) ?? []), agent]);
       foldedIds.add(agent.id);
     } else {

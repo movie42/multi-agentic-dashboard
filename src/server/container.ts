@@ -19,11 +19,14 @@ import { BOOKMARK_FILE, LIVE_SESSIONS_DIR, PROJECTS_DIR, SESSION_CACHE_FILE } fr
 import { SessionIndex } from "./sessions/SessionIndex";
 import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
+import { DocServer } from "./docs/DocServer";
+import { FlowAnswerStore } from "./docs/FlowAnswerStore";
 import { ErrorLog } from "./shared/errorLog";
 import { TODO_FILE } from "./todos/paths";
 import { TodoAgent } from "./todos/TodoAgent";
 import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
 import { TodoStore } from "./todos/TodoStore";
+import { UsageReader } from "./usage/UsageReader";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
 
@@ -52,6 +55,9 @@ export interface Services {
   todos: TodoStore;
   todoLaunches: TodoLaunchAttacher;
   todoAgent: TodoAgent;
+  usage: UsageReader;
+  docs: DocServer;
+  flowAnswers: FlowAnswerStore;
 }
 
 function createServices(): Services {
@@ -76,6 +82,7 @@ function createServices(): Services {
   });
   const transcriptOf = (sessionId: string) => sessionTitles.cachedTranscriptOf(sessionId);
   const orca = createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles });
+  const docs = new DocServer({ worktreePaths: (options) => orca.board.worktreePaths(options) });
   return {
     errorLog,
     permissions,
@@ -96,6 +103,9 @@ function createServices(): Services {
       listSessions: () => sessionIndex.list(),
       todos,
     }),
+    usage: new UsageReader(),
+    docs,
+    flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
   };
 }
 

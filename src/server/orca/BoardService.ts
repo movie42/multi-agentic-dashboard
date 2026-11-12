@@ -147,6 +147,11 @@ export class BoardService {
     return board;
   }
 
+  async worktreePaths(options: { fresh?: boolean } = {}): Promise<string[]> {
+    const board = !options.fresh && this.lastBoard ? this.lastBoard : await this.load();
+    return board.worktrees.map((worktree) => worktree.path);
+  }
+
   async featureCheckInput(featureId: string): Promise<CheckInput> {
     return featureCheckInputOf(this.lastBoard ?? (await this.load()), featureId);
   }

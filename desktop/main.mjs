@@ -65,6 +65,35 @@ function isInternal(url) {
   return url.startsWith(ORIGIN);
 }
 
+const APP_WINDOW = { minWidth: 900, minHeight: 600 };
+
+function openHandler({ url }) {
+  const pathname = isInternal(url) ? new URL(url).pathname : null;
+  if (pathname === "/diff") {
+    return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, width: 1440, height: 960, title: "변경 읽기" } };
+  }
+  // Size and position come from the window.open features of a tab dragged out of the doc panel.
+  if (pathname === "/doc") {
+    return { action: "allow", overrideBrowserWindowOptions: { minWidth: 480, minHeight: 400, title: "문서" } };
+  }
+  shell.openExternal(url);
+  return { action: "deny" };
+}
+
+// Windows opened from the board get the same rules, so links inside a detached doc window still
+// leave for the default browser instead of spawning bare Electron windows.
+function guardContents(contents) {
+  contents.setWindowOpenHandler(openHandler);
+  contents.on("will-navigate", (event, url) => {
+    if (!isInternal(url)) {
+      event.preventDefault();
+      if (url.startsWith("file:")) return;
+      shell.openExternal(url);
+    }
+  });
+  contents.on("did-create-window", (child) => guardContents(child.webContents));
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -74,23 +103,7 @@ function createWindow() {
     title: "Agent Control",
     show: false,
   });
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isInternal(url) && new URL(url).pathname === "/diff") {
-      return {
-        action: "allow",
-        overrideBrowserWindowOptions: { width: 1440, height: 960, minWidth: 900, minHeight: 600, title: "변경 읽기" },
-      };
-    }
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
-  mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (!isInternal(url)) {
-      event.preventDefault();
-      if (url.startsWith("file:")) return;
-      shell.openExternal(url);
-    }
-  });
+  guardContents(mainWindow.webContents);
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("page-title-updated", (_event, title) => {
     const count = title.match(/^\((\d+)\)/)?.[1];

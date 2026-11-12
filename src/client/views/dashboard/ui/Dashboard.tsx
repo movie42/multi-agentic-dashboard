@@ -15,7 +15,8 @@ import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
 import { AgentCardView, type CardProgress } from "@/client/widgets/agent-card";
-import { foldWorkers, groupAgents, type FoldedAgents } from "@/client/entities/agent";
+import { foldWorkers, groupAgents, needsInput, type FoldedAgents } from "@/client/entities/agent";
+import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
 import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
@@ -30,10 +31,15 @@ import { useAttention } from "../model/useAttention";
 import { useKeyboardNav } from "@/client/shared/lib/useKeyboardNav";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useBoard } from "../model/useBoard";
+import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs } from "@/client/entities/workspace";
 import { WorktreePanel, type WorktreeLink } from "@/client/widgets/worktree-panel";
 import { ProjectWorktreeWizard } from "@/client/features/create-worktree";
+import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
+import { DocPanel } from "@/client/widgets/doc-panel";
+import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
+import { paneWidth } from "@/client/shared/lib/paneWidth";
 
 interface SectionProps {
   title: string;
@@ -142,11 +148,14 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
   const prefs = useWorkspacePrefs();
   const dismissed = useDismissed();
+  const openDoc = useDocViewerStore((state) => state.open);
+  const docOpen = useDocViewerStore((state) => state.tabs.length > 0);
   const [query, setQuery] = useState("");
   const [viewKeys, writeView] = useStoredList("agent-control:overview-view");
   const view: OverviewView = viewKeys[0] === "stage" ? "stage" : "turn";
   const [focusKeys, writeFocus] = useStoredList("agent-control:overview-focus");
   const [jump, setJump] = useState<JumpTarget | null>(null);
+  const [sidebarCollapsed, toggleSidebar] = useSidebarCollapsed();
   const handledJump = useRef<JumpTarget | null>(null);
 
   const jumpTo = (repo: string, targets: string[]) => {
@@ -176,6 +185,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   }, [jump, prefs.selectedRepo]);
 
   const runAction = async (action: ActionRequest) => {
+    if (action.type === "open-artifact" && action.via === "system" && isViewableDoc(action.target)) {
+      openDoc(action.target);
+      return;
+    }
     try {
       await postAction(action);
     } catch (actionError) {
@@ -186,7 +199,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const folded = foldWorkers(board?.agents ?? []);
   const needsMeCount = groupAgents(folded.top, dismissed.isDismissed).needsMe
     .length;
-  useAttention(board?.agents ?? null, needsMeCount, folded.foldedIds);
+  const jumpToAgent = (agent: AgentCard) =>
+    jumpTo(agent.repo, [agent.id, agent.worktreeId]);
+  useAttention(board?.agents ?? null, needsMeCount, folded.foldedIds, jumpToAgent);
   useKeyboardNav();
 
   if (!board) {
@@ -241,8 +256,6 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   );
 
   const withProgressCard = (agent: AgentCard) => renderCard(agent, true);
-  const jumpToAgent = (agent: AgentCard) =>
-    jumpTo(agent.repo, [agent.id, agent.worktreeId]);
   const withoutProgressCard = (agent: AgentCard) => renderCard(agent, false);
 
   const focused = new Set(focusKeys.filter((repo) => projectByRepo.has(repo)));
@@ -284,15 +297,18 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const visibleGroups = groupAgents(visibleFold.top, dismissed.isDismissed);
 
   const allGroups = groupAgents(folded.top, dismissed.isDismissed);
+  const inputAgents = folded.top.filter(needsInput);
   const countsByRepo = new Map<string, ProjectCounts>();
   const bump = (repo: string, key: keyof ProjectCounts) => {
     const counts = countsByRepo.get(repo) ?? {
+      needsInput: 0,
       needsMe: 0,
       working: 0,
       worktrees: 0,
     };
     countsByRepo.set(repo, { ...counts, [key]: counts[key] + 1 });
   };
+  inputAgents.forEach((agent) => bump(agent.repo, "needsInput"));
   allGroups.needsMe.forEach((agent) => bump(agent.repo, "needsMe"));
   allGroups.working.forEach((agent) => bump(agent.repo, "working"));
   board.worktrees.forEach((worktree) => bump(worktree.repo, "worktrees"));
@@ -303,7 +319,30 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       : null;
 
   return (
-    <div className="md:pl-72">
+    <div className={`${sidebarCollapsed ? "" : "md:pl-[var(--sidebar-w,18rem)]"} ${docOpen ? "md:pr-[var(--doc-panel-w,50vw)]" : ""}`}>
+      <ResizeHandle
+        cssVar="--sidebar-w"
+        storageKey="agent-control:sidebar-width"
+        edge="right"
+        defaultWidth={() => 288}
+        min={200}
+        max={() => Math.min(520, window.innerWidth - (docOpen ? paneWidth("--doc-panel-w", 0) : 0) - 400)}
+        label="사이드바 크기 조절"
+        className={`fixed inset-y-0 left-[calc(var(--sidebar-w,18rem)-4px)] hidden ${sidebarCollapsed ? "" : "md:flex"}`}
+      />
+      {sidebarCollapsed ? (
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="사이드바 펼치기"
+          title="사이드바 펼치기 (⌘B)"
+          className="fixed top-3 left-3 z-40 hidden h-8 w-8 items-center justify-center rounded-md text-[16px] text-muted hover:bg-tint hover:text-current md:flex"
+        >
+          »
+        </button>
+      ) : null}
+      <DocPanel agents={board.agents} />
+      <InputAlerts agents={inputAgents} now={now} docOpen={docOpen} onOpen={jumpToAgent} />
       <CommandPalette
         board={board}
         onSelectRepo={prefs.selectRepo}
@@ -312,6 +351,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       <ProjectSidebar
         projects={board.projects}
         countsByRepo={countsByRepo}
+        totalNeedsInput={inputAgents.filter((agent) => inFocus(agent.repo)).length}
         totalNeedsMe={focusGroups.needsMe.length}
         totalWorking={focusGroups.working.length}
         focused={focused}
@@ -319,6 +359,8 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         prefs={prefs}
         fetchedAt={board.fetchedAt}
         error={error}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
       />
 
       <main className="mx-auto flex max-w-[1920px] min-w-0 flex-col gap-16 px-5 pt-14 pb-36 md:px-12">

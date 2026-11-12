@@ -1,0 +1,316 @@
+{
+  "id": "doc-viewer",
+  "title": "flow 문서를 앱 안 패널에서 열기 · 탭을 끌어 별도 창으로",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료 · 앱에서 탭 떼어내기 확인함",
+      "conclusion": [
+        "\"문서 열기\"를 누르면 <code>docs/</code> 아래 HTML은 오른쪽 패널의 탭으로 열려요. 다른 파일은 지금처럼 기본 앱으로 열려요 [[P2]].",
+        "Control 서버가 Orca가 아는 워크트리의 <code>docs/</code> 아래 파일만 내려줘요. 밖의 경로는 403이에요 [[P1]].",
+        "탭을 창 밖에 놓으면 그 위치에 <code>/doc</code> 창이 열리고 패널에서 탭이 닫혀요 [[P3]]. 헤드리스 브라우저에서는 놓은 위치를 흉내 내서 확인했어요.",
+        "데스크톱 앱에서 탭을 데스크톱으로 끌어 별도 창이 뜨는 것을 사용자가 확인했어요 [[P4-V]]."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 문서 서빙 라우트",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "요청 경로가 열어도 되는 문서인지 판정하는 함수",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/docs/docPath.ts</code> · <code>docPath.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "실경로(realpath)가 Orca가 아는 워크트리 안이고, 경로에 <code>docs</code> 폴더가 있고, 확장자가 html · css · js · json · png · jpg · svg · webp · gif · md 중 하나일 때만 허용해요"
+                ],
+                [
+                  "패턴",
+                  "<code>src/server/workflow/FlowDocReader.ts</code>의 <code>FileSystemPort</code> 주입"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "알려진 워크트리 경로 목록 제공",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/orca/BoardService.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "캐시된 <code>lastBoard</code>, 없으면 <code>load()</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "<code>GET /api/doc/[...path]</code> — 파일을 Content-Type과 함께 반환",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/doc/[...path]/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "URL은 <code>/api/doc/Users/…/docs/<domain>/<task>/index.html</code>처럼 절대경로를 그대로 이어 붙여요. 상대 링크와 flow 페이지의 저장 키(경로 기반)가 문서마다 따로 유지돼요"
+                ],
+                [
+                  "패턴",
+                  "<code>app/api/actions/route.ts</code>의 <code>services()</code> 사용"
+                ],
+                [
+                  "결정",
+                  "라우트는 판정과 읽기를 서비스 <code>DocServer</code>(<code>services().docs</code>)에 맡겨요. <code>app/</code>은 서버 내부 모듈을 직접 가져오지 못하게 lint로 막혀 있어서예요"
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "HTML 응답에 외부 링크 가로채기 스크립트 주입",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/docs/injectLinkScript.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Figma · Jira 같은 외부 링크는 iframe 안에서 열리지 않으므로(사이트가 막음) 클릭을 <code>window.open</code>으로 바꿔 앱에서는 기본 브라우저로 보내요"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bun run test</code> 통과 · <code>curl</code>로 docs 밖 경로 403, docs 안 HTML 200",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 패널 상태와 진입점",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "열린 탭 목록 스토어 (열기 · 닫기 · 활성 탭 · 이미 연 문서면 그 탭으로 이동)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/view-doc/model/docViewerStore.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/client/shared/model/toastStore.ts</code> (zustand)"
+                ],
+                [
+                  "결정",
+                  "탭은 처음 연 문서로 구분하고, 문서 안에서 링크를 따라가면 지금 보이는 문서(<code>current</code>)를 따로 기록해요. \"브라우저로 열기\"와 떼어내기는 지금 보이는 문서를 써요"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "문서 판정 · URL 변환 헬퍼 (<code>isViewableDoc</code>, <code>docUrl</code>)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/view-doc/lib/docUrl.ts</code> · 테스트"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "\"문서 열기\" 동작을 패널로 연결",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code> <code>runAction</code>"
+                ],
+                [
+                  "결정",
+                  "버튼 세 곳(<code>WorktreePanel</code>, <code>FeatureGroup</code>, <code>AgentCardView</code>)을 각각 고치지 않고 <code>runAction</code>에서 한 번에 가로채요. <code>open-artifact</code> · <code>via: system</code> · <code>docs/</code> 아래 HTML이면 패널로, 나머지는 지금처럼 서버로 보내요"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bun run test</code> · <code>bunx tsc --noEmit</code> 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 패널 UI와 탭 떼어내기",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "오른쪽 패널: 탭 줄 · iframe · 닫기 · 브라우저로 열기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/doc-panel/ui/DocPanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "대시보드 위에 겹치는 오른쪽 패널, 너비는 화면의 약 55%예요. Esc로 패널을 닫고, 탭을 모두 닫으면 패널도 닫혀요"
+                ],
+                [
+                  "패턴",
+                  "색은 <code>app/globals.css</code> 토큰만 사용"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "탭을 창 밖으로 끌면 별도 창으로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/doc-panel/ui/DocTab.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "탭의 <code>dragend</code> 위치가 창 바깥이면 놓은 지점에 <code>window.open('/doc?path=…')</code>으로 새 창을 띄우고, 패널에서는 그 탭을 닫아요. 창 안에 놓으면 아무 일도 없어요"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "단독 문서 화면 <code>/doc</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/doc/page.tsx</code> · <code>src/client/views/doc/ui/DocContent.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>app/diff/page.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "대시보드에 패널 마운트",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>browse</code>로 문서 열기 → 패널 · 탭 전환 · 링크 이동 · 질문 답변이 새로고침 뒤에도 남는지 확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 데스크톱 앱",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "Electron이 <code>/doc</code> 창을 앱 창으로 열도록 허용",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>desktop/main.mjs</code> <code>setWindowOpenHandler</code>"
+                ],
+                [
+                  "결정",
+                  "/diff와 같은 방식이고, 크기 · 위치는 <code>window.open</code>이 넘긴 값을 그대로 써요"
+                ],
+                [
+                  "결정",
+                  "떼어낸 창에서 연 창에도 같은 규칙을 붙여요(<code>did-create-window</code>). 그래서 별도 창 안의 외부 링크도 기본 브라우저로 가요"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: <code>bun run desktop</code> 후 앱에서 탭을 데스크톱으로 끌어 별도 창이 뜨는지 확인 (사용자 확인)",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "wait",
+      "summary": "리뷰 전",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": false
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": false
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": false
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": false
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "flow 문서를 확인할 때마다 브라우저로 넘어가지 않고, 에이전트 카드를 보던 Control 화면 안에서 바로 읽게 한다.",
+      "state": "guess",
+      "basis": "사용자 요청 (대화)"
+    }
+  ],
+  "pulledAt": 1794450107252
+}

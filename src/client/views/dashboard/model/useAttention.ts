@@ -12,18 +12,31 @@ const ARRIVAL_LABEL: Partial<Record<AgentState, string>> = {
   waiting: "내 입력 대기",
 };
 
-function notify(agent: AgentCard, label: string) {
+function notify(agent: AgentCard, label: string, onOpen: (agent: AgentCard) => void) {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   const body = parseMessage(agent.lastMessage)?.lead ?? agent.prompt ?? "";
   const notification = new Notification(`${label} · ${agent.repo}`, {
     body: body.slice(0, 180),
     tag: agent.id,
   });
-  notification.onclick = () => window.focus();
+  notification.onclick = () => {
+    window.focus();
+    onOpen(agent);
+  };
 }
 
-export function useAttention(agents: AgentCard[] | null, needsMeCount: number, folded: ReadonlySet<string>) {
+export function useAttention(
+  agents: AgentCard[] | null,
+  needsMeCount: number,
+  folded: ReadonlySet<string>,
+  onOpen: (agent: AgentCard) => void,
+) {
   const previous = useRef<Map<string, AgentState> | null>(null);
+  // The notification outlives the render that created it, so its click must reach the latest handler.
+  const openRef = useRef(onOpen);
+  useEffect(() => {
+    openRef.current = onOpen;
+  });
 
   useEffect(() => {
     document.title = needsMeCount > 0 ? `(${needsMeCount}) ${APP_TITLE}` : APP_TITLE;
@@ -41,7 +54,7 @@ export function useAttention(agents: AgentCard[] | null, needsMeCount: number, f
     if (seen) {
       for (const agent of agents) {
         const label = ARRIVAL_LABEL[agent.state];
-        if (label && seen.get(agent.id) === "working" && !folded.has(agent.id)) notify(agent, label);
+        if (label && seen.get(agent.id) === "working" && !folded.has(agent.id)) notify(agent, label, (target) => openRef.current(target));
       }
     }
     previous.current = new Map(agents.map((agent) => [agent.id, agent.state]));

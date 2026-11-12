@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { parseMessage } from "@/client/shared/lib/message";
-import { copyForSlack } from "@/client/shared/lib/slackClipboard";
 import { Markdown } from "./Markdown";
+import { SlackCopyButton } from "./SlackCopyButton";
 
 interface MessageViewProps {
   message: string | null;
@@ -11,22 +11,8 @@ interface MessageViewProps {
 
 export function MessageView({ message }: MessageViewProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
   const parsed = parseMessage(message);
   if (!parsed) return null;
-
-  const copy = async () => {
-    if (!bodyRef.current) return;
-    try {
-      await copyForSlack(
-        bodyRef.current,
-        [parsed.lead, parsed.rest].filter(Boolean).join("\n\n"),
-      );
-      setCopied(true);
-    } catch (error) {
-      console.error("[message] clipboard", error);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -44,14 +30,7 @@ export function MessageView({ message }: MessageViewProps) {
           </details>
         )}
       </div>
-      <button
-        type="button"
-        onClick={copy}
-        onBlur={() => setCopied(false)}
-        className="self-start text-[12px] text-muted underline decoration-faint underline-offset-[3px] hover:text-fg"
-      >
-        {copied ? "복사했어요 · 슬랙에 붙여넣기" : "슬랙용으로 복사"}
-      </button>
+      <SlackCopyButton source={bodyRef} plainText={[parsed.lead, parsed.rest].filter(Boolean).join("\n\n")} />
       {parsed.isPreview && (
         <p className="text-[12px] text-faint">Orca가 앞 200자만 넘겨준 미리보기예요.</p>
       )}

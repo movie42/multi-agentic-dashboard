@@ -4,9 +4,11 @@ import type { ProjectSummary } from "@/common/orca/types";
 import { formatClock } from "@/client/shared/lib/format";
 import { RuntimeSwitch } from "@/client/features/switch-runtime";
 import { ImportProject } from "@/client/features/import-project";
+import { UsageMeter } from "@/client/entities/usage";
 import type { WorkspacePrefs } from "@/client/entities/workspace";
 
 export interface ProjectCounts {
+  needsInput: number;
   needsMe: number;
   working: number;
   worktrees: number;
@@ -15,6 +17,7 @@ export interface ProjectCounts {
 interface ProjectSidebarProps {
   projects: ProjectSummary[];
   countsByRepo: Map<string, ProjectCounts>;
+  totalNeedsInput: number;
   totalNeedsMe: number;
   totalWorking: number;
   prefs: WorkspacePrefs;
@@ -22,6 +25,9 @@ interface ProjectSidebarProps {
   onToggleFocus: (repo: string) => void;
   fetchedAt: number;
   error: string | null;
+  /** Hidden at md+ only; below md the sidebar stacks above the content and stays. */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 const MODE_LABEL = { company: "회사", personal: "개인" } as const;
@@ -42,7 +48,8 @@ const SHORTCUTS: [string, string][] = [
   ["⌘ 클릭", "프로젝트를 전체 포커스에 넣고 빼기"],
 ];
 
-function dotClass(needsMe: number, working: number): string {
+function dotClass(needsInput: number, needsMe: number, working: number): string {
+  if (needsInput > 0) return "animate-pulse bg-accent";
   if (needsMe > 0) return "bg-ask";
   if (working > 0) return "bg-now";
   return "shadow-[inset_0_0_0_1.5px_var(--faint)]";
@@ -53,6 +60,7 @@ interface NavItemProps {
   note?: string;
   active: boolean;
   focused?: boolean;
+  needsInput?: number;
   needsMe: number;
   working: number;
   onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -64,7 +72,7 @@ function itemTone(active: boolean, focused: boolean): string {
   return "hover:bg-tint-2";
 }
 
-function NavItem({ label, note, active, focused = false, needsMe, working, onSelect }: NavItemProps) {
+function NavItem({ label, note, active, focused = false, needsInput = 0, needsMe, working, onSelect }: NavItemProps) {
   return (
     <button
       type="button"
@@ -74,12 +82,17 @@ function NavItem({ label, note, active, focused = false, needsMe, working, onSel
         focused,
       )}`}
     >
-      <span className={`size-2 rounded-full ${dotClass(needsMe, working)}`} />
+      <span className={`size-2 rounded-full ${dotClass(needsInput, needsMe, working)}`} />
       <span className="truncate">
         {label}
         {note && <span className="ml-1.5 text-[12px] font-semibold text-focus">{note}</span>}
       </span>
-      <span className="flex gap-1.5 text-[11px] font-semibold">
+      <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+        {needsInput > 0 && (
+          <span title="입력이 필요한 세션" className="rounded-full bg-accent px-1.5 py-0.5 leading-none text-accent-ink">
+            입력 {needsInput}
+          </span>
+        )}
         {needsMe > 0 && <span className="text-ask">{needsMe}</span>}
         {working > 0 && <span className="text-now">{working}</span>}
       </span>
@@ -90,6 +103,7 @@ function NavItem({ label, note, active, focused = false, needsMe, working, onSel
 export function ProjectSidebar({
   projects,
   countsByRepo,
+  totalNeedsInput,
   totalNeedsMe,
   totalWorking,
   prefs,
@@ -97,10 +111,27 @@ export function ProjectSidebar({
   onToggleFocus,
   fetchedAt,
   error,
+  collapsed,
+  onToggleCollapsed,
 }: ProjectSidebarProps) {
   return (
-    <aside className="bg-tint px-6 pt-10 pb-6 text-[14px] md:fixed md:inset-y-0 md:left-0 md:w-72 md:overflow-y-auto">
-      <p className="text-[18px] leading-[1.3] font-bold tracking-[-0.015em]">Agent Control</p>
+    <aside
+      className={`bg-tint px-6 pt-10 pb-6 text-[14px] md:fixed md:inset-y-0 md:left-0 md:w-[var(--sidebar-w,18rem)] md:overflow-y-auto ${
+        collapsed ? "md:hidden" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[18px] leading-[1.3] font-bold tracking-[-0.015em]">Agent Control</p>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label="사이드바 접기"
+          title="사이드바 접기 (⌘B)"
+          className="-mt-0.5 -mr-2 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-[16px] text-muted hover:bg-bg hover:text-current md:flex"
+        >
+          «
+        </button>
+      </div>
       <p className="mt-1.5 mb-6 text-[12px] text-muted">
         {error ? <span className="text-accent">갱신 실패 · </span> : null}
         {formatClock(fetchedAt)} 갱신 · Orca
@@ -108,12 +139,17 @@ export function ProjectSidebar({
       <div className="-mt-3 mb-6">
         <RuntimeSwitch />
       </div>
+      <div className="mb-6">
+        <p className="mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">Claude 사용량</p>
+        <UsageMeter />
+      </div>
 
       <div className="flex">
         <NavItem
           label="전체"
           note={focused.size > 0 ? `포커스 ${focused.size}` : undefined}
           active={prefs.selectedRepo === null && !prefs.showingSessions && !prefs.showingDiff && !prefs.showingTodo}
+          needsInput={totalNeedsInput}
           needsMe={totalNeedsMe}
           working={totalWorking}
           onSelect={() => prefs.selectRepo(null)}
@@ -138,7 +174,7 @@ export function ProjectSidebar({
       <p className="mt-6 mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">프로젝트</p>
       <div className="flex flex-col gap-px">
         {projects.map((project) => {
-          const counts = countsByRepo.get(project.repo) ?? { needsMe: 0, working: 0, worktrees: 0 };
+          const counts = countsByRepo.get(project.repo) ?? { needsInput: 0, needsMe: 0, working: 0, worktrees: 0 };
           const mode = prefs.modeOf(project);
           const inFocus = focused.has(project.repo);
           return (
@@ -147,6 +183,7 @@ export function ProjectSidebar({
                 label={project.repo}
                 active={prefs.selectedRepo === project.repo}
                 focused={inFocus}
+                needsInput={counts.needsInput}
                 needsMe={counts.needsMe}
                 working={counts.working}
                 onSelect={(event) =>
