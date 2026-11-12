@@ -1,25 +1,29 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { startTransition, useActionState, useEffect, useEffectEvent, useState } from "react";
+import { startTransition, useActionState, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { AskThread } from "@/common/intentDiff/types";
+import type { AgentCard } from "@/common/orca/types";
 import { boardQueryOptions } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
-import { fixPrompt, sendableThreads, type SendableThread } from "../model/fixPrompt";
+import { Spinner } from "@/client/shared/ui/Spinner";
+import { FIX_PROMPT_LEAD, fixPrompt, sendableThreads, type SendableThread } from "../model/fixPrompt";
 
 interface FixFromConclusionsProps {
   worktreePath: string;
   threads: AskThread[];
   markSent: (threadIds: string[]) => Promise<void>;
+  onReload: () => void;
 }
 
 /** Sends the confirmed conclusions to a new Claude session in the same worktree. */
-export function FixFromConclusions({ worktreePath, threads, markSent }: FixFromConclusionsProps) {
+export function FixFromConclusions({ worktreePath, threads, markSent, onReload }: FixFromConclusionsProps) {
   const sendable = sendableThreads(threads);
   const [open, setOpen] = useState(false);
+  const hasSent = threads.some((thread) => thread.conclusion?.sentAt != null);
   return (
-    <>
+    <span className="flex flex-wrap items-center gap-3">
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -28,8 +32,59 @@ export function FixFromConclusions({ worktreePath, threads, markSent }: FixFromC
       >
         수정하기
       </button>
+      {hasSent && <FixProgress worktreePath={worktreePath} onReload={onReload} />}
       {open && sendable.length > 0 && <FixDialog worktreePath={worktreePath} sendable={sendable} markSent={markSent} onClose={() => setOpen(false)} />}
-    </>
+    </span>
+  );
+}
+
+function latestFixSession(agents: AgentCard[], worktreePath: string): AgentCard | null {
+  return agents
+    .filter((agent) => agent.worktreePath === worktreePath && agent.prompt?.startsWith(FIX_PROMPT_LEAD))
+    .reduce<AgentCard | null>((latest, agent) => (!latest || (agent.updatedAt ?? 0) > (latest.updatedAt ?? 0) ? agent : latest), null);
+}
+
+interface FixProgressProps {
+  worktreePath: string;
+  onReload: () => void;
+}
+
+/** Where the last fix session stands, so the page says what happened after the button went quiet. */
+function FixProgress({ worktreePath, onReload }: FixProgressProps) {
+  const { data: board } = useQuery(boardQueryOptions());
+  const session = board ? latestFixSession(board.agents, worktreePath) : null;
+  const sessionId = session?.id ?? null;
+  const state = session?.state ?? null;
+
+  // Reload only on a working → finished change seen on this page, not for a session already finished on arrival.
+  const reload = useEffectEvent(onReload);
+  const previous = useRef<{ id: string | null; state: string | null }>({ id: null, state: null });
+  useEffect(() => {
+    const last = previous.current;
+    previous.current = { id: sessionId, state };
+    if (last.id === sessionId && last.state === "working" && (state === "done" || state === "idle")) reload();
+  }, [sessionId, state]);
+
+  if (!session) return null;
+  if (session.state === "working") {
+    return (
+      <span role="status" className="flex items-center gap-1.5 text-muted">
+        <Spinner className="text-accent" />
+        수정 중{session.toolName && ` · ${session.toolName}`}
+      </span>
+    );
+  }
+  if (session.state === "blocked" || session.state === "waiting") {
+    return (
+      <span role="status" className="text-ask">
+        수정 세션이 답을 기다려요
+      </span>
+    );
+  }
+  return (
+    <span role="status" className="text-done">
+      수정 끝
+    </span>
   );
 }
 

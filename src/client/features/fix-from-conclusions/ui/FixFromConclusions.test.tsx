@@ -28,14 +28,14 @@ function thread(id: string, conclusion: AskConclusion | null = confirmed): AskTh
   };
 }
 
-function stubBoard(agents: { worktreePath: string; state: string }[]) {
+function stubBoard(agents: { worktreePath: string; state: string; prompt?: string; toolName?: string; updatedAt?: number }[]) {
   vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ ok: true, board: { agents } })))));
 }
 
-function renderWith(threads: AskThread[], markSent = vi.fn<(ids: string[]) => Promise<void>>().mockResolvedValue()) {
+function renderWith(threads: AskThread[], markSent = vi.fn<(ids: string[]) => Promise<void>>().mockResolvedValue(), onReload = vi.fn()) {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <FixFromConclusions worktreePath="/w" threads={threads} markSent={markSent} />
+      <FixFromConclusions worktreePath="/w" threads={threads} markSent={markSent} onReload={onReload} />
     </QueryClientProvider>,
   );
   return markSent;
@@ -89,5 +89,47 @@ describe("FixFromConclusions", () => {
     await userEvent.click(screen.getByRole("button", { name: "보내기" }));
     expect(markSent).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("shows the latest fix session working in the worktree once conclusions were sent", async () => {
+    stubBoard([
+      { worktreePath: "/w", state: "done", prompt: "diff 리뷰에서 정리한 결론 1개를", updatedAt: 1 },
+      { worktreePath: "/w", state: "working", prompt: "diff 리뷰에서 정리한 결론 2개를", toolName: "Edit", updatedAt: 2 },
+      { worktreePath: "/w", state: "waiting", prompt: "다른 일", updatedAt: 3 },
+    ]);
+    renderWith([thread("a", { ...confirmed, sentAt: 3 })]);
+    expect((await screen.findByRole("status")).textContent).toBe("수정 중 · Edit");
+  });
+
+  it("reloads the diff when the fix session finishes while the page is open", async () => {
+    const fix = { worktreePath: "/w", prompt: "diff 리뷰에서 정리한 결론 1개를", updatedAt: 1 };
+    stubBoard([{ ...fix, state: "working" }]);
+    const onReload = vi.fn();
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <FixFromConclusions worktreePath="/w" threads={[thread("a", { ...confirmed, sentAt: 3 })]} markSent={vi.fn()} onReload={onReload} />
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByRole("status")).textContent).toContain("수정 중");
+    stubBoard([{ ...fix, state: "done" }]);
+    await client.refetchQueries();
+    expect((await screen.findByRole("status")).textContent).toBe("수정 끝");
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reload for a fix session already finished on arrival", async () => {
+    stubBoard([{ worktreePath: "/w", state: "done", prompt: "diff 리뷰에서 정리한 결론 1개를", updatedAt: 1 }]);
+    const onReload = vi.fn();
+    renderWith([thread("a", { ...confirmed, sentAt: 3 })], undefined, onReload);
+    expect((await screen.findByRole("status")).textContent).toBe("수정 끝");
+    expect(onReload).not.toHaveBeenCalled();
+  });
+
+  it("shows no progress before anything was sent", async () => {
+    stubBoard([{ worktreePath: "/w", state: "working", prompt: "diff 리뷰에서 정리한 결론 1개를" }]);
+    renderWith([thread("a")]);
+    await screen.findByRole("button", { name: "수정하기" });
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

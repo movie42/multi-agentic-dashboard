@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { BoardSnapshot } from "@/common/orca/types";
 import type { FeatureSummary } from "@/common/workflow/types";
 import { rawAgent, rawWorktree } from "./boardFixtures";
 import {
@@ -7,7 +6,6 @@ import {
   buildWorktreeSummary,
   effectiveAgent,
   expandPreview,
-  featureCheckInputOf,
   repoPaths,
   shortBranch,
   terminalHandles,
@@ -26,7 +24,6 @@ function feature(overrides: Partial<FeatureSummary> = {}): FeatureSummary {
     repoPath: null,
     rows: [],
     sharedWaits: [],
-    check: { kind: "idle" },
     ...overrides,
   };
 }
@@ -112,40 +109,5 @@ describe("board card helpers", () => {
     const [assigned] = withFeatureRepos([original], new Map([["/w2", "repo-b"]]));
     expect(assigned?.repo).toBe("repo-b");
     expect(original.repo).toBeNull();
-  });
-});
-
-describe("featureCheckInputOf", () => {
-  const worktree = (path: string, featureId: string | null, repo = "repo") => ({
-    ...buildWorktreeSummary({
-      worktree: rawWorktree({ path, repo }),
-      liveIds: new Set(),
-      flow: { current: [], other: [] },
-      pullRequest: { kind: "loading" },
-    }),
-    featureId,
-  });
-
-  it("collects repo and feature worktrees", () => {
-    const board: Pick<BoardSnapshot, "features" | "worktrees"> = {
-      features: [feature()],
-      worktrees: [worktree("/a", "f1"), worktree("/b", null), worktree("/c", null, "other")],
-    };
-    expect(featureCheckInputOf(board, "f1")).toEqual({
-      featureId: "f1",
-      root: "develop",
-      repoPath: "/a",
-      featureWorktrees: [{ path: "/a", name: "feat/x", branch: "feat/x" }],
-      repoWorktrees: [
-        { path: "/a", name: "feat/x", branch: "feat/x" },
-        { path: "/b", name: "feat/x", branch: "feat/x" },
-      ],
-    });
-  });
-
-  it("explains what is missing", () => {
-    expect(() => featureCheckInputOf({ features: [], worktrees: [] }, "f1")).toThrow("기능 문서를 찾지 못했어요");
-    expect(() => featureCheckInputOf({ features: [feature({ root: null })], worktrees: [] }, "f1")).toThrow(/root/);
-    expect(() => featureCheckInputOf({ features: [feature()], worktrees: [] }, "f1")).toThrow("기능의 워크트리를 찾지 못했어요");
   });
 });

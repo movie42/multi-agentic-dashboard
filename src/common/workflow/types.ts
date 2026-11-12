@@ -42,25 +42,6 @@ export interface SharedWait {
   reason: SharedWaitReason;
 }
 
-export interface FileOverlap {
-  file: string;
-  worktree: string;
-  otherWorktree: string;
-  otherBranch: string | null;
-}
-
-export type FeatureCheck =
-  | { kind: "idle" }
-  | { kind: "running"; startedAt: number }
-  | { kind: "failed"; at: number; error: string }
-  | {
-      kind: "done";
-      at: number;
-      root: string;
-      behind: { worktree: string; commits: number }[];
-      overlaps: FileOverlap[];
-    };
-
 export interface FeatureSummary {
   id: string;
   title: string;
@@ -71,7 +52,6 @@ export interface FeatureSummary {
   repoPath: string | null;
   rows: FeatureRowSummary[];
   sharedWaits: SharedWait[];
-  check: FeatureCheck;
 }
 
 export type PullRequestInfo =

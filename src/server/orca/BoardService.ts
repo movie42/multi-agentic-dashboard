@@ -5,7 +5,6 @@ import type { PendingPermission } from "@/common/permissions/types";
 import type { LocatedSession } from "@/server/sessions/SessionLocator";
 import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
 import { isMissingPath, type FileSystemPort, type ReportFn } from "@/server/shared/ports";
-import type { CheckInput } from "@/server/workflow/featureCheck";
 import { featureOfWorktree } from "@/server/workflow/features";
 import { mergeRepoFlowTasks, splitFlowTasks, type WorktreeFlowScan } from "@/server/workflow/flowTasks";
 import type { GitInfo } from "@/server/workflow/GitInfo";
@@ -14,7 +13,6 @@ import {
   buildAgentCard,
   buildWorktreeSummary,
   expandPreview,
-  featureCheckInputOf,
   repoPaths,
   shortBranch,
   terminalHandles,
@@ -150,10 +148,6 @@ export class BoardService {
   async worktreePaths(options: { fresh?: boolean } = {}): Promise<string[]> {
     const board = !options.fresh && this.lastBoard ? this.lastBoard : await this.load();
     return board.worktrees.map((worktree) => worktree.path);
-  }
-
-  async featureCheckInput(featureId: string): Promise<CheckInput> {
-    return featureCheckInputOf(this.lastBoard ?? (await this.load()), featureId);
   }
 
   private async agentCard(agent: OrcaAgentRaw, context: WorktreeContext): Promise<AgentCard> {

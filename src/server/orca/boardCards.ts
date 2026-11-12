@@ -1,14 +1,12 @@
 import "server-only";
-import type { AgentCard, AgentState, Artifact, BoardSnapshot, WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, AgentState, Artifact, WorktreeSummary } from "@/common/orca/types";
 import type { PendingPermission } from "@/common/permissions/types";
 import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
 import type { FeatureSummary, PullRequestInfo } from "@/common/workflow/types";
-import type { CheckInput } from "@/server/workflow/featureCheck";
 import type { WorktreeFlowTasks } from "@/server/workflow/flowTasks";
 import type { OrcaAgentRaw, OrcaTerminalRaw, OrcaWorktreeRaw } from "./schema";
 
 const PREVIEW_LIMIT = 200;
-export type FeatureCheckInputSource = Pick<BoardSnapshot, "features" | "worktrees">;
 
 const KNOWN_STATES: readonly AgentState[] = ["working", "done", "blocked", "waiting", "idle"];
 
@@ -141,17 +139,5 @@ export function withFeatureRepos(features: FeatureSummary[], repoOfPath: Readonl
     const repo = paths.map((target) => (target ? repoOfPath.get(target) : undefined)).find(Boolean) ?? null;
     return { ...feature, repo };
   });
-}
-
-export function featureCheckInputOf(board: FeatureCheckInputSource, featureId: string): CheckInput {
-  const feature = board.features.find((entry) => entry.id === featureId);
-  if (!feature) throw new Error("기능 문서를 찾지 못했어요");
-  if (!feature.root) throw new Error("기능 문서에 루트 브랜치(root)가 없어요");
-  const toCheck = (worktree: WorktreeSummary) => ({ path: worktree.path, name: worktree.name, branch: worktree.branch });
-  const repoWorktrees = board.worktrees.filter((worktree) => worktree.repo === feature.repo).map(toCheck);
-  const featureWorktrees = board.worktrees.filter((worktree) => worktree.featureId === featureId).map(toCheck);
-  const repoPath = feature.repoPath ?? featureWorktrees[0]?.path;
-  if (!repoPath) throw new Error("기능의 워크트리를 찾지 못했어요");
-  return { featureId, root: feature.root, repoPath, featureWorktrees, repoWorktrees };
 }
 

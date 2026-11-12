@@ -123,6 +123,7 @@ function Loaded({ result, loading, onReload }: LoadedProps) {
               worktreePath={range.worktreePath}
               threads={askBoard.threads}
               markSent={(threadIds) => askBoard.conclude({ type: "sent", threadIds })}
+              onReload={onReload}
             />
           </span>
           </div>

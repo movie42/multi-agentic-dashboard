@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { LRUCache } from "lru-cache";
-import type { FeatureCheck, FeatureSummary } from "@/common/workflow/types";
+import type { FeatureSummary } from "@/common/workflow/types";
 import { isMissingPath, listDir, pathExists, type FileSystemPort, type ReportFn } from "@/server/shared/ports";
 import { sharedWaits, toFeatureRow, type PullRequestLookup } from "./features";
 import { featureDocSchema, type FeatureDocJson } from "./schema";
@@ -15,7 +15,6 @@ export interface FeatureDocReaderOptions {
   fs: FileSystemPort;
   warn: ReportFn;
   pullRequestOf: PullRequestLookup;
-  checkOf: (featureId: string) => FeatureCheck;
 }
 
 export class FeatureDocReader {
@@ -55,7 +54,6 @@ export class FeatureDocReader {
       repoPath,
       rows,
       sharedWaits: sharedWaits(json.shared ?? [], rows, repoPath, this.options.pullRequestOf),
-      check: this.options.checkOf(id),
     };
   }
 

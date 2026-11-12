@@ -11,7 +11,6 @@ function reader(files: Parameters<typeof fakeFileSystem>[0], warn = vi.fn()) {
       fs,
       warn,
       pullRequestOf: () => ({ kind: "loading" }),
-      checkOf: (id) => (id === "f1" ? { kind: "running", startedAt: 1 } : { kind: "idle" }),
     }),
   };
 }
@@ -35,7 +34,7 @@ describe("FeatureDocReader", () => {
       ["f1", "One"],
       ["c", "Named by folder"],
     ]);
-    expect(features[0]).toMatchObject({ root: "develop", pageIndex: "/a/index.html", check: { kind: "running" } });
+    expect(features[0]).toMatchObject({ root: "develop", pageIndex: "/a/index.html" });
     expect(warn).not.toHaveBeenCalled();
   });
 

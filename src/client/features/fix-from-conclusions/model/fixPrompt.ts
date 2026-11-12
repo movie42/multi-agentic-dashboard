@@ -11,9 +11,12 @@ function where(anchor: AskAnchor): string {
   return anchor.startLine === anchor.endLine ? `${anchor.file}:${anchor.startLine}` : `${anchor.file}:${anchor.startLine}-${anchor.endLine}`;
 }
 
+/** Every fix prompt opens with this, which is how the board's session for it is recognized. */
+export const FIX_PROMPT_LEAD = "diff 리뷰에서 정리한 결론";
+
 export function fixPrompt(threads: SendableThread[]): string {
   return [
-    `diff 리뷰에서 정리한 결론 ${threads.length}개를 반영해 코드를 고쳐 주세요.`,
+    `${FIX_PROMPT_LEAD} ${threads.length}개를 반영해 코드를 고쳐 주세요.`,
     "결론마다 위치와 지시가 있어요. 위치의 줄 번호는 리뷰할 때 기준이라 조금 달라졌을 수 있어요.",
     "모두 고친 뒤 프로젝트의 타입 검사와 테스트를 돌려 주세요.",
     "",

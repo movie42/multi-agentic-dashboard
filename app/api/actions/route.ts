@@ -95,8 +95,6 @@ export async function POST(request: Request) {
       await services().bookmarks.save({ sessionId: body.sessionId, name: body.name.trim(), cwd: body.cwd, memo: body.memo.trim() });
     } else if (body.type === "unbookmark-session") {
       await services().bookmarks.remove(body.sessionId);
-    } else if (body.type === "check-feature") {
-      services().workflow.featureChecks.start(await services().orca.board.featureCheckInput(body.featureId));
     } else {
       const info = await stat(body.cwd);
       if (!info.isDirectory()) throw new Error("session folder no longer exists");

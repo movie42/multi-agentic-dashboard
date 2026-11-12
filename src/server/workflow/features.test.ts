@@ -13,7 +13,6 @@ function feature(overrides: Partial<FeatureSummary>): FeatureSummary {
     repoPath: null,
     rows: [],
     sharedWaits: [],
-    check: { kind: "idle" },
     ...overrides,
   };
 }

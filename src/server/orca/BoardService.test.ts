@@ -50,7 +50,7 @@ function setup(overrides: Partial<BoardServiceOptions> = {}) {
     workflow: {
       git,
       flowDocs: new FlowDocReader(fs, warn),
-      featureDocs: new FeatureDocReader({ fs, warn, pullRequestOf: git.getPullRequest, checkOf: () => ({ kind: "idle" }) }),
+      featureDocs: new FeatureDocReader({ fs, warn, pullRequestOf: git.getPullRequest }),
     },
     sessions,
     permissions,
@@ -107,14 +107,5 @@ describe("BoardService.load", () => {
     const { board, run } = setup();
     run.mockRejectedValue(new Error("orca down"));
     await expect(board.load()).rejects.toThrow("orca down");
-  });
-});
-
-describe("BoardService.featureCheckInput", () => {
-  it("uses the last snapshot and loads one when there is none", async () => {
-    const { board, run } = setup();
-    expect(await board.featureCheckInput("f1")).toMatchObject({ featureId: "f1", root: "develop", repoPath: "/w" });
-    await board.featureCheckInput("f1");
-    expect(run.mock.calls.filter(([args]) => args[0] === "worktree")).toHaveLength(1);
   });
 });
