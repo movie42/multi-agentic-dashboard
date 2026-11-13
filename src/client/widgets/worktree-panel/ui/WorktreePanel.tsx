@@ -44,6 +44,14 @@ export interface WorktreeLink {
   working: number;
 }
 
+interface WorktreeAction {
+  key: keyof typeof ACTION_ICONS;
+  label: string;
+  description: string;
+  disabled?: boolean;
+  run: () => void;
+}
+
 const WORKTREE_DRAG_TYPE = "application/x-agent-control-worktree";
 
 type DropEdge = "before" | "after";
@@ -132,6 +140,39 @@ export function WorktreePanel({
         ? { type: "focus-terminal", terminalHandle }
         : { type: "open-terminal", worktreePath: worktree.path },
     );
+  const actions: WorktreeAction[] = [
+    {
+      key: "session",
+      label: "새 세션",
+      description: "이 워크트리에 빈 에이전트 세션을 띄워요",
+      run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }),
+    },
+    {
+      key: "terminal",
+      label: "터미널로",
+      description: terminalHandle ? "에이전트가 돌고 있는 Orca 터미널로 가요" : "이 워크트리에 Orca 터미널을 새로 열어요",
+      run: () => void toTerminal(),
+    },
+    {
+      key: "diff",
+      label: "변경 읽기",
+      description: "갈라진 지점 이후 바뀐 코드를 새 창에서 읽어요",
+      run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener"),
+    },
+    {
+      key: "graph",
+      label: "깃 그래프",
+      description: "이 워크트리를 기준으로 커밋 흐름을 새 창에서 봐요",
+      run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener"),
+    },
+    {
+      key: "worktree",
+      label: "여기서 워크트리 만들기",
+      description: "이 브랜치에서 갈라지는 새 작업 폴더를 만들어요",
+      disabled: wizard.busy,
+      run: () => wizard.open(),
+    },
+  ];
   const open = (target: string) =>
     onAction({
       type: "open-artifact",
@@ -209,28 +250,6 @@ export function WorktreePanel({
             {ancestors.length > 0 && <Elbow />}
             {worktree.name}
           </span>
-          <button
-            type="button"
-            aria-label={`${worktree.name} 워크트리에서 새 세션`}
-            title="이 워크트리에 빈 에이전트 세션을 띄워요"
-            onClick={() => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" })}
-            className="mt-[0.1em] shrink-0 cursor-pointer rounded-md p-0.5 text-faint hover:bg-tint-2 hover:text-fg"
-          >
-            {ACTION_ICONS.session}
-          </button>
-          <button
-            type="button"
-            aria-label={`${worktree.name} 워크트리 메뉴`}
-            aria-expanded={menu !== null}
-            title="워크트리 메뉴 · 우클릭으로도 열려요"
-            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              openMenu({ x: rect.left, y: rect.bottom + 4 });
-            }}
-            className="shrink-0 cursor-pointer rounded-md px-1 text-[17px] leading-none font-normal text-faint hover:bg-tint-2 hover:text-fg"
-          >
-            ⋯
-          </button>
         </h3>
         {worktree.branch && worktree.branch !== worktree.name && (
           <p className="mt-1 font-mono text-[12px] break-all text-muted">
@@ -258,6 +277,34 @@ export function WorktreePanel({
             ),
           )}
         </p>
+        <div className="mt-2 -ml-1 flex flex-wrap items-center gap-0.5">
+          {actions.map((action) => (
+            <button
+              key={action.key}
+              type="button"
+              aria-label={`${worktree.name} 워크트리 · ${action.label}`}
+              title={`${action.label} · ${action.description}`}
+              disabled={action.disabled}
+              onClick={action.run}
+              className="cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg disabled:cursor-progress disabled:opacity-40"
+            >
+              {ACTION_ICONS[action.key]}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label={`${worktree.name} 워크트리 메뉴`}
+            aria-expanded={menu !== null}
+            title="워크트리 메뉴 · 우클릭으로도 열려요"
+            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              openMenu({ x: rect.left, y: rect.bottom + 4 });
+            }}
+            className="cursor-pointer rounded-md px-1.5 py-0.5 text-[17px] leading-none text-faint hover:bg-tint-2 hover:text-fg"
+          >
+            ⋯
+          </button>
+        </div>
         {pr.kind === "found" && (
           <button
             type="button"
@@ -308,57 +355,20 @@ export function WorktreePanel({
             ) : (
               <>
                 <MenuHeading>{worktree.name} 워크트리에서</MenuHeading>
-                <MenuItem
-                  icon={ACTION_ICONS.session}
-                  description="이 워크트리에 빈 에이전트 세션을 띄워요"
-                  onSelect={() => {
-                    closeMenu();
-                    void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" });
-                  }}
-                >
-                  새 세션
-                </MenuItem>
-                <MenuItem
-                  icon={ACTION_ICONS.terminal}
-                  description={terminalHandle ? "에이전트가 돌고 있는 Orca 터미널로 가요" : "이 워크트리에 Orca 터미널을 새로 열어요"}
-                  onSelect={() => {
-                    closeMenu();
-                    void toTerminal();
-                  }}
-                >
-                  터미널로
-                </MenuItem>
-                <MenuItem
-                  icon={ACTION_ICONS.diff}
-                  description="갈라진 지점 이후 바뀐 코드를 새 창에서 읽어요"
-                  onSelect={() => {
-                    closeMenu();
-                    window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener");
-                  }}
-                >
-                  변경 읽기
-                </MenuItem>
-                <MenuItem
-                  icon={ACTION_ICONS.graph}
-                  description="이 워크트리를 기준으로 커밋 흐름을 새 창에서 봐요"
-                  onSelect={() => {
-                    closeMenu();
-                    window.open(gitGraphHref(worktree.path), "_blank", "noopener");
-                  }}
-                >
-                  깃 그래프
-                </MenuItem>
-                <MenuItem
-                  icon={ACTION_ICONS.worktree}
-                  description="이 브랜치에서 갈라지는 새 작업 폴더를 만들어요"
-                  disabled={wizard.busy}
-                  onSelect={() => {
-                    closeMenu();
-                    wizard.open();
-                  }}
-                >
-                  여기서 워크트리 만들기
-                </MenuItem>
+                {actions.map((action) => (
+                  <MenuItem
+                    key={action.key}
+                    icon={ACTION_ICONS[action.key]}
+                    description={action.description}
+                    disabled={action.disabled}
+                    onSelect={() => {
+                      closeMenu();
+                      action.run();
+                    }}
+                  >
+                    {action.label}
+                  </MenuItem>
+                ))}
                 {terminalHandles.length > 0 && (
                   <>
                     <MenuSeparator />
