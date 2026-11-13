@@ -257,7 +257,7 @@ export function WorktreePanel({
           event.preventDefault();
           openMenu({ x: event.clientX, y: event.clientY });
         }}
-        className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
+        className={`relative ${menu ? "z-20" : "z-10"} min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto`}
       >
         {ancestors.map((ancestor, depth) => (
           <button
