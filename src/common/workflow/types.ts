@@ -67,6 +67,13 @@ export type PullRequestInfo =
       url: string;
     };
 
+/** A Jira issue keyed by the branch name (`feat/COMP-628` → `COMP-628`), read live through `acli`. */
+export type JiraIssueInfo =
+  | { kind: "not-applicable" }
+  | { kind: "loading"; key: string; url: string | null }
+  | { kind: "unknown"; key: string; url: string | null }
+  | { kind: "found"; key: string; url: string | null; status: string };
+
 export type WorkflowMode = "company" | "personal";
 
 export type StepKey =

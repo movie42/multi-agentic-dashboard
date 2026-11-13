@@ -49,6 +49,7 @@ function setup(overrides: Partial<BoardServiceOptions> = {}) {
     orphans,
     workflow: {
       git,
+      jira: { getIssue: () => ({ kind: "not-applicable" as const }) },
       flowDocs: new FlowDocReader(fs, warn),
       featureDocs: new FeatureDocReader({ fs, warn, pullRequestOf: git.getPullRequest }),
     },
@@ -74,6 +75,7 @@ describe("BoardService.load", () => {
       worktreeId: "wt-1",
       branch: "feat/x",
       pullRequest: { kind: "none" },
+      jira: { kind: "not-applicable" },
       featureId: "f1",
       flowTasks: [expect.objectContaining({ taskId: "t1" })],
     });

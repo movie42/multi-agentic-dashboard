@@ -2,7 +2,7 @@ import "server-only";
 import type { AgentCard, AgentState, Artifact, WorktreeSummary } from "@/common/orca/types";
 import type { PendingPermission } from "@/common/permissions/types";
 import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
-import type { FeatureSummary, PullRequestInfo } from "@/common/workflow/types";
+import type { FeatureSummary, JiraIssueInfo, PullRequestInfo } from "@/common/workflow/types";
 import type { WorktreeFlowTasks } from "@/server/workflow/flowTasks";
 import type { OrcaAgentRaw, OrcaTerminalRaw, OrcaWorktreeRaw } from "./schema";
 
@@ -72,9 +72,10 @@ export interface WorktreeSummaryInput {
   liveIds: ReadonlySet<string>;
   flow: WorktreeFlowTasks;
   pullRequest: PullRequestInfo;
+  jira: JiraIssueInfo;
 }
 
-export function buildWorktreeSummary({ worktree, liveIds, flow, pullRequest }: WorktreeSummaryInput): WorktreeSummary {
+export function buildWorktreeSummary({ worktree, liveIds, flow, pullRequest, jira }: WorktreeSummaryInput): WorktreeSummary {
   return {
     worktreeId: worktree.worktreeId,
     repo: worktree.repo,
@@ -89,6 +90,7 @@ export function buildWorktreeSummary({ worktree, liveIds, flow, pullRequest }: W
     flowTasks: flow.current,
     otherFlowTasks: flow.other,
     pullRequest,
+    jira,
     featureId: null,
   };
 }

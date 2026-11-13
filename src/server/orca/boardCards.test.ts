@@ -80,6 +80,7 @@ describe("board card helpers", () => {
       liveIds: new Set(["wt-1"]),
       flow: { current: [], other: [] },
       pullRequest: { kind: "loading" },
+      jira: { kind: "not-applicable" },
     });
     expect(summary).toMatchObject({ name: "feat/x", branch: "feat/x", parentWorktreeId: null, featureId: null });
     const card = buildAgentCard({

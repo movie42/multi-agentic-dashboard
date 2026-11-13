@@ -1,6 +1,6 @@
 import type { PendingPermission } from "@/common/permissions/types";
 import type { SessionRef } from "@/common/sessions/types";
-import type { FeatureSummary, FlowTaskSummary, PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
+import type { FeatureSummary, FlowTaskSummary, JiraIssueInfo, PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
 
 export type AgentState = "working" | "done" | "blocked" | "waiting" | "idle";
 
@@ -51,6 +51,7 @@ export interface WorktreeSummary {
   flowTasks: FlowTaskSummary[];
   otherFlowTasks: FlowTaskSummary[];
   pullRequest: PullRequestInfo;
+  jira: JiraIssueInfo;
   featureId: string | null;
 }
 

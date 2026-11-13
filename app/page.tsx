@@ -5,6 +5,8 @@ import { Dashboard, DashboardLoading } from "@/client/views/dashboard";
 import { reportWarning, services } from "@/server/container";
 
 async function loadInitialBoard(): Promise<BoardSnapshot | null> {
+  // Every page load and reload lands here, which is when hours-long caches such as Jira status get refreshed.
+  services().workflow.jira.requestRefresh();
   try {
     return await services().orca.board.load();
   } catch (error) {

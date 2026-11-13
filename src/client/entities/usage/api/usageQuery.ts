@@ -2,14 +2,19 @@ import { queryOptions } from "@tanstack/react-query";
 import type { UsageResponse, UsageSnapshot } from "@/common/usage/types";
 import { readJson } from "@/client/shared/api/json";
 
-export const USAGE_POLL_MS = 60_000;
+export const USAGE_POLL_MS = 5 * 60_000;
+
+// Module state resets on a page reload, so only the first request after a reload skips the server cache.
+const pageLoad = { pending: true };
 
 export const usageKeys = {
   all: ["usage"] as const,
 };
 
 async function requestUsage(signal: AbortSignal): Promise<UsageSnapshot> {
-  const response = await fetch("/api/usage", { cache: "no-store", signal });
+  const url = pageLoad.pending ? "/api/usage?fresh" : "/api/usage";
+  pageLoad.pending = false;
+  const response = await fetch(url, { cache: "no-store", signal });
   const payload = await readJson<UsageResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
   return payload;

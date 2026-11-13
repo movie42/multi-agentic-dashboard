@@ -9,6 +9,7 @@ import { parseMessage } from "@/client/shared/lib/message";
 import { QuickReply } from "@/client/features/quick-reply";
 import { BookmarkMark, bookmarkTarget } from "@/client/features/bookmark-session";
 import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 
 interface AgentListProps {
   agents: AgentCard[];
@@ -26,17 +27,8 @@ const SESSION_DRAG_TYPE = "application/x-agent-control-session";
 
 type DropEdge = "before" | "after";
 
-const DROP_EDGE_CLASS: Record<DropEdge, string> = {
-  before: "shadow-[inset_0_2px_0_0_var(--focus)]",
-  after: "shadow-[inset_0_-2px_0_0_var(--focus)]",
-};
-
-function GripIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 10 16" className="h-3.5 w-2 fill-current">
-      {[3, 8, 13].flatMap((cy) => [3, 7].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.4} />))}
-    </svg>
-  );
+function DropSlot() {
+  return <div aria-hidden className="mx-1 my-1 h-11 rounded-md border border-dashed border-focus bg-tint" />;
 }
 
 export function AgentList({
@@ -105,6 +97,7 @@ function AgentRow({
   const closeMenu = () => setMenu(null);
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
+  const [dragging, setDragging] = useState(false);
   const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
     const rect = event.currentTarget.getBoundingClientRect();
     return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
@@ -123,7 +116,7 @@ function AgentRow({
         event.preventDefault();
         event.stopPropagation();
         event.dataTransfer.dropEffect = "move";
-        setDropEdge(edgeOf(event));
+        if (!dragging) setDropEdge(edgeOf(event));
       }}
       onDragLeave={(event: React.DragEvent<HTMLLIElement>) => {
         if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
@@ -137,14 +130,15 @@ function AgentRow({
         event.stopPropagation();
         if (draggedId !== agent.id) onReorder(draggedId, agent.id, edgeOf(event) === "after");
       }}
-      className={`scroll-mt-6 border-b border-hair ${dropEdge ? DROP_EDGE_CLASS[dropEdge] : ""}`}
+      className="scroll-mt-6 border-b border-hair"
     >
+      {dropEdge === "before" && <DropSlot />}
       <div
         onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
           event.preventDefault();
           setMenu({ at: { x: event.clientX, y: event.clientY }, confirmingCloseAll: false });
         }}
-        className={`group flex items-center gap-2 hover:bg-tint ${menu ? "bg-tint" : ""}`}
+        className={`group flex items-center gap-2 hover:bg-tint ${menu ? "bg-tint" : ""} ${dragging ? "opacity-40" : ""}`}
       >
         {onReorder && (
           <span
@@ -152,11 +146,18 @@ function AgentRow({
             onDragStart={(event: React.DragEvent<HTMLSpanElement>) => {
               event.dataTransfer.setData(SESSION_DRAG_TYPE, agent.id);
               event.dataTransfer.effectAllowed = "move";
+              const row = event.currentTarget.parentElement;
+              if (row) {
+                const rect = row.getBoundingClientRect();
+                event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top);
+              }
+              setDragging(true);
             }}
+            onDragEnd={() => setDragging(false)}
             title="끌어서 세션 순서를 바꿔요"
             className="-mr-1 flex shrink-0 cursor-grab self-stretch items-center px-1 text-faint group-hover:text-muted active:cursor-grabbing"
           >
-            <GripIcon />
+            {ACTION_ICONS.drag}
           </span>
         )}
         <button
@@ -311,6 +312,7 @@ function AgentRow({
           <AgentList agents={workers} now={now} showRepo={showRepo} renderCard={renderCard} onAction={onAction} />
         </div>
       )}
+      {dropEdge === "after" && <DropSlot />}
     </li>
   );
 }

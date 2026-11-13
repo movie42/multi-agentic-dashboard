@@ -8,6 +8,7 @@ import { isMissingPath, type FileSystemPort, type ReportFn } from "@/server/shar
 import { featureOfWorktree } from "@/server/workflow/features";
 import { mergeRepoFlowTasks, splitFlowTasks, type WorktreeFlowScan } from "@/server/workflow/flowTasks";
 import type { GitInfo } from "@/server/workflow/GitInfo";
+import type { JiraInfo } from "@/server/workflow/JiraInfo";
 import type { WorkflowServices } from "@/server/workflow/services";
 import {
   buildAgentCard,
@@ -36,7 +37,10 @@ export interface BoardPermissionPort {
 export interface BoardServiceOptions {
   cli: Pick<OrcaCli, "run">;
   orphans: Pick<OrphanReattacher, "reattach">;
-  workflow: Pick<WorkflowServices, "flowDocs" | "featureDocs"> & { git: Pick<GitInfo, "getPullRequest" | "detectMode"> };
+  workflow: Pick<WorkflowServices, "flowDocs" | "featureDocs"> & {
+    git: Pick<GitInfo, "getPullRequest" | "detectMode">;
+    jira: Pick<JiraInfo, "getIssue">;
+  };
   sessions: BoardSessionPort;
   permissions: BoardPermissionPort;
   fs: FileSystemPort;
@@ -108,6 +112,7 @@ export class BoardService {
         liveIds,
         flow,
         pullRequest: workflow.git.getPullRequest(worktree.path, branch),
+        jira: workflow.jira.getIssue(branch),
       });
       const agents = await mapSequential(worktree.agents, (agent) =>
         this.agentCard(agent, { worktree, bookmarks, handles, permissions: pending }),

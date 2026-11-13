@@ -23,6 +23,7 @@ const worktree: WorktreeSummary = {
   flowTasks: [],
   otherFlowTasks: [],
   pullRequest: { kind: "none" },
+  jira: { kind: "not-applicable" },
   featureId: null,
 };
 

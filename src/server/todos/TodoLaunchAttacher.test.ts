@@ -43,6 +43,7 @@ function worktree(path: string, pullRequest: PullRequestInfo): WorktreeSummary {
     flowTasks: [],
     otherFlowTasks: [],
     pullRequest,
+    jira: { kind: "not-applicable" },
     featureId: null,
   };
 }

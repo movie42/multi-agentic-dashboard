@@ -599,6 +599,7 @@ function ProjectView({
   const [query, setQuery] = useState("");
   const [storedOrder, writeOrder] = useStoredList(worktreeOrderKey(repo));
   const [storedFocus, writeFocus] = useStoredList(worktreeFocusKey(repo));
+  const [reordering, setReordering] = useState(false);
   const wizardAnchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
   const wizard = useWorktreeWizard(
     wizardAnchor ? wizardOrigin(wizardAnchor, false) : { repoId: "", repo, anchorPath: "", from: null },
@@ -795,6 +796,8 @@ function ProjectView({
               onDropWorktree={(draggedId, placeAfter) =>
                 moveWorktree(draggedId, worktree.worktreeId, placeAfter)
               }
+              reordering={reordering}
+              onReorderChange={setReordering}
               focused={isFocused(worktree)}
               onToggleFocus={() => toggleWorktreeFocus(worktree)}
             />,

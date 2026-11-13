@@ -8,16 +8,16 @@ import { usageQueryOptions } from "../api/usageQuery";
 const SEGMENT_PERCENT = 5;
 const SEGMENTS = Array.from({ length: 100 / SEGMENT_PERCENT }, (_, index) => index);
 
-function barTone(percent: number): string {
-  if (percent >= 90) return "bg-accent";
-  if (percent >= 70) return "bg-ask";
-  return "bg-fg";
-}
+const TONES = {
+  low: { bar: "bg-done", text: "text-done" },
+  mid: { bar: "bg-ask", text: "text-ask" },
+  high: { bar: "bg-accent", text: "text-accent" },
+} as const;
 
-function textTone(percent: number): string {
-  if (percent >= 90) return "text-accent";
-  if (percent >= 70) return "text-ask";
-  return "text-fg";
+function usageTone(percent: number) {
+  if (percent >= 80) return TONES.high;
+  if (percent >= 50) return TONES.mid;
+  return TONES.low;
 }
 
 export function formatReset(resetsAt: string | null, now: number): string {
@@ -45,11 +45,12 @@ interface UsageRowProps {
 
 function UsageRow({ label, window, now }: UsageRowProps) {
   const percent = window ? Math.min(100, Math.max(0, window.percent)) : 0;
+  const tone = usageTone(percent);
   return (
     <div>
       <div className="flex items-baseline justify-between text-[12px]">
         <span className="font-semibold">{label}</span>
-        <span className={`font-semibold tabular-nums ${window ? textTone(percent) : "text-muted"}`}>
+        <span className={`font-semibold tabular-nums ${window ? tone.text : "text-muted"}`}>
           {window ? `${percent}%` : "—"}
         </span>
       </div>
@@ -65,7 +66,7 @@ function UsageRow({ label, window, now }: UsageRowProps) {
           <span
             key={segment}
             className={`h-1.5 first:rounded-l-full last:rounded-r-full ${
-              segment * SEGMENT_PERCENT < percent ? barTone(percent) : "bg-tint-2"
+              segment * SEGMENT_PERCENT < percent ? tone.bar : "bg-tint-2"
             }`}
           />
         ))}

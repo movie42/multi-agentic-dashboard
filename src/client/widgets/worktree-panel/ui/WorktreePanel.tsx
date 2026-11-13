@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
@@ -8,6 +8,7 @@ import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type {
   FeatureRowSummary,
+  JiraIssueInfo,
   PullRequestInfo,
   WorkflowMode,
 } from "@/common/workflow/types";
@@ -36,6 +37,9 @@ interface WorktreePanelProps {
   terminalHandles: string[];
   onAction: (action: ActionRequest) => Promise<void>;
   onDropWorktree?: (draggedId: string, placeAfter: boolean) => void;
+  /** While a worktree is being dragged, every panel collapses to its heading row. */
+  reordering: boolean;
+  onReorderChange: (reordering: boolean) => void;
   /** Whether this worktree is in the project view's worktree focus. */
   focused: boolean;
   onToggleFocus: () => void;
@@ -53,7 +57,6 @@ interface WorktreeAction {
   label: string;
   description: string;
   disabled?: boolean;
-  pressed?: boolean;
   danger?: boolean;
   run: () => void;
 }
@@ -62,10 +65,9 @@ const WORKTREE_DRAG_TYPE = "application/x-agent-control-worktree";
 
 type DropEdge = "before" | "after";
 
-const DROP_EDGE_CLASS: Record<DropEdge, string> = {
-  before: "shadow-[inset_0_2px_0_0_var(--focus)]",
-  after: "shadow-[inset_0_-2px_0_0_var(--focus)]",
-};
+function DropSlot() {
+  return <div aria-hidden className="col-span-full h-11 rounded-md border border-dashed border-focus bg-tint" />;
+}
 
 const INDENT = ["", "pl-3.5", "pl-7"] as const;
 const indentOf = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];
@@ -81,20 +83,6 @@ function Elbow() {
       aria-hidden
       className="mr-1.5 inline-block h-2.5 w-2 -translate-y-1 border-b border-l border-muted"
     />
-  );
-}
-
-function GripIcon() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 10 16"
-      className="mt-[0.2em] h-[1em] w-[0.6em] shrink-0 fill-current text-faint group-hover:text-muted"
-    >
-      {[3, 8, 13].flatMap((cy) =>
-        [3, 7].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.4} />),
-      )}
-    </svg>
   );
 }
 
@@ -116,6 +104,8 @@ export function WorktreePanel({
   terminalHandles,
   onAction,
   onDropWorktree,
+  reordering,
+  onReorderChange,
   focused,
   onToggleFocus,
 }: WorktreePanelProps) {
@@ -130,6 +120,16 @@ export function WorktreePanel({
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headingTopBeforeCollapse = useRef<number | null>(null);
+  // Collapsing the panels shrinks the page; keep the dragged heading under the cursor.
+  useLayoutEffect(() => {
+    const before = headingTopBeforeCollapse.current;
+    if (!reordering || before === null || !headingRef.current) return;
+    headingTopBeforeCollapse.current = null;
+    window.scrollBy(0, headingRef.current.getBoundingClientRect().top - before);
+  }, [reordering]);
   const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
     const rect = event.currentTarget.getBoundingClientRect();
     return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
@@ -195,7 +195,6 @@ export function WorktreePanel({
       key: "focus",
       label: focused ? "포커스 해제" : "이 워크트리만 보기",
       description: focused ? "프로젝트의 다른 워크트리도 다시 보여요" : "이 프로젝트에서 이 워크트리만 남기고 가려요",
-      pressed: focused,
       run: onToggleFocus,
     },
     ...(worktree.isMain
@@ -229,7 +228,7 @@ export function WorktreePanel({
           return;
         event.preventDefault();
         event.dataTransfer.dropEffect = "move";
-        setDropEdge(edgeOf(event));
+        if (!dragging) setDropEdge(edgeOf(event));
       }}
       onDragLeave={(event: React.DragEvent<HTMLElement>) => {
         if (
@@ -247,17 +246,22 @@ export function WorktreePanel({
         if (draggedId !== worktree.worktreeId)
           onDropWorktree(draggedId, edgeOf(event) === "after");
       }}
-      className={`grid scroll-mt-6 grid-cols-1 gap-x-6 gap-y-4 border-t border-hair pt-6 pb-10 lg:grid-cols-[176px_minmax(0,1fr)] ${
-        dropEdge ? DROP_EDGE_CLASS[dropEdge] : ""
-      }`}
+      className={`grid scroll-mt-6 grid-cols-1 gap-x-6 border-t border-hair ${
+        reordering ? "gap-y-2 py-2" : "gap-y-4 pt-6 pb-10 lg:grid-cols-[176px_minmax(0,1fr)]"
+      } ${dragging ? "opacity-40" : ""}`}
     >
+      {dropEdge === "before" && <DropSlot />}
       <div
         onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
           if (event.target instanceof HTMLElement && event.target.closest("a, input, textarea")) return;
           event.preventDefault();
           openMenu({ x: event.clientX, y: event.clientY });
         }}
-        className={`relative ${menu ? "z-20" : "z-10"} min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto`}
+        className={`relative ${menu ? "z-20" : "z-10"} min-w-0 ${
+          reordering
+            ? "[&>*:not([data-reorder-keep])]:hidden"
+            : "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
+        }`}
       >
         {ancestors.map((ancestor, depth) => (
           <button
@@ -282,23 +286,50 @@ export function WorktreePanel({
             />
           </div>
         ) : (
-          <h3
-            draggable={onDropWorktree !== undefined}
-            onDragStart={(event: React.DragEvent<HTMLHeadingElement>) => {
-              event.dataTransfer.setData(WORKTREE_DRAG_TYPE, worktree.worktreeId);
-              event.dataTransfer.effectAllowed = "move";
-            }}
-            title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
-            className={`group flex items-start gap-1 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)} ${
-              onDropWorktree ? "-mx-1.5 cursor-grab rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing" : ""
-            }`}
-          >
-            {onDropWorktree && <GripIcon />}
-            <span className="min-w-0 flex-1">
-              {ancestors.length > 0 && <Elbow />}
-              {shownName}
-            </span>
-          </h3>
+          <div data-reorder-keep className={`flex items-start gap-1 ${indentOf(ancestors.length)}`}>
+            <h3
+              ref={headingRef}
+              draggable={onDropWorktree !== undefined}
+              onDragStart={(event: React.DragEvent<HTMLHeadingElement>) => {
+                event.dataTransfer.setData(WORKTREE_DRAG_TYPE, worktree.worktreeId);
+                event.dataTransfer.effectAllowed = "move";
+                setDragging(true);
+                headingTopBeforeCollapse.current = event.currentTarget.getBoundingClientRect().top;
+                // Changing the DOM inside dragstart cancels the drag in Chromium.
+                window.setTimeout(() => onReorderChange(true));
+              }}
+              onDragEnd={() => {
+                setDragging(false);
+                onReorderChange(false);
+                requestAnimationFrame(() => scrollToWorktree(worktree.worktreeId));
+              }}
+              title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
+              className={`group flex min-w-0 flex-1 items-start gap-1 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${
+                onDropWorktree ? "-mx-1.5 cursor-grab rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing" : ""
+              }`}
+            >
+              {onDropWorktree && (
+                <span className="mt-[0.1em] shrink-0 text-faint group-hover:text-muted">{ACTION_ICONS.drag}</span>
+              )}
+              <span className="min-w-0 flex-1">
+                {ancestors.length > 0 && <Elbow />}
+                {shownName}
+              </span>
+            </h3>
+            <button
+              type="button"
+              aria-label={`${worktree.name} 워크트리 메뉴`}
+              aria-expanded={menu !== null}
+              title="워크트리 메뉴 · 우클릭으로도 열려요"
+              onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                openMenu({ x: rect.left, y: rect.bottom + 4 });
+              }}
+              className="mt-px shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
+            >
+              {ACTION_ICONS.menu}
+            </button>
+          </div>
         )}
         {worktree.branch && worktree.branch !== worktree.name && (
           <p className="mt-1 font-mono text-[12px] break-all text-muted">
@@ -326,37 +357,6 @@ export function WorktreePanel({
             ),
           )}
         </p>
-        <div className="mt-2 -ml-1 flex flex-wrap items-center gap-0.5">
-          {actions.map((action) => (
-            <button
-              key={action.key}
-              type="button"
-              aria-label={`${worktree.name} 워크트리 · ${action.label}`}
-              title={`${action.label} · ${action.description}`}
-              disabled={action.disabled}
-              aria-pressed={action.pressed}
-              onClick={action.run}
-              className={`cursor-pointer rounded-md p-1 hover:bg-tint-2 disabled:cursor-progress disabled:opacity-40 ${
-                action.pressed ? "bg-tint text-focus" : action.danger ? "text-muted hover:text-accent" : "text-muted hover:text-fg"
-              }`}
-            >
-              {ACTION_ICONS[action.key]}
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-label={`${worktree.name} 워크트리 메뉴`}
-            aria-expanded={menu !== null}
-            title="워크트리 메뉴 · 우클릭으로도 열려요"
-            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              openMenu({ x: rect.left, y: rect.bottom + 4 });
-            }}
-            className="cursor-pointer rounded-md px-1.5 py-0.5 text-[17px] leading-none text-faint hover:bg-tint-2 hover:text-fg"
-          >
-            ⋯
-          </button>
-        </div>
         {pr.kind === "found" && (
           <button
             type="button"
@@ -366,24 +366,7 @@ export function WorktreePanel({
             PR #{pr.number} 열기
           </button>
         )}
-        {featureRow &&
-          (featureRow.issue ||
-            featureRow.jiraStatus ||
-            featureRow.jiraTodo) && (
-            <p className="mt-2 text-[12px]">
-              {featureRow.issue && (
-                <span className="font-mono text-muted">
-                  {featureRow.issue}{" "}
-                </span>
-              )}
-              <span>{featureRow.jiraStatus ?? "Jira 상태 기록 없음"}</span>
-              {featureRow.jiraTodo && (
-                <span className="block text-ask">
-                  사람이 옮길 것 · {featureRow.jiraTodo}
-                </span>
-              )}
-            </p>
-          )}
+        <JiraLine jira={worktree.jira} featureRow={featureRow} onOpen={(url) => void open(url)} />
         {removing && <RemoveWorktree worktree={worktree} sessionCount={all.length} onCancel={() => setRemoving(false)} />}
         {menu && (
           <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-72">
@@ -476,7 +459,7 @@ export function WorktreePanel({
         )}
       </div>
 
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className={`flex min-w-0 flex-col gap-6 ${reordering ? "hidden" : ""}`}>
         <WorktreeWizardPanel wizard={wizard} />
         {worktree.flowTasks.length === 0 ? (
           <p className="text-[14px] text-muted">
@@ -571,6 +554,47 @@ export function WorktreePanel({
           <PendingLaunchRows worktreePath={worktree.path} standalone={listed.length === 0} />
         </div>
       </div>
+      {dropEdge === "after" && <DropSlot />}
     </section>
+  );
+}
+
+interface JiraLineProps {
+  jira: JiraIssueInfo;
+  featureRow: FeatureRowSummary | null;
+  onOpen: (url: string) => void;
+}
+
+function JiraLine({ jira, featureRow, onOpen }: JiraLineProps) {
+  const key =
+    jira.kind === "not-applicable" ? (featureRow?.issue ?? null) : jira.key;
+  const url = jira.kind === "not-applicable" ? null : jira.url;
+  const status =
+    jira.kind === "found"
+      ? jira.status
+      : jira.kind === "loading"
+        ? "Jira 확인 중"
+        : jira.kind === "unknown"
+          ? "Jira 조회 실패"
+          : (featureRow?.jiraStatus ?? null);
+  const todo = featureRow?.jiraTodo ?? null;
+  if (!key && !todo) return null;
+  return (
+    <p className="mt-2 text-[12px]">
+      {key &&
+        (url ? (
+          <button
+            type="button"
+            onClick={() => onOpen(url)}
+            className="font-mono underline decoration-faint underline-offset-[3px] hover:decoration-current"
+          >
+            {key}
+          </button>
+        ) : (
+          <span className="font-mono text-muted">{key}</span>
+        ))}
+      {key && status && <span className="text-muted"> · {status}</span>}
+      {todo && <span className="block text-ask">사람이 옮길 것 · {todo}</span>}
+    </p>
   );
 }

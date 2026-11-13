@@ -74,6 +74,7 @@ function worktree(path: string, repo: string): WorktreeSummary {
     flowTasks: [],
     otherFlowTasks: [],
     pullRequest: { kind: "none" },
+    jira: { kind: "not-applicable" },
     featureId: null,
   };
 }

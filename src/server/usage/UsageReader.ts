@@ -8,8 +8,10 @@ import { nodeExecFile, type ExecFileFn } from "../shared/ports";
 
 // Same endpoint Claude Code's /usage screen reads; undocumented, so parse loosely.
 const USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
-// The endpoint rate-limits aggressive polling.
-const CACHE_MS = 60_000;
+// The endpoint rate-limits aggressive polling and shares its limit with Claude Code itself.
+const CACHE_MS = 5 * 60_000;
+// A page reload asks for fresh numbers, but repeated reloads must not hammer the endpoint.
+const FORCED_MIN_AGE_MS = 30_000;
 
 const windowSchema = z
   .object({ utilization: z.number(), resets_at: z.string().nullable().optional() })
@@ -52,8 +54,9 @@ export class UsageReader {
     this.now = deps.now ?? Date.now;
   }
 
-  read(): Promise<UsageSnapshot> {
-    if (this.cached && this.now() - this.cached.fetchedAt < CACHE_MS) return Promise.resolve(this.cached);
+  read({ fresh = false }: { fresh?: boolean } = {}): Promise<UsageSnapshot> {
+    const maxAge = fresh ? FORCED_MIN_AGE_MS : CACHE_MS;
+    if (this.cached && this.now() - this.cached.fetchedAt < maxAge) return Promise.resolve(this.cached);
     this.inflight ??= this.load().finally(() => {
       this.inflight = null;
     });

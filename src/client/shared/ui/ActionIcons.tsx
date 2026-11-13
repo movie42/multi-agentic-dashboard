@@ -12,6 +12,18 @@ function Icon({ children }: IconProps) {
 
 /** One icon per worktree action; every surface offering the same action renders the same icon. */
 export const ACTION_ICONS = {
+  menu: (
+    <Icon>
+      {[4, 10, 16].map((x) => (
+        <circle key={x} cx={x} cy="10" r="1.6" className="fill-current stroke-none" />
+      ))}
+    </Icon>
+  ),
+  drag: (
+    <Icon>
+      <path d="M4 6h12M4 10h12M4 14h12" />
+    </Icon>
+  ),
   graph: (
     <Icon>
       <circle cx="5" cy="4.5" r="1.8" />

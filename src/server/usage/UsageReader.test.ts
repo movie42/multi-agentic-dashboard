@@ -30,14 +30,25 @@ describe("UsageReader", () => {
     expect(fetch.mock.calls[0]?.[1].headers).toMatchObject({ Authorization: "Bearer token-1" });
   });
 
-  it("serves the cache for a minute, then refetches", async () => {
+  it("serves the cache for five minutes, then refetches", async () => {
     const { reader, fetch, now } = setup(() => Response.json(BODY));
     await reader.read();
-    now.value += 59_000;
+    now.value += 299_000;
     await reader.read();
     expect(fetch).toHaveBeenCalledTimes(1);
     now.value += 2_000;
     await reader.read();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("refetches on a fresh read once the cache is 30 seconds old", async () => {
+    const { reader, fetch, now } = setup(() => Response.json(BODY));
+    await reader.read();
+    now.value += 29_000;
+    await reader.read({ fresh: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    now.value += 2_000;
+    await reader.read({ fresh: true });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
