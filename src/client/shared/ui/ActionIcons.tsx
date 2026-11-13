@@ -44,4 +44,23 @@ export const ACTION_ICONS = {
       <path d="m6 8 2.5 2L6 12M10.5 12.5h3.5" />
     </Icon>
   ),
+  rename: (
+    <Icon>
+      <path d="M12.8 3.7a1.8 1.8 0 0 1 2.5 2.5L7 14.5l-3.3.8.8-3.3z" />
+      <path d="M11.5 5l2.5 2.5" />
+    </Icon>
+  ),
+  focus: (
+    <Icon>
+      <circle cx="10" cy="10" r="6.5" />
+      <circle cx="10" cy="10" r="2.2" />
+      <path d="M10 1.5v2.5M10 16v2.5M1.5 10H4M16 10h2.5" />
+    </Icon>
+  ),
+  remove: (
+    <Icon>
+      <path d="M3.5 5.5h13M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" />
+      <path d="M5 5.5l.8 10.1a1.5 1.5 0 0 0 1.5 1.4h5.4a1.5 1.5 0 0 0 1.5-1.4L15 5.5M8.5 8.5v5M11.5 8.5v5" />
+    </Icon>
+  ),
 };

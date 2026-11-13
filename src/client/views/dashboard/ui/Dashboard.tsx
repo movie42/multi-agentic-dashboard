@@ -132,6 +132,8 @@ function agentMatches(
 
 const worktreeOrderKey = (repo: string) =>
   `agent-control:worktree-order:${repo}`;
+const worktreeFocusKey = (repo: string) =>
+  `agent-control:worktree-focus:${repo}`;
 
 export function DashboardLoading() {
   return (
@@ -408,9 +410,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                   : board.projects.length}
               </p>
               <FocusChips
-                repos={board.projects
+                items={board.projects
                   .map((project) => project.repo)
-                  .filter((repo) => focused.has(repo))}
+                  .filter((repo) => focused.has(repo))
+                  .map((repo) => ({ key: repo, label: repo }))}
                 onRemove={toggleFocus}
                 onClear={() => writeFocus([])}
               />
@@ -595,6 +598,7 @@ function ProjectView({
 }: ProjectViewProps) {
   const [query, setQuery] = useState("");
   const [storedOrder, writeOrder] = useStoredList(worktreeOrderKey(repo));
+  const [storedFocus, writeFocus] = useStoredList(worktreeFocusKey(repo));
   const wizardAnchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
   const wizard = useWorktreeWizard(
     wizardAnchor ? wizardOrigin(wizardAnchor, false) : { repoId: "", repo, anchorPath: "", from: null },
@@ -630,16 +634,29 @@ function ProjectView({
   const worktreeById = new Map(
     worktrees.map((worktree) => [worktree.worktreeId, worktree]),
   );
-  const visibleTop = agents.top.filter((agent) =>
-    agentMatches(agent, worktreeById.get(agent.worktreeId), needle),
+  const focusedWorktrees = ordered.filter((worktree) => storedFocus.includes(worktree.worktreeId));
+  const isFocused = (worktree: WorktreeSummary) => storedFocus.includes(worktree.worktreeId);
+  const toggleWorktreeFocus = (worktree: WorktreeSummary) =>
+    writeFocus(
+      isFocused(worktree)
+        ? storedFocus.filter((id) => id !== worktree.worktreeId)
+        : [...storedFocus, worktree.worktreeId],
+    );
+  // A removed worktree leaves its id behind in storage; it must not hide every other worktree.
+  const inScope = focusedWorktrees.length > 0 ? focusedWorktrees : ordered;
+  const scopeIds = new Set(inScope.map((worktree) => worktree.worktreeId));
+  const visibleTop = agents.top.filter(
+    (agent) =>
+      scopeIds.has(agent.worktreeId) &&
+      agentMatches(agent, worktreeById.get(agent.worktreeId), needle),
   );
   const visibleWorktrees = needle
-    ? ordered.filter(
+    ? inScope.filter(
         (worktree) =>
           worktreeMatches(worktree, needle) ||
           visibleTop.some((agent) => agent.worktreeId === worktree.worktreeId),
       )
-    : ordered;
+    : inScope;
 
   const allPanels = visibleWorktrees.map((worktree) => ({
     worktree,
@@ -685,6 +702,7 @@ function ProjectView({
           <ProjectQuickMenu
             worktrees={worktrees}
             terminalOf={(worktree) => terminalHandlesOf(worktree)[0] ?? null}
+            sessionCountOf={(worktree) => agents.top.filter((agent) => agent.worktreeId === worktree.worktreeId).length}
             onAction={onAction}
             wizard={wizard}
           />
@@ -703,10 +721,20 @@ function ProjectView({
         <div className="mt-3 empty:hidden">
           <WorktreeWizardPanel wizard={wizard} />
         </div>
+        <FocusChips
+          items={focusedWorktrees.map((worktree) => ({ key: worktree.worktreeId, label: worktree.name }))}
+          onRemove={(id) => writeFocus(storedFocus.filter((item) => item !== id))}
+          onClear={() => writeFocus([])}
+        />
       </header>
       <div className="-mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-[15px] font-semibold">
           워크트리 {worktrees.length}개
+          {focusedWorktrees.length > 0 && (
+            <span className="ml-2 text-[12px] font-normal text-focus">
+              포커스 {focusedWorktrees.length}개만 보는 중
+            </span>
+          )}
           {needle && (
             <span className="ml-2 text-[12px] font-normal text-muted">
               거른 결과 · 워크트리 {visibleWorktrees.length} · 세션 {visibleTop.length}
@@ -767,6 +795,8 @@ function ProjectView({
               onDropWorktree={(draggedId, placeAfter) =>
                 moveWorktree(draggedId, worktree.worktreeId, placeAfter)
               }
+              focused={isFocused(worktree)}
+              onToggleFocus={() => toggleWorktreeFocus(worktree)}
             />,
             ...children.flatMap((child) =>
               renderPanel(child, [...ancestors, linkOf(panel)]),

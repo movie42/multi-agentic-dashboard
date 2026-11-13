@@ -36,6 +36,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("launch-agent"), worktreePath: absolutePath, prompt: z.string().max(MAX_PROMPT) }),
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
   z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
+  z.object({ type: z.literal("rename-worktree"), worktreePath: absolutePath, name: title }),
   z.object({ type: z.literal("import-project"), path: absolutePath }),
   z.object({ type: z.literal("answer-permission"), requestId: z.string(), answer: permissionAnswerSchema }),
 ]);

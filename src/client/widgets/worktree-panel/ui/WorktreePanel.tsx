@@ -16,6 +16,7 @@ import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
+import { WorktreeNameForm } from "@/client/features/rename-worktree";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { useSessionOrder } from "../model/useSessionOrder";
@@ -35,6 +36,9 @@ interface WorktreePanelProps {
   terminalHandles: string[];
   onAction: (action: ActionRequest) => Promise<void>;
   onDropWorktree?: (draggedId: string, placeAfter: boolean) => void;
+  /** Whether this worktree is in the project view's worktree focus. */
+  focused: boolean;
+  onToggleFocus: () => void;
 }
 
 export interface WorktreeLink {
@@ -49,6 +53,8 @@ interface WorktreeAction {
   label: string;
   description: string;
   disabled?: boolean;
+  pressed?: boolean;
+  danger?: boolean;
   run: () => void;
 }
 
@@ -110,7 +116,14 @@ export function WorktreePanel({
   terminalHandles,
   onAction,
   onDropWorktree,
+  focused,
+  onToggleFocus,
 }: WorktreePanelProps) {
+  const [editingName, setEditingName] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  // Shown until the next poll brings the new display name back from Orca.
+  const [savedName, setSavedName] = useState<{ value: string; replaces: string } | null>(null);
+  const shownName = savedName && savedName.replaces === worktree.name ? savedName.value : worktree.name;
   const [menu, setMenu] = useState<{ at: MenuPoint; confirmingCloseAll: boolean } | null>(null);
   const closeMenu = () => setMenu(null);
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
@@ -172,6 +185,30 @@ export function WorktreePanel({
       disabled: wizard.busy,
       run: () => wizard.open(),
     },
+    {
+      key: "rename",
+      label: "이름 바꾸기",
+      description: "Orca에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
+      run: () => setEditingName(true),
+    },
+    {
+      key: "focus",
+      label: focused ? "포커스 해제" : "이 워크트리만 보기",
+      description: focused ? "프로젝트의 다른 워크트리도 다시 보여요" : "이 프로젝트에서 이 워크트리만 남기고 가려요",
+      pressed: focused,
+      run: onToggleFocus,
+    },
+    ...(worktree.isMain
+      ? []
+      : [
+          {
+            key: "remove" as const,
+            label: "워크트리 삭제",
+            description: "Orca에서 이 워크트리를 지워요. 브랜치는 남아요",
+            danger: true,
+            run: () => setRemoving(true),
+          },
+        ]),
   ];
   const open = (target: string) =>
     onAction({
@@ -234,23 +271,35 @@ export function WorktreePanel({
             {ancestor.name}
           </button>
         ))}
-        <h3
-          draggable={onDropWorktree !== undefined}
-          onDragStart={(event: React.DragEvent<HTMLHeadingElement>) => {
-            event.dataTransfer.setData(WORKTREE_DRAG_TYPE, worktree.worktreeId);
-            event.dataTransfer.effectAllowed = "move";
-          }}
-          title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
-          className={`group flex items-start gap-1 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)} ${
-            onDropWorktree ? "-mx-1.5 cursor-grab rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing" : ""
-          }`}
-        >
-          {onDropWorktree && <GripIcon />}
-          <span className="min-w-0 flex-1">
-            {ancestors.length > 0 && <Elbow />}
-            {worktree.name}
-          </span>
-        </h3>
+        {editingName ? (
+          <div className={indentOf(ancestors.length)}>
+            <WorktreeNameForm
+              worktree={worktree}
+              onDone={(saved) => {
+                setEditingName(false);
+                if (saved) setSavedName({ value: saved, replaces: worktree.name });
+              }}
+            />
+          </div>
+        ) : (
+          <h3
+            draggable={onDropWorktree !== undefined}
+            onDragStart={(event: React.DragEvent<HTMLHeadingElement>) => {
+              event.dataTransfer.setData(WORKTREE_DRAG_TYPE, worktree.worktreeId);
+              event.dataTransfer.effectAllowed = "move";
+            }}
+            title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
+            className={`group flex items-start gap-1 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)} ${
+              onDropWorktree ? "-mx-1.5 cursor-grab rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing" : ""
+            }`}
+          >
+            {onDropWorktree && <GripIcon />}
+            <span className="min-w-0 flex-1">
+              {ancestors.length > 0 && <Elbow />}
+              {shownName}
+            </span>
+          </h3>
+        )}
         {worktree.branch && worktree.branch !== worktree.name && (
           <p className="mt-1 font-mono text-[12px] break-all text-muted">
             {worktree.branch}
@@ -285,8 +334,11 @@ export function WorktreePanel({
               aria-label={`${worktree.name} 워크트리 · ${action.label}`}
               title={`${action.label} · ${action.description}`}
               disabled={action.disabled}
+              aria-pressed={action.pressed}
               onClick={action.run}
-              className="cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg disabled:cursor-progress disabled:opacity-40"
+              className={`cursor-pointer rounded-md p-1 hover:bg-tint-2 disabled:cursor-progress disabled:opacity-40 ${
+                action.pressed ? "bg-tint text-focus" : action.danger ? "text-muted hover:text-accent" : "text-muted hover:text-fg"
+              }`}
             >
               {ACTION_ICONS[action.key]}
             </button>
@@ -332,7 +384,7 @@ export function WorktreePanel({
               )}
             </p>
           )}
-        <RemoveWorktree worktree={worktree} sessionCount={all.length} />
+        {removing && <RemoveWorktree worktree={worktree} sessionCount={all.length} onCancel={() => setRemoving(false)} />}
         {menu && (
           <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-72">
             {menu.confirmingCloseAll ? (
@@ -359,6 +411,7 @@ export function WorktreePanel({
                   <MenuItem
                     key={action.key}
                     icon={ACTION_ICONS[action.key]}
+                    tone={action.danger ? "danger" : "default"}
                     description={action.description}
                     disabled={action.disabled}
                     onSelect={() => {

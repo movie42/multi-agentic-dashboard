@@ -6,7 +6,6 @@ import { postAction } from "@/client/shared/api/actions";
 import { Spinner } from "@/client/shared/ui/Spinner";
 
 type Step =
-  | { kind: "idle" }
   | { kind: "confirm" }
   | { kind: "removing"; force: boolean }
   | { kind: "failed"; message: string }
@@ -16,10 +15,13 @@ interface RemoveWorktreeProps {
   worktree: WorktreeSummary;
   /** Agent sessions attached to the worktree; removal closes their terminals. */
   sessionCount: number;
+  /** Called when the user backs out of the confirm step. */
+  onCancel: () => void;
 }
 
-export function RemoveWorktree({ worktree, sessionCount }: RemoveWorktreeProps) {
-  const [step, setStep] = useState<Step>({ kind: "idle" });
+/** The confirm-and-remove step; whoever offers 워크트리 삭제 mounts it when the user picks that action. */
+export function RemoveWorktree({ worktree, sessionCount, onCancel }: RemoveWorktreeProps) {
+  const [step, setStep] = useState<Step>({ kind: "confirm" });
 
   if (worktree.isMain) return null;
 
@@ -33,19 +35,6 @@ export function RemoveWorktree({ worktree, sessionCount }: RemoveWorktreeProps) 
       setStep({ kind: "failed", message: error instanceof Error ? error.message : String(error) });
     }
   };
-
-  if (step.kind === "idle") {
-    return (
-      <button
-        type="button"
-        onClick={() => setStep({ kind: "confirm" })}
-        title="Orca에서 이 워크트리를 지워요. 브랜치는 남아요"
-        className="mt-3 block text-[12px] text-muted hover:text-accent"
-      >
-        워크트리 삭제
-      </button>
-    );
-  }
 
   if (step.kind === "removing") {
     return (
@@ -82,7 +71,7 @@ export function RemoveWorktree({ worktree, sessionCount }: RemoveWorktreeProps) 
         </button>
         <button
           type="button"
-          onClick={() => setStep({ kind: "idle" })}
+          onClick={onCancel}
           className="rounded-full px-2.5 py-0.5 text-muted hover:text-fg"
         >
           취소

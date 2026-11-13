@@ -32,15 +32,22 @@ beforeEach(() => {
 
 describe("RemoveWorktree", () => {
   it("is hidden on the repo's main checkout", () => {
-    const { container } = render(<RemoveWorktree worktree={{ ...worktree, isMain: true }} sessionCount={0} />);
+    const { container } = render(<RemoveWorktree worktree={{ ...worktree, isMain: true }} sessionCount={0} onCancel={() => {}} />);
     expect(container.textContent).toBe("");
+  });
+
+  it("hands the cancel back to whoever opened it", async () => {
+    const onCancel = vi.fn();
+    render(<RemoveWorktree worktree={worktree} sessionCount={0} onCancel={onCancel} />);
+    await userEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("asks before removing and shows progress until it finishes", async () => {
     const request = Promise.withResolvers<void>();
     post.mockReturnValue(request.promise);
-    render(<RemoveWorktree worktree={worktree} sessionCount={2} />);
-    await userEvent.click(screen.getByRole("button", { name: "워크트리 삭제" }));
+    render(<RemoveWorktree worktree={worktree} sessionCount={2} onCancel={() => {}} />);
     expect(screen.getByText("열린 세션 2개도 함께 닫혀요.")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "삭제" }));
     expect(post).toHaveBeenCalledWith({ type: "remove-worktree", worktreePath: "/work/feat-a", force: false });
@@ -52,8 +59,7 @@ describe("RemoveWorktree", () => {
 
   it("offers a forced removal after a failure", async () => {
     post.mockRejectedValueOnce(new Error("contains modified files")).mockResolvedValueOnce();
-    render(<RemoveWorktree worktree={worktree} sessionCount={0} />);
-    await userEvent.click(screen.getByRole("button", { name: "워크트리 삭제" }));
+    render(<RemoveWorktree worktree={worktree} sessionCount={0} onCancel={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "삭제" }));
     expect(await screen.findByText("지우지 못했어요: contains modified files")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "강제로 삭제" }));

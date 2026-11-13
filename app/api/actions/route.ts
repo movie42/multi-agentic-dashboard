@@ -93,6 +93,15 @@ export async function POST(request: Request) {
         ["worktree", "rm", "--worktree", `path:${body.worktreePath}`, ...(body.force ? ["--force"] : [])],
         REMOVE_TIMEOUT_MS,
       );
+    } else if (body.type === "rename-worktree") {
+      await services().orca.cli.run([
+        "worktree",
+        "set",
+        "--worktree",
+        `path:${body.worktreePath}`,
+        "--display-name",
+        body.name.trim(),
+      ]);
     } else if (body.type === "import-project") {
       await services().orca.importProject(body.path);
     } else if (body.type === "rename-session") {

@@ -4,49 +4,61 @@ import { useState } from "react";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import type { WorktreeWizard } from "@/client/features/create-worktree";
+import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { WorktreeSummary } from "@/common/orca/types";
 
-type PickAction = "session" | "terminal" | "diff";
+type PickAction = "session" | "terminal" | "diff" | "remove";
 
 const PICK_LABEL: Record<PickAction, string> = {
   session: "새 세션을 띄울 워크트리",
   terminal: "터미널을 열 워크트리",
   diff: "변경을 읽을 워크트리",
+  remove: "지울 워크트리",
 };
 
 const MENU_WIDTH = 320;
 
-type DeckStep = "deck" | PickAction;
+type DeckStep = "deck" | PickAction | "confirm-remove";
 
 interface ProjectQuickMenuProps {
   worktrees: WorktreeSummary[];
   /** The Orca terminal an agent already runs in for that worktree, if any. */
   terminalOf: (worktree: WorktreeSummary) => string | null;
+  /** Agent sessions attached to the worktree; removing it closes them. */
+  sessionCountOf: (worktree: WorktreeSummary) => number;
   onAction: (action: ActionRequest) => Promise<void>;
   wizard: WorktreeWizard;
 }
 
 /** A 빠른 메뉴 button listing the project's actions; an action that needs a worktree asks for one next. */
-export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: ProjectQuickMenuProps) {
-  const [open, setOpen] = useState<{ at: MenuPoint; step: DeckStep } | null>(null);
+export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onAction, wizard }: ProjectQuickMenuProps) {
+  const [open, setOpen] = useState<{ at: MenuPoint; step: DeckStep; target?: WorktreeSummary } | null>(null);
   const anchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
   if (!anchor) return null;
 
   const close = () => setOpen(null);
   const recent = [...worktrees].sort((a, b) => Number(b.isMain) - Number(a.isMain) || (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0));
+  const removable = recent.filter((worktree) => !worktree.isMain);
+  const candidatesOf = (action: PickAction) => (action === "remove" ? removable : recent);
+  const picking: PickAction | null = open && open.step !== "deck" && open.step !== "confirm-remove" ? open.step : null;
   const pick = (action: PickAction) => {
     if (!open) return;
-    if (worktrees.length === 1) {
-      run(action, anchor);
+    const [only, ...rest] = candidatesOf(action);
+    if (only && rest.length === 0) {
+      run(action, only);
       return;
     }
     setOpen({ ...open, step: action });
   };
   const run = (action: PickAction, worktree: WorktreeSummary) => {
+    if (action === "remove") {
+      if (open) setOpen({ ...open, step: "confirm-remove", target: worktree });
+      return;
+    }
     close();
     if (action === "diff") {
       window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener");
@@ -134,8 +146,30 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
               >
                 터미널
               </MenuItem>
+              {removable.length > 0 && (
+                <>
+                  <MenuSeparator />
+                  <MenuItem
+                    icon={ACTION_ICONS.remove}
+                    tone="danger"
+                    description="Orca에서 워크트리를 지워요. 브랜치는 남아요"
+                    hint={removable.length > 1 ? "워크트리 고르기 →" : undefined}
+                    onSelect={() => pick("remove")}
+                  >
+                    워크트리 삭제
+                  </MenuItem>
+                </>
+              )}
             </>
-          ) : (
+          ) : open.step === "confirm-remove" && open.target ? (
+            <div className="px-1 pb-1">
+              <RemoveWorktree
+                worktree={open.target}
+                sessionCount={sessionCountOf(open.target)}
+                onCancel={() => setOpen({ ...open, step: "deck", target: undefined })}
+              />
+            </div>
+          ) : picking ? (
             <>
               <div className="flex items-center gap-1 px-1 pb-1">
                 <button
@@ -146,11 +180,13 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
                 >
                   ←
                 </button>
-                <span className="text-[12px] font-semibold text-muted">{PICK_LABEL[open.step]}</span>
+                <span className="text-[12px] font-semibold text-muted">
+                  {PICK_LABEL[picking]}
+                </span>
               </div>
               <div className="flex max-h-80 flex-col overflow-y-auto">
-                {recent.map((worktree) => (
-                  <MenuItem key={worktree.worktreeId} hint={worktree.isMain ? "기본" : undefined} onSelect={() => run(open.step === "deck" ? "diff" : open.step, worktree)}>
+                {candidatesOf(picking).map((worktree) => (
+                  <MenuItem key={worktree.worktreeId} hint={worktree.isMain ? "기본" : undefined} onSelect={() => run(picking, worktree)}>
                     <span className="block truncate">{worktree.name}</span>
                     {worktree.branch && worktree.branch !== worktree.name && (
                       <span className="block truncate font-mono text-[11px] text-muted">{worktree.branch}</span>
@@ -159,7 +195,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
                 ))}
               </div>
             </>
-          )}
+          ) : null}
         </ContextMenu>
       )}
     </>
