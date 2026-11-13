@@ -2,16 +2,6 @@ import { describe, expect, it } from "vitest";
 import { agentCard } from "../../../../../test/fixtures";
 import { awaitsUser, foldWorkers, groupAgents } from "./classify";
 
-const permission = {
-  id: "p",
-  paneKey: "pane",
-  receivedAt: 0,
-  toolName: "Bash",
-  toolInput: {},
-  suggestions: [],
-  transcriptPath: "",
-};
-
 describe("awaitsUser", () => {
   it.each([
     ["working", false, false],
@@ -84,7 +74,7 @@ describe("foldWorkers", () => {
 
   it("keeps workers that need a human at the top level", () => {
     const coordinator = agentCard({ id: "c" });
-    const asking = agentCard({ id: "p", parentId: "c", permission });
+    const asking = agentCard({ id: "p", parentId: "c", state: "waiting" });
     const blocked = agentCard({ id: "b", parentId: "c", state: "blocked" });
     const self = agentCard({ id: "s", parentId: "s" });
     expect(foldWorkers([coordinator, asking, blocked, self]).top.map((a) => a.id)).toEqual(["c", "p", "b", "s"]);

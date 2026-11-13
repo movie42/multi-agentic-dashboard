@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { readJson } from "@/client/shared/api/json";
+import { toastError } from "@/client/shared/model/toastStore";
 import { Spinner } from "@/client/shared/ui/Spinner";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
 
 type Step =
@@ -30,7 +31,7 @@ async function post(request: WizardRequest): Promise<WizardResponse> {
 /** The origin for a button on one worktree (`from`) or on the project header (`from` null). */
 export function wizardOrigin(worktree: WorktreeSummary, from: boolean): WizardOrigin {
   return {
-    repoId: worktree.worktreeId.split("::")[0] ?? "",
+    repoId: worktree.projectPath,
     repo: worktree.repo,
     anchorPath: worktree.path,
     from: from ? { path: worktree.path, branch: worktree.branch } : null,
@@ -81,6 +82,7 @@ export function useWorktreeWizard(origin: WizardOrigin) {
     try {
       const payload = await post({ action: "create", origin, plan: step.plan });
       setStep({ kind: "created", name: "created" in payload ? payload.created.name : step.plan.name });
+      if ("created" in payload && payload.created.launchError) toastError("worktree-wizard", new Error(payload.created.launchError));
     } catch (createError) {
       console.error("[worktree-wizard] create", createError);
       setError(createError instanceof Error ? createError.message : String(createError));

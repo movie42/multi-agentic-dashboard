@@ -1,5 +1,4 @@
 import "server-only";
-import { z } from "zod";
 import type { WizardOrigin, WorktreePlan } from "@/common/worktreeWizard/types";
 import { services } from "@/server/container";
 
@@ -19,33 +18,16 @@ export function planProblems(plan: WorktreePlan): string[] {
   return problems;
 }
 
-const CreateResultSchema = z.object({
-  worktree: z.object({ path: z.string().optional(), displayName: z.string().optional() }).optional(),
-});
-
-export async function createWorktree(origin: WizardOrigin, plan: WorktreePlan): Promise<{ path: string; name: string }> {
+export async function createWorktree(origin: WizardOrigin, plan: WorktreePlan): Promise<{ path: string; name: string; launchError?: string }> {
   const problems = planProblems(plan);
   if (problems.length > 0) throw new Error(problems.join(" · "));
-  const prompt = plan.firstPrompt.trim();
-  const parent = plan.parent === "from" && origin.from ? ["--parent-worktree", `path:${origin.from.path}`] : ["--no-parent"];
-  const result = await services().orca.cli.run(
-    [
-      "worktree",
-      "create",
-      "--repo",
-      `id:${origin.repoId}`,
-      "--name",
-      plan.name,
-      "--branch",
-      plan.branch,
-      "--base-branch",
-      plan.baseBranch,
-      ...parent,
-      ...(plan.reference ? ["--reference", plan.reference] : []),
-      ...(prompt ? ["--agent", "claude", "--surface", "terminal", "--prompt", prompt] : []),
-    ],
-    CreateResultSchema,
-    120_000,
-  );
-  return { path: result.worktree?.path ?? "", name: result.worktree?.displayName ?? plan.name };
+  return services().worktrees.create({
+    projectPath: origin.repoId,
+    name: plan.name,
+    branch: plan.branch,
+    baseBranch: plan.baseBranch,
+    parentPath: plan.parent === "from" && origin.from ? origin.from.path : null,
+    reference: plan.reference,
+    prompt: plan.firstPrompt,
+  });
 }

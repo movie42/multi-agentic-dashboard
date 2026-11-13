@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentState, BoardSnapshot, WorktreeSummary } from "@/common/orca/types";
+import type { AgentState, BoardSnapshot, WorktreeSummary } from "@/common/board/types";
 import { defaultBoard } from "@/common/todos/board";
 import type { TodoBoard, TodoCard } from "@/common/todos/types";
 import type { PullRequestInfo } from "@/common/workflow/types";
@@ -36,6 +36,7 @@ function worktree(path: string, pullRequest: PullRequestInfo): WorktreeSummary {
     name: path,
     branch: "feat/x",
     path,
+    projectPath: path,
     isMain: false,
     parentWorktreeId: null,
     unread: false,

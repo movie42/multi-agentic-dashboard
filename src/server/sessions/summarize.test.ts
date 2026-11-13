@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { headFacts, locatorTail, summarizeSession, tailFacts, titlesIn } from "./summarize";
 import { humanPrompt } from "./transcriptText";
-import { panesFromPs } from "./SessionLocator";
 import { parseBookmarkLines, sbTimestamp } from "./BookmarkStore";
 
 const line = (value: unknown) => JSON.stringify(value);
@@ -87,17 +86,6 @@ describe("locatorTail", () => {
     expect(tail.lastAssistant).toBe("final");
     expect(tail.recentUser).toHaveLength(20);
     expect(tail.recentUser.slice(0, 2)).toEqual(["queued", "prompt 24"]);
-  });
-});
-
-describe("panesFromPs", () => {
-  it("maps processes to panes through ORCA_AGENT_PANE", () => {
-    const byPid = new Map([
-      [10, { sessionId: "s1", cwd: "/a" }],
-      [11, { sessionId: "s2", cwd: "/b" }],
-    ]);
-    const stdout = "  10 claude ORCA_AGENT_PANE=tab:leaf HOME=/x\n  11 claude HOME=/x\n  12 claude ORCA_AGENT_PANE=other\n";
-    expect([...panesFromPs(stdout, byPid)]).toEqual([["tab:leaf", { sessionId: "s1", cwd: "/a" }]]);
   });
 });
 

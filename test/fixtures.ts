@@ -1,4 +1,4 @@
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import type { FlowTaskSummary } from "@/common/workflow/types";
 
 export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
@@ -23,8 +23,10 @@ export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
     unread: false,
     terminalHandle: null,
     artifacts: [],
-    permission: null,
     parentId: null,
+    model: null,
+    contextPercent: null,
+    permission: null,
     ...overrides,
   };
 }

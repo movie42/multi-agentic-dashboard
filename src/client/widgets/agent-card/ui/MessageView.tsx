@@ -31,9 +31,6 @@ export function MessageView({ message }: MessageViewProps) {
         )}
       </div>
       <SlackCopyButton source={bodyRef} plainText={[parsed.lead, parsed.rest].filter(Boolean).join("\n\n")} />
-      {parsed.isPreview && (
-        <p className="text-[12px] text-faint">Orca가 앞 200자만 넘겨준 미리보기예요.</p>
-      )}
     </div>
   );
 }

@@ -76,17 +76,35 @@ function UsageRow({ label, window, now }: UsageRowProps) {
   );
 }
 
+const SOURCE_HINTS = {
+  statusline: "대시보드가 띄운 Claude 세션의 상태줄에서 받은 값이에요",
+  api: "띄운 세션의 최근 값이 없어 Anthropic 사용량 API에서 받은 값이에요",
+} as const;
+
+export function formatReceived(receivedAt: number, now: number): string {
+  const minutes = Math.max(0, Math.round((now - receivedAt) / 60_000));
+  if (minutes < 1) return "방금 받은 값";
+  if (minutes < 60) return `${minutes}분 전 기준`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전 기준`;
+  return `${Math.floor(hours / 24)}일 전 기준`;
+}
+
 export function UsageMeter() {
   const usage = useQuery(usageQueryOptions());
   if (usage.isPending) return <p className="text-[12px] text-muted">사용량 확인 중…</p>;
   if (usage.isError) {
     return <p className="text-[12px] text-muted">{`사용량을 못 읽었어요 · ${errorMessage(usage.error)}`}</p>;
   }
-  const { session, weekly, fetchedAt } = usage.data;
+  const { session, weekly, receivedAt, source } = usage.data;
+  const now = usage.dataUpdatedAt;
   return (
     <div className="flex flex-col gap-3">
-      <UsageRow label="현재 세션 (5시간)" window={session} now={fetchedAt} />
-      <UsageRow label="주간 (7일)" window={weekly} now={fetchedAt} />
+      <UsageRow label="현재 세션 (5시간)" window={session} now={now} />
+      <UsageRow label="주간 (7일)" window={weekly} now={now} />
+      <p className="text-[11px] text-faint" title={SOURCE_HINTS[source]}>
+        {formatReceived(receivedAt, now)}
+      </p>
     </div>
   );
 }

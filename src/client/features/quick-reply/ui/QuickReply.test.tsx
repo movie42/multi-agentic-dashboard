@@ -1,16 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { postAction } from "@/client/shared/api/actions";
+import { postAction, readVoice, toggleVoice } from "@/client/shared/api/actions";
 import { useToastStore } from "@/client/shared/model/toastStore";
 import { QuickReply } from "./QuickReply";
 
-vi.mock("@/client/shared/api/actions", () => ({ postAction: vi.fn(), uploadAttachment: vi.fn() }));
+vi.mock("@/client/shared/api/actions", () => ({ postAction: vi.fn(), uploadAttachment: vi.fn(), toggleVoice: vi.fn(), readVoice: vi.fn() }));
 
 const post = vi.mocked(postAction);
+const toggle = vi.mocked(toggleVoice);
+const read = vi.mocked(readVoice);
 
 beforeEach(() => {
   post.mockReset();
+  toggle.mockReset();
+  read.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -20,6 +24,41 @@ afterEach(() => {
 });
 
 describe("QuickReply", () => {
+  it("stops the running turn from the 멈추기 button and from Esc, only while working", async () => {
+    post.mockResolvedValue();
+    const { rerender } = render(<QuickReply terminalHandle="term-1" working={false} />);
+    expect(screen.queryByRole("button", { name: "멈추기" })).toBeNull();
+    rerender(<QuickReply terminalHandle="term-1" working />);
+    await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
+    expect(post).toHaveBeenLastCalledWith({ type: "interrupt-session", terminalHandle: "term-1" });
+    await userEvent.type(screen.getByRole("textbox"), "{Escape}");
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post).not.toHaveBeenCalledWith(expect.objectContaining({ type: "send-prompt" }));
+  });
+
+  it("sends the transcript straight away when 보내기 is pressed while recording", async () => {
+    post.mockResolvedValue();
+    read.mockResolvedValue({ recording: true, transcript: "" });
+    toggle.mockResolvedValueOnce({ recording: true }).mockResolvedValueOnce({ recording: false, transcript: "테스트 돌려줘" });
+    render(<QuickReply terminalHandle="term-1" working={false} />);
+    await userEvent.click(screen.getByRole("button", { name: /음성으로 말하기/ }));
+    await screen.findByRole("button", { name: /듣는 중/ });
+    await userEvent.click(screen.getByRole("button", { name: "보내기" }));
+    expect(await screen.findByText("보냈어요. 상태가 곧 바뀌어요.")).toBeTruthy();
+    expect(post).toHaveBeenCalledWith({ type: "send-prompt", terminalHandle: "term-1", text: "테스트 돌려줘" });
+  });
+
+  it("fills the box instead of sending when the mic is pressed again", async () => {
+    read.mockResolvedValue({ recording: true, transcript: "" });
+    toggle.mockResolvedValueOnce({ recording: true }).mockResolvedValueOnce({ recording: false, transcript: "고쳐줘" });
+    render(<QuickReply terminalHandle="term-1" working={false} />);
+    await userEvent.click(screen.getByRole("button", { name: /음성으로 말하기/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /듣는 중/ }));
+    await screen.findByRole("button", { name: /음성으로 말하기/ });
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("고쳐줘");
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("sends the text, clears the box and says it was sent", async () => {
     post.mockResolvedValue();
     render(<QuickReply terminalHandle="term-1" working={false} />);

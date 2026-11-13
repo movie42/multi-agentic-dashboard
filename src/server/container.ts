@@ -4,20 +4,30 @@ import type { AskStore } from "./intentDiff/AskStore";
 import { createIntentDiffServices } from "./intentDiff/createServices";
 
 type IntentDiffServices = ReturnType<typeof createIntentDiffServices>;
-import { createOrcaServices, type OrcaServices } from "./orca/services";
+import { BoardService } from "./board/BoardService";
+import { listWorktrees } from "./projects/gitWorktrees";
+import { OrcaImport } from "./projects/importFromOrca";
+import { ORCA_BIN, PROJECTS_FILE, WORKTREE_META_FILE } from "./projects/paths";
+import { ProjectRegistry, type Project } from "./projects/ProjectRegistry";
+import { WorktreeActions } from "./projects/WorktreeActions";
+import { WorktreeMeta } from "./projects/WorktreeMeta";
+import { RunnerClient } from "./runner/RunnerClient";
+import { RUNNER_BASE_URL, spawnDaemon } from "./runner/spawnDaemon";
+import { createVoice, type VoiceIntent, type VoiceTerminal, type VoiceToggleResult } from "./runner/voice";
+import { CLAUDE_SETTINGS_FILE, readVoiceMode } from "./runner/voiceMode";
+import { SessionTranscripts } from "./sessions/SessionTranscripts";
+import { nodeExecFile, nodeFileSystem } from "./shared/ports";
 import type { Highlighter } from "./intentDiff/Highlighter";
 import type { LanguageServices } from "./intentDiff/LanguageServices";
 import type { SnapshotLog } from "./intentDiff/SnapshotLog";
 import type { TranscriptLoader } from "./intentDiff/TranscriptLoader";
-import { PermissionStore } from "./permissions/PermissionStore";
 import type { ActivityStep, ConversationTurn } from "@/common/sessions/types";
-import { STEP_LIMIT, stepsOf } from "./sessions/activitySteps";
+import { CHAT_LIMIT, chatItemsOf, STEP_LIMIT, stepsOf } from "./sessions/activitySteps";
 import { TURN_LIMIT, turnsOf } from "./sessions/conversationTurns";
 import { TranscriptTailReader } from "./sessions/TranscriptTailReader";
 import { BookmarkStore } from "./sessions/BookmarkStore";
-import { BOOKMARK_FILE, LIVE_SESSIONS_DIR, PROJECTS_DIR, SESSION_CACHE_FILE } from "./sessions/paths";
+import { BOOKMARK_FILE, projectDirOf, PROJECTS_DIR, SESSION_CACHE_FILE } from "./sessions/paths";
 import { SessionIndex } from "./sessions/SessionIndex";
-import { SessionLocator } from "./sessions/SessionLocator";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { DocServer } from "./docs/DocServer";
 import { FlowAnswerStore } from "./docs/FlowAnswerStore";
@@ -37,11 +47,10 @@ import { createWorktreeWizardServices, type WorktreeWizardServices } from "./wor
 
 export interface Services {
   errorLog: ErrorLog;
-  permissions: PermissionStore;
   sessionIndex: SessionIndex;
-  sessionLocator: SessionLocator;
   sessionTitles: SessionTitles;
   activity: TranscriptTailReader<ActivityStep>;
+  chat: TranscriptTailReader<ActivityStep>;
   conversation: TranscriptTailReader<ConversationTurn>;
   bookmarks: BookmarkStore;
   askStore: AskStore;
@@ -55,7 +64,15 @@ export interface Services {
   isWorktree: IntentDiffServices["isWorktree"];
   concludeAsk: IntentDiffServices["concludeAsk"];
   workflow: WorkflowServices;
-  orca: OrcaServices;
+  board: BoardService;
+  runner: RunnerClient;
+  voice: {
+    toggle: (terminalHandle: string, intent?: VoiceIntent) => Promise<VoiceToggleResult>;
+    read: (terminalHandle: string) => Promise<{ recording: boolean; transcript: string }>;
+  };
+  projects: ProjectRegistry;
+  worktreeMeta: WorktreeMeta;
+  worktrees: WorktreeActions;
   worktreeWizard: WorktreeWizardServices;
   todos: TodoStore;
   todoLaunches: TodoLaunchAttacher;
@@ -86,11 +103,9 @@ function createServices(): Services {
   };
   const workflow = createWorkflowServices(reporters);
   const sessionTitles = new SessionTitles(PROJECTS_DIR);
-  const sessionLocator = new SessionLocator({ projectsDir: PROJECTS_DIR, liveSessionsDir: LIVE_SESSIONS_DIR, warn });
-  const permissions = new PermissionStore();
   const bookmarks = new BookmarkStore(BOOKMARK_FILE, warn);
   const todos = new TodoStore(TODO_FILE, warn);
-  const intentDiff = createIntentDiffServices({ projectDirOf: (cwd) => sessionLocator.projectDirOf(cwd), warn });
+  const intentDiff = createIntentDiffServices({ projectDirOf: (cwd) => projectDirOf(PROJECTS_DIR, cwd), warn });
   const sessionIndex = new SessionIndex({
     projectsDir: PROJECTS_DIR,
     cacheFile: SESSION_CACHE_FILE,
@@ -98,25 +113,61 @@ function createServices(): Services {
     warn,
   });
   const transcriptOf = (sessionId: string) => sessionTitles.cachedTranscriptOf(sessionId);
-  const orca = createOrcaServices(reporters, { workflow, permissions, bookmarks, sessionLocator, sessionTitles });
-  const docs = new DocServer({ worktreePaths: (options) => orca.board.worktreePaths(options) });
+  const runner = new RunnerClient({ baseUrl: RUNNER_BASE_URL, fetch: (input, init) => fetch(input, init), start: spawnDaemon });
+  const voiceTerminal: VoiceTerminal = {
+    screen: (handle) => runner.screen(handle),
+    type: (handle, text) => runner.input(handle, { text, raw: true }),
+  };
+  const projects = new ProjectRegistry(PROJECTS_FILE, warn);
+  const worktreeMeta = new WorktreeMeta(WORKTREE_META_FILE, warn);
+  const orcaImport = new OrcaImport({ bin: ORCA_BIN, execFile: nodeExecFile, projects, meta: worktreeMeta, warn });
+  const sessionTranscripts = new SessionTranscripts(PROJECTS_DIR, warn);
+  const worktreesOf = (project: Project) => listWorktrees(nodeExecFile, project, warn);
+  const worktrees = new WorktreeActions({
+    execFile: nodeExecFile,
+    projects: () => projects.list(),
+    worktreesOf,
+    meta: worktreeMeta,
+    runner,
+    warn,
+  });
+  const board = new BoardService({
+    prepare: () => orcaImport.once(),
+    projects: () => projects.list(),
+    worktreesOf,
+    meta: () => worktreeMeta.read(),
+    runnerSessions: () => runner.list(),
+    workflow,
+    sessions: {
+      transcriptOf: (cwd, sessionId) => sessionTranscripts.read(cwd, sessionId),
+      sessionRefOf: (file, size) => sessionTitles.refOf(file, size),
+      readBookmarks: () => bookmarks.read(),
+    },
+    fs: nodeFileSystem,
+    warn,
+  });
+  const docs = new DocServer({ worktreePaths: (options) => board.worktreePaths(options) });
   return {
     errorLog,
-    permissions,
     sessionIndex,
-    sessionLocator,
     sessionTitles,
     activity: new TranscriptTailReader(transcriptOf, { parse: stepsOf, enough: STEP_LIMIT }),
+    chat: new TranscriptTailReader(transcriptOf, { parse: chatItemsOf, enough: CHAT_LIMIT }),
     conversation: new TranscriptTailReader(transcriptOf, { parse: turnsOf, enough: TURN_LIMIT }),
     bookmarks,
     ...intentDiff,
     workflow,
-    orca,
+    board,
+    runner,
+    voice: createVoice(voiceTerminal, { mode: () => readVoiceMode(CLAUDE_SETTINGS_FILE) }),
+    projects,
+    worktreeMeta,
+    worktrees,
     worktreeWizard: createWorktreeWizardServices(),
     todos,
     todoLaunches: new TodoLaunchAttacher(todos),
     todoAgent: new TodoAgent({
-      loadBoard: () => orca.board.load(),
+      loadBoard: () => board.load(),
       listSessions: () => sessionIndex.list(),
       todos,
     }),

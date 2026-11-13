@@ -1,1 +1,1 @@
-export { PermissionPanel } from "./ui/PermissionPanel";
+export { PermissionPrompt } from "./ui/PermissionPrompt";

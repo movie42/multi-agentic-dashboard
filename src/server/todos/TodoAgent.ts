@@ -2,7 +2,7 @@ import "server-only";
 import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import type { AgentCard, BoardSnapshot, WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, BoardSnapshot, WorktreeSummary } from "@/common/board/types";
 import { TodoRuleError } from "@/common/todos/board";
 import {
   AGENT_OP_TYPES,
@@ -186,7 +186,7 @@ function openFact(agent: AgentCard, summary: ScannedSession | undefined): AgentS
   };
 }
 
-/** Transcripts only know their folder; a worktree Orca still tracks gives the real repo and name. */
+/** Transcripts only know their folder; a worktree still on the board gives the real repo and name. */
 function worktreeAt(worktrees: readonly WorktreeSummary[], cwd: string | null): WorktreeSummary | undefined {
   if (!cwd) return undefined;
   return worktrees.find((worktree) => cwd === worktree.path || cwd.startsWith(`${worktree.path}/`));

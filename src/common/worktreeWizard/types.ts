@@ -29,5 +29,5 @@ export type WizardRequest =
 
 export type WizardResponse =
   | { ok: true; sessionId: string; turn: WizardTurn }
-  | { ok: true; created: { path: string; name: string } }
+  | { ok: true; created: { path: string; name: string; launchError?: string } }
   | { ok: false; error: string };

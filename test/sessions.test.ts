@@ -109,21 +109,6 @@ describe("session titles", () => {
   });
 });
 
-describe("findSession", () => {
-  it("matches a pane by its last reply, then remembers the file", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { services } = await import("@/server/container");
-    const locator = services().sessionLocator;
-    const projectDirOf = (cwd: string) => locator.projectDirOf(cwd);
-    const findSession = (pane: string, cwd: string, preview: string | null, prompt: string | null) => locator.find(pane, cwd, preview, prompt);
-    expect(projectDirOf(CWD)).toBe(PROJECT_DIR);
-    const byReply = await findSession("pane-1", CWD, "마지막 답변은 열 글자를 넘겨요", null);
-    expect(byReply).toMatchObject({ file: path.join(PROJECT_DIR, `${S1}.jsonl`), lastAssistant: "마지막 답변은 열 글자를 넘겨요" });
-    expect(await findSession("pane-2", CWD, null, "headless 요청 그리고 더")).toBeNull();
-    expect(await findSession("pane-1", CWD, null, null)).toMatchObject({ file: path.join(PROJECT_DIR, `${S1}.jsonl`) });
-  });
-});
-
 describe("bookmarks", () => {
   it("saves, reads and removes claude bookmarks in the sb file format", async () => {
     const { services } = await import("@/server/container");

@@ -27,7 +27,7 @@ describe("ImportProject", () => {
     renderImport();
     await userEvent.click(screen.getByRole("button", { name: "+ 프로젝트 불러오기" }));
     await userEvent.click(screen.getByRole("button", { name: "폴더 선택" }));
-    await waitFor(() => expect(screen.getByText(/Orca에 추가했어요/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/프로젝트로 추가했어요/)).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/actions",
       expect.objectContaining({ body: JSON.stringify({ type: "import-project", path: "/Users/me/app" }) }),
@@ -44,7 +44,7 @@ describe("ImportProject", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the orca error for a typed path and keeps the form", async () => {
+  it("shows the error for a typed path and keeps the form", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn(() => respond({ ok: false, error: "이미 추가된 저장소" })));
     renderImport();

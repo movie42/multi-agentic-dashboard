@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectSummary } from "@/common/orca/types";
+import type { ProjectSummary } from "@/common/board/types";
 import type { WorkflowMode } from "@/common/workflow/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 
@@ -11,6 +11,8 @@ const PAGES: ReadonlySet<string> = new Set([SESSIONS_PAGE, DIFF_PAGE, TODO_PAGE]
 
 export interface WorkspacePrefs {
   selectedRepo: string | null;
+  /** Only meaningful together with selectedRepo; may name a worktree that no longer exists. */
+  selectedWorktreeId: string | null;
   showingSessions: boolean;
   showingDiff: boolean;
   showingTodo: boolean;
@@ -18,6 +20,7 @@ export interface WorkspacePrefs {
   openDiff: () => void;
   openTodo: () => void;
   selectRepo: (repo: string | null) => void;
+  selectWorktree: (repo: string, worktreeId: string) => void;
   modeOf: (project: ProjectSummary) => WorkflowMode;
   isModeOverridden: (repo: string) => boolean;
   toggleMode: (project: ProjectSummary) => void;
@@ -37,6 +40,7 @@ export function useWorkspacePrefs(): WorkspacePrefs {
 
   return {
     selectedRepo: selected[0] && !PAGES.has(selected[0]) ? selected[0] : null,
+    selectedWorktreeId: selected[0] && !PAGES.has(selected[0]) ? (selected[1] ?? null) : null,
     showingSessions: selected[0] === SESSIONS_PAGE,
     showingDiff: selected[0] === DIFF_PAGE,
     showingTodo: selected[0] === TODO_PAGE,
@@ -44,6 +48,7 @@ export function useWorkspacePrefs(): WorkspacePrefs {
     openDiff: () => writeSelected([DIFF_PAGE]),
     openTodo: () => writeSelected([TODO_PAGE]),
     selectRepo: (repo) => writeSelected(repo ? [repo] : []),
+    selectWorktree: (repo, worktreeId) => writeSelected([repo, worktreeId]),
     modeOf,
     isModeOverridden: (repo) => overrideOf(repo) !== null,
     toggleMode: (project) => {

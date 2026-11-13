@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { firstStatusOfColumn } from "@/common/todos/board";
 import type { TodoBoard, TodoCard, TodoColumn as TodoColumnData } from "@/common/todos/types";
 import { sessionListQueryOptions } from "@/client/entities/session";

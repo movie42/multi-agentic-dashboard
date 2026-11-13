@@ -1,0 +1,305 @@
+{
+  "id": "session-runner",
+  "title": "세션 러너 데몬 1단계 — Orca 없이 세션 띄우고 보기",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료 · Phase 3개",
+      "conclusion": [
+        "같은 저장소의 daemon/ 폴더에 Next.js와 분리된 데몬을 만들었고, bun run daemon으로 띄우면 127.0.0.1:3198에서 기다린다.",
+        "데몬이 node-pty로 claude를 실행해 프로세스를 들고 있고, /runner 화면이 WebSocket으로 붙어 xterm.js 터미널로 보여 준다.",
+        "상태는 claude를 띄울 때 --settings로 넘긴 세션 전용 훅이 데몬에 알려 주며, 전역 ~/.claude/settings.json은 건드리지 않는다.",
+        "데몬이 재시작되면 세션은 사라진다. 기존 대시보드 화면 연결은 2단계에서 한다."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 데몬 뼈대와 세션 실행",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "node-pty · ws · @xterm/xterm · @xterm/addon-fit 설치와 node-pty 동작 확인",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>package.json</code>"
+                ],
+                [
+                  "결정",
+                  "node-pty는 네이티브 모듈이라 bun 런타임 호환이 불확실해서, 데몬은 Node 24의 TypeScript 직접 실행(node daemon/main.ts)으로 돌린다. 설치만 bun으로 한다."
+                ],
+                [
+                  "결정",
+                  "bun이 node-pty의 설치 스크립트를 막아 spawn-helper에 실행 권한이 빠지므로, trustedDependencies에 올리고 postinstall에서 권한을 붙인다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "세션 상태 타입과 상태 전이 순수 함수",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/status.ts</code> · <code>daemon/session/status.test.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "데이터 변환은 순수 함수, 상태와 I/O는 클래스 — refactor-architecture 작업의 원칙"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "SessionRegistry — pty를 띄우고 출력 스크롤백(최근 일부)을 들고, 붙은 연결들에 흘려보내는 클래스",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code> · 테스트"
+                ],
+                [
+                  "재사용",
+                  "pty 생성은 주입받는 포트로 둔다 — <code>src/server/shared/ports.ts</code>의 ExecFileFn 주입 패턴"
+                ],
+                [
+                  "결정",
+                  "페이지를 새로고침해도 이어 보도록 세션마다 출력 끝부분을 메모리에 남긴다. 데몬이 재시작되면 세션은 사라진다(1단계 한정)."
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "HTTP + WebSocket 서버 — 세션 띄우기 · 목록 · 종료, 세션별 터미널 소켓",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code> · <code>daemon/main.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "출처 검사는 <code>src/server/security/origin.ts</code>의 로컬 호스트 판정 방식을 따른다"
+                ],
+                [
+                  "결정",
+                  "포트 3101(개발 서버 3100, 데스크톱 3199와 겹치지 않게), 127.0.0.1에만 연다. 대시보드 출처(127.0.0.1:3100 · 3199)가 아닌 WebSocket 연결은 거절한다."
+                ],
+                [
+                  "결정",
+                  "3101은 다른 bun 서버가 이미 쓰고 있어서 포트를 3198로 바꿨다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-5",
+              "title": "실행 스크립트와 테스트 경로 등록",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>package.json</code>의 daemon 스크립트 · <code>vitest.config.ts</code>의 include에 daemon/**"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: bun run test 통과, bun run daemon 후 curl로 세션을 띄우고 목록에 나오는지 확인",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "단위 테스트 17개 통과. curl로 세션을 띄우면 목록에 나오고, 다른 출처 요청은 403, 없는 폴더는 400."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 훅으로 상태 받기",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "세션 전용 훅 설정 만들기 — UserPromptSubmit · Notification · Stop을 데몬 주소로 보내는 http 훅",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/hookSettings.ts</code> · 테스트"
+                ],
+                [
+                  "재사용",
+                  "<code>scripts/install-permission-hook.mjs</code>가 쓰는 type: http 훅 형식"
+                ],
+                [
+                  "결정",
+                  "claude를 --session-id(데몬이 만든 uuid)와 --settings(이 훅 JSON)로 띄워서, 어느 세션의 훅인지 주소만 보고 안다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "훅 수신 엔드포인트 — 받은 이벤트를 상태 전이 함수에 넣고 목록 구독자에게 알림",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code>"
+                ],
+                [
+                  "결정",
+                  "UserPromptSubmit → 작업 중, Notification → 입력 대기, Stop → 턴 끝남, 프로세스 종료 → 종료."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 실제 claude를 띄워 프롬프트를 보내고, 목록 응답의 상태가 작업 중 → 턴 끝남으로 바뀌는지 확인",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "이 저장소에서 실제 claude에 프롬프트를 보내자 상태가 idle → working → idle로 바뀌었다."
+                ],
+                [
+                  "결정",
+                  "데몬을 claude 세션 안에서 띄우면 CLAUDE_CODE_CHILD_SESSION이 상속돼 트랜스크립트 저장이 꺼지므로, 세션 환경에서 이 변수를 지운다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · /runner 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "데몬 클라이언트 — 목록 조회 · 띄우기 · 종료 API와 터미널 소켓 연결",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/runner/api/*</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/client/entities/terminal/api/terminalQuery.ts</code>의 queryOptions 구성. 목록은 폴링 대신 데몬의 이벤트 소켓으로 갱신"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "터미널 뷰 — xterm.js를 소켓에 붙이고 창 크기에 맞춰 리사이즈",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/runner-terminal/*</code>"
+                ],
+                [
+                  "결정",
+                  "xterm은 브라우저 전역 객체를 쓰므로 서버 렌더링을 피해 effect 안에서 동적 import한다. 터미널 색은 --tint · --fg 토큰에서 읽는다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "/runner 화면 — 폴더 경로 입력과 띄우기 버튼, 상태가 보이는 세션 목록, 고른 세션의 터미널",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/runner/page.tsx</code> · <code>src/client/views/runner/*</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>app/graph</code> · <code>src/client/views/graph</code>처럼 경로 하나에 view 하나"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: 브라우저에서 세션을 띄워 터미널에 입력하고, 새로고침 뒤에도 출력이 이어지고, 상태 표시가 바뀌는지 확인. 타입 검사와 bun run test 통과",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "헤드리스 브라우저에서 이 저장소로 세션을 띄워 터미널에 입력하자 답이 왔고, 상태가 작업 중에서 입력 기다림으로 돌아왔다. 새로고침 뒤에도 이전 출력이 다시 그려졌다. tsc · eslint 통과, 전체 테스트 447개 통과."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "wait",
+      "summary": "리뷰 전",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": false
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": false
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": false
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": false
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "Orca를 띄우지 않고도 이 앱이 직접 워크트리에서 claude 세션을 띄우고, 웹 화면에서 진짜 터미널로 보고 입력한다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 (2026-11-13 대화) — '독립 프로젝트로 가는 게 맞다', '1단계 진행해줘'"
+    },
+    {
+      "text": "세션 상태(작업 중 · 입력 대기 · 턴 끝남 · 종료)는 화면을 2초마다 읽는 대신 Claude Code 훅이 데몬에 알려 준다.",
+      "state": "confirmed",
+      "basis": "대화에서 합의한 1단계 범위"
+    },
+    {
+      "text": "전환 기간에는 Orca 세션과 함께 쓴다. 기존 에이전트 목록 연결(2단계)과 Orca 의존 제거(3단계)는 이번 범위 밖이다.",
+      "state": "confirmed",
+      "basis": "대화에서 합의한 단계 구분"
+    }
+  ]
+}

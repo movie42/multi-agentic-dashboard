@@ -1,0 +1,1002 @@
+{
+  "id": "chat-ui",
+  "title": "세션 탭 · 채팅 UI · 모델 선택 · 컨텍스트 · 상태줄 사용량",
+  "type": "기능 개발",
+  "branch": "feat/session-runner",
+  "links": [
+    {
+      "label": "요청 스크린샷 (도구 요약 줄)",
+      "url": "file:///var/folders/d3/_l5mnvw931qd0010z2fvxv9m0000gn/T/agent-control/attachments/254b749c-bd90-4b45-824b-e567846d2dfc/스크린샷_2026-11-13_오후_8.45.12.png"
+    }
+  ],
+  "stages": {
+    "grill": {
+      "rounds": [
+        {
+          "id": "R1",
+          "askedAt": "11/13",
+          "from": "사용자 요청 · 지금 코드 확인",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "워크트리 안 세션 탭 — 어느 탭이 먼저 보이나요?",
+              "said": "“워크 트리 내부에 세션이 세로로 스크롤되는데 탭으로 전환시켜줘”",
+              "intent": "탭이 저절로 바뀌면 읽던 대화가 눈앞에서 사라지고, 안 바뀌면 답을 기다리는 세션을 놓칠 수 있어요. 둘 중 무엇을 지킬지 정해야 탭 동작이 정해져요.",
+              "body": "탭 줄에는 세션마다 상태 점 · 제목 · 안 읽음 표시를 두고, 지금처럼 끌어서 순서를 바꿀 수 있게 해요. 정할 것은 처음 열 때와 다른 세션이 내 차례가 됐을 때 어느 탭을 보여 줄지예요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "워크트리 패널 안에 세션 카드가 세로로 쌓이고, 한 카드만 펼쳐져요 (<code>AgentList</code> · <code>AgentCardView</code>)."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "마지막으로 고른 탭을 워크트리마다 기억 · 내 차례 세션은 탭에 빨간 점으로만 알림"
+                },
+                {
+                  "value": "b",
+                  "label": "내 차례 세션이 생기면 그 탭으로 자동 전환"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 읽거나 입력하던 화면이 갑자기 바뀌지 않고, 내 차례 알림은 이미 상단 알림 줄과 사이드바 숫자가 따로 해 줘요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "세션 탭은 워크트리마다 마지막으로 고른 탭을 기억하고, 다른 세션이 내 차례가 돼도 탭을 저절로 바꾸지 않아요. 그 세션 탭에 빨간 점만 붙여 알려요.",
+              "reason": {
+                "text": "읽거나 입력하던 화면이 갑자기 바뀌지 않게 한다 (추천안을 그대로 고름).",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획에서 세션 탭 Phase로 옮길 예정"
+            },
+            {
+              "id": "Q2",
+              "title": "카드 안 화면 전환 — 채팅 · 진행 기록 · 터미널을 어떻게 나눌까요?",
+              "said": "“진행 기록은 버튼으로 전환해서 따로 보게하고 챗에서는 그냥 선형으로”",
+              "intent": "권한 요청 화면은 지금 터미널에서만 답할 수 있어서(권한 패널은 Orca 제거 때 지움), 채팅을 기본으로 바꾸면 권한 대기 세션에서 답할 곳을 못 찾을 수 있어요.",
+              "body": "카드 머리 아래에 <b>채팅 | 진행 기록 | 터미널</b> 세 칸 전환 버튼을 두고 기본은 채팅으로 해요. 지금은 권한 요청 · 입력 대기 세션이면 터미널이 저절로 열려요. 이 자동 열림을 유지할지 정해 주세요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "권한 요청(<code>blocked</code>) · 입력 대기(<code>waiting</code>)면 터미널이 기본으로 열려요 (<code>AgentCardView.tsx</code> <code>opensByDefault</code>)."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "기본 채팅 · 권한 요청 대기일 때만 터미널로 자동 전환"
+                },
+                {
+                  "value": "b",
+                  "label": "항상 채팅 · 권한 요청은 채팅 맨 아래에 '터미널에서 답하기' 버튼으로 안내"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 권한 요청은 터미널에서 키 한 번으로 답해야 해서, 그때만 터미널을 바로 보여 주는 쪽이 한 번 덜 눌러요.",
+              "answer": {
+                "choice": "unsure",
+                "why": "",
+                "copy": "",
+                "note": "UI 모드일때는 이전처럼 UI로 승인 UI로 표현해줘 왜 그게 안되는건가? \n터미널로 전환도 가능해야해 그런데 내 생각에 터미널이 백그라운드에 계속 켜져있는것같은데 그게 아니라 전환이 되어야해.\n참고로 터미널도 실행할수 있게 터미널도 넣어줘 \n그리고 history는 따로 버튼이 있으면 좋겠어",
+                "followUp": ""
+              },
+              "reason": {
+                "text": "UI 모드에서는 권한 승인을 예전처럼 화면 버튼으로 하고, 터미널은 카드 아래에 붙지 않고 전환되며, 진행 기록은 따로 버튼으로 연다.",
+                "by": "user"
+              },
+              "decision": "정하지 않음 — 메모에 새 요구 세 가지(채팅 안 권한 승인, 터미널과 전환, 셸 터미널 추가)가 있어서 [[R2-Q1]] · [[R2-Q2]] · [[R2-Q3]]으로 다시 물어요. 메모의 history는 따로 버튼으로 연다는 것만 정해졌어요. history는 도구 진행 기록이 아니라 예전 카드의 '이전 대화 보기' 목록이에요.",
+              "appliedTo": "[[R2-Q1]] [[R2-Q2]] [[R2-Q3]]"
+            },
+            {
+              "id": "Q3",
+              "title": "채팅 안 도구 사용 기록을 얼마나 접을까요?",
+              "said": "“작업 기록을 전부 보여줄 필요 없고 기존처럼 이미지처럼 요약으로 보여주고 (펼칠수 있음)” + 스크린샷의 <code>● Bash Inspect recent commit…</code> 줄",
+              "intent": "한 답변 사이에 도구 호출이 수십 개 끼면 채팅이 도구 목록으로 덮여요. 기본으로 몇 줄을 보일지가 채팅을 읽을 수 있는지를 정해요.",
+              "body": "채팅은 내 메시지(말풍선) → 도구 사용 줄 → 에이전트 답(마크다운) 순서로 위에서 아래로 흘러요. 도구 줄은 스크린샷처럼 <code>● 도구이름 설명</code> 한 줄이고, 줄을 누르면 실행한 명령 · 입력이 펼쳐져요. 정할 것은 연달아 쓴 도구가 많을 때 처음부터 다 보일지예요.",
+              "context": [
+                [
+                  "데이터",
+                  "진행 기록이 이미 도구마다 이름 · 한 줄 설명 · 상세를 갖고 있어요 (<code>ActivityStep</code>, <code>src/common/sessions/types.ts</code>)."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "도구 줄을 전부 보이고, 줄마다 눌러서 상세 펼침"
+                },
+                {
+                  "value": "b",
+                  "label": "연달아 쓴 도구가 4개 넘으면 마지막 3줄만 보이고 위는 '도구 N개 더' 한 줄로 접음"
+                },
+                {
+                  "value": "c",
+                  "label": "도구 묶음 전체를 '도구 N개 사용' 한 줄로 접고, 펼치면 스크린샷 같은 목록"
+                }
+              ],
+              "recommended": "b",
+              "recommendation": "b. 스크린샷 같은 줄 모양은 그대로 두면서, 도구를 수십 번 쓴 답변에서도 채팅이 한 화면에 읽혀요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "도구 사용 줄은 접지 않고 전부 보여요. 줄마다 눌러서 실행한 명령과 입력을 펼쳐 봐요. 추천안(4개 넘으면 접기)과 달리 고른 것이라, 도구를 수십 번 쓴 답변에서는 채팅이 길어지는 것을 감수해요.",
+              "reason": {
+                "text": "사용자가 추천안 대신 '전부 보이고 줄마다 펼침'을 골랐다. 이유는 적지 않았다.",
+                "by": "inferred"
+              },
+              "appliedTo": "03 구현 계획의 채팅 Phase로 옮길 예정"
+            },
+            {
+              "id": "Q4",
+              "title": "모델은 어디서 고르나요?",
+              "said": "“모델 선택할수 있어야하고”",
+              "intent": "진행 중인 세션의 모델을 바꾸는지, 새로 띄울 세션의 모델을 고르는지에 따라 버튼 위치와 동작이 달라요.",
+              "body": "채팅 입력창 아래 줄에 지금 모델 이름을 보이고, 누르면 목록(opus · sonnet · haiku · 기본값)이 열려요. 고르면 그 세션 터미널에 Claude Code의 <code>/model &lt;이름&gt;</code>을 보내 다음 답부터 바뀌어요. 새 세션을 띄울 때도 고를지 정해 주세요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "모델을 고르는 곳이 없어요. 세션은 데몬이 <code>claude --session-id …</code>로 띄워요 (<code>daemon/session/command.ts</code>)."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "진행 중 세션의 입력창에서만 고름"
+                },
+                {
+                  "value": "b",
+                  "label": "입력창 + 새 세션 띄우기 폼에서도 고름"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 새 세션 폼은 지금 Orca 제거 작업이 손대고 있어서, 이번에는 입력창만 하고 폼은 그 작업이 끝난 뒤 따로 붙이는 게 겹치지 않아요.",
+              "answer": {
+                "choice": "a",
+                "why": "UI로 고를수 있게 해줘 연결된 AI가 뭔지 보고 판단도 할수 있어야해",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "모델은 진행 중인 세션의 채팅 입력창 아래에서 목록으로 골라요. 고르면 그 세션에 <code>/model &lt;이름&gt;</code>을 보내요. 버튼에는 지금 연결된 모델 이름을 늘 보여서, 어떤 모델이 답하고 있는지 보고 바꿀지 정할 수 있게 해요. 지금 모델 이름은 상태줄 입력의 <code>model</code> 값에서 받아요([[R1-Q5]]와 같은 통로). 새 세션 폼에서 고르는 것은 이번 범위가 아니에요.",
+              "reason": {
+                "text": "“UI로 고를수 있게 해줘 연결된 AI가 뭔지 보고 판단도 할수 있어야해”",
+                "by": "user"
+              },
+              "appliedTo": "03 구현 계획의 채팅 입력창 Phase로 옮길 예정"
+            },
+            {
+              "id": "Q5",
+              "title": "사용량을 어느 세션의 상태줄에서 받을까요?",
+              "said": "“사용량은 … 계속 claude api usage를 조회하는데 그러지 말고 orca와 같은 방식으로”",
+              "intent": "상태줄에서 받으면 Claude Code가 돌고 있을 때만 숫자가 갱신돼요. 어느 세션까지 연결하느냐가 숫자가 얼마나 자주 새로워지는지와, 내 전역 설정을 건드리는지를 정해요.",
+              "body": "Claude Code는 상태줄을 그릴 때마다 5시간 · 7일 사용률(<code>rate_limits</code>)과 컨텍스트 양(<code>context_window</code>)을 상태줄 명령에 넘겨요. Orca는 상태줄 명령을 감싸 이 값을 자기 앱에 보내고, 원래 상태줄(지금은 ccstatusline)은 그대로 그려요. 같은 방식으로 하되 범위를 정해 주세요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "5분마다 <code>api.anthropic.com/api/oauth/usage</code>를 불러요 (<code>src/server/usage/UsageReader.ts</code>). 이 API는 Claude Code와 같은 요청 한도를 나눠 써요."
+                ],
+                [
+                  "Orca",
+                  "<code>out/shared/claude-statusline-rate-limits.js</code> — Claude Code 2.1.80 이상이 상태줄로 <code>rate_limits</code>를 넘겨요."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "대시보드가 띄운 세션만 (세션을 띄울 때 설정을 덧붙임, ~/.claude/settings.json은 그대로)"
+                },
+                {
+                  "value": "b",
+                  "label": "~/.claude/settings.json의 상태줄도 감싸서, 터미널에서 직접 띄운 Claude Code도 반영"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 전역 설정을 바꾸지 않고, 대시보드 세션이 하나라도 돌면 숫자가 계속 새로워져요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "사용량은 대시보드가 띄운 Claude 세션의 상태줄 입력에서만 받아요. 세션을 띄울 때 상태줄 설정을 덧붙이고, <code>~/.claude/settings.json</code>은 바꾸지 않아요. 터미널에서 직접 띄운 Claude Code의 사용량은 반영되지 않아요.",
+              "reason": {
+                "text": "전역 설정을 바꾸지 않는다 (추천안을 그대로 고름).",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획의 사용량 Phase로 옮길 예정 (데몬 변경은 orca-removal 이후)"
+            },
+            {
+              "id": "Q6",
+              "title": "사용량 API 조회를 완전히 없앨까요?",
+              "said": "“계속 claude api usage를 조회하는데 그러지 말고”",
+              "intent": "돌고 있는 세션이 없으면 상태줄 값이 오지 않아요. 그때 화면에 무엇을 보일지가 이 답으로 정해져요.",
+              "body": "상태줄 값은 앱 저장 파일에 남겨 두고, 미터 옆에 '12분 전 기준'처럼 언제 받은 값인지 보여요. 정할 것은 값이 한 번도 없을 때(첫 실행) API를 한 번이라도 부를지예요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "완전히 없앰 · 값이 없으면 '세션을 띄우면 보여요'"
+                },
+                {
+                  "value": "b",
+                  "label": "저장된 값이 없을 때만 앱 시작 시 한 번 조회"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 요청 한도를 나눠 쓰는 API를 아예 부르지 않아 Claude Code 쪽 429(요청 과다) 위험이 없어요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "orca처럼 실행중일때 몇분마다 한번씩 갱신되는게 api호출방식이 아닌것같은데",
+                "followUp": ""
+              },
+              "decision": "사용량 API(<code>api.anthropic.com/api/oauth/usage</code>) 조회는 완전히 없애요. 값이 한 번도 없으면 '세션을 띄우면 보여요'를 보여요. 메모에서 짚은 대로, Orca가 실행 중에 몇 분마다 숫자를 새로 그리는 것은 API 호출이 아니라 Claude Code가 상태줄을 다시 그릴 때마다 넘겨주는 값이에요. 이번 변경도 같은 방식이라 지금 사이드바에 뜨는 HTTP 429 실패도 없어져요. (11/13 변경) 사용량 미터의 HTTP 429를 본 뒤 사용자가 대체 경로를 요청해서, 상태줄 값이 없거나 10분 넘게 지났거나 초기화 시각이 지났을 때만 API를 불러요. 성공한 값은 10분간 다시 쓰고, 실패하면 5분 → 10분 → … 최대 60분 간격으로(<code>Retry-After</code>가 더 길면 그만큼) 다시 시도해요.",
+              "reason": {
+                "text": "요청 한도를 나눠 쓰는 API를 부르지 않는다. “orca처럼 실행중일때 몇분마다 한번씩 갱신되는게 api호출방식이 아닌것같은데”",
+                "by": "user"
+              },
+              "appliedTo": "[[P2-1]] [[P2-1b]] [[P5-1]]",
+              "amended": {
+                "text": "상태줄 값이 없을 때만 API로 대체 조회 (실패 시 간격을 늘려 재시도)",
+                "said": "“A로 진행하고 대체경로B도 넣어줘”"
+              }
+            }
+          ]
+        },
+        {
+          "id": "R2",
+          "askedAt": "11/13",
+          "from": "[[R1-Q2]] 메모",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "권한 요청을 채팅 안 버튼으로 답할까요? 어떤 방식으로요?",
+              "said": "“UI 모드일때는 이전처럼 UI로 승인 UI로 표현해줘 왜 그게 안되는건가?”",
+              "intent": "채팅을 기본 화면으로 두면 권한 요청에도 채팅 안에서 답할 수 있어야 터미널로 옮겨 가지 않아요.",
+              "body": "기술적으로 막힌 것은 아니에요. Orca 제거 작업([[orca-removal]])에서 '카드 안 진짜 터미널로 대신한다'고 정하면서 권한 응답 버튼을 지웠을 뿐이에요. 그래서 지금 권한 요청 훅은 빈 응답만 돌려줘요. 다시 넣는 길은 두 가지예요. (a) 예전처럼 Claude Code의 권한 요청 훅이 요청을 붙잡고 있다가 앱 버튼에서 고른 답을 돌려줘요. 도구 이름 · 명령이 정확히 오고, 답한 순간 Claude Code가 진행해요. (b) 화면 버튼을 누르면 터미널에 숫자 키를 대신 눌러 줘요. 선택지 순서를 터미널 화면 글자에서 읽어야 해서 Claude Code 화면이 바뀌면 깨질 수 있어요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "권한 요청 훅 라우트가 항상 빈 응답 <code>{}</code>을 돌려줘요 (<code>app/api/hooks/permission/route.ts</code>). 훅은 <code>~/.claude/settings.json</code>에 아직 설치돼 있어요."
+                ],
+                [
+                  "지운 것",
+                  "권한 패널 <code>PermissionPanel</code> · 선택지 패널 <code>ChoicePanel</code> (orca-removal에서 삭제)"
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "훅 방식으로 되살림 — 채팅 맨 아래에 도구 · 명령과 허용/거부 버튼"
+                },
+                {
+                  "value": "b",
+                  "label": "터미널 키 입력 방식 — 버튼이 터미널에 숫자 키를 대신 보냄"
+                },
+                {
+                  "value": "c",
+                  "label": "되살리지 않음 — 권한 요청은 터미널로 전환해서 답함"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 요청 내용을 화면 글자에서 추측하지 않고 Claude Code가 준 그대로 받아서, 버튼과 실제 동작이 어긋나지 않아요. 훅도 이미 설치돼 있어요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "권한 요청은 예전처럼 Claude Code의 권한 요청 훅으로 받아, 채팅 맨 아래에 도구 이름 · 명령과 허용/거부 버튼으로 보여요. 훅 라우트는 빈 응답 대신 요청을 붙잡고 있다가 앱에서 누른 답을 돌려줘요. 앱이 꺼져 있거나 답이 늦으면 Claude Code는 원래대로 터미널에서 물어요.",
+              "reason": {
+                "text": "요청 내용을 화면 글자에서 추측하지 않고 Claude Code가 준 그대로 받는다 (추천안을 그대로 고름).",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획의 권한 승인 Phase로 옮길 예정"
+            },
+            {
+              "id": "Q2",
+              "title": "카드에서 채팅과 터미널을 어떻게 전환할까요?",
+              "said": "“터미널로 전환도 가능해야해 … 터미널이 백그라운드에 계속 켜져있는것같은데 그게 아니라 전환이 되어야해 … history는 따로 버튼이 있으면 좋겠어”",
+              "intent": "지금은 터미널이 대화 기록 아래에 덧붙어 카드가 길어져요. 한 번에 하나만 보이게 해야 카드가 한 화면에 들어와요.",
+              "body": "Claude 세션 프로세스 자체는 데몬 안 터미널에서 돌아야 해서 화면을 바꿔도 계속 켜져 있어요. 바뀌는 것은 카드에 무엇을 보이느냐예요. 카드 머리에 <b>채팅 | 터미널</b> 두 칸 전환을 두고, 진행 기록은 그 옆의 따로 버튼으로 열어요. 정할 것은 입력 대기 · 권한 요청일 때 터미널로 저절로 바꿀지예요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "권한 요청 · 입력 대기면 터미널이 대화 기록 아래에 덧붙어 열려요 (<code>AgentCardView.tsx</code> <code>opensByDefault</code>)."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "채팅 | 터미널 중 하나만 보임 · 저절로 바꾸지 않음 (권한은 채팅 안 버튼으로 답함)"
+                },
+                {
+                  "value": "b",
+                  "label": "채팅 | 터미널 중 하나만 보임 · 권한 요청 · 입력 대기면 터미널로 저절로 바꿈"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. [[R2-Q1]]에서 채팅 안 승인 버튼을 넣으면 터미널로 옮길 이유가 없고, 보던 화면이 저절로 바뀌지 않아요. [[R2-Q1]]에서 c를 고르면 b가 맞아요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "카드 머리에 채팅 | 터미널 두 칸 전환을 두고 한 번에 하나만 보여요. 기본은 채팅이고, 입력 대기 · 권한 요청이어도 저절로 터미널로 바꾸지 않아요. 권한은 [[R2-Q1]]의 채팅 안 버튼으로 답해요. 이전 대화(내가 물은 것과 답의 한 줄 요약 목록)는 전환 칸 옆의 따로 버튼으로 열어요. Claude 프로세스는 데몬 안에서 계속 돌고, 바뀌는 것은 카드에 보이는 화면뿐이에요.",
+              "reason": {
+                "text": "보던 화면이 저절로 바뀌지 않게 한다 (추천안을 그대로 고름). “터미널로 전환도 가능해야해 … history는 따로 버튼이 있으면 좋겠어”",
+                "by": "user"
+              },
+              "appliedTo": "[[R1-Q2]] · 03 구현 계획의 카드 화면 Phase로 옮길 예정",
+              "amended": {
+                "text": "따로 버튼은 도구 진행 기록이 아니라 예전 카드의 '이전 대화 보기' 목록이다.",
+                "said": "“진행 기록 말고 이전 기록 그거 말하는 거야”"
+              }
+            },
+            {
+              "id": "Q3",
+              "title": "따로 쓰는 셸 터미널은 어디에 보일까요?",
+              "said": "“참고로 터미널도 실행할수 있게 터미널도 넣어줘”",
+              "intent": "Claude와 상관없이 워크트리에서 명령을 칠 터미널이 세션 탭 사이 어디에 놓이는지 정해야 탭 줄 모양이 정해져요.",
+              "body": "워크트리 빠른 메뉴의 '터미널 열기'가 이미 그 워크트리에서 셸 세션을 띄워요. 지금은 이 셸도 세션 카드 하나로 쌓여요. 세션을 탭으로 바꾸면 셸을 어디에 둘지 정해 주세요.",
+              "context": [
+                [
+                  "지금 앱",
+                  "빠른 메뉴 '터미널 열기' → <code>open-terminal</code> 액션 → 데몬이 <code>kind: \"shell\"</code> 세션을 띄움 (<code>app/api/actions/route.ts</code>, <code>ProjectQuickMenu.tsx</code>)."
+                ]
+              ],
+              "options": [
+                {
+                  "value": "a",
+                  "label": "세션 탭 줄에 셸도 탭 하나로 · 탭 줄 끝에 '+ 터미널' 버튼"
+                },
+                {
+                  "value": "b",
+                  "label": "탭 줄과 따로, 워크트리 패널 아래쪽에 접히는 터미널 칸 하나"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a. 지금 셸도 세션 하나로 다뤄지고 있어서 탭에 그대로 올라가고, 여러 개를 띄워도 같은 방식으로 늘어나요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "copy": "",
+                "note": "",
+                "followUp": ""
+              },
+              "decision": "셸 터미널도 세션 탭 줄에 탭 하나로 올라가요. 탭 줄 끝의 '+ 터미널' 버튼이 그 워크트리에서 셸 세션을 띄워요. 빠른 메뉴의 '터미널 열기'와 같은 동작이에요.",
+              "reason": {
+                "text": "지금 셸도 세션 하나로 다뤄지고 있어서 탭에 그대로 올린다 (추천안을 그대로 고름).",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획의 세션 탭 Phase로 옮길 예정"
+            }
+          ]
+        }
+      ]
+    },
+    "tasks": {
+      "status": "done",
+      "summary": "Phase 1–7 완료",
+      "conclusion": [
+        "데몬은 Claude 세션을 띄울 때 상태줄 명령과 권한 요청 훅을 덧붙인다. 상태줄 명령은 모델 · 컨텍스트 · 5시간/7일 사용률을 데몬에 보내고, 원래 상태줄(ccstatusline)도 그대로 그린다.",
+        "데몬은 받은 사용률을 ~/.local/share/agent-control/usage.json에 남기고, 앱 사이드바 미터가 그 값을 읽는다([[P2-1b]]의 대체 조회는 다른 세션이 덧붙였다).",
+        "권한 요청은 대시보드 창이 열려 있을 때만 데몬이 붙잡고, 채팅 맨 아래 허용 · 거부 · 다시 묻지 않기 버튼의 답을 Claude Code에 돌려준다.",
+        "세션 카드는 채팅이 기본이다. 내 메시지는 말풍선, 도구 사용은 한 줄씩 전부(눌러서 입력 펼침), 답은 마크다운으로 위에서 아래로 흐른다. 채팅 | 터미널 전환과 이전 대화 버튼이 카드 머리에 있다.",
+        "입력창 아래에 지금 모델 이름과 컨텍스트 %가 보이고, 모델을 고르면 그 세션에 /model <이름>을 보낸다.",
+        "워크트리 안 세션은 세로 목록 대신 탭으로 보인다. 내 차례인 세션 탭에 빨간 점이 붙고, 탭의 × 버튼이 그 세션을 닫는다([[P6]]).",
+        "지금 돌고 있는 데몬은 옛 코드라 상태줄 · 권한 요청 경로가 없다. 데몬을 다시 띄워야 동작하고, 다시 띄우면 데몬이 들고 있던 세션이 모두 닫힌다.",
+        "워크트리는 사이드바의 프로젝트 아래에 줄로 보이고, 고른 워크트리 하나만 본문 전체 폭에 보인다. 셸 터미널은 빠른 메뉴 · 워크트리 메뉴의 '터미널'이 새 탭으로 띄우고, 세션 러너 화면 링크는 없앴다([[P6]]).",
+        "세션 탭 줄 끝 '+'가 그 워크트리에 새 세션을 띄운다. 채팅 입력창은 작업 중일 때 '멈추기' 버튼과 Esc로 지금 턴을 멈춘다(터미널에 Esc를 보내는 것과 같다)([[P7]])."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 데몬: 상태줄 값과 권한 요청 받기",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "데몬 세션 타입에 모델 · 컨텍스트 · 대기 중 권한 요청 칸 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/runner/types.ts</code> <code>src/common/runner/schema.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "기존 <code>RunnerSession</code> 필드처럼 null 기본값"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "상태줄 명령 스크립트 — 입력을 데몬에 보내고 원래 상태줄(ccstatusline)을 그대로 그림",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/statusline.mjs</code>"
+                ],
+                [
+                  "재사용",
+                  "Orca <code>claude-statusline-rate-limits.js</code>의 <code>rate_limits</code> 해석 규칙 (15초 간격 제한, 숫자 · 문자열 초기화 시각)"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q5]] [[R1-Q6]]"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "세션을 띄울 때 넘기는 설정에 상태줄 명령과 권한 요청 훅 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/hookSettings.ts</code> <code>daemon/session/command.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q5]] [[R2-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "레지스트리: 상태줄 값 반영 · 사용량 파일 저장 · 권한 요청 붙잡기 · 답 돌려주기 · 터미널에서 답하면 놓기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code> <code>daemon/session/permissions.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "지운 <code>PermissionStore</code>(HEAD)의 <code>decisionFor</code> · 590초 붙잡기"
+                ],
+                [
+                  "결정",
+                  "AskUserQuestion 권한 요청은 붙잡지 않고 터미널에 맡긴다. 허용/거부 버튼만으로는 질문에 답할 수 없다."
+                ],
+                [
+                  "결정",
+                  "붙잡은 권한 요청은 답 · 590초 · 훅 연결 끊김 · 답 끝(Stop) · 새 프롬프트 · 세션 종료에서만 놓는다. 다른 도구가 병렬로 끝난 신호(PostToolUse)로는 놓지 않는다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-5",
+              "title": "데몬 HTTP 경로: <code>POST /statusline/:id</code>, 권한 훅 붙잡기, <code>POST /sessions/:id/permission</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R2-Q1]]"
+                ],
+                [
+                  "결정",
+                  "권한 요청 훅은 앱 라우트가 아니라 데몬이 받는다. 데몬이 어느 세션의 요청인지 알고, 대시보드 창이 데몬 이벤트 소켓에 붙어 있을 때만 붙잡는다. 창이 없으면 바로 빈 답을 돌려 Claude Code가 터미널에서 묻는다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bunx vitest run daemon</code> 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 앱 서버: 사용량 · 권한 · 모델 · 채팅 데이터",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "사용량 API 호출을 지우고 데몬이 쓴 사용량 파일을 읽음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/usage/UsageReader.ts</code> <code>app/api/usage/route.ts</code> <code>src/common/usage/types.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q6]]"
+                ],
+                [
+                  "결정",
+                  "사용량 파일(~/.local/share/agent-control/usage.json)은 데몬이 쓰고 앱은 30초마다 읽는다. 외부 API는 P2-1b의 대체 경로에서만 부른다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-1b",
+              "title": "상태줄 값이 없을 때 사용량 API로 대체 조회",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/usage/UsageApi.ts</code> <code>src/server/usage/UsageReader.ts</code> <code>src/common/usage/types.ts</code> <code>src/client/entities/usage/ui/UsageMeter.tsx</code> <code>e2e/fixtures.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q6]]"
+                ],
+                [
+                  "결정",
+                  "파일 값이 10분 이내이고 초기화 시각이 지나지 않았으면 파일만 쓴다. 아니면 API를 부르고, API가 실패하면 오래된 파일 값이라도 보인다. 둘 다 없으면 실패 이유를 보인다."
+                ],
+                [
+                  "재시도",
+                  "성공은 10분 재사용. 실패는 5분부터 두 배씩 최대 60분, Retry-After가 더 길면 그 값. 실패 중에는 'N분 뒤 다시 시도해요'를 붙여 보인다."
+                ],
+                [
+                  "토큰",
+                  "키체인 <code>Claude Code-credentials</code> 항목을 현재 사용자 계정(<code>-a $USER</code>)으로 먼저 찾는다. 같은 이름의 옛 항목(acct <code>unknown</code>)이 남아 있으면 계정 없이 찾을 때 그 항목이 잡혀 401이 났다."
+                ],
+                [
+                  "화면",
+                  "미터 아래 'N분 전 기준'의 툴팁이 값의 출처(상태줄 / API)를 알려준다. e2e는 <code>AGENT_CONTROL_USAGE_API=off</code>로 API를 끈다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "보드 카드에 모델 이름 · 컨텍스트 % · 대기 중 권한 요청을 실음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/board/types.ts</code> <code>src/server/board/boardCards.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "액션 <code>answer-permission</code> · <code>set-model</code> 추가 (데몬으로 전달, 모델은 <code>/model <이름></code> 입력)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code> <code>app/api/actions/route.ts</code> <code>src/server/runner/RunnerClient.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q4]] [[R2-Q1]]"
+                ],
+                [
+                  "결정",
+                  "모델 목록은 default · opus · sonnet · haiku 네 가지로, Claude Code /model 명령이 받는 별칭 그대로다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-4",
+              "title": "채팅 항목 읽기 — 내 메시지 · 답 전문 · 도구 줄(입력 상세 포함)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/chatItems.ts</code> <code>app/api/chat/route.ts</code> <code>src/client/entities/session/api/sessionQueries.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>activitySteps.ts</code>의 줄 해석 · <code>TranscriptTailReader</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q3]]"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · 관련 단위 테스트 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 세션 카드: 채팅 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "채팅 목록 — 말풍선 · 도구 줄 전부(눌러서 펼침) · 마크다운 답, 맨 아래 붙어 따라감",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/ui/ChatView.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>Markdown</code> · <code>SlackCopyButton</code> · <code>ActivityTimeline</code>의 상태 점"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q3]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "채팅 맨 아래 권한 요청 — 도구 이름 · 명령 · 허용 / 항상 허용 / 거부",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R2-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "입력창 아래 줄 — 모델 고르기(지금 모델 표시) · 컨텍스트 %",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/choose-model/ui/ModelPicker.tsx</code> <code>src/client/widgets/agent-card/ui/ChatComposer.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>QuickReply</code> 그대로 감쌈 (마이크 버튼 유지)"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q4]]"
+                ],
+                [
+                  "결정",
+                  "모델 정보가 아직 오지 않은 세션은 버튼에 \"모델 확인 전\"을 보인다. 상태줄이 처음 그려지면 모델 이름으로 바뀐다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "카드 머리에 채팅 | 터미널 전환 + 이전 대화 버튼, 저절로 바꾸지 않음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R2-Q2]] [[R1-Q2]]"
+                ],
+                [
+                  "결정",
+                  "빠른 메뉴의 \"터미널로\"는 그 세션 카드를 터미널 화면으로 바꾼다. 사람이 누른 것이라 저절로 바꾸지 않는다는 결정과 부딪히지 않는다."
+                ],
+                [
+                  "결정",
+                  "따로 버튼은 '이전 대화'다. 내가 물은 것과 답을 한 줄씩 요약해 펼쳐 보는 목록이고, 처음에 도구 진행 기록으로 잘못 연결했다가 사용자 지적으로 바꿨다."
+                ],
+                [
+                  "결정",
+                  "권한 요청 버튼은 채팅 · 터미널 · 이전 대화 어느 화면에서든 입력창 위에 보인다. 데몬이 요청을 붙잡는 동안 터미널에는 Claude Code 확인창이 뜨지 않기 때문이다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: tsc · lint · 카드 단위 테스트",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 워크트리 안 세션 탭",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "세션 탭 줄 — 상태 점 · 제목 · 내 차례 빨간 점 · 끌어서 순서 · 워크트리마다 마지막 탭 기억",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/session-tabs/ui/SessionTabs.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>useSessionOrder</code> · <code>AgentList</code>의 끌기 방식 · <code>useStoredList</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q1]]"
+                ],
+                [
+                  "결정",
+                  "탭을 고른 기록은 워크트리마다 브라우저 저장소(agent-control:session-tab:<워크트리>)에 남긴다. 빠른 메뉴의 \"터미널로\"나 다른 화면의 \"이동 →\"처럼 사람이 가리킨 세션은 그 탭으로 바꾼다."
+                ],
+                [
+                  "결정",
+                  "카드의 채팅 · 터미널 · 진행 기록 선택은 세션마다 기억한다. 탭을 바꾸면 카드가 다시 그려져도 고른 화면이 남는다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "탭 줄 끝 '+ 터미널' 버튼 — 그 워크트리에 셸 세션",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>SessionTabs.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>open-terminal</code> 액션"
+                ],
+                [
+                  "SOT",
+                  "[[R2-Q3]]"
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "워크트리 패널이 세로 목록 대신 탭을 그림",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code> <code>WorktreePanel.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: tsc · lint · vitest · e2e",
+              "done": true,
+              "rows": [
+                [
+                  "검사",
+                  "tsc 통과 · eslint 오류 0 · 단위 테스트 485개 · e2e 7개 통과 (E2E_PORT=3187, NODE_ENV=test)"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 사용량 미터",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "미터가 상태줄 값을 보이고, 값이 없으면 '세션을 띄우면 보여요', 받은 시각 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/usage/ui/UsageMeter.tsx</code> <code>src/client/entities/usage/api/usageQuery.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q6]]"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: 전체 tsc · lint · vitest",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 화면 정리: 탭 × 닫기 · 터미널 진입 · 워크트리를 사이드바로",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "세션 탭에 × 닫기, 카드 아래 '세션 닫기'와 탭 줄 '+ 터미널' 제거",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/session-tabs/ui/SessionTabs.tsx</code> <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "빠른 메뉴 · 워크트리 메뉴의 '터미널'은 늘 새 셸 탭을 띄운다 (세션 러너 창 · 카드 터미널 전환 대신). 사이드바 세션 러너 링크와 이어하기 후 러너 창 열기 제거",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-actions/ui/ProjectQuickMenu.tsx</code> <code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code> <code>src/client/widgets/project-sidebar/ui/ProjectSidebar.tsx</code> <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-3",
+              "title": "워크트리 목록을 사이드바 프로젝트 아래로(접기 · 끌어서 순서 바꾸기 · 하위 워크트리 들여쓰기). 본문은 고른 워크트리 하나, 왼쪽 제목 칸 대신 위쪽 제목 줄. 워크트리 검색 · 워크트리 포커스 제거",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-sidebar/ui/ProjectWorktrees.tsx</code> <code>src/client/entities/workspace/model/useWorktreeOrder.ts</code> <code>src/client/entities/workspace/model/useWorkspacePrefs.ts</code> <code>src/client/widgets/command-palette/ui/CommandPalette.tsx</code>"
+                ],
+                [
+                  "주의",
+                  "빠른 메뉴를 오른쪽 끝에 두면 고정된 입력 알림 목록에 가려져서 워크트리 이름 옆에 둔다"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "Phase 7 · 탭 줄 '+' 새 세션 · 채팅에서 작업 멈추기",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "세션 탭 줄 끝 '+' 버튼 → launch-agent (워크트리 메뉴 '새 세션'과 같은 동작)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/session-tabs/ui/SessionTabs.tsx</code> <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "작업 중일 때 입력창 '멈추기' 버튼 · Esc → 새 액션 interrupt-session이 세션 터미널에 Esc(raw)를 보낸다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply/ui/QuickReply.tsx</code> <code>src/common/actions/schema.ts</code> <code>app/api/actions/route.ts</code>"
+                ],
+                [
+                  "주의",
+                  "데몬의 raw 입력 경로는 이미 있어서 데몬을 다시 띄울 필요 없다. 세션이 없는 워크트리는 탭 줄이 안 그려져서 '+'도 없다 — 워크트리 메뉴의 '새 세션'을 쓴다"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "ask",
+      "summary": "D1–D4 완료 · PR 여부 대기",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "화면 SOT 맵 단계가 없는 작업이라 바꿀 근거가 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "계산 행 · 서버 요청 없음."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "지적 10건 중 이번 변경에서 생긴 4건을 고쳤다: 권한 요청이 채팅 화면에서만 보임, 병렬 도구 끝 신호로 권한 요청이 놓임, 사용량 임시 파일 이름 충돌, 상태줄 보고 실패를 보냄으로 기록. 데몬 웹소켓 오류 처리기도 붙였다."
+                ],
+                [
+                  "남김",
+                  "세션 이어하기 뒤 열려 있던 터미널이 새 출력을 못 받음, 스크롤백 자르기 성능, 이어하기 뒤 window.open 시점, activitySteps.ts의 기존 주석 — 이번 변경 전부터 있던 코드다."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "검사",
+                  "tsc 통과 · eslint 오류 0 · 단위 테스트 487개 · e2e 7개 통과 (E2E_PORT=3187, NODE_ENV=test)"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "워크트리 안 여러 세션을 세로로 늘어놓지 않고 탭으로 하나씩 보게 해서, 한 화면에 한 세션 대화만 남긴다.",
+      "state": "confirmed",
+      "basis": "[[R1-Q1]] 답"
+    },
+    {
+      "text": "세션 카드를 Claude · ChatGPT · Paseo 같은 채팅 화면으로 바꿔, 대화를 위에서 아래로 읽고 아래 입력창에서 이어 말하게 한다.",
+      "state": "confirmed",
+      "basis": "[[R1-Q3]] · [[R1-Q4]] 답"
+    },
+    {
+      "text": "사용량은 Orca처럼 Claude Code가 그리는 상태줄 입력에서 받아 Claude Code 자체 요청 한도를 깎지 않는다. 상태줄 값이 없거나 오래됐을 때만 API로 대체 조회한다.",
+      "state": "confirmed",
+      "basis": "[[R1-Q5]] · [[R1-Q6]] 답"
+    },
+    {
+      "text": "채팅 화면에서 권한 승인까지 끝내고, 터미널은 필요할 때만 전환해서 본다.",
+      "state": "confirmed",
+      "basis": "[[R2-Q1]] · [[R2-Q2]] 답"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 flow 문서를 보고 구현을 진행하라고 함"
+    }
+  ]
+}

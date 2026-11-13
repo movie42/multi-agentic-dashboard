@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 
-/** Orca can take a while to start Claude; past this the launch is assumed lost and the placeholder goes away. */
+/** Claude can take a while to start; past this the launch is assumed lost and the placeholder goes away. */
 export const PENDING_LAUNCH_TTL_MS = 90_000;
 
 export interface PendingLaunch {

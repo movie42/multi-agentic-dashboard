@@ -51,18 +51,20 @@ export function Stepper({ steps, size }: StepperProps) {
   }
 
   return (
-    <ol className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 xl:auto-cols-fr xl:grid-flow-col xl:grid-cols-none">
-      {steps.map((step, index) => (
-        <li key={step.key} className="grid grid-cols-[26px_1fr] gap-x-2.5">
-          <span
-            className={`row-span-2 grid size-[26px] place-items-center rounded-full text-[12px] font-bold ${CIRCLE[step.status]}`}
-          >
-            {index + 1}
-          </span>
-          <b className={`text-[15px] leading-[1.35] font-semibold ${LABEL[step.status]}`}>{step.label}</b>
-          <span className={`text-[12px] leading-normal ${DETAIL[step.status]}`}>{step.detail ?? " "}</span>
-        </li>
-      ))}
-    </ol>
+    <div className="@container min-w-0">
+      <ol className="grid grid-cols-2 gap-x-4 gap-y-3 @md:grid-cols-4 @5xl:auto-cols-fr @5xl:grid-flow-col @5xl:grid-cols-none">
+        {steps.map((step, index) => (
+          <li key={step.key} className="grid min-w-0 grid-cols-[26px_minmax(0,1fr)] gap-x-2.5">
+            <span
+              className={`row-span-2 grid size-[26px] place-items-center rounded-full text-[12px] font-bold ${CIRCLE[step.status]}`}
+            >
+              {index + 1}
+            </span>
+            <b className={`break-keep text-[15px] leading-[1.35] font-semibold ${LABEL[step.status]}`}>{step.label}</b>
+            <span className={`break-keep text-[12px] leading-normal ${DETAIL[step.status]}`}>{step.detail ?? " "}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }

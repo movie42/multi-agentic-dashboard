@@ -1,5 +1,5 @@
 import "server-only";
-import type { BoardSnapshot } from "@/common/orca/types";
+import type { BoardSnapshot } from "@/common/board/types";
 import type { TodoBoard, TodoCard } from "@/common/todos/types";
 import type { TodoStore } from "./TodoStore";
 

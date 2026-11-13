@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
 import { Spinner } from "@/client/shared/ui/Spinner";
 

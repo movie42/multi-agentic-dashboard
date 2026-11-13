@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { postAction } from "@/client/shared/api/actions";
 import type { GraphCommit } from "@/common/gitGraph/types";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { agentCard } from "../../../../../test/fixtures";
 import { AgentComposer } from "./AgentComposer";
 

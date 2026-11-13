@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 
 const MAX_ENTRIES = 300;

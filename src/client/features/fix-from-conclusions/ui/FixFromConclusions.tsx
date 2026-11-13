@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { startTransition, useActionState, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { AskThread } from "@/common/intentDiff/types";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { boardQueryOptions } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";

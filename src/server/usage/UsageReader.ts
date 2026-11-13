@@ -1,92 +1,64 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import path from "node:path";
 import { z } from "zod";
-import type { UsageSnapshot } from "@/common/usage/types";
-import { nodeExecFile, type ExecFileFn } from "../shared/ports";
+import type { UsageSnapshot, UsageWindow } from "@/common/usage/types";
+import { USAGE_FILE } from "../projects/paths";
+import { UsageApi } from "./UsageApi";
 
-// Same endpoint Claude Code's /usage screen reads; undocumented, so parse loosely.
-const USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
-// The endpoint rate-limits aggressive polling and shares its limit with Claude Code itself.
-const CACHE_MS = 5 * 60_000;
-// A page reload asks for fresh numbers, but repeated reloads must not hammer the endpoint.
-const FORCED_MIN_AGE_MS = 30_000;
+const SAVED_STALE_MS = 10 * 60_000;
 
-const windowSchema = z
-  .object({ utilization: z.number(), resets_at: z.string().nullable().optional() })
-  .nullable()
-  .optional();
+const windowSchema = z.object({ percent: z.number(), resetsAt: z.string().nullable() }).nullable().catch(null);
 
-const usageSchema = z.object({ five_hour: windowSchema, seven_day: windowSchema });
+const usageFileSchema = z.object({ session: windowSchema, weekly: windowSchema, receivedAt: z.number() });
 
-const credentialsSchema = z.object({
-  claudeAiOauth: z.object({ accessToken: z.string(), expiresAt: z.number().optional() }),
-});
+type SavedUsage = z.infer<typeof usageFileSchema>;
 
-type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
-
-interface UsageReaderDeps {
-  execFile?: ExecFileFn;
-  readCredentialsFile?: () => Promise<string>;
-  fetch?: FetchFn;
-  now?: () => number;
+interface UsageSource {
+  read: () => Promise<SavedUsage>;
 }
 
-function toWindow(window: z.infer<typeof windowSchema>) {
-  if (!window) return null;
-  return { percent: Math.round(window.utilization), resetsAt: window.resets_at ?? null };
+function isMissing(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+function hasReset(window: UsageWindow | null, now: number): boolean {
+  return window?.resetsAt != null && new Date(window.resetsAt).getTime() <= now;
 }
 
 export class UsageReader {
-  private cached: UsageSnapshot | null = null;
-  private inflight: Promise<UsageSnapshot> | null = null;
-  private readonly execFile: ExecFileFn;
-  private readonly readCredentialsFile: () => Promise<string>;
-  private readonly fetch: FetchFn;
-  private readonly now: () => number;
+  constructor(
+    private readonly file: string = USAGE_FILE,
+    private readonly api: UsageSource = new UsageApi(),
+    private readonly now: () => number = Date.now,
+  ) {}
 
-  constructor(deps: UsageReaderDeps = {}) {
-    this.execFile = deps.execFile ?? nodeExecFile;
-    this.readCredentialsFile =
-      deps.readCredentialsFile ?? (() => readFile(path.join(homedir(), ".claude", ".credentials.json"), "utf8"));
-    this.fetch = deps.fetch ?? ((url, init) => fetch(url, init));
-    this.now = deps.now ?? Date.now;
+  async read(): Promise<UsageSnapshot> {
+    const saved = await this.readSaved();
+    if (saved && this.isCurrent(saved)) return { ...saved, source: "statusline" };
+    try {
+      const fetched = await this.api.read();
+      if (saved && saved.receivedAt > fetched.receivedAt) return { ...saved, source: "statusline" };
+      return { ...fetched, source: "api" };
+    } catch (error) {
+      if (saved) return { ...saved, source: "statusline" };
+      throw error;
+    }
   }
 
-  read({ fresh = false }: { fresh?: boolean } = {}): Promise<UsageSnapshot> {
-    const maxAge = fresh ? FORCED_MIN_AGE_MS : CACHE_MS;
-    if (this.cached && this.now() - this.cached.fetchedAt < maxAge) return Promise.resolve(this.cached);
-    this.inflight ??= this.load().finally(() => {
-      this.inflight = null;
+  private isCurrent(saved: SavedUsage): boolean {
+    const now = this.now();
+    if (now - saved.receivedAt >= SAVED_STALE_MS) return false;
+    return !hasReset(saved.session, now) && !hasReset(saved.weekly, now);
+  }
+
+  private async readSaved(): Promise<SavedUsage | null> {
+    const raw = await readFile(this.file, "utf8").catch((error: unknown) => {
+      if (isMissing(error)) return null;
+      throw error;
     });
-    return this.inflight;
-  }
-
-  private async load(): Promise<UsageSnapshot> {
-    const token = await this.accessToken();
-    const response = await this.fetch(USAGE_URL, {
-      headers: { Authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (response.status === 401) throw new Error("Claude Code 로그인 토큰이 만료됐어요. Claude Code를 한 번 실행하면 갱신돼요");
-    if (!response.ok) throw new Error(`사용량 조회 실패 (HTTP ${response.status})`);
-    const body = usageSchema.parse(await response.json());
-    this.cached = { session: toWindow(body.five_hour), weekly: toWindow(body.seven_day), fetchedAt: this.now() };
-    return this.cached;
-  }
-
-  private async accessToken(): Promise<string> {
-    const raw = await this.readKeychain().catch(() => this.readCredentialsFile());
-    return credentialsSchema.parse(JSON.parse(raw)).claudeAiOauth.accessToken;
-  }
-
-  private async readKeychain(): Promise<string> {
-    if (process.platform !== "darwin") throw new Error("no keychain");
-    const { stdout } = await this.execFile("security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"], {
-      timeout: 5_000,
-    });
-    return stdout.trim();
+    if (raw === null) return null;
+    const parsed = usageFileSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) throw new Error("사용량 파일을 읽지 못했어요");
+    return parsed.data;
   }
 }

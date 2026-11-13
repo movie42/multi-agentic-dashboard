@@ -1,4 +1,4 @@
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import type { ActionRequest } from "@/common/actions/schema";
 import { flowTaskOf } from "@/client/features/view-doc";
 

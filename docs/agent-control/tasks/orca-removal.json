@@ -1,0 +1,1046 @@
+{
+  "id": "orca-removal",
+  "title": "Orca 의존 제거 — 보드·액션을 세션 러너 데몬으로 옮기고 앱이 데몬을 띄우기",
+  "type": "기능 개발",
+  "branch": "feat/session-runner",
+  "links": [
+    {
+      "label": "선행 작업 · 세션 러너 1단계",
+      "url": "session-runner/index.html"
+    }
+  ],
+  "stages": {
+    "grill": {
+      "rounds": [
+        {
+          "id": "R1",
+          "askedAt": "11/13",
+          "from": "구현 중 사람이 정해야 한다고 본 것",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "Orca가 들어 있던 화면 문구를 이렇게 바꿨어요. 그대로 둘까요?",
+              "said": "계획의 Phase 3 검증: ‘rg -n \"orca\" src app 결과가 importFromOrca와 문구 외에 없음’ — 문구는 계획이 정하지 않았다.",
+              "intent": "버튼과 안내문이 실제 동작과 다른 말을 하면(‘Orca에서 이어가기’를 눌렀는데 Orca가 열리지 않음) 화면을 믿을 수 없게 된다. 문구는 사람이 고르는 것이라 바꾼 내용을 한 번 확인받는다.",
+              "body": "Orca를 부르던 버튼과 안내문은 동작이 바뀌어 그대로 둘 수 없었다. 기존 문구의 말투를 따라 Orca라는 말만 빼거나 새 동작 이름으로 바꿨다. 다르게 쓰고 싶은 문구가 있으면 ‘다르게’를 고르고 메모에 적어 주세요.",
+              "context": [
+                [
+                  "카드 버튼",
+                  "Orca에서 이어가기 → <b>터미널 열기</b> / <b>터미널 접기</b> (단축키 e 설명도 ‘터미널 열기’)"
+                ],
+                [
+                  "세션 줄 메뉴",
+                  "Orca에서 이어가기 → <b>터미널 열기</b>"
+                ],
+                [
+                  "지난 세션 · 할 일 카드",
+                  "Orca에서 다시 열기 → <b>다시 열기</b>"
+                ],
+                [
+                  "세션 닫기 설명",
+                  "Orca 터미널을 닫아요. … → <b>세션을 닫아요. 세션 기록은 남아서 세션 목록에서 다시 열 수 있어요</b>"
+                ],
+                [
+                  "워크트리 메뉴 · 터미널로",
+                  "에이전트가 돌고 있는 Orca 터미널로 가요 → <b>에이전트가 돌고 있는 터미널을 열어요</b> / 이 워크트리에 Orca 터미널을 새로 열어요 → <b>이 워크트리에 터미널을 새로 열어요</b>"
+                ],
+                [
+                  "빠른 메뉴 · 터미널",
+                  "Orca 앱의 터미널로 이동해요 → <b>이 워크트리의 터미널을 열어요</b>"
+                ],
+                [
+                  "이름 바꾸기",
+                  "Orca에 보이는 이름만 바꿔요 → <b>보드에 보이는 이름만 바꿔요</b> (입력 폼 안내도 같게)"
+                ],
+                [
+                  "워크트리 삭제",
+                  "Orca에서 이 워크트리를 지워요. 브랜치는 남아요 → <b>이 워크트리를 지워요. 브랜치는 남아요</b>"
+                ],
+                [
+                  "프로젝트 불러오기",
+                  "…를 Orca에 추가했어요 → <b>…를 프로젝트로 추가했어요</b> / 폴더를 고르면 Orca 프로젝트로 추가해요 → <b>폴더를 고르면 프로젝트로 추가해요</b>"
+                ],
+                [
+                  "불러오는 중 · 실패",
+                  "Orca에서 에이전트 상태를 불러오는 중… → <b>에이전트 상태를 불러오는 중…</b> / Orca에 연결하지 못했습니다 → <b>보드를 불러오지 못했습니다</b>"
+                ],
+                [
+                  "사이드바",
+                  "‘갱신 · Orca’ → <b>‘갱신 · 세션 러너’</b>(세션 러너 화면으로 가는 링크). 셸 세션 카드의 제목은 <b>터미널</b>."
+                ]
+              ],
+              "recommendation": "그대로 둔다. 기존 문구에서 Orca만 빼서 말투가 같고, 새로 지은 말은 ‘터미널 열기 · 접기’와 ‘세션 러너’ 둘뿐이다.",
+              "answer": {
+                "choice": "yes",
+                "why": "사용 해보고 수정하기",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "화면 문구는 바꾼 그대로 둔다. 써 보면서 어색한 문구가 보이면 그때 고친다.",
+              "reason": {
+                "text": "사용 해보고 수정하기",
+                "by": "user"
+              },
+              "appliedTo": "고친 곳 없음 — 구현된 문구를 그대로 둔다"
+            },
+            {
+              "id": "Q2",
+              "title": "/orca-worktree 스킬을 터미널에서 직접 쓸 때도 Orca 없이 만들게 바꿀까요?",
+              "said": "skills/orca-worktree/SKILL.md 4절: ‘On confirm, run from the repo: orca worktree create …’",
+              "intent": "대시보드의 ‘워크트리 만들기’는 이제 git으로 만들지만, 터미널에서 /orca-worktree를 치면 여전히 Orca에 워크트리를 만든다. 두 곳이 서로 다른 방식으로 만들면 터미널에서 만든 워크트리는 이름 · 부모 관계가 보드에 안 나온다.",
+              "body": "이 스킬은 두 곳에서 쓰인다. 대시보드의 워크트리 만들기 마법사는 이 스킬로 이름과 브랜치만 정하고, 만들기는 대시보드가 git으로 한다(이번에 바꿈). 터미널에서 /orca-worktree로 직접 부르면 스킬이 orca worktree create를 실행한다(그대로 남음). 스킬 이름에도 orca가 들어 있고 ~/.claude/skills에 그 이름으로 설치돼 있다.",
+              "options": [
+                {
+                  "value": "git-keep-name",
+                  "label": "터미널에서도 git으로 만들고 worktrees.json에 이름 · 부모를 적게 바꾼다. 스킬 이름은 그대로 둔다"
+                },
+                {
+                  "value": "git-rename",
+                  "label": "위와 같이 바꾸고, 스킬 이름도 orca를 뺀 이름으로 바꾼다 (설치된 스킬도 다시 깔아야 함)"
+                },
+                {
+                  "value": "leave",
+                  "label": "그대로 둔다. 터미널에서 직접 부를 때만 Orca를 쓴다"
+                }
+              ],
+              "recommended": "git-keep-name",
+              "recommendation": "git으로 만들게 바꾸고 이름은 그대로 둔다. 어디서 만들든 보드에 같은 모습으로 나오고, 대시보드와 설치된 스킬이 부르는 이름이 안 바뀌어 다시 깔 일이 없다.",
+              "answer": {
+                "choice": "unsure",
+                "why": "이름도 바꾸는게 좋겠어. 이름이 가장 중요함",
+                "note": "이름도 바꾸는게 좋겠어. 이름이 가장 중요함",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "터미널에서 직접 부를 때도 git으로 워크트리를 만들고 worktrees.json에 이름과 부모를 적게 바꾼다. 스킬 이름에서도 orca를 빼서 ac-worktree로 바꾸고([[R3-Q1]]), 대시보드가 부르는 이름과 설치된 스킬도 함께 바꾼다.",
+              "reason": {
+                "text": "이름도 바꾸는게 좋겠어. 이름이 가장 중요함",
+                "by": "user"
+              },
+              "appliedTo": "[[P7-1]] [[P7-2]] [[R2-Q1]] [[R3-Q1]]"
+            },
+            {
+              "id": "Q3",
+              "title": "음성 입력은 카드 터미널에서 Claude Code /voice를 직접 쓰는 것으로 충분한가요?",
+              "said": "보이스 챗 작업의 답: ‘내가 원하는건 클로드 코드 음성 챗을 그냥 넣어달라는건데’ ([[voice-chat#R1-Q1]])",
+              "intent": "이번 작업이 빠른 답장 옆 마이크 버튼을 지웠다. 그 버튼은 Orca 터미널에 키 입력을 보내는 방식이라 Orca 없이는 동작하지 않는다. 말로 입력하고 싶다는 바람이 카드 터미널만으로 채워지는지 확인한다.",
+              "body": "지금은 카드에서 ‘터미널 열기’를 누르면 그 세션의 Claude Code 화면이 그대로 나오고, 거기서 Claude Code의 음성 입력(/voice)을 터미널에서 쓰던 그대로 쓸 수 있다. 마이크 버튼과 받아쓰기 미리보기는 없다. 버튼이 다시 필요하면 데몬에 키 입력을 보내는 방식으로 새로 만들어야 한다.",
+              "recommendation": "터미널에서 직접 쓰는 것으로 둔다. Claude Code의 음성 기능을 그대로 쓰는 것이라 화면을 읽어 상태를 추측하던 코드가 필요 없다.",
+              "answer": {
+                "choice": "yes",
+                "why": "",
+                "note": "그런데 UI 모드니까 터미널에서는 /voice를 하는데 UI 모드에서는 음성 버튼 그대로 있으면 좋겠어",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "카드의 터미널을 연 동안에는 Claude Code /voice를 터미널에서 직접 쓴다. 터미널을 접은 카드 화면(빠른 답장 입력창)에는 마이크 버튼과 받아쓰기 미리보기를 지우기 전과 같게 되살린다. 이번에는 Orca 대신 세션 러너 데몬에 키를 보내고, 데몬이 들고 있는 터미널 화면을 읽어 녹음 중인지 판단한다.",
+              "reason": {
+                "text": "그런데 UI 모드니까 터미널에서는 /voice를 하는데 UI 모드에서는 음성 버튼 그대로 있으면 좋겠어",
+                "by": "user"
+              },
+              "appliedTo": "[[P6]]"
+            },
+            {
+              "id": "Q4",
+              "title": "앱을 닫아도 데몬과 세션이 계속 도는 방식 그대로 둘까요?",
+              "said": "작업 의도 3번(추정): ‘설치된 데스크톱 앱이 데몬을 직접 띄우고, 앱을 닫아도 데몬과 세션은 살아 있다.’",
+              "intent": "앱을 닫을 때 돌던 에이전트가 함께 죽는지 남는지는 일하는 방식에 직접 닿는다. 계획 때 추천안으로 정하고 넘어간 것이라 실제로 그렇게 동작하는 지금 확인받는다.",
+              "body": "지금은 앱(또는 개발 서버)을 닫아도 데몬(127.0.0.1:3198)과 그 안의 Claude 세션이 계속 돌고, 앱을 다시 열면 같은 카드가 그대로 나온다. 데몬을 끄려면 pkill -f daemon/main.ts를 직접 실행해야 하고, 그때 세션도 함께 끝난다. 재부팅하면 데몬이 꺼지고 다음에 앱을 열 때 빈 상태로 다시 뜬다.",
+              "recommendation": "그대로 둔다. 앱을 고쳐 다시 설치하거나 실수로 닫아도 돌던 작업이 끊기지 않는다.",
+              "answer": {
+                "choice": "yes",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "앱을 닫아도 데몬과 세션이 계속 도는 지금 방식을 그대로 둔다.",
+              "reason": {
+                "text": "앱을 고쳐 다시 설치하거나 실수로 닫아도 돌던 작업이 끊기지 않게 한다.",
+                "by": "recommended"
+              },
+              "appliedTo": "task intent 3번을 확정으로 바꿈"
+            }
+          ]
+        },
+        {
+          "id": "R2",
+          "askedAt": "11/13",
+          "from": "[[R1-Q2]] 답 — 스킬 이름을 바꾸기로 해서 새 이름이 필요함",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "/orca-worktree 스킬의 새 이름을 무엇으로 할까요?",
+              "said": "[[R1-Q2]] 메모: ‘이름도 바꾸는게 좋겠어. 이름이 가장 중요함’",
+              "intent": "스킬 이름은 터미널에서 치는 명령(/이름)이 되고, 대시보드의 워크트리 만들기 마법사가 이 이름으로 스킬을 부른다. 한 번 정하면 설치된 스킬 폴더와 대시보드 코드가 함께 바뀌므로 사람이 고른다.",
+              "body": "바뀌는 곳: 저장소의 skills/orca-worktree 폴더와 SKILL.md의 name, 대시보드가 부르는 명령(src/server/worktreeWizard/run.ts의 /orca-worktree), README의 설명, ~/.claude/skills에 깔린 스킬(옛 이름 폴더는 지우고 새 이름으로 다시 깐다). 다른 이름을 원하면 ‘다르게’를 고르고 메모에 적어 주세요.",
+              "options": [
+                {
+                  "value": "new-worktree",
+                  "label": "new-worktree — 터미널에서 /new-worktree"
+                },
+                {
+                  "value": "worktree",
+                  "label": "worktree — 터미널에서 /worktree"
+                },
+                {
+                  "value": "git-worktree",
+                  "label": "git-worktree — 터미널에서 /git-worktree"
+                }
+              ],
+              "recommended": "new-worktree",
+              "recommendation": "new-worktree. 무엇을 하는 스킬인지(새 워크트리 만들기)가 이름에 드러나고, 짧은 worktree는 Claude Code의 워크트리 기능이나 다른 스킬과 이름이 겹치기 쉽다.",
+              "answer": {
+                "choice": "unsure",
+                "why": "",
+                "note": "ac-worktree",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "이 라운드에서는 이름을 정하지 않았다. 메모로 적어 준 ac-worktree를 [[R3-Q1]]에서 다시 물어 그 이름으로 정했다.",
+              "reason": {
+                "text": "보기 셋 대신 메모에 ac-worktree를 적었다.",
+                "by": "user"
+              },
+              "appliedTo": "[[R3-Q1]]"
+            }
+          ]
+        },
+        {
+          "id": "R3",
+          "askedAt": "11/13",
+          "from": "[[R2-Q1]] 답 — ‘더 설명해줘’와 메모 ‘ac-worktree’",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "워크트리 스킬의 새 이름을 ac-worktree로 할까요?",
+              "said": "[[R2-Q1]] 메모: ‘ac-worktree’",
+              "intent": "스킬 이름은 터미널에서 치는 명령(/이름)이고, 대시보드의 워크트리 만들기 마법사도 이 이름으로 스킬을 부른다. 이름을 바꾸면 저장소의 스킬 폴더, 대시보드 코드, ~/.claude/skills에 깔린 폴더가 함께 바뀌므로 사람이 정한다.",
+              "body": "ac는 이 앱 이름 Agent Control의 앞 글자다(앱 데이터 폴더도 ~/.local/share/agent-control). 지금 깔린 스킬 중 paseo-advisor · paseo-handoff처럼 앱 이름을 앞에 붙인 묶음이 있어서, ac-를 붙이면 ‘이 대시보드가 쓰는 스킬’로 한눈에 갈린다. 반대로 ac만 보고 Agent Control을 떠올리기 어렵다는 점이 단점이다.<br>이름이 들어가는 곳은 네 군데다: 저장소의 <code>skills/orca-worktree</code> 폴더와 SKILL.md의 <code>name</code>, 대시보드가 부르는 명령(<code>src/server/worktreeWizard/run.ts</code>의 <code>/orca-worktree</code>), README의 <code>skills:install</code> 설명, <code>~/.claude/skills/orca-worktree</code>(옛 폴더는 지우고 새 이름으로 다시 깐다). 이름만 바뀌고 하는 일은 [[R1-Q2]]에서 정한 대로 git으로 워크트리를 만들고 worktrees.json에 적는 것이다.",
+              "options": [
+                {
+                  "value": "ac-worktree",
+                  "label": "ac-worktree — 터미널에서 /ac-worktree"
+                },
+                {
+                  "value": "agent-control-worktree",
+                  "label": "agent-control-worktree — 터미널에서 /agent-control-worktree"
+                },
+                {
+                  "value": "new-worktree",
+                  "label": "new-worktree — 터미널에서 /new-worktree"
+                }
+              ],
+              "recommended": "ac-worktree",
+              "recommendation": "ac-worktree. 직접 적어 준 이름이고, 짧아서 터미널에서 치기 쉽고, 앱 이름을 앞에 붙여 Claude Code의 워크트리 기능이나 다른 스킬과 겹치지 않는다.",
+              "answer": {
+                "choice": "ac-worktree",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "워크트리 스킬의 새 이름은 ac-worktree로 한다. 터미널에서는 /ac-worktree로 부르고, 저장소의 skills 폴더 · SKILL.md의 name · 대시보드가 부르는 명령 · README · ~/.claude/skills의 설치 폴더를 모두 이 이름으로 바꾼다. 옛 orca-worktree 폴더는 지운다.",
+              "reason": {
+                "text": "직접 적어 준 이름이고, 짧아서 치기 쉽고, 앱 이름을 앞에 붙여 Claude Code의 워크트리 기능이나 다른 스킬과 겹치지 않는다.",
+                "by": "recommended"
+              },
+              "appliedTo": "[[R1-Q2]] [[P7-1]] [[P7-2]] [[P7-V]]"
+            }
+          ]
+        }
+      ],
+      "status": "done",
+      "summary": "R1–R3 · 모두 정함",
+      "conclusion": [
+        "[[R3-Q1]] 워크트리 스킬의 새 이름은 ac-worktree다. 열린 질문은 없다."
+      ]
+    },
+    "tasks": {
+      "status": "done",
+      "summary": "Phase 1–7 완료",
+      "conclusion": [
+        "보드는 이 앱의 프로젝트 목록(~/.local/share/agent-control/projects.json), 각 프로젝트의 git worktree 목록, 세션 러너 데몬의 세션으로 만들어진다. Orca를 띄우지 않아도 보드가 나온다.",
+        "에이전트 실행 · 이어하기 · 셸 터미널 열기 · 프롬프트 보내기 · 세션 닫기는 데몬이, 워크트리 만들기 · 지우기는 git이 한다. 워크트리 이름 바꾸기는 이 앱의 저장 파일에만 적는다.",
+        "카드의 '터미널 열기'가 그 세션의 진짜 터미널을 카드 안에 연다. 음성 버튼 · 선택지 버튼 · 권한 응답 버튼 · Orca 화면 미리보기 · 런타임 전환은 지웠다.",
+        "개발 서버와 설치된 데스크톱 앱은 데몬이 꺼져 있으면 띄운다. 앱을 닫아도 데몬과 세션이 남는 것을 빌드한 앱으로 확인했다.",
+        "설치된 앱(~/Applications/Agent Control.app)을 새 버전으로 바꿨고, 첫 실행에서 Orca의 프로젝트 16개와 직접 붙인 워크트리 이름 3개를 가져왔다. Orca에서 띄운 세션은 보드에 나오지 않는다.",
+        "~/.claude/settings.json에 남은 권한 요청 훅은 이제 빈 응답만 받는다. bun run hook:uninstall로 지우면 된다.",
+        "검사 결과: tsc 통과, eslint 오류 0, 단위 테스트 429개 통과, e2e 3개 통과(E2E_PORT=3187 — 기본 포트 3197은 다른 앱이 쓰고 있다).",
+        "접힌 카드의 마이크 버튼이 돌아왔다. 데몬이 세션마다 터미널 화면을 들고 있고, 서버는 그 화면에서 녹음 표시와 받아쓰는 글을 읽는다([[P6]]).",
+        "지금 돌고 있는 데몬은 옛 코드라서 화면 읽기 경로가 없다. 데몬을 다시 띄워야 마이크 버튼이 동작하고, 다시 띄우면 데몬이 들고 있던 세션이 모두 닫힌다.",
+        "워크트리 스킬은 ac-worktree로 이름을 바꿨고, 터미널에서 직접 불러도 git으로 만들고 worktrees.json에 적는다. 설치된 옛 orca-worktree는 지웠다([[P7]])."
+      ],
+      "blocks": [
+        {
+          "type": "text",
+          "title": "새 세션이 먼저 읽을 것",
+          "text": "1단계 결과는 [[session-runner]]에 있다(데몬 daemon/, 공용 타입 src/common/runner/types.ts, /runner 화면). 데몬은 포트 3198, 허용 출처 3100·3199(RUNNER_ALLOWED_ORIGINS로 추가). node-pty 설치 후 spawn-helper 실행 권한은 postinstall이 붙인다. 데몬은 Node 24의 TypeScript 직접 실행이라 daemon/ 안의 import는 .ts 확장자를 붙이고, 매개변수 프로퍼티 · enum 같은 지워지지 않는 문법을 쓰지 않는다. 프로젝트 lint는 let · as · export * · 인라인 style · hex 색을 막는다. 작업 전 미커밋 상태의 백업 패치: /private/tmp/claude-501/-Users-hyunsu-Documents-projects-multi-agentic-dashboard/3d79dcc3-5308-4ba2-beb5-c7b2d5bd1d3d/scratchpad/before-orca-removal.patch"
+        },
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 데몬 확장",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "세션 띄우기 옵션 — 첫 프롬프트, 이어하기(--resume), 셸 세션",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code> · <code>daemon/session/SessionRegistry.ts</code> · <code>src/common/runner/types.ts</code> · <code>daemon/</code> · <code>src/common/runner/</code> · <code>bun.lock</code>"
+                ],
+                [
+                  "결정",
+                  "POST /sessions 본문을 {cwd, prompt?, resumeSessionId?, kind?: 'claude'|'shell'}로 넓힌다. prompt는 claude의 위치 인자로, 이어하기는 --resume으로 넘긴다. shell은 $SHELL을 훅 없이 띄운다."
+                ],
+                [
+                  "결정",
+                  "RunnerSession에 kind와 prompted(UserPromptSubmit을 한 번이라도 받았는지)를 더한다."
+                ],
+                [
+                  "결정",
+                  "이어하기로 띄운 세션은 데몬 세션 id를 이어받은 Claude 세션 id와 같게 쓴다. 트랜스크립트 파일 이름과 데몬 id가 같아야 보드가 제목과 마지막 답을 바로 찾는다. 같은 id가 이미 돌고 있으면 새로 띄우지 않고 그 세션을 돌려준다."
+                ],
+                [
+                  "결정",
+                  "첫 프롬프트는 <code>--</code> 뒤에 넘긴다. 대시(-)로 시작하는 프롬프트가 옵션으로 읽히지 않는다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "입력 보내기 API — POST /sessions/:id/input {text, submit}",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code>"
+                ],
+                [
+                  "결정",
+                  "submit이면 text 뒤에 \\r을 따로 보낸다(1단계 검증에서 붙여 보내면 붙여넣기로 처리됨을 피함, 300ms 간격)."
+                ],
+                [
+                  "결정",
+                  "줄바꿈이 있는 글은 터미널의 붙여넣기 표시(bracketed paste)로 감싸 보낸다. 감싸지 않으면 Claude가 첫 줄바꿈에서 전송해 버린다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "출처 없는 로컬 요청 허용 — Next 서버가 서버 쪽에서 부를 수 있게",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/guard.ts</code> · 테스트"
+                ],
+                [
+                  "결정",
+                  "브라우저는 다른 출처 fetch · WebSocket에 항상 Origin을 붙이므로, Origin이 없으면 로컬 프로세스로 보고 모든 경로를 허용한다. Host 검사(DNS 리바인딩 방지)는 유지한다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "폴더 신뢰 질문에서 멈춘 세션을 '응답 필요'로 알리기",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code> · <code>daemon/session/status.ts</code> · <code>src/common/runner/types.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Claude는 처음 보는 폴더에서 '이 폴더를 신뢰하나요'를 묻고, 답하기 전에는 훅을 하나도 부르지 않는다. 그동안 카드가 '작업 중'으로 보이지 않도록, 훅이 오기 전 화면 출력에 그 질문이 보이면 상태를 waiting으로 바꾼다. 신뢰한 뒤 SessionStart 훅이 오면 idle로 돌아간다. 이미 신뢰한 저장소의 git 워크트리에서는 이 질문이 뜨지 않는 것을 P4 검증에서 확인했다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-5",
+              "title": "세션에 로그인 셸 환경 넘기기",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/shellEnv.ts</code> · <code>daemon/main.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Dock에서 연 앱은 PATH와 셸 설정 파일이 내보내는 변수가 없는 환경으로 시작한다. 데몬이 뜰 때 <code>$SHELL -ilc env</code>를 한 번 실행해 터미널 창과 같은 환경을 읽고 세션에 넘긴다. 읽지 못하면 데몬 자신의 환경을 쓴다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: bun run test, 데몬을 띄워 curl로 prompt 붙인 launch · input · resume 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 서버 쪽 보드 원천 교체",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "데몬 클라이언트와 자동 실행 — RunnerClient.ensureRunning()",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/runner/RunnerClient.ts</code> · 테스트 · <code>src/server/runner/</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/server/orca/services.ts</code>의 spawnDetached(분리 실행 + 로그 파일)"
+                ],
+                [
+                  "결정",
+                  "핑이 실패하면 RUNNER_NODE(기본 process.execPath)로 RUNNER_DAEMON_ENTRY(기본 <cwd>/daemon/main.ts)를 분리 실행하고 unref한다. 앱이 꺼져도 데몬은 남는다."
+                ],
+                [
+                  "결정",
+                  "데몬에는 <code>RUNNER_CLAUDE_BIN</code>으로 claude 실행 파일 경로를 넘긴다(기존 <code>resolveClaudeBin</code>). 데몬 로그는 <code>$TMPDIR/agent-control-runner.log</code>."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "프로젝트 목록 저장소",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/projects/ProjectRegistry.ts</code> · 테스트 · <code>src/server/shared/JsonFile.ts</code> · <code>src/server/projects/</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/server/todos/TodoStore.ts</code>의 JSON 파일 저장"
+                ],
+                [
+                  "결정",
+                  "~/.local/share/agent-control/projects.json에 {path, name, kind: git|folder}를 둔다. kind 판정은 src/server/orca/importProject.ts의 kindOf를 옮겨 쓴다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "워크트리 메타 저장소 — 표시 이름 · 부모 워크트리 · Jira 참조",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/projects/WorktreeMeta.ts</code> · 테스트"
+                ],
+                [
+                  "결정",
+                  "~/.local/share/agent-control/worktrees.json, 경로를 키로 쓴다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-4",
+              "title": "처음 한 번 Orca에서 가져오기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/projects/importFromOrca.ts</code> · 테스트"
+                ],
+                [
+                  "결정",
+                  "projects.json이 없을 때만 orca repo list --json과 orca worktree list --json을 한 번 읽어 프로젝트 · 표시 이름 · 부모를 채운다. orca가 없거나 실패하면 빈 목록으로 시작한다. 이 파일이 src에 남는 유일한 orca 호출이다."
+                ],
+                [
+                  "결정",
+                  "워크트리 이름은 Orca에서 사용자가 직접 붙인 것(<code>displayNameMode: fixed</code>)만 가져온다. 자동 이름은 브랜치 이름이라 보드가 스스로 만든다."
+                ],
+                [
+                  "결정",
+                  "orca 실행 파일이 없으면 빈 목록을 저장하고, 그 밖의 실패(Orca가 꺼져 있음 등)에는 저장하지 않아 다음 실행 때 다시 시도한다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-5",
+              "title": "git 워크트리 읽기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/projects/gitWorktrees.ts</code> · 테스트"
+                ],
+                [
+                  "결정",
+                  "git -C <프로젝트> worktree list --porcelain을 파싱한다. folder 프로젝트는 그 폴더 하나를 워크트리 하나로 본다. worktreeId는 경로, repo는 프로젝트 이름."
+                ]
+              ]
+            },
+            {
+              "id": "P2-6",
+              "title": "새 BoardService — 같은 BoardSnapshot을 Orca 없이 만든다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/board/BoardService.ts</code> · <code>src/server/board/boardCards.ts</code> · 테스트 · <code>src/server/board/</code> · <code>src/common/board/</code> · <code>src/server/sessions/</code> · <code>src/server/container.ts</code> · <code>src/server/todos/</code> · <code>app/api/board/route.ts</code> · <code>app/page.tsx</code> · <code>test/</code>"
+                ],
+                [
+                  "재사용",
+                  "기존 <code>src/server/orca/BoardService.ts</code>의 flow 스캔 · feature 문서 · PR · Jira · artifacts 부분은 그대로 옮긴다. <code>buildWorktreeSummary</code> · <code>withFeatureRepos</code> · <code>expandPreview</code>"
+                ],
+                [
+                  "결정",
+                  "에이전트 카드 = 끝나지 않은 데몬 세션 중 cwd가 워크트리 경로이거나 그 안인 것. 상태: working→working, waiting→blocked, idle→prompted면 done 아니면 idle. terminalHandle = 데몬 세션 id, permission = null, agentType = kind."
+                ],
+                [
+                  "결정",
+                  "세션 제목 · 마지막 답 · 첫 요청은 트랜스크립트 projectDirOf(PROJECTS_DIR, cwd)/<id>.jsonl에서 기존 SessionTitles · transcriptText 도우미로 읽는다."
+                ],
+                [
+                  "결정",
+                  "공용 타입을 src/common/orca/types.ts에서 src/common/board/types.ts로 옮기고 import를 모두 바꾼다."
+                ],
+                [
+                  "결정",
+                  "<code>expandPreview</code>는 옮기지 않았다. 마지막 답을 트랜스크립트에서 통째로 읽으므로 Orca의 200자 미리보기를 늘릴 일이 없다. 화면의 '미리보기예요' 안내도 지웠다."
+                ],
+                [
+                  "결정",
+                  "<code>WorktreeSummary</code>에 <code>projectPath</code>를 더하고 <code>AgentCard.permission</code>을 지웠다. 워크트리 만들기가 프로젝트 폴더를 알아야 하고, 권한 응답 버튼이 없어졌기 때문이다."
+                ],
+                [
+                  "결정",
+                  "워크트리의 마지막 활동 시각은 그 안 데몬 세션의 가장 최근 상태 변화 시각이고, 세션이 없으면 비운다. '새 결과' 표시(unread)는 항상 꺼져 있다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 단위 테스트 통과, 데몬 세션 하나를 띄운 뒤 GET /api/board에 그 카드가 나오는지 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 액션을 데몬과 git으로",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "app/api/actions/route.ts 재배선",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/actions/route.ts</code> · <code>src/common/actions/schema.ts</code> · <code>src/common/actions/</code>"
+                ],
+                [
+                  "결정",
+                  "launch-agent → 데몬 launch{cwd, prompt}. resume-session → launch{cwd, resumeSessionId}. open-terminal → launch{kind: shell}. send-prompt → 데몬 input. close-terminal(s) → 데몬 close. open-artifact는 via 구분 없이 시스템 open."
+                ],
+                [
+                  "결정",
+                  "toggle-voice · read-voice · choose-option · answer-permission · focus-terminal 타입을 스키마에서 지운다."
+                ],
+                [
+                  "결정",
+                  "지난 세션 '다시 열기'는 데몬에 이어하기로 띄운 뒤 <code>/runner?session=<id></code> 창을 연다. 그 세션의 폴더가 등록된 프로젝트 밖이면 보드에 카드가 없기 때문이다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "워크트리 만들기 · 지우기 · 이름 바꾸기, 프로젝트 가져오기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/worktreeWizard/create.ts</code> · <code>src/server/worktreeWizard/context.ts</code> · <code>src/server/projects/</code> · <code>src/common/worktreeWizard/types.ts</code> · <code>skills/orca-worktree/SKILL.md</code>"
+                ],
+                [
+                  "결정",
+                  "만들기는 git -C <프로젝트> worktree add -b <branch> <dirname(프로젝트)>/<basename(프로젝트)>-<name> <base>. 부모 · Jira 참조는 메타에 적고, 첫 요청이 있으면 데몬 세션을 띄운다. WizardOrigin.repoId는 프로젝트 경로로 바꾼다."
+                ],
+                [
+                  "결정",
+                  "지우기는 그 워크트리 안 데몬 세션을 닫은 뒤 git worktree remove [--force]. 메인 체크아웃은 지우지 않는다. 이름 바꾸기는 메타에만 적는다. 가져오기는 ProjectRegistry.add."
+                ],
+                [
+                  "결정",
+                  "<code>git worktree add</code>에 <code>--no-track</code>을 붙이고, 기준 브랜치가 원격에만 있으면 <code>origin/<base></code>로 만든다. 새 브랜치의 upstream이 기준 브랜치로 잡히지 않는다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "Orca 전용 서버 코드 삭제",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/orca/</code> 전체 · <code>app/api/runtime</code> · <code>app/api/terminal</code> · <code>src/common/orca/runtime.ts</code> · <code>src/common/orca/screen.ts</code> · <code>src/server/permissions</code> · <code>src/common/orca/</code> · <code>src/common/permissions/</code> · <code>app/api/hooks/permission/route.ts</code> · <code>e2e/</code> · <code>playwright.config.ts</code> · <code>vitest.config.mts</code> · <code>package.json</code>"
+                ],
+                [
+                  "결정",
+                  "~/.claude/settings.json에 이 앱의 전역 PermissionRequest 훅(127.0.0.1:3199/api/hooks/permission)이 설치돼 있으므로, 그 라우트는 항상 {}를 돌려주는 빈 응답으로 남긴다. 지우면 모든 Claude 세션의 권한 요청마다 훅 오류가 난다. 사용자에게 bun run hook:uninstall을 안내한다."
+                ],
+                [
+                  "결정",
+                  "console.log · warn · error는 지우지 않는다."
+                ],
+                [
+                  "결정",
+                  "<code>src/server/sessions/SessionLocator.ts</code>(Orca 패널로 세션 찾기)와 <code>test/contract/orca.contract.ts</code>, <code>test:contract</code> 스크립트를 지웠다."
+                ],
+                [
+                  "결정",
+                  "<code>e2e/</code>는 가짜 Orca 대신 가짜 데몬(<code>e2e/fake-runner.mjs</code>)을 쓰도록 바꿨다. 권한 응답 테스트는 '남아 있는 훅에 빈 응답을 준다'로 바꿨다."
+                ],
+                [
+                  "결정",
+                  "<code>skills/orca-worktree</code> 스킬은 이름과 터미널에서 직접 쓸 때의 <code>orca worktree create</code> 호출이 남아 있다. [[R1-Q2]]에서 정한다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: tsc · eslint · bun run test 통과, rg -n \"orca\" src app 결과가 importFromOrca와 문구 외에 없음",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 화면",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "카드에서 터미널 열기 — Orca 화면 미리보기 자리에 RunnerTerminal",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/</code> · <code>src/client/entities/terminal</code> 삭제"
+                ],
+                [
+                  "재사용",
+                  "<code>src/client/widgets/runner-terminal</code>"
+                ],
+                [
+                  "결정",
+                  "<code>RunnerTerminal</code>을 <code>src/client/entities/runner/ui</code>로 옮기고 <code>widgets/runner-terminal</code>을 지웠다. 이 저장소의 lint가 위젯끼리의 import를 막는다."
+                ],
+                [
+                  "결정",
+                  "카드의 터미널은 '터미널 열기' 버튼으로 여닫고, 세션이 응답을 기다리거나 셸 세션이면 처음부터 열려 있다. 워크트리 메뉴의 '터미널로'는 그 세션 줄을 펼치고 터미널을 연다. 빠른 메뉴의 터미널은 세션 러너 창으로 연다."
+                ],
+                [
+                  "결정",
+                  "문구 변경은 [[R1-Q1]]에 모았다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "터미널 대용 기능 삭제",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply</code>의 VoiceButton · useVoice, <code>src/client/features/choose-option</code>, <code>src/client/features/answer-permission</code>, <code>src/client/features/switch-runtime</code>, <code>src/client/entities/runtime</code> · <code>src/client/</code>"
+                ],
+                [
+                  "결정",
+                  "빠른 답장 입력창은 데몬 input으로 동작하므로 남긴다. fix-from-conclusions · doc-panel · git-graph AgentComposer의 프롬프트 보내기도 같은 경로라 그대로 동작해야 한다."
+                ],
+                [
+                  "결정",
+                  "<code>src/common/permissions</code>와 <code>src/common/orca</code>도 쓰는 곳이 없어 지웠다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "실시간 갱신 — 데몬 이벤트가 오면 보드 쿼리 무효화",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/model/useBoard.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>useRunnerSessions</code>의 /events 소켓"
+                ]
+              ]
+            },
+            {
+              "id": "P4-4",
+              "title": "대시보드에서 /runner로 가는 링크",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-sidebar</code> 또는 머리글 · <code>app/runner/page.tsx</code> · <code>app/layout.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: browse로 대시보드에서 에이전트 띄우기 → 카드 상태 변화 → 카드 터미널 입력 → 세션 닫기, 워크트리 만들기 · 이름 바꾸기 · 지우기를 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 데스크톱 앱",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "앱이 데몬을 띄우도록 — 빌드 때 node 경로와 저장소 경로를 기록",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>scripts/build-desktop.mjs</code> · <code>desktop/main.mjs</code> · <code>next.config.ts</code> · <code>tsconfig.json</code> · <code>README.md</code>"
+                ],
+                [
+                  "결정",
+                  "빌드 스크립트가 process.execPath와 저장소의 daemon/main.ts 절대 경로를 패키지 설정에 적고, main.mjs가 서버 프로세스 환경에 RUNNER_NODE · RUNNER_DAEMON_ENTRY로 넘긴다. 데몬은 저장소의 node_modules를 쓴다."
+                ],
+                [
+                  "결정",
+                  "빌드가 <code>runner.json</code>을 앱 안에 적는다. Node 24 미만으로 빌드하면 실패한다. <code>/runner</code>는 앱 창으로 열리게 했다."
+                ],
+                [
+                  "결정",
+                  "빌드에 <code>daemon/</code>이 딸려 들어가지 않게 <code>next.config.ts</code> 추적 제외에 넣고, <code>tsconfig.json</code>에서 <code>dist</code>를 뺐다."
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: bun run desktop 빌드가 성공하고, 데몬을 끈 상태에서 앱을 열면 데몬이 뜨고 보드가 나온다. 설치는 실행 중인 앱을 바꾸므로 사용자에게 알리고 진행",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 접힌 카드의 음성 버튼을 데몬으로 되살리기",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "데몬이 세션마다 터미널 화면을 들고 있다가 화면 줄을 돌려준다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code> · <code>daemon/server.ts</code> · <code>daemon/package.json</code>"
+                ],
+                [
+                  "재사용",
+                  "세션 출력을 화면 상태로 재생하는 데 <code>@xterm/headless</code>(화면 없이 돌아가는 xterm). 앱은 이미 <code>@xterm/xterm</code> 6을 쓴다"
+                ],
+                [
+                  "패턴",
+                  "<code>daemon/server.ts</code>의 <code>INPUT_PATH</code> 라우트처럼 <code>GET /sessions/:id/screen</code>"
+                ],
+                [
+                  "결정",
+                  "화면은 데몬이 세션 출력을 @xterm/headless에 그대로 흘려 넣어 만든다. 보이는 줄만 돌려주고 스크롤 기록은 따로 두지 않는다(daemon/session/screen.ts)."
+                ],
+                [
+                  "단위 테스트",
+                  "<code>daemon/session/screen.test.ts</code> · <code>daemon/server.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "데몬에 붙여넣기로 감싸지 않은 키 입력을 보낸다(스페이스 · 백스페이스)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code> · <code>src/server/runner/RunnerClient.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "지금의 입력 라우트는 글을 <code>pasteOf</code>로 감싸 보낸다. <code>raw: true</code>면 그대로 <code>registry.write</code>"
+                ],
+                [
+                  "결정",
+                  "입력 라우트에 <code>raw: true</code>를 주면 붙여넣기 감싸기 없이 키를 그대로 보낸다."
+                ]
+              ]
+            },
+            {
+              "id": "P6-3",
+              "title": "서버의 음성 켜기 · 끄기와 받아쓰기 읽기를 데몬 위로 옮긴다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/runner/voice.ts</code> · <code>src/common/actions/schema.ts</code> · <code>app/api/actions/route.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "지운 <code>src/server/orca/voice.ts</code>와 <code>voice.test.ts</code>(커밋 a8bc768) — 녹음 표시(⏺ REC) 찾기, 입력창 글 읽기, 켜지지 않으면 되돌리기를 그대로 쓰고 터미널 쪽만 데몬으로 바꾼다"
+                ],
+                [
+                  "결정",
+                  "Orca가 주던 입력창 글(draft)이 없어서 미리 막지 않는다. 스페이스를 눌러 녹음이 켜지지 않으면 백스페이스로 되돌리고, 그때 화면 입력창에 글이 있었으면 ‘입력창을 비워 달라’, 없었으면 ‘/voice를 켜 달라’는 기존 문구를 보여 준다. 빈 입력창에 Claude Code가 띄우는 안내 글을 쓰던 글로 잘못 읽어 막는 일을 피하려는 것이다."
+                ],
+                [
+                  "결정",
+                  "음성 켜기 · 읽기는 services().voice로 둔다. app/에서 서버 내부 모듈을 바로 부르지 못하게 하는 린트 규칙 때문이다."
+                ],
+                [
+                  "단위 테스트",
+                  "<code>src/server/runner/voice.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-4",
+              "title": "빠른 답장 입력창 옆에 마이크 버튼과 받아쓰기 미리보기를 다시 넣는다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply/ui/VoiceButton.tsx</code> · <code>src/client/features/quick-reply/model/useVoice.ts</code> · <code>src/client/features/quick-reply/ui/QuickReply.tsx</code> · <code>src/client/shared/api/actions.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "커밋 a8bc768의 같은 파일들"
+                ],
+                [
+                  "결정",
+                  "빠른 답장 입력창은 터미널을 연 카드에도 그대로 보이므로 마이크 버튼도 함께 보인다."
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: voice 단위 테스트와 데몬 화면 테스트 통과, tsc · eslint 통과. 접힌 카드에서 버튼으로 녹음이 켜지고 꺼지는 것은 마이크가 필요해 사용자가 확인",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "단위 테스트 445개 통과(NODE_ENV=test — 이 셸은 NODE_ENV=production이라 그대로 돌리면 React 테스트가 깨진다), tsc 통과, eslint 오류 0. 포트 39990에 데몬을 하나 더 띄워 셸 세션의 화면 줄을 읽는 것까지 확인했다. 마이크로 녹음이 켜지고 꺼지는 것은 사용자가 확인한다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "Phase 7 · 워크트리 스킬을 git으로 · 이름 바꾸기",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "터미널에서 직접 부를 때도 git worktree add로 만들고 worktrees.json에 이름과 부모를 적는다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>skills/ac-worktree/SKILL.md</code> (옛 <code>skills/orca-worktree/SKILL.md</code>)"
+                ],
+                [
+                  "패턴",
+                  "대시보드가 워크트리를 만드는 방식(이번 작업 [[P3]])과 같은 저장 파일 · 같은 필드"
+                ],
+                [
+                  "결정",
+                  "스킬이 대시보드와 같은 자리(<code>&lt;프로젝트&gt;-&lt;이름&gt;</code>)에 <code>git worktree add --no-track</code>로 만들고, node 한 줄로 worktrees.json에 displayName · parentPath · reference를 합쳐 적는다. 첫 요청이 있으면 세션을 직접 띄우지 않고 대시보드에서 띄우라고 안내한다."
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "스킬 이름을 ac-worktree로 바꾸고 대시보드 호출 · README · 설치된 스킬을 함께 바꾼다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>skills/orca-worktree/</code> → <code>skills/ac-worktree/</code> · <code>src/server/worktreeWizard/run.ts</code>의 <code>/orca-worktree</code> → <code>/ac-worktree</code> · <code>README.md</code> · <code>scripts/install-skills.mjs</code> · <code>~/.claude/skills/</code>의 옛 폴더 삭제 후 새 이름으로 다시 설치"
+                ],
+                [
+                  "결정",
+                  "[[R3-Q1]] 새 이름은 ac-worktree"
+                ],
+                [
+                  "결정",
+                  "설치 스크립트가 예전 이름 orca-worktree 폴더를 이 스크립트가 깐 것일 때만 지운다(scripts/install-skills.mjs의 RETIRED)."
+                ]
+              ]
+            },
+            {
+              "id": "P7-V",
+              "title": "검증: bun run skills:install 뒤 ~/.claude/skills에 ac-worktree만 있고 orca-worktree는 없으며, 대시보드의 워크트리 만들기 마법사가 /ac-worktree로 워크트리를 만든다",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "skills:install 뒤 ~/.claude/skills에는 ac-worktree만 남았다. 대시보드와 같은 옵션으로 claude -p \"/ac-worktree …\"를 돌려 구성안(COMP-611, feat/COMP-611)을 받았고, 스킬 4절의 git 명령과 저장 스크립트를 임시 저장소에서 돌려 워크트리와 worktrees.json 항목이 생기는 것을 확인했다."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "wait",
+      "summary": "D1–D4 완료 · PR 여부 대기",
+      "conclusion": [
+        "코드 리뷰 지적 9건 중 6건을 고쳤고, 3건은 D3에 남긴 이유와 함께 적었다.",
+        "고친 뒤 타입 검사 · 린트 · 단위 · e2e 테스트가 모두 통과했다."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "이 작업에는 화면 정의 표(SOT 맵)가 없어 바꿀 근거가 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "계산 행이나 서버 · 기획에 넘길 요청이 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "고침",
+                  "워크트리 지우기: git이 거절해도 세션이 먼저 닫히던 순서를 바꿔, 지운 뒤에 세션을 닫는다(<code>src/server/projects/WorktreeActions.ts</code>)."
+                ],
+                [
+                  "고침",
+                  "워크트리 만들기: 첫 요청 세션이 안 떠도 만든 워크트리를 실패로 돌려주지 않고, 마법사가 그 이유만 토스트로 띄운다. 다시 만들다 ‘브랜치가 이미 있다’로 막히는 일을 없앴다."
+                ],
+                [
+                  "고침",
+                  "데몬 기동 대기를 6초에서 15초로 늘렸다(셸 환경 읽기가 최대 10초). 한 번 실패하면 10초 동안은 다시 띄우지 않고 바로 실패해 보드 새로고침이 멈추지 않는다(<code>src/server/runner/RunnerClient.ts</code>)."
+                ],
+                [
+                  "고침",
+                  "Orca 가져오기가 Orca가 꺼져 있어 실패하면 1분 뒤 다시 시도한다(<code>src/server/projects/importFromOrca.ts</code>)."
+                ],
+                [
+                  "고침",
+                  "저절로 끝난 세션은 10분 뒤 데몬에서 지워 출력 기록과 화면이 쌓이지 않게 했다(<code>daemon/session/SessionRegistry.ts</code>)."
+                ],
+                [
+                  "고침",
+                  "이번 브랜치에서 새로 붙은 코드 주석을 지웠다."
+                ],
+                [
+                  "남김",
+                  "권한 요청에 답한 뒤에도 도구가 끝날 때까지 카드가 ‘대기’로 남는다. 승인 직후에 오는 훅 이벤트가 없어 지금은 고치지 않는다."
+                ],
+                [
+                  "남김",
+                  "같은 세션을 카드와 /runner 페이지에서 동시에 열면 터미널 크기가 서로 덮어쓴다."
+                ],
+                [
+                  "남김",
+                  "빠른 메뉴의 ‘터미널’은 새 창(/runner)을 열고, 다른 곳은 카드 안 터미널을 연다. 동작을 맞출지는 따로 정한다."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "tsc 통과, eslint 오류 0(경고 4는 이번 변경 밖), 단위 테스트 449개 통과(NODE_ENV=test), e2e 3개 통과(E2E_PORT=3187)."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "Orca를 띄우지 않아도 대시보드 하나로 프로젝트·워크트리·에이전트 세션을 보고 다룬다. 세션 프로세스는 세션 러너 데몬([[session-runner]])이 들고 있다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 (2026-11-13) — '오르카 의존 제거까지 그냥 한 번에 다 작업해줘'"
+    },
+    {
+      "text": "터미널을 대신하려고 만든 기능(음성 버튼, 선택지 버튼, 권한 응답 버튼, Orca 화면 미리보기, 런타임 전환)은 지우고, 카드 안의 진짜 터미널로 대신한다.",
+      "state": "confirmed",
+      "basis": "대화에서 합의한 3단계 범위"
+    },
+    {
+      "text": "설치된 데스크톱 앱이 데몬을 직접 띄우고, 앱을 닫아도 데몬과 세션은 살아 있다.",
+      "state": "confirmed",
+      "basis": "[[R1-Q4]] 답 (2026-11-13) — 그대로 둔다"
+    },
+    {
+      "text": "카드에서 말로 입력할 수 있다. 터미널을 열었으면 Claude Code /voice를 직접 쓰고, 접힌 카드에서는 마이크 버튼을 누른다.",
+      "state": "confirmed",
+      "basis": "[[R1-Q3]] 답 (2026-11-13)"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 계획 정리 후 새 세션(Fable 5.2)에서 바로 진행하라고 함"
+    }
+  ],
+  "pulledAt": 1794569888144
+}

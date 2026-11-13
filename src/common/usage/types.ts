@@ -6,7 +6,8 @@ export interface UsageWindow {
 export interface UsageSnapshot {
   session: UsageWindow | null;
   weekly: UsageWindow | null;
-  fetchedAt: number;
+  receivedAt: number;
+  source: "statusline" | "api";
 }
 
 export type UsageResponse = ({ ok: true } & UsageSnapshot) | { ok: false; error: string };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { AgentCard, AgentState } from "@/common/orca/types";
+import type { AgentCard, AgentState } from "@/common/board/types";
 import { parseMessage } from "@/client/shared/lib/message";
 
 const APP_TITLE = "Agent Control";

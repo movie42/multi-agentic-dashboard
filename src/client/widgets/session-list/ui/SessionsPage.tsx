@@ -242,7 +242,7 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                       pendingLabel="여는 중"
                       className="rounded-full bg-fg px-3.5 py-1.5 leading-none font-semibold text-bg hover:opacity-85 disabled:opacity-70"
                     >
-                      Orca에서 다시 열기 →
+                      다시 열기 →
                     </PendingButton>
                   ) : (
                     <span className="text-muted" title={session.cwd ?? undefined}>

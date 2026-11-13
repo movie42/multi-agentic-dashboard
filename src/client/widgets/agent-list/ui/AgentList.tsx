@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { StateBadge } from "@/client/entities/agent";
+import { requestTerminal, useTerminalRequest } from "@/client/entities/runner";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 import { QuickReply } from "@/client/features/quick-reply";
@@ -96,6 +97,12 @@ function AgentRow({
   const [menu, setMenu] = useState<MenuState | null>(null);
   const closeMenu = () => setMenu(null);
   const [expanded, setExpanded] = useState(initiallyExpanded);
+  const terminalRequest = useTerminalRequest(agent.terminalHandle);
+  const [seenTerminalRequest, setSeenTerminalRequest] = useState(terminalRequest);
+  if (terminalRequest !== seenTerminalRequest) {
+    setSeenTerminalRequest(terminalRequest);
+    setExpanded(true);
+  }
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
   const [dragging, setDragging] = useState(false);
   const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
@@ -260,10 +267,10 @@ function AgentRow({
                 <MenuItem
                   onSelect={() => {
                     closeMenu();
-                    void onAction({ type: "focus-terminal", terminalHandle });
+                    requestTerminal(terminalHandle);
                   }}
                 >
-                  Orca에서 이어가기
+                  터미널 열기
                 </MenuItem>
               )}
               {onJump && (

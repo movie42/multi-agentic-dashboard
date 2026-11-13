@@ -6,7 +6,7 @@ import { conversationQueryOptions } from "@/client/entities/session";
 import { formatClock, plainMessage } from "@/client/shared/lib/format";
 import { Markdown } from "@/client/shared/ui/Markdown";
 import { Spinner } from "@/client/shared/ui/Spinner";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 
 interface SessionConversationProps {
   agent: AgentCard;

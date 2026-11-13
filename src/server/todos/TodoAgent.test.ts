@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import { defaultBoard } from "@/common/todos/board";
 import { applyTodoOp, type TodoOp } from "@/common/todos/ops";
 import type { TodoBoard } from "@/common/todos/types";
@@ -67,6 +67,7 @@ function worktree(path: string, repo: string): WorktreeSummary {
     name: "gift",
     branch: null,
     path,
+    projectPath: path,
     isMain: false,
     parentWorktreeId: null,
     unread: false,

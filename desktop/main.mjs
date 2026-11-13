@@ -8,6 +8,18 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SUMMON_SHORTCUT = "Control+Alt+Space";
 const EXTRA_PATH = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"];
 
+function readRunnerConfig() {
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "runner.json"), "utf8"));
+    return typeof config.node === "string" && typeof config.daemonEntry === "string"
+      ? { RUNNER_NODE: config.node, RUNNER_DAEMON_ENTRY: config.daemonEntry }
+      : {};
+  } catch (error) {
+    console.warn("[agent-control] no runner.json — the server cannot start the session runner daemon", error);
+    return {};
+  }
+}
+
 let serverProcess = null;
 let mainWindow = null;
 
@@ -50,6 +62,7 @@ function startServer() {
       HOSTNAME: "127.0.0.1",
       PATH: [...EXTRA_PATH, process.env.PATH ?? ""].join(":"),
       AGENT_CONTROL_CACHE_DIR: userData,
+      ...readRunnerConfig(),
     },
     stdio: "pipe",
   });
@@ -74,6 +87,9 @@ function openHandler({ url }) {
   }
   if (pathname === "/graph") {
     return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, width: 1440, height: 960, title: "깃 그래프" } };
+  }
+  if (pathname === "/runner") {
+    return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, width: 1440, height: 960, title: "세션 러너" } };
   }
   // Size and position come from the window.open features of a tab dragged out of the doc panel.
   if (pathname === "/doc") {

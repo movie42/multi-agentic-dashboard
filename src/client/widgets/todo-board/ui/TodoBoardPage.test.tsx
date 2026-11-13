@@ -164,7 +164,7 @@ describe("TodoBoardPage sessions", () => {
     vi.stubGlobal("fetch", vi.fn(fakeServer));
   });
 
-  it("jumps to the live agent inside Agent Control instead of opening Orca", async () => {
+  it("jumps to the live agent on the board instead of resuming the session", async () => {
     const agent = agentCard({ id: "pane-9", repo: "repo", state: "working", session: { id: SESSION, title: "작업 세션", titleSource: "custom", bookmark: null } });
     const onJump = vi.fn();
     const onAction = vi.fn();

@@ -14,6 +14,7 @@ const names = readdirSync(SOURCE, { withFileTypes: true })
   .map((entry) => entry.name);
 
 const MARKER = ".installed-by-agent-control";
+const RETIRED = ["orca-worktree"];
 
 function isPresent(target) {
   try {
@@ -47,4 +48,11 @@ for (const name of names) {
   if (present) rmSync(target, { recursive: true, force: true });
   renameSync(staging, target);
   console.log(`installed skill ${target}`);
+}
+
+for (const name of RETIRED) {
+  const target = path.join(TARGET, name);
+  if (!isPresent(target) || !isOurs(target)) continue;
+  rmSync(target, { recursive: true, force: true });
+  console.log(`removed retired skill ${target}`);
 }

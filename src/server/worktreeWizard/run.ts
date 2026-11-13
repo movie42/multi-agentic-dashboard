@@ -120,7 +120,7 @@ async function runClaude(cwd: string, args: string[]): Promise<{ sessionId: stri
 
 export async function startWizard(origin: WizardOrigin) {
   const facts = await describeOrigin(origin);
-  return runClaude(origin.anchorPath, ["-p", `/orca-worktree\n\n${facts}`]);
+  return runClaude(origin.anchorPath, ["-p", `/ac-worktree\n\n${facts}`]);
 }
 
 export async function answerWizard(cwd: string, sessionId: string, answer: string) {

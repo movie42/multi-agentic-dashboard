@@ -6,6 +6,8 @@ import { toastError } from "@/client/shared/model/toastStore";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 import { useDraft } from "@/client/shared/lib/useDraft";
+import { useVoice } from "../model/useVoice";
+import { VoiceButton } from "./VoiceButton";
 
 type SendResult = { kind: "idle"; id: number } | { kind: "sent"; id: number } | { kind: "error"; id: number; message: string };
 type SendStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string };
@@ -19,6 +21,8 @@ interface QuickReplyProps {
 export function QuickReply({ terminalHandle, working, autoFocus = false }: QuickReplyProps) {
   const [text, setText] = useDraft(`quick-reply-draft:${terminalHandle}`);
   const [dismissedId, setDismissedId] = useState(0);
+  const [stopping, setStopping] = useState(false);
+  const [interrupting, setInterrupting] = useState(false);
   const attachments = useAttachments("quick-reply");
 
   const [result, dispatch, sending] = useActionState(async (previous: SendResult, message: string): Promise<SendResult> => {
@@ -34,22 +38,58 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
     }
   }, { kind: "idle", id: 0 });
 
-  const status: SendStatus = sending ? { kind: "sending" } : result.id === dismissedId ? { kind: "idle" } : result;
+  const status: SendStatus = sending || stopping ? { kind: "sending" } : result.id === dismissedId ? { kind: "idle" } : result;
   const canSend = (text.trim().length > 0 || attachments.readyPaths.length > 0) && !attachments.uploading && !sending;
   const dismiss = () => setDismissedId(result.id);
+  const voice = useVoice(terminalHandle, (transcript) => {
+    setText(text.trim() ? `${text.trimEnd()} ${transcript}` : transcript);
+    if (!sending) dismiss();
+  });
 
   const addFiles = (files: File[]) => {
     if (!sending) dismiss();
     attachments.addFiles(files);
   };
 
+  const sendWithVoice = async () => {
+    if (voice.pending || stopping || sending || attachments.uploading) return;
+    setStopping(true);
+    const transcript = await voice.stop();
+    setStopping(false);
+    if (transcript === null) return;
+    const body = [text.trim(), transcript].filter(Boolean).join(" ");
+    if (!body && attachments.readyPaths.length === 0) return;
+    startTransition(() => dispatch(appendPaths(body, attachments.readyPaths)));
+  };
+
   const send = () => {
+    if (voice.recording) {
+      void sendWithVoice();
+      return;
+    }
     if (!canSend) return;
     const message = appendPaths(text, attachments.readyPaths);
     startTransition(() => dispatch(message));
   };
 
+  const interrupt = async () => {
+    if (interrupting) return;
+    setInterrupting(true);
+    try {
+      await postAction({ type: "interrupt-session", terminalHandle });
+    } catch (error) {
+      toastError("quick-reply", error);
+    } finally {
+      setInterrupting(false);
+    }
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Escape" && working && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      void interrupt();
+      return;
+    }
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
     send();
@@ -68,7 +108,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
   const placeholder = attachments.dragging
     ? "여기에 놓으면 파일이 붙어요"
     : working
-      ? "작업 중이에요 · 보내면 다음 차례로 줄 서요"
+      ? "작업 중이에요 · 보내면 다음 차례로 줄 서요 · Esc 멈추기"
       : "빠른 답장 · Enter 보내기, Shift+Enter 줄바꿈";
 
   return (
@@ -82,8 +122,19 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
         }`}
       >
         <AttachmentList attachments={attachments.list} onRemove={attachments.remove} />
+        {voice.recording && (
+          <p aria-live="polite" className="text-[13px] leading-relaxed whitespace-pre-wrap text-muted">
+            {voice.transcript || "듣고 있어요…"}
+          </p>
+        )}
         <div className="flex items-end gap-2">
           <AttachButton onFiles={addFiles} />
+          <VoiceButton
+            recording={voice.recording}
+            pending={voice.pending}
+            disabled={sending}
+            onToggle={voice.toggle}
+          />
           <textarea
             data-quick-reply
             autoFocus={autoFocus}
@@ -95,10 +146,22 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
             placeholder={placeholder}
             className="field-sizing-content max-h-40 min-h-6 flex-1 resize-none bg-transparent text-[14px] leading-relaxed outline-none placeholder:text-muted"
           />
+          {working && (
+            <button
+              type="button"
+              data-interrupt
+              onClick={() => void interrupt()}
+              disabled={interrupting}
+              title="지금 하던 작업을 멈춰요 (터미널의 Esc와 같아요)"
+              className="shrink-0 rounded-full px-3 py-1 text-[12px] leading-5 font-semibold text-accent shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint-2 disabled:opacity-30"
+            >
+              {interrupting ? "멈추는 중" : "멈추기"}
+            </button>
+          )}
           <button
             type="button"
             onClick={send}
-            disabled={!canSend}
+            disabled={voice.recording ? voice.pending || stopping || sending || attachments.uploading : !canSend}
             className="shrink-0 rounded-full bg-fg px-3 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
           >
             {status.kind === "sending" ? "보내는 중" : attachments.uploading ? "올리는 중" : "보내기"}

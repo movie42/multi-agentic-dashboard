@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agent Control",
-  description: "Orca agent control board",
+  description: "Agent control board",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

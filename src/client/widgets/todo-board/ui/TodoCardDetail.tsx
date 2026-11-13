@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { columnOfStatus } from "@/common/todos/board";
 import { parseJiraUrl } from "@/common/todos/jira";
 import type { TodoOp } from "@/common/todos/ops";
@@ -234,7 +234,7 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
                     pendingLabel="여는 중"
                     className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg disabled:no-underline disabled:opacity-40"
                   >
-                    Orca에서 다시 열기
+                    다시 열기
                   </PendingButton>
                 )}
                 <button

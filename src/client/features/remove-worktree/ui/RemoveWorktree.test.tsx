@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
 import { RemoveWorktree } from "./RemoveWorktree";
 
@@ -15,6 +15,7 @@ const worktree: WorktreeSummary = {
   name: "feat-a",
   branch: "feat/a",
   path: "/work/feat-a",
+  projectPath: "/work/repo",
   isMain: false,
   parentWorktreeId: null,
   unread: false,

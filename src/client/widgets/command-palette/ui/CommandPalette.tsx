@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AgentCard, BoardSnapshot } from "@/common/orca/types";
+import type { AgentCard, BoardSnapshot } from "@/common/board/types";
 import { StateBadge } from "@/client/entities/agent";
 import { openAncestors } from "@/client/shared/lib/openAncestors";
 
@@ -23,6 +23,7 @@ const MAX_ITEMS = 40;
 interface CommandPaletteProps {
   board: BoardSnapshot;
   onSelectRepo: (repo: string | null) => void;
+  onSelectWorktree: (repo: string, worktreeId: string) => void;
   onOpenSessions: () => void;
 }
 
@@ -44,7 +45,7 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
-export function CommandPalette({ board, onSelectRepo, onOpenSessions }: CommandPaletteProps) {
+export function CommandPalette({ board, onSelectRepo, onSelectWorktree, onOpenSessions }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -81,7 +82,7 @@ export function CommandPalette({ board, onSelectRepo, onOpenSessions }: CommandP
       hint: [agent.repo, agent.worktreeName, agent.branch, agent.lastMessage?.replace(/\s+/g, " ")].filter(Boolean).join(" · "),
       agent,
       run: () => {
-        onSelectRepo(agent.repo);
+        onSelectWorktree(agent.repo, agent.worktreeId);
         focusCard(agent.id);
       },
     })),
@@ -97,7 +98,7 @@ export function CommandPalette({ board, onSelectRepo, onOpenSessions }: CommandP
       key: `worktree:${worktree.worktreeId}`,
       label: worktree.name,
       hint: [worktree.repo, worktree.branch, ...worktree.flowTasks.map((task) => `${task.taskId} ${task.title}`)].filter(Boolean).join(" · "),
-      run: () => onSelectRepo(worktree.repo),
+      run: () => onSelectWorktree(worktree.repo, worktree.worktreeId),
     })),
   ];
 
