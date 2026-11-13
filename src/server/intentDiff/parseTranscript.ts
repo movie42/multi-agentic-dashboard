@@ -204,7 +204,7 @@ export function parseTranscript(raw: string, roots: string[], local: boolean): T
         const entry = pending.get(block.tool_use_id);
         if (!entry) continue;
         pending.delete(block.tool_use_id);
-        if (!entry.file) continue;
+        if (!entry.file || block.is_error === true) continue;
         const change = changeFromResult(line.toolUseResult) ?? changeFromInput(entry.event.tool, entry.input);
         entry.event.changes[entry.file] = change;
       }

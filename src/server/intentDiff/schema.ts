@@ -60,6 +60,7 @@ const contentBlockSchema = z.looseObject({
   name: optionalString,
   input: z.record(z.string(), z.unknown()).optional().catch(undefined),
   tool_use_id: optionalString,
+  is_error: z.boolean().optional().catch(undefined),
 });
 
 export const transcriptLineSchema = z.looseObject({

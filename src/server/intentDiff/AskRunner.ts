@@ -66,6 +66,10 @@ export type StreamItem =
   | { kind: "result"; outcome: AskOutcome }
   | { kind: "none" };
 
+function isPendingTurn(turn: AskTurn, asked: AskTurn): boolean {
+  return turn.askedAt === asked.askedAt && turn.question === asked.question && turn.answer === null && turn.error === null;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -241,13 +245,21 @@ export class AskRunner {
   }
 
   async run(prepared: PreparedAsk, emit: (event: AskEvent) => void): Promise<void> {
-    const saved = await this.deps.store.save(prepared.thread);
+    const asked = prepared.thread.turns.at(-1);
+    if (!asked) throw new Error("물어볼 질문이 없어요");
+    const [appended] = await this.deps.store.update([prepared.thread.id], (current) => ({
+      ...current,
+      turns: [...current.turns, asked],
+      updatedAt: prepared.thread.updatedAt,
+    }));
+    const saved = appended ?? (await this.deps.store.save(prepared.thread));
     emit({ type: "thread", thread: saved });
     const outcome = await this.runClaude(prepared.args, saved.cwd, emit);
-    const turns = saved.turns.map((turn, index) =>
-      index === saved.turns.length - 1 ? { ...turn, ...outcome, answeredAt: this.now() } : turn,
-    );
-    const finished = await this.deps.store.save({ ...saved, turns, updatedAt: this.now() });
+    const [finished = saved] = await this.deps.store.update([saved.id], (current) => ({
+      ...current,
+      turns: current.turns.map((turn) => (isPendingTurn(turn, asked) ? { ...turn, ...outcome, answeredAt: this.now() } : turn)),
+      updatedAt: this.now(),
+    }));
     emit(outcome.error ? { type: "error", error: outcome.error, thread: finished } : { type: "done", thread: finished });
   }
 

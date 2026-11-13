@@ -39,8 +39,8 @@ export function createIntentDiffServices({ projectDirOf, warn: reportWarning }: 
   const highlighter = new Highlighter({ themes: () => themeReader.themes(), readBlobs, warn: reportWarning });
 
   const shownLine = async ({ worktreePath, rev, file, line }: SymbolQuery): Promise<string | null> => {
-    if (!rev) return null;
-    const text = await git(worktreePath, ["show", `${rev}:${file}`]).catch(reportAnd("", reportWarning, "intent-diff/symbol", { worktreePath, rev, file }));
+    if (!rev || rev.startsWith("-") || file.startsWith("-")) return null;
+    const text = await git(worktreePath, ["show", "--end-of-options", `${rev}:${file}`]).catch(reportAnd("", reportWarning, "intent-diff/symbol", { worktreePath, rev, file }));
     return text.split("\n")[line - 1] ?? null;
   };
 
