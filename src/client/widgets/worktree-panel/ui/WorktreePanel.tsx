@@ -14,6 +14,7 @@ import type {
 import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
+import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { useSessionOrder } from "../model/useSessionOrder";
@@ -207,6 +208,17 @@ export function WorktreePanel({
             {ancestors.length > 0 && <Elbow />}
             {worktree.name}
           </span>
+          <button
+            type="button"
+            aria-label={`${worktree.name} 워크트리에서 새 세션`}
+            title="이 워크트리에 빈 에이전트 세션을 띄워요"
+            onClick={() => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" })}
+            className="mt-[0.1em] shrink-0 cursor-pointer rounded-md p-0.5 text-faint hover:bg-tint-2 hover:text-fg"
+          >
+            <svg aria-hidden viewBox="0 0 16 16" className="size-4 fill-none stroke-current" strokeWidth={1.6} strokeLinecap="round">
+              <path d="M8 3v10M3 8h10" />
+            </svg>
+          </button>
           <button
             type="button"
             aria-label={`${worktree.name} 워크트리 메뉴`}
@@ -487,7 +499,10 @@ export function WorktreePanel({
           </details>
         )}
 
-        {listed.length > 0 && renderAgents(listed, sessions.move)}
+        <div className="empty:hidden">
+          {listed.length > 0 && renderAgents(listed, sessions.move)}
+          <PendingLaunchRows worktreePath={worktree.path} standalone={listed.length === 0} />
+        </div>
       </div>
     </section>
   );

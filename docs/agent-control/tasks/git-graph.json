@@ -483,5 +483,13 @@
       "why": "사용자가 테스트를 마치고 문서를 전부 완료 처리하라고 함"
     }
   ],
-  "pruned": "2026-11-13"
+  "pruned": "2026-11-13",
+  "followUps": [
+    {
+      "date": "2026-11-13",
+      "text": "2026-11-13 커밋 상세 파일 클릭 시 diff 펼침(readCommitDiff, /api/git-graph/commit/diff, DiffBlock 공용화) · squash/rebase로 root에 반영된 브랜치 라벨에 ↳ 배지(readMerged.ts: gh 머지 PR 우선, 실패 시 patch-id 비교). 배지는 써보고 별로면 제거 예정",
+      "files": [],
+      "sha": "cdd80c0"
+    }
+  ]
 }

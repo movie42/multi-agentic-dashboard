@@ -37,3 +37,10 @@ export async function readCommit(worktreePath: string, sha: string): Promise<Com
     files: parseNameStatus(files),
   };
 }
+
+/** One file's patch in a commit; a rename passes its old path too so `-M` can pair them. */
+export async function readCommitDiff(worktreePath: string, sha: string, file: string, from: string | null): Promise<string> {
+  if (!SHA_PATTERN.test(sha)) throw new Error("커밋 SHA 형식이 아니에요");
+  const paths = from ? [from, file] : [file];
+  return runGit(worktreePath, ["show", "--format=", "--no-color", "-M", "--diff-merges=first-parent", sha, "--", ...paths]);
+}

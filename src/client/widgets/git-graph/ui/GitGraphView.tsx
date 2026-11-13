@@ -84,6 +84,11 @@ function WorktreeGraph({ worktreePath, onChangeBase }: WorktreeGraphProps) {
     worktrees
       .filter((worktree) => worktree.headSha === sha)
       .map((worktree) => ({ path: worktree.path, name: baseName(worktree.path), isBase: worktree.path === worktreePath }));
+  const merged = first?.merged ?? {};
+  const jumpTo = (sha: string) => {
+    setSelected(sha);
+    document.querySelector(`[data-sha="${sha}"]`)?.scrollIntoView({ block: "center" });
+  };
   const refresh = () => queryClient.invalidateQueries({ queryKey: gitGraphKeys.graph(worktreePath) });
 
   return (
@@ -158,6 +163,8 @@ function WorktreeGraph({ worktreePath, onChangeBase }: WorktreeGraphProps) {
                 workingCount={commit === workingRow ? changedCount : undefined}
                 worktreesHere={commit === workingRow ? [] : worktreesAt(commit.sha)}
                 onPickWorktree={onChangeBase}
+                merged={merged}
+                onJump={jumpTo}
               />
             );
           })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DiffTab } from "@/client/widgets/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
 import type {
@@ -20,7 +21,8 @@ import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
 import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
-import { LaunchAgent } from "@/client/features/launch-agent";
+import { LaunchAgent, usePendingLaunchStore } from "@/client/features/launch-agent";
+import { boardKeys } from "@/client/entities/board";
 import { ProjectSidebar, type ProjectCounts } from "@/client/widgets/project-sidebar";
 import { AgentList } from "@/client/widgets/agent-list";
 import { RuntimeSwitch } from "@/client/features/switch-runtime";
@@ -158,6 +160,13 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const [jump, setJump] = useState<JumpTarget | null>(null);
   const [sidebarCollapsed, toggleSidebar] = useSidebarCollapsed();
   const handledJump = useRef<JumpTarget | null>(null);
+  const queryClient = useQueryClient();
+  const startPendingLaunch = usePendingLaunchStore((state) => state.start);
+  const cancelPendingLaunch = usePendingLaunchStore((state) => state.cancel);
+
+  useEffect(() => {
+    if (board) usePendingLaunchStore.getState().settle(board.agents);
+  }, [board]);
 
   const jumpTo = (repo: string, targets: string[]) => {
     setJump({ repo, targets });
@@ -190,9 +199,15 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       openDoc(action.target);
       return;
     }
+    const pendingId =
+      action.type === "launch-agent"
+        ? startPendingLaunch(action.worktreePath, board?.agents ?? [])
+        : null;
     try {
       await postAction(action);
+      if (pendingId) void queryClient.invalidateQueries({ queryKey: boardKeys.all });
     } catch (actionError) {
+      if (pendingId) cancelPendingLaunch(pendingId);
       toastError("action", actionError, { type: action.type });
     }
   };

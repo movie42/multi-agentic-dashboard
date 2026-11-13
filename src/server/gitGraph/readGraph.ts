@@ -1,11 +1,15 @@
-import type { GitGraph } from "@/common/gitGraph/types";
+import type { GitGraph, MergedBranch } from "@/common/gitGraph/types";
 import { dirtyCount, parseWorktreeEntries, parseWorktreeList, runGit, tryGit } from "./git";
 import { LOG_FORMAT, parseLog } from "./parseLog";
 
 export const GRAPH_PAGE = 300;
 
-export async function readGraph(worktreePath: string, skip = 0, limit = GRAPH_PAGE): Promise<GitGraph> {
-  const [log, worktrees, dirty, headSha, currentBranch] = await Promise.all([
+export type ReadMerged = (worktreePath: string) => Promise<Record<string, MergedBranch>>;
+
+const noMerged: ReadMerged = async () => ({});
+
+export async function readGraph(worktreePath: string, skip = 0, limit = GRAPH_PAGE, readMerged: ReadMerged = noMerged): Promise<GitGraph> {
+  const [log, worktrees, dirty, headSha, currentBranch, merged] = await Promise.all([
     runGit(worktreePath, [
       "log",
       "--exclude=refs/stash",
@@ -20,6 +24,7 @@ export async function readGraph(worktreePath: string, skip = 0, limit = GRAPH_PA
     dirtyCount(worktreePath),
     tryGit(worktreePath, ["rev-parse", "HEAD"]),
     tryGit(worktreePath, ["symbolic-ref", "--short", "-q", "HEAD"]),
+    skip === 0 ? readMerged(worktreePath) : {},
   ]);
   const commits = parseLog(log);
   return {
@@ -31,5 +36,6 @@ export async function readGraph(worktreePath: string, skip = 0, limit = GRAPH_PA
     worktrees: parseWorktreeEntries(worktrees),
     checkedOut: parseWorktreeList(worktrees),
     dirtyCount: dirty,
+    merged,
   };
 }

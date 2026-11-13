@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { workingDiffQueryOptions } from "@/client/entities/git-graph";
 import type { WorkingFile, WorkingFileState } from "@/common/gitGraph/types";
+import { DiffBlock } from "./DiffBlock";
 
 const GROUPS: { state: WorkingFileState; title: string }[] = [
   { state: "conflicted", title: "충돌" },
@@ -23,34 +24,13 @@ const STATUS_TEXT: Record<WorkingFile["status"], { text: string; tone: string }>
   "?": { text: "새", tone: "text-done" },
 };
 
-function lineTone(line: string): string {
-  if (line.startsWith("+++") || line.startsWith("---")) return "text-muted";
-  if (line.startsWith("+")) return "bg-done/10 text-done";
-  if (line.startsWith("-")) return "bg-accent/10 text-accent";
-  if (line.startsWith("@@")) return "text-pr";
-  return "";
-}
-
 interface FileDiffProps {
   worktreePath: string;
   file: string;
 }
 
 function FileDiff({ worktreePath, file }: FileDiffProps) {
-  const diff = useQuery(workingDiffQueryOptions(worktreePath, file));
-  if (diff.isPending) return <p className="py-1 text-[12px] text-muted">불러오는 중…</p>;
-  if (diff.isError) return <p className="py-1 text-[12px] text-accent">{diff.error.message}</p>;
-  const lines = diff.data.split("\n").filter((line) => !/^(diff --git|index |new file mode|deleted file mode)/.test(line));
-  if (lines.every((line) => line.trim() === "")) return <p className="py-1 text-[12px] text-muted">보여 줄 변경이 없어요 (바이너리이거나 모드만 바뀜)</p>;
-  return (
-    <pre className="my-1 max-h-96 overflow-auto rounded-md bg-tint py-1.5 font-mono text-[11px] leading-[1.55]">
-      {lines.map((line, index) => (
-        <div key={index} className={`px-2 whitespace-pre ${lineTone(line)}`}>
-          {line || " "}
-        </div>
-      ))}
-    </pre>
-  );
+  return <DiffBlock query={useQuery(workingDiffQueryOptions(worktreePath, file))} />;
 }
 
 interface WorkingTreeDetailProps {

@@ -3,6 +3,7 @@ import type { SwitchBranchRequest } from "@/common/gitGraph/schema";
 import type {
   CommitDetail,
   CommitDetailResponse,
+  CommitDiffResponse,
   GitGraph,
   GitGraphResponse,
   SwitchBranchResponse,
@@ -16,6 +17,7 @@ export const gitGraphKeys = {
   all: ["git-graph"] as const,
   graph: (worktreePath: string) => [...gitGraphKeys.all, "graph", worktreePath] as const,
   commit: (worktreePath: string, sha: string) => [...gitGraphKeys.all, "commit", worktreePath, sha] as const,
+  commitDiff: (worktreePath: string, sha: string, file: string) => [...gitGraphKeys.all, "commit-diff", worktreePath, sha, file] as const,
   working: (worktreePath: string) => [...gitGraphKeys.all, "working", worktreePath] as const,
   workingDiff: (worktreePath: string, file: string) => [...gitGraphKeys.all, "working-diff", worktreePath, file] as const,
 };
@@ -57,6 +59,24 @@ export function commitDetailQueryOptions(worktreePath: string, sha: string) {
   return queryOptions({
     queryKey: gitGraphKeys.commit(worktreePath, sha),
     queryFn: ({ signal }) => fetchCommit(worktreePath, sha, signal),
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+async function fetchCommitDiff(worktreePath: string, sha: string, file: string, from: string | null, signal: AbortSignal): Promise<string> {
+  const params = new URLSearchParams({ path: worktreePath, sha, file });
+  if (from) params.set("from", from);
+  const response = await fetch(`/api/git-graph/commit/diff?${params.toString()}`, { signal, cache: "no-store" });
+  const body = await readJson<CommitDiffResponse>(response);
+  if (!body.ok) throw new Error(body.error);
+  return body.diff;
+}
+
+export function commitDiffQueryOptions(worktreePath: string, sha: string, file: string, from: string | null) {
+  return queryOptions({
+    queryKey: gitGraphKeys.commitDiff(worktreePath, sha, file),
+    queryFn: ({ signal }) => fetchCommitDiff(worktreePath, sha, file, from, signal),
     staleTime: Infinity,
     retry: false,
   });

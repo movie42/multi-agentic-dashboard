@@ -1,8 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { commitDetailQueryOptions } from "@/client/entities/git-graph";
-import type { FileChangeStatus } from "@/common/gitGraph/types";
+import { useState } from "react";
+import { commitDetailQueryOptions, commitDiffQueryOptions } from "@/client/entities/git-graph";
+import type { FileChange, FileChangeStatus } from "@/common/gitGraph/types";
+import { DiffBlock } from "./DiffBlock";
 import { formatCommitTime } from "./GraphRow";
 
 const STATUS_LABEL: Record<FileChangeStatus, { text: string; tone: string }> = {
@@ -14,6 +16,16 @@ const STATUS_LABEL: Record<FileChangeStatus, { text: string; tone: string }> = {
   T: { text: "형식", tone: "text-muted" },
 };
 
+interface CommitFileDiffProps {
+  worktreePath: string;
+  sha: string;
+  file: FileChange;
+}
+
+function CommitFileDiff({ worktreePath, sha, file }: CommitFileDiffProps) {
+  return <DiffBlock query={useQuery(commitDiffQueryOptions(worktreePath, sha, file.path, file.from))} />;
+}
+
 interface CommitDetailProps {
   worktreePath: string;
   sha: string;
@@ -23,6 +35,7 @@ interface CommitDetailProps {
 
 export function CommitDetail({ worktreePath, sha, onClose, onSelectParent }: CommitDetailProps) {
   const { data: commit, error, isPending } = useQuery(commitDetailQueryOptions(worktreePath, sha));
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto border-l border-hair pl-5 text-[13px]">
       <div className="flex items-center justify-between gap-2">
@@ -59,15 +72,26 @@ export function CommitDetail({ worktreePath, sha, onClose, onSelectParent }: Com
               {commit.parents.length > 1 && " · 첫 번째 부모와 비교"}
             </p>
             <ul className="flex flex-col gap-0.5">
-              {commit.files.map((file) => (
-                <li key={`${file.status}:${file.from ?? ""}:${file.path}`} className="flex items-baseline gap-2">
-                  <span className={`w-7 shrink-0 text-[11px] font-semibold ${STATUS_LABEL[file.status].tone}`}>{STATUS_LABEL[file.status].text}</span>
-                  <span className="min-w-0 font-mono text-[12px] break-all">
-                    {file.from && <span className="text-muted">{file.from} → </span>}
-                    {file.path}
-                  </span>
-                </li>
-              ))}
+              {commit.files.map((file) => {
+                const key = `${file.status}:${file.from ?? ""}:${file.path}`;
+                return (
+                  <li key={key}>
+                    <button
+                      type="button"
+                      aria-expanded={open === key}
+                      onClick={() => setOpen(open === key ? null : key)}
+                      className="flex w-full items-baseline gap-2 rounded-md px-1 py-0.5 text-left hover:bg-tint"
+                    >
+                      <span className={`w-7 shrink-0 text-[11px] font-semibold ${STATUS_LABEL[file.status].tone}`}>{STATUS_LABEL[file.status].text}</span>
+                      <span className="min-w-0 font-mono text-[12px] break-all">
+                        {file.from && <span className="text-muted">{file.from} → </span>}
+                        {file.path}
+                      </span>
+                    </button>
+                    {open === key && <CommitFileDiff worktreePath={worktreePath} sha={sha} file={file} />}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </>

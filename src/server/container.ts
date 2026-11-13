@@ -27,8 +27,9 @@ import { TodoAgent } from "./todos/TodoAgent";
 import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
 import { TodoStore } from "./todos/TodoStore";
 import { UsageReader } from "./usage/UsageReader";
-import { readCommit } from "./gitGraph/readCommit";
-import { readGraph } from "./gitGraph/readGraph";
+import { readCommit, readCommitDiff } from "./gitGraph/readCommit";
+import { GRAPH_PAGE, readGraph } from "./gitGraph/readGraph";
+import { MergedReader } from "./gitGraph/readMerged";
 import { switchBranch } from "./gitGraph/switchBranch";
 import { readWorkingDiff, readWorkingTree } from "./gitGraph/readWorkingTree";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
@@ -63,12 +64,17 @@ export interface Services {
   docs: DocServer;
   flowAnswers: FlowAnswerStore;
   gitGraph: {
-    readGraph: typeof readGraph;
+    readGraph: (worktreePath: string, skip: number) => ReturnType<typeof readGraph>;
     readCommit: typeof readCommit;
+    readCommitDiff: typeof readCommitDiff;
     switchBranch: typeof switchBranch;
     readWorkingTree: typeof readWorkingTree;
     readWorkingDiff: typeof readWorkingDiff;
   };
+}
+
+function graphReader(merged: MergedReader) {
+  return (worktreePath: string, skip: number) => readGraph(worktreePath, skip, GRAPH_PAGE, (path) => merged.read(path));
 }
 
 function createServices(): Services {
@@ -117,7 +123,7 @@ function createServices(): Services {
     usage: new UsageReader(),
     docs,
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
-    gitGraph: { readGraph, readCommit, switchBranch, readWorkingTree, readWorkingDiff },
+    gitGraph: { readGraph: graphReader(new MergedReader()), readCommit, readCommitDiff, switchBranch, readWorkingTree, readWorkingDiff },
   };
 }
 

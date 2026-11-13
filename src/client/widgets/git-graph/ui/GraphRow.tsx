@@ -1,6 +1,6 @@
 "use client";
 
-import type { GraphCommit, GraphRef } from "@/common/gitGraph/types";
+import type { GraphCommit, GraphRef, MergedBranch } from "@/common/gitGraph/types";
 import type { Anchor, RowLayout } from "../model/layout";
 
 export const ROW_HEIGHT = 28;
@@ -27,12 +27,40 @@ const DATE_FORMAT = new Intl.DateTimeFormat("ko-KR", { year: "2-digit", month: "
 
 export const formatCommitTime = (time: number) => DATE_FORMAT.format(new Date(time));
 
+interface MergedBadgeProps {
+  merged: MergedBranch;
+  onJump: (sha: string) => void;
+}
+
+function MergedBadge({ merged, onJump }: MergedBadgeProps) {
+  const label = `↳ ${merged.into}${merged.pr !== null ? ` #${merged.pr}` : ""}`;
+  const how = merged.pr !== null ? `PR #${merged.pr}로 ${merged.into}에 반영됨` : `같은 변경이 ${merged.into}에 있음`;
+  if (merged.sha === null) {
+    return <span title={`${how} · 그 커밋이 로컬에 없어요 (fetch 필요)`} className="shrink-0 rounded-full bg-done/10 px-2 text-[11px] leading-5 text-done">{label}</span>;
+  }
+  const { sha } = merged;
+  return (
+    <button
+      type="button"
+      title={`${how} · 눌러서 ${sha.slice(0, 7)} 커밋으로`}
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+        onJump(sha);
+      }}
+      className="shrink-0 rounded-full bg-done/10 px-2 text-[11px] leading-5 text-done hover:bg-done hover:text-bg"
+    >
+      {label}
+    </button>
+  );
+}
+
 interface RefChipProps {
   decoration: GraphRef;
   elsewhere: string | null;
+  merged: boolean;
 }
 
-function RefChip({ decoration, elsewhere }: RefChipProps) {
+function RefChip({ decoration, elsewhere, merged }: RefChipProps) {
   if (decoration.kind === "head") {
     return <span className="shrink-0 rounded-full bg-accent px-2 text-[11px] leading-5 font-semibold text-accent-ink">HEAD</span>;
   }
@@ -50,7 +78,7 @@ function RefChip({ decoration, elsewhere }: RefChipProps) {
     <span
       title={decoration.current ? "이 워크트리의 브랜치" : elsewhere ? `${elsewhere} 워크트리에서 쓰는 중` : "로컬 브랜치"}
       className={`max-w-48 shrink-0 truncate rounded-full px-2 text-[11px] leading-5 font-semibold ${
-        decoration.current ? "bg-fg text-bg" : elsewhere ? "bg-tint-2 text-muted" : "bg-tint-2"
+        decoration.current ? "bg-fg text-bg" : elsewhere || merged ? "bg-tint-2 text-muted" : "bg-tint-2"
       }`}
     >
       {decoration.current && "● "}
@@ -76,6 +104,9 @@ interface GraphRowProps {
   /** Worktrees whose checkout sits on this commit. */
   worktreesHere: { path: string; name: string; isBase: boolean }[];
   onPickWorktree: (worktreePath: string) => void;
+  /** Branches that already landed on a root by squash or rebase. */
+  merged: Record<string, MergedBranch>;
+  onJump: (sha: string) => void;
 }
 
 export const WORKING_SHA = "working-tree";
@@ -94,6 +125,8 @@ export function GraphRow({
   workingCount,
   worktreesHere,
   onPickWorktree,
+  merged,
+  onJump,
 }: GraphRowProps) {
   const working = workingCount !== undefined;
   const cx = xOf(layout.lane);
@@ -104,6 +137,7 @@ export function GraphRow({
   return (
     <div
       role="row"
+      data-sha={commit.sha}
       aria-selected={selected}
       onClick={onSelect}
       onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
@@ -154,13 +188,15 @@ export function GraphRow({
             ⌂ {worktree.name}
           </button>
         ))}
-        {commit.refs.map((decoration) => (
-          <RefChip
-            key={`${decoration.kind}:${decoration.name}`}
-            decoration={decoration}
-            elsewhere={elsewhereOf(decoration)}
-          />
-        ))}
+        {commit.refs.map((decoration) => {
+          const landed = decoration.kind === "branch" ? merged[decoration.name] : undefined;
+          return (
+            <span key={`${decoration.kind}:${decoration.name}`} className="flex shrink-0 items-center gap-1">
+              <RefChip decoration={decoration} elsewhere={elsewhereOf(decoration)} merged={landed !== undefined} />
+              {landed && <MergedBadge merged={landed} onJump={onJump} />}
+            </span>
+          );
+        })}
         <span className={`truncate ${commit.parents.length > 1 ? "text-muted" : ""}`}>{commit.subject}</span>
       </span>
       )}

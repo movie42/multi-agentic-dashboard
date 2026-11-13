@@ -22,6 +22,15 @@ export interface GraphWorktree {
   headSha: string | null;
 }
 
+/** A local branch that already landed on a root branch by squash or rebase. */
+export interface MergedBranch {
+  /** Root branch name it landed on. */
+  into: string;
+  /** The commit on the root that carries it, when that commit is in the local repository. */
+  sha: string | null;
+  pr: number | null;
+}
+
 export interface GitGraph {
   worktreePath: string;
   headSha: string | null;
@@ -34,6 +43,8 @@ export interface GitGraph {
   checkedOut: Record<string, string>;
   /** Tracked files with uncommitted changes in this worktree; a switch is refused while above zero. */
   dirtyCount: number;
+  /** Local branch name → where it landed; only filled on the first page. */
+  merged: Record<string, MergedBranch>;
 }
 
 export type FileChangeStatus = "A" | "M" | "D" | "R" | "C" | "T";
@@ -74,4 +85,5 @@ export interface WorkingTree {
 }
 
 export type WorkingTreeResponse = { ok: true; tree: WorkingTree } | { ok: false; error: string };
+export type CommitDiffResponse = { ok: true; diff: string } | { ok: false; error: string };
 export type WorkingDiffResponse = { ok: true; diff: string } | { ok: false; error: string };

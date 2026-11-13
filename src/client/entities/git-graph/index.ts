@@ -1,5 +1,6 @@
 export {
   commitDetailQueryOptions,
+  commitDiffQueryOptions,
   gitGraphHref,
   gitGraphKeys,
   gitGraphQueryOptions,
