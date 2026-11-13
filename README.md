@@ -8,16 +8,16 @@
 
 ## 왜 만들었나
 
-에이전트를 worktree마다 하나씩 띄워 두면, 어느 터미널이 허락을 기다리는지, 어느 쪽이 끝났는지 알려면 탭을 하나씩 열어 봐야 합니다. Agent Control은 [Orca](https://github.com/stablyai/orca)가 관리하는 터미널과 에이전트 상태를 모아서 **지금 내가 봐야 하는 것**부터 위에 올려 줍니다. 권한 허락, 질문 답변, 짧은 후속 지시까지 터미널로 가지 않고 이 화면에서 끝낼 수 있습니다.
+에이전트를 worktree마다 하나씩 띄워 두면, 어느 터미널이 허락을 기다리는지, 어느 쪽이 끝났는지 알려면 탭을 하나씩 열어 봐야 합니다. Agent Control은 에이전트 세션을 직접 띄우고 그 상태를 모아서 **지금 내가 봐야 하는 것**부터 위에 올려 줍니다. 짧은 후속 지시는 카드의 입력창으로 보내고, 권한 허락과 질문 답변은 카드 안에서 여는 그 세션의 터미널에서 합니다.
 
 ## 주요 기능
 
 - **차례별 보기** — 에이전트를 `내 차례` / `에이전트 작업 중` / `쉬는 중`으로 나누고, 막힘·입력 대기 → 중단됨 → 새 결과 순으로 정렬
-- **권한 요청 · 질문 카드** — Claude Code의 권한 요청과 `AskUserQuestion` 질문을 카드에서 바로 허용·거부·선택
-- **빠른 답장** — 카드 아래 입력창으로 해당 터미널에 바로 프롬프트 전송, 이미지 첨부 가능
+- **카드 안 터미널** — 카드에서 그 세션의 터미널을 열어 권한 허락 · 질문 답변 · 직접 입력
+- **빠른 답장** — 카드 아래 입력창으로 해당 세션에 바로 프롬프트 전송, 이미지 첨부 가능
 - **단계별 보기** — flow 작업 문서를 읽어 기획·질문 → 계획 → 구현 → 검증 → 테스트 → PR 중 어디에 있는지 표시
 - **기능별 worktree 묶음** — 같은 기능을 나눠 맡은 worktree를 묶고, rebase 필요 · 같은 파일 수정 · 공용 작업 대기 경고 표시
-- **지난 세션** — 끝난 Claude Code 세션을 찾아 Orca에서 다시 열기
+- **지난 세션** — 끝난 Claude Code 세션을 찾아 다시 열기
 - **데스크톱 앱** — Dock에 고정되는 Electron 앱, `⌃⌥Space`로 어디서든 열기·숨기기
 
 ## 사용 방법
@@ -69,7 +69,7 @@
   - `같은 파일 수정`: 두 worktree가 같은 파일을 고치고 있음
   - `공용 작업 대기`: 여러 작업이 기다리는 공용 코드의 PR이 아직 머지되지 않음
 - **새 세션** — 이 worktree에서 Claude 세션을 새로 시작
-- **터미널로** — Orca에서 이 worktree의 터미널로 이동
+- **터미널로** — 이 worktree에서 도는 세션의 터미널을 열고, 세션이 없으면 셸 터미널을 새로 열기
 
 프로젝트 이름 옆의 **회사 / 개인** 배지는 진척 단계 구성을 바꿉니다. 저장소 owner가 내 GitHub 계정이면 개인(PRD → 질문 → 기획 …), 아니면 회사(기획·질문 → 계획 …)로 자동 판단하고, 배지를 눌러 바꿀 수 있습니다.
 
@@ -81,7 +81,7 @@
 
 ### 6. 지난 세션 다시 열기
 
-사이드바의 **지난 세션**은 `~/.claude/projects` 아래 Claude Code 세션 기록을 모아 보여 줍니다. **Orca에서 다시 열기**를 누르면 그 폴더에서 세션을 이어서 시작하고, **resume 명령 복사**로 직접 터미널에서 이어갈 수도 있습니다.
+사이드바의 **지난 세션**은 `~/.claude/projects` 아래 Claude Code 세션 기록을 모아 보여 줍니다. **다시 열기**를 누르면 그 폴더에서 세션을 이어서 시작해 세션 러너 창에 터미널을 띄우고, **resume 명령 복사**로 직접 터미널에서 이어갈 수도 있습니다.
 
 ![지난 세션](docs/readme/sessions.png)
 
@@ -126,7 +126,7 @@ curl -s -X POST http://127.0.0.1:3199/api/todos -H 'Content-Type: application/js
 | `j` / `k` | 카드 이동 |
 | `r` | 빠른 답장 |
 | `o` | 첫 결과물 열기 |
-| `e` | Orca에서 이어가기 |
+| `e` | 터미널 열기 |
 | `/` · `⌘K` | 검색 |
 | `esc` | 입력창 나가기 |
 
@@ -135,7 +135,7 @@ curl -s -X POST http://127.0.0.1:3199/api/todos -H 'Content-Type: application/js
 ### 준비물
 
 - macOS
-- [Orca](https://github.com/stablyai/orca) — 터미널과 에이전트 상태를 이 앱에서 읽어 옵니다. 기본 경로는 `/Applications/Orca.app`이고, 다르면 `ORCA_BIN` 환경 변수로 CLI 경로를 지정합니다.
+- [Node.js](https://nodejs.org) 24 이상 — 세션 러너 데몬이 TypeScript 파일을 그대로 실행합니다.
 - [Claude Code](https://claude.com/claude-code)
 - [Bun](https://bun.sh)
 - [GitHub CLI](https://cli.github.com) (`gh`) — 로그인돼 있으면 PR 상태와 회사/개인 판단에 씁니다. 없어도 나머지 기능은 동작합니다.
@@ -147,7 +147,7 @@ bun install
 bun run dev
 ```
 
-http://127.0.0.1:3100 에서 열립니다.
+http://127.0.0.1:3100 에서 열립니다. 세션 러너 데몬이 꺼져 있으면 첫 화면을 불러올 때 함께 뜹니다.
 
 ### 데스크톱 앱으로 빌드 · 설치
 
@@ -169,25 +169,34 @@ bun run skills:install   # 대시보드가 쓰는 스킬을 ~/.claude/skills에 
 |---|---|---|
 | `desktop:build` | `next build`로 서버를 단독 실행 가능한 형태로 빌드한 뒤, Electron으로 감싸 macOS 앱을 만듭니다. 앱 아이콘도 이때 생성합니다. | `dist/Agent Control-darwin-<arch>/Agent Control.app` (`<arch>`는 `arm64` 또는 `x64`) |
 | `desktop:install` | 실행 중인 앱을 종료하고, 빌드된 앱을 복사한 뒤 Dock에 고정합니다. 이미 고정돼 있으면 그대로 둡니다. | `~/Applications/Agent Control.app` |
-| `skills:install` | 이 저장소의 `skills/` 아래 스킬을 복사합니다. 워크트리 만들기 버튼이 쓰는 `orca-worktree`가 여기 있고, 터미널에서 `/orca-worktree`로도 쓸 수 있습니다. 지우려면 `skills:uninstall`. | `~/.claude/skills/<스킬 이름>/` |
+| `skills:install` | 이 저장소의 `skills/` 아래 스킬을 복사합니다. 워크트리 만들기 버튼이 쓰는 `ac-worktree`가 여기 있고, 터미널에서 `/ac-worktree`로도 쓸 수 있습니다. 예전 이름 `orca-worktree`로 깔린 스킬은 설치할 때 지웁니다. 지우려면 `skills:uninstall`. | `~/.claude/skills/<스킬 이름>/` |
 
 앱을 실행하면 내부 서버가 `127.0.0.1:3199`에서 뜹니다. 포트를 바꾸려면 `AGENT_CONTROL_PORT` 환경 변수를 지정합니다. 코드나 `skills/`를 고친 뒤에는 `bun run desktop`을 다시 실행해야 앱과 스킬에 반영됩니다.
 
-### 권한 요청 훅 연결
+### 세션 러너 데몬
 
-권한 · 질문 카드를 쓰려면 Claude Code가 권한 요청을 이 앱으로 보내도록 `~/.claude/settings.json`에 훅을 등록합니다. 기존 설정은 그대로 두고 이 앱의 항목만 추가합니다.
+에이전트와 터미널 프로세스는 대시보드가 아니라 세션 러너 데몬(`daemon/`, `127.0.0.1:3198`)이 들고 있습니다. 개발 서버와 데스크톱 앱은 데몬이 꺼져 있으면 알아서 띄우고, 앱이나 개발 서버를 닫아도 데몬과 그 안의 세션은 계속 돕니다. 데몬을 끄면 세션도 함께 끝납니다.
 
 ```bash
-bun run hook:install                 # 데스크톱 앱(3199)으로 연결
-bun run hook:install -- --port 3100  # 개발 서버로 연결
-bun run hook:uninstall               # 제거
+bun run daemon                 # 직접 띄우기
+pkill -f daemon/main.ts        # 끄기 (세션도 함께 종료)
 ```
 
-훅이 앱에 닿지 않으면 Claude Code는 원래대로 터미널에서 허락을 묻습니다.
+- 데몬 로그는 `$TMPDIR/agent-control-runner.log`에 쌓입니다.
+- 데스크톱 앱은 빌드할 때 쓴 `node`와 이 저장소의 `daemon/main.ts` 경로를 기억해 두고 그걸로 데몬을 띄웁니다. 저장소를 옮기거나 그 `node`를 지웠다면 `bun run desktop`을 다시 실행합니다.
+- 대시보드를 3100 · 3199가 아닌 포트로 띄우면 `RUNNER_ALLOWED_ORIGINS=http://127.0.0.1:<포트>`를 지정해야 카드 터미널이 연결됩니다.
 
-### Orca 실행 방식 전환
+### 프로젝트와 워크트리
 
-사이드바 위쪽의 **앱 / 헤드리스** 스위치로 Orca를 창이 있는 앱으로 띄울지, 창 없이 백그라운드로만 띄울지 바꿀 수 있습니다.
+프로젝트 목록은 `~/.local/share/agent-control/projects.json`에, 워크트리의 표시 이름 · 부모 워크트리 · Jira 키는 같은 폴더의 `worktrees.json`에 저장합니다. 워크트리 자체는 각 프로젝트에서 `git worktree list`로 읽습니다. `projects.json`이 없는 첫 실행 때만, [Orca](https://github.com/stablyai/orca)가 설치돼 있으면 거기 등록된 프로젝트와 직접 붙인 워크트리 이름 · 부모 관계를 한 번 가져옵니다.
+
+### 예전 권한 요청 훅 지우기
+
+이전 버전에서 `bun run hook:install`로 `~/.claude/settings.json`에 권한 요청 훅을 등록했다면 지웁니다. 지금은 권한 허락과 질문 답변을 카드 안의 터미널에서 하므로 이 훅은 아무 일도 하지 않습니다.
+
+```bash
+bun run hook:uninstall
+```
 
 ## 기술 스택
 
@@ -196,14 +205,17 @@ Next.js 16 · React 19 · Tailwind CSS 4 · TypeScript · Electron
 ## 구조
 
 ```
+app/                # 페이지와 로컬 API (board · actions · sessions · worktree-wizard 등)
+daemon/             # 세션 러너 데몬 — Claude · 셸 프로세스를 들고 터미널을 중계
 src/
-  app/api/          # board · actions · sessions · hooks/permission 등 로컬 API
-  features/board/   # 대시보드 화면 컴포넌트
-  lib/orca/         # Orca CLI 호출과 보드 데이터 조립
-  lib/workflow/     # flow 작업 문서 · 기능 문서 · git/PR 상태 읽기
-  lib/permissions/  # 권한 요청 대기열
-  lib/sessions/     # Claude Code 세션 기록 읽기
+  client/           # 화면 (FSD: shared · entities · features · widgets · views)
+  common/           # 서버와 화면이 함께 쓰는 타입 · 스키마
+  server/board/     # 프로젝트 · git 워크트리 · 데몬 세션으로 보드 데이터 조립
+  server/projects/  # 프로젝트 목록, 워크트리 메타, 워크트리 만들기 · 지우기
+  server/runner/    # 데몬 호출과 자동 실행
+  server/workflow/  # flow 작업 문서 · 기능 문서 · git/PR 상태 읽기
+  server/sessions/  # Claude Code 세션 기록 읽기
 desktop/            # Electron 진입점
-scripts/            # 데스크톱 빌드 · 설치, 권한 훅 · 스킬 설치
+scripts/            # 데스크톱 빌드 · 설치, 스킬 설치
 skills/             # 대시보드가 쓰는 Claude Code 스킬 (skills:install로 설치)
 ```

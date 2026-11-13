@@ -1,64 +1,70 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { UsageReader } from "./UsageReader";
 
-const CREDENTIALS = JSON.stringify({ claudeAiOauth: { accessToken: "token-1" } });
-const BODY = {
-  five_hour: { utilization: 7.4, resets_at: "2026-11-11T10:10:00+00:00" },
-  seven_day: { utilization: 15, resets_at: "2026-11-17T03:00:00+00:00" },
-  extra_usage: { is_enabled: false },
-};
+const NOW = Date.parse("2026-11-13T12:00:00.000Z");
+const MISSING = path.join(tmpdir(), "no-such-dir-usage", "usage.json");
 
-function setup(response: () => Response, now = { value: 1_000 }) {
-  const fetch = vi.fn((_url: string, _init: RequestInit) => Promise.resolve(response()));
-  const reader = new UsageReader({
-    execFile: () => Promise.resolve({ stdout: `${CREDENTIALS}\n`, stderr: "" }),
-    readCredentialsFile: () => Promise.reject(new Error("unused")),
-    fetch,
-    now: () => now.value,
-  });
-  return { reader, fetch, now };
+async function fileWith(content: string): Promise<string> {
+  const dir = await mkdtemp(path.join(tmpdir(), "usage-reader-"));
+  const file = path.join(dir, "usage.json");
+  await writeFile(file, content);
+  return file;
+}
+
+function savedAt(receivedAt: number, resetsAt = "2026-11-13T15:00:00.000Z") {
+  return { session: { percent: 12, resetsAt }, weekly: null, receivedAt };
+}
+
+const FETCHED = { session: { percent: 40, resetsAt: null }, weekly: { percent: 9, resetsAt: null }, receivedAt: NOW };
+
+function apiReturning(result: () => Promise<typeof FETCHED>) {
+  return { read: vi.fn(result) };
 }
 
 describe("UsageReader", () => {
-  it("maps the five-hour and seven-day windows", async () => {
-    const { reader, fetch } = setup(() => Response.json(BODY));
-    await expect(reader.read()).resolves.toEqual({
-      session: { percent: 7, resetsAt: "2026-11-11T10:10:00+00:00" },
-      weekly: { percent: 15, resetsAt: "2026-11-17T03:00:00+00:00" },
-      fetchedAt: 1_000,
-    });
-    expect(fetch.mock.calls[0]?.[1].headers).toMatchObject({ Authorization: "Bearer token-1" });
+  it("serves recent status-line numbers without calling the API", async () => {
+    const saved = savedAt(NOW - 60_000);
+    const api = apiReturning(() => Promise.resolve(FETCHED));
+    const reader = new UsageReader(await fileWith(JSON.stringify(saved)), api, () => NOW);
+    expect(await reader.read()).toEqual({ ...saved, source: "statusline" });
+    expect(api.read).not.toHaveBeenCalled();
   });
 
-  it("serves the cache for five minutes, then refetches", async () => {
-    const { reader, fetch, now } = setup(() => Response.json(BODY));
-    await reader.read();
-    now.value += 299_000;
-    await reader.read();
-    expect(fetch).toHaveBeenCalledTimes(1);
-    now.value += 2_000;
-    await reader.read();
-    expect(fetch).toHaveBeenCalledTimes(2);
+  it("falls back to the API when no session has reported yet", async () => {
+    const reader = new UsageReader(MISSING, apiReturning(() => Promise.resolve(FETCHED)), () => NOW);
+    expect(await reader.read()).toEqual({ ...FETCHED, source: "api" });
   });
 
-  it("refetches on a fresh read once the cache is 30 seconds old", async () => {
-    const { reader, fetch, now } = setup(() => Response.json(BODY));
-    await reader.read();
-    now.value += 29_000;
-    await reader.read({ fresh: true });
-    expect(fetch).toHaveBeenCalledTimes(1);
-    now.value += 2_000;
-    await reader.read({ fresh: true });
-    expect(fetch).toHaveBeenCalledTimes(2);
+  it("falls back to the API once the saved numbers are ten minutes old", async () => {
+    const api = apiReturning(() => Promise.resolve(FETCHED));
+    const reader = new UsageReader(await fileWith(JSON.stringify(savedAt(NOW - 600_000))), api, () => NOW);
+    expect(await reader.read()).toMatchObject({ source: "api" });
   });
 
-  it("explains an expired token", async () => {
-    const { reader } = setup(() => new Response(null, { status: 401 }));
-    await expect(reader.read()).rejects.toThrow("토큰이 만료");
+  it("falls back to the API when a saved window has already reset", async () => {
+    const saved = savedAt(NOW - 60_000, "2026-11-13T11:59:00.000Z");
+    const reader = new UsageReader(await fileWith(JSON.stringify(saved)), apiReturning(() => Promise.resolve(FETCHED)), () => NOW);
+    expect(await reader.read()).toMatchObject({ source: "api" });
   });
 
-  it("returns null for a window the plan does not have", async () => {
-    const { reader } = setup(() => Response.json({ five_hour: null, seven_day: BODY.seven_day }));
-    await expect(reader.read()).resolves.toMatchObject({ session: null, weekly: { percent: 15 } });
+  it("keeps showing old saved numbers when the API fails", async () => {
+    const saved = savedAt(NOW - 3_600_000);
+    const api = apiReturning(() => Promise.reject(new Error("사용량 조회 실패 (HTTP 429)")));
+    const reader = new UsageReader(await fileWith(JSON.stringify(saved)), api, () => NOW);
+    expect(await reader.read()).toEqual({ ...saved, source: "statusline" });
+  });
+
+  it("reports the API failure when there is nothing saved", async () => {
+    const api = apiReturning(() => Promise.reject(new Error("사용량 조회 실패 (HTTP 429)")));
+    const reader = new UsageReader(MISSING, api, () => NOW);
+    await expect(reader.read()).rejects.toThrow("HTTP 429");
+  });
+
+  it("fails on a file it cannot read", async () => {
+    const reader = new UsageReader(await fileWith(JSON.stringify({ nope: true })), apiReturning(() => Promise.resolve(FETCHED)));
+    await expect(reader.read()).rejects.toThrow("사용량 파일을 읽지 못했어요");
   });
 });

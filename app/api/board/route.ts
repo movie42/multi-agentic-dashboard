@@ -1,13 +1,12 @@
 import { connection } from "next/server";
-import type { BoardResponse } from "@/common/orca/types";
+import type { BoardResponse } from "@/common/board/types";
 import { reportWarning, services } from "@/server/container";
 
 export async function GET() {
   await connection();
-  services().permissions.markBoardSeen();
   services().sessionIndex.warm();
   try {
-    const board = await services().orca.board.load();
+    const board = await services().board.load();
     void services()
       .todoLaunches.observe(board)
       .catch((error: unknown) => reportWarning("todos", error, { step: "attach launched session" }));

@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { BoardResponse, BoardSnapshot } from "@/common/orca/types";
+import type { BoardResponse, BoardSnapshot } from "@/common/board/types";
 import { readJson } from "@/client/shared/api/json";
 
 export const BOARD_POLL_MS = 3000;

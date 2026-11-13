@@ -69,6 +69,13 @@ writeFileSync(
   JSON.stringify({ name: "agent-control", productName: "Agent Control", version: pkg.version, main: "main.mjs" }, null, 2),
 );
 
+const daemonEntry = path.join(root, "daemon", "main.ts");
+if (!existsSync(daemonEntry)) throw new Error(`missing ${daemonEntry}`);
+if (Number(process.versions.node.split(".")[0]) < 24) {
+  throw new Error(`the session runner daemon needs Node 24 or newer to run TypeScript directly; this build ran on ${process.version}`);
+}
+writeFileSync(path.join(stage, "runner.json"), JSON.stringify({ node: process.execPath, daemonEntry }, null, 2));
+
 const electronVersion = JSON.parse(readFileSync(path.join(root, "node_modules", "electron", "package.json"), "utf8")).version;
 const icon = buildIcon();
 

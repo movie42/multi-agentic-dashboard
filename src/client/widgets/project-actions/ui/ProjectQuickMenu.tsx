@@ -9,7 +9,7 @@ import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } fro
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 
 type PickAction = "session" | "terminal" | "diff" | "remove";
 
@@ -26,7 +26,7 @@ type DeckStep = "deck" | PickAction | "confirm-remove";
 
 interface ProjectQuickMenuProps {
   worktrees: WorktreeSummary[];
-  /** The Orca terminal an agent already runs in for that worktree, if any. */
+  /** The session an agent already runs in for that worktree, if any. */
   terminalOf: (worktree: WorktreeSummary) => string | null;
   /** Agent sessions attached to the worktree; removing it closes them. */
   sessionCountOf: (worktree: WorktreeSummary) => number;
@@ -69,7 +69,11 @@ export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onActi
       return;
     }
     const terminalHandle = terminalOf(worktree);
-    void onAction(terminalHandle ? { type: "focus-terminal", terminalHandle } : { type: "open-terminal", worktreePath: worktree.path });
+    if (terminalHandle) {
+      window.open(`/runner?session=${encodeURIComponent(terminalHandle)}`, "_blank", "noopener");
+      return;
+    }
+    void onAction({ type: "open-terminal", worktreePath: worktree.path });
   };
 
   return (
@@ -140,7 +144,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onActi
               </MenuItem>
               <MenuItem
                 icon={ACTION_ICONS.terminal}
-                description="Orca 앱의 터미널로 이동해요"
+                description="이 워크트리의 터미널을 열어요"
                 hint={worktrees.length > 1 ? "워크트리 고르기 →" : undefined}
                 onSelect={() => pick("terminal")}
               >
@@ -152,7 +156,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onActi
                   <MenuItem
                     icon={ACTION_ICONS.remove}
                     tone="danger"
-                    description="Orca에서 워크트리를 지워요. 브랜치는 남아요"
+                    description="워크트리를 지워요. 브랜치는 남아요"
                     hint={removable.length > 1 ? "워크트리 고르기 →" : undefined}
                     onSelect={() => pick("remove")}
                   >

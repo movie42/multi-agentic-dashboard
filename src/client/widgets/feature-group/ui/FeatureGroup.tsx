@@ -42,7 +42,7 @@ export function FeatureGroup({ feature, onAction, children }: FeatureGroupProps)
           {pageIndex && (
             <button
               type="button"
-              onClick={() => onAction({ type: "open-artifact", target: pageIndex, via: "system", worktreePath: feature.repoPath ?? "" })}
+              onClick={() => onAction({ type: "open-artifact", target: pageIndex })}
               className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
             >
               기능 문서 열기

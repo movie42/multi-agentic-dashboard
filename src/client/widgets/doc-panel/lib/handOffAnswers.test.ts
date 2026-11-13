@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { handOffAnswers } from "./handOffAnswers";
 
 const PAGE = "/w/repo/docs/auth/COMP-1/02-grill.html";
@@ -9,7 +9,7 @@ function agent(id: string, overrides: Partial<AgentCard>): AgentCard {
     id, worktreeId: "wt", repo: "repo", worktreeName: "wt", branch: null, worktreePath: "/w/repo", agentType: "claude",
     state: "done", prompt: null, title: null, session: null, lastMessage: null, toolName: null, backgroundRunning: false,
     interrupted: false, stateSince: null, updatedAt: 0, unread: false, terminalHandle: `t-${id}`, artifacts: [],
-    permission: null, parentId: null, ...overrides,
+    parentId: null, model: null, contextPercent: null, permission: null, ...overrides,
   };
 }
 

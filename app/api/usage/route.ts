@@ -2,10 +2,10 @@ import { connection } from "next/server";
 import type { UsageResponse } from "@/common/usage/types";
 import { services } from "@/server/container";
 
-export async function GET(request: Request) {
+export async function GET() {
   await connection();
   try {
-    const snapshot = await services().usage.read({ fresh: new URL(request.url).searchParams.has("fresh") });
+    const snapshot = await services().usage.read();
     return Response.json({ ok: true, ...snapshot } satisfies UsageResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

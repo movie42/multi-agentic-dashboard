@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { readVoice, toggleVoice } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 
-type VoiceState = { kind: "idle" } | { kind: "recording"; transcript: string } | { kind: "pending"; recording: boolean };
+type VoiceState =
+  | { kind: "idle" }
+  | { kind: "recording"; transcript: string }
+  | { kind: "pending"; recording: boolean; transcript: string };
 
 const POLL_MS = 400;
 
-export function useVoice(terminalHandle: string) {
+export function useVoice(terminalHandle: string, onTranscript: (transcript: string) => void) {
   const [state, setState] = useState<VoiceState>({ kind: "idle" });
   const recording = state.kind === "recording" || (state.kind === "pending" && state.recording);
   const polling = state.kind === "recording";
+  const deliver = useRef(onTranscript);
+
+  useEffect(() => {
+    deliver.current = onTranscript;
+  });
 
   useEffect(() => {
     if (!polling) return;
@@ -38,19 +46,45 @@ export function useVoice(terminalHandle: string) {
 
   const toggle = async () => {
     if (state.kind === "pending") return;
-    setState({ kind: "pending", recording });
+    const transcript = state.kind === "recording" ? state.transcript : "";
+    setState({ kind: "pending", recording, transcript });
     try {
-      setState((await toggleVoice(terminalHandle)) ? { kind: "recording", transcript: "" } : { kind: "idle" });
+      const result = await toggleVoice(terminalHandle);
+      if (result.recording) {
+        setState({ kind: "recording", transcript: "" });
+        return;
+      }
+      if (result.transcript) deliver.current(result.transcript);
+      setState({ kind: "idle" });
     } catch (error) {
       toastError("voice", error);
       setState({ kind: "idle" });
     }
   };
 
+  const stop = async (): Promise<string | null> => {
+    if (state.kind !== "recording") return null;
+    setState({ kind: "pending", recording: true, transcript: state.transcript });
+    try {
+      const result = await toggleVoice(terminalHandle, "stop");
+      if (result.recording) {
+        setState({ kind: "recording", transcript: "" });
+        return null;
+      }
+      setState({ kind: "idle" });
+      return result.transcript;
+    } catch (error) {
+      toastError("voice", error);
+      setState({ kind: "idle" });
+      return null;
+    }
+  };
+
   return {
     recording,
     pending: state.kind === "pending",
-    transcript: state.kind === "recording" ? state.transcript : "",
+    transcript: state.kind === "idle" ? "" : state.transcript,
     toggle,
+    stop,
   };
 }

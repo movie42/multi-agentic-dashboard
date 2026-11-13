@@ -1,4 +1,4 @@
-import type { AgentCard, AgentState } from "@/common/orca/types";
+import type { AgentCard, AgentState } from "@/common/board/types";
 
 const STATE_LABEL: Record<AgentState, string> = {
   blocked: "막힘",

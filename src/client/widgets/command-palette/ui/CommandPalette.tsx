@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AgentCard, BoardSnapshot } from "@/common/orca/types";
+import type { AgentCard, BoardSnapshot } from "@/common/board/types";
 import { StateBadge } from "@/client/entities/agent";
 import { openAncestors } from "@/client/shared/lib/openAncestors";
 

@@ -10,7 +10,7 @@ interface PendingLaunchRowsProps {
   standalone: boolean;
 }
 
-/** Placeholder rows for sessions asked of Orca but not yet on the board. */
+/** Placeholder rows for sessions that were asked for but are not yet on the board. */
 export function PendingLaunchRows({ worktreePath, standalone }: PendingLaunchRowsProps) {
   const pending = usePendingLaunches(worktreePath);
   const firstRef = useRef<HTMLLIElement>(null);

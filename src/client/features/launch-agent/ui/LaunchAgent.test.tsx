@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
 import { useToastStore } from "@/client/shared/model/toastStore";
 import { LaunchAgent } from "./LaunchAgent";
@@ -16,6 +16,7 @@ const worktree: WorktreeSummary = {
   name: "main",
   branch: "main",
   path: "/work/repo",
+  projectPath: "/work/repo",
   isMain: false,
   parentWorktreeId: null,
   unread: false,

@@ -1,8 +1,7 @@
 "use client";
 
-import type { ProjectSummary } from "@/common/orca/types";
+import type { ProjectSummary } from "@/common/board/types";
 import { formatClock } from "@/client/shared/lib/format";
-import { RuntimeSwitch } from "@/client/features/switch-runtime";
 import { ImportProject } from "@/client/features/import-project";
 import { UsageMeter } from "@/client/entities/usage";
 import type { WorkspacePrefs } from "@/client/entities/workspace";
@@ -42,7 +41,7 @@ const SHORTCUTS: [string, string][] = [
   ["j k", "카드 이동"],
   ["r", "빠른 답장"],
   ["o", "첫 결과물 열기"],
-  ["e", "Orca에서 이어가기"],
+  ["e", "터미널 열기"],
   ["/ ⌘K", "어디서든 검색"],
   ["esc", "입력창 나가기"],
   ["⌘ 클릭", "프로젝트를 전체 포커스에 넣고 빼기"],
@@ -134,11 +133,11 @@ export function ProjectSidebar({
       </div>
       <p className="mt-1.5 mb-6 text-[12px] text-muted">
         {error ? <span className="text-accent">갱신 실패 · </span> : null}
-        {formatClock(fetchedAt)} 갱신 · Orca
+        {formatClock(fetchedAt)} 갱신 ·{" "}
+        <a href="/runner" target="_blank" rel="noopener" className="hover:text-fg hover:underline">
+          세션 러너
+        </a>
       </p>
-      <div className="-mt-3 mb-6">
-        <RuntimeSwitch />
-      </div>
       <div className="mb-6">
         <p className="mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">Claude 사용량</p>
         <UsageMeter />

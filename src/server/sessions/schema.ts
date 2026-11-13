@@ -17,7 +17,6 @@ export const transcriptEntrySchema = z.looseObject({
 
 export type TranscriptEntry = z.infer<typeof transcriptEntrySchema>;
 
-export const liveSessionFileSchema = z.looseObject({ pid: z.number(), sessionId: z.string(), cwd: z.string() });
 
 export const bookmarkLineSchema = z.looseObject({
   provider: z.string(),

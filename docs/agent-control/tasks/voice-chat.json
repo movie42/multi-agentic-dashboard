@@ -38,11 +38,11 @@
               ],
               "recommended": "c",
               "answer": {
-                "choice": "a",
+                "choice": "unsure",
                 "why": "",
-                "copy": "",
-                "note": "채팅 답: \"내가 원하는 건 그냥 클로드 코드에서 가지고 있는 보이스 챗 기능을 에이전트 컨트롤에서도 사용할 수 있게 해달라는 거였어.\"",
-                "followUp": ""
+                "note": "",
+                "followUp": "내가 원하는건 클로드 코드 음성 챗을 그냥 넣어달라는건데",
+                "copy": ""
               },
               "decision": "말로 입력하는 기능만 만든다. Claude Code의 /voice가 말로 입력하는 기능이라서 읽어 주기는 범위에 넣지 않는다.",
               "reason": {
@@ -240,12 +240,13 @@
     },
     "tasks": {
       "status": "done",
-      "summary": "마이크 버튼 구현 · 쓰던 글 오판 수정 · 받아쓰기 실시간 미리보기",
+      "summary": "hold 방식 지원 · 사라졌던 Phase 3·4 복구",
       "conclusion": [
-        "세션 카드의 빠른 답장 입력창 옆 마이크 버튼이 그 세션 터미널에 스페이스 한 번을 보내 Claude Code /voice 녹음을 켜고 끈다.",
-        "서버는 화면의 `⏺ REC` 표시로 녹음 중인지 판단하고, 입력창에 쓰던 글이 있으면 켜지 않는다. 쓰던 글은 Orca `draft` 값과 화면 입력 상자 글이 같을 때만 있다고 본다.",
-        "녹음 중에는 0.4초마다 화면 입력 상자를 읽어 받아쓰는 글을 빠른 답장 입력창 위에 미리보기로 보여 준다.",
-        "1.5초 안에 녹음이 시작되지 않으면 보낸 스페이스를 지우고 /voice를 켜라고 알린다."
+        "마이크 버튼은 `~/.claude/settings.json`의 `voice.mode`를 읽어 방식을 고른다. hold면 서버가 스페이스를 0.04초마다 보내 키를 누르고 있는 상태를 만들고, tap이면 스페이스 한 번을 보낸다.",
+        "녹음 중인지는 입력 상자 바로 위 줄의 `⏺ REC`(tap) 또는 `listening…`(hold) 표시로 판단한다.",
+        "다시 누르면 받아쓴 글이 1초간 바뀌지 않을 때까지 기다린 뒤 터미널 입력창을 비우고(tap은 Esc, hold는 키를 떼고 지움), 그 글을 대시보드 입력창에 채운다.",
+        "녹음 중에 보내기나 Enter를 누르면 같은 방식으로 멈춘 뒤 입력창 글과 받아쓴 글을 이어 바로 보낸다. 터미널이 이미 녹음 중이 아니면 키를 보내지 않는다.",
+        "대시보드가 3초 넘게 녹음 상태를 묻지 않으면 서버가 키를 뗀다. 최대 3분."
       ],
       "blocks": [
         {
@@ -351,18 +352,144 @@
               "rows": []
             }
           ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 멈추면 입력창에 채우기",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "녹음 표시를 입력 상자 바로 위 줄에서만 찾기",
+              "done": true,
+              "rows": [
+                [
+                  "원인",
+                  "대화 내용에 `⏺ REC` 글자가 찍힌 세션은 항상 녹음 중으로 보여, 버튼이 켜기 대신 멈추기로 동작했다."
+                ],
+                [
+                  "파일",
+                  "<code>src/server/orca/voice.ts</code>, <code>voice.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "멈추면 Esc로 버리고 받아쓴 글을 돌려주기",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "보내는 순간을 사용자가 정한다. Claude Code가 바로 보내는 tap 전송은 쓰지 않는다."
+                ],
+                [
+                  "파일",
+                  "<code>src/server/orca/voice.ts</code>, <code>services.ts</code>, <code>src/common/actions/schema.ts</code>, <code>app/api/actions/route.ts</code>, <code>src/client/shared/api/actions.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "대시보드 입력창에 채우기, 입력창에 글이 있어도 마이크 사용",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply/model/useVoice.ts</code>, <code>ui/QuickReply.tsx</code>, <code>ui/VoiceButton.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: tsc · eslint · vitest 426개, 임시 세션에서 켜기 → 멈추기 후 아무것도 전송되지 않음 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 녹음 중 바로 보내기",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "녹음 중 보내기·Enter → 멈추고 입력창 글 + 받아쓴 글 전송",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply/model/useVoice.ts</code>, <code>ui/QuickReply.tsx</code>, <code>ui/VoiceButton.tsx</code>, <code>ui/QuickReply.test.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: tsc · eslint · vitest 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · hold 방식 지원과 Phase 3·4 복구",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "hold 방식에서 키를 누르고 있는 상태 흉내",
+              "done": true,
+              "rows": [
+                [
+                  "원인",
+                  "설정이 `voice.mode: hold`라 스페이스 한 번으로는 녹음이 켜지지 않았고, 녹음 표시도 `listening…`이었다."
+                ],
+                [
+                  "파일",
+                  "<code>src/server/runner/voice.ts</code>, <code>voiceMode.ts</code>, <code>src/server/container.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "Phase 3·4 복구",
+              "done": true,
+              "rows": [
+                [
+                  "원인",
+                  "Phase 3·4는 커밋되지 않은 채 Orca 제거 작업에서 `src/server/orca/`와 함께 지워졌고, runner로 옮길 때 커밋 `a8bc768` 버전으로 복원됐다. 세션 기록의 수정 스크립트를 다시 적용했다."
+                ],
+                [
+                  "제외",
+                  "마이크 버튼이 `/voice`를 직접 보내 켜는 수정은 넣지 않았다. `/voice`는 켜고 끄기를 번갈아 하므로, 이미 켜진 세션에서 녹음이 다른 이유로 실패하면 음성 모드를 꺼 버린다."
+                ],
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply/*</code>, <code>src/client/shared/api/actions.ts</code>, <code>src/common/actions/schema.ts</code>, <code>app/api/actions/route.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: tsc · eslint · vitest, 실제 세션에서 hold 켜기 → 유지 → 멈추기 후 아무것도 전송되지 않음",
+              "done": true,
+              "rows": []
+            }
+          ]
         }
       ]
     }
   },
   "intent": [
     {
-      "text": "Claude Code의 /voice(말로 입력하기)를 에이전트 컨트롤 화면에서 세션마다 쓸 수 있게 한다.",
+      "text": "Claude Code의 /voice(말로 입력하기)를 에이전트 컨트롤 화면에서 세션마다 쓰고, 받아쓴 글은 확인한 뒤 직접 보낸다.",
       "state": "confirmed",
       "basis": "[[R1-Q1]] [[R1-Q2]] 채팅 답",
       "was": [
         "키보드를 쓰지 않고 말로 에이전트 세션에 지시하고, 에이전트의 답을 소리로 듣는다."
       ]
     }
-  ]
+  ],
+  "pulledAt": 1794554258251
 }

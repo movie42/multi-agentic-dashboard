@@ -21,8 +21,8 @@ interface QuickReplyProps {
 export function QuickReply({ terminalHandle, working, autoFocus = false }: QuickReplyProps) {
   const [text, setText] = useDraft(`quick-reply-draft:${terminalHandle}`);
   const [dismissedId, setDismissedId] = useState(0);
+  const [stopping, setStopping] = useState(false);
   const attachments = useAttachments("quick-reply");
-  const voice = useVoice(terminalHandle);
 
   const [result, dispatch, sending] = useActionState(async (previous: SendResult, message: string): Promise<SendResult> => {
     const id = previous.id + 1;
@@ -37,16 +37,35 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
     }
   }, { kind: "idle", id: 0 });
 
-  const status: SendStatus = sending ? { kind: "sending" } : result.id === dismissedId ? { kind: "idle" } : result;
+  const status: SendStatus = sending || stopping ? { kind: "sending" } : result.id === dismissedId ? { kind: "idle" } : result;
   const canSend = (text.trim().length > 0 || attachments.readyPaths.length > 0) && !attachments.uploading && !sending;
   const dismiss = () => setDismissedId(result.id);
+  const voice = useVoice(terminalHandle, (transcript) => {
+    setText(text.trim() ? `${text.trimEnd()} ${transcript}` : transcript);
+    if (!sending) dismiss();
+  });
 
   const addFiles = (files: File[]) => {
     if (!sending) dismiss();
     attachments.addFiles(files);
   };
 
+  const sendWithVoice = async () => {
+    if (voice.pending || stopping || sending || attachments.uploading) return;
+    setStopping(true);
+    const transcript = await voice.stop();
+    setStopping(false);
+    if (transcript === null) return;
+    const body = [text.trim(), transcript].filter(Boolean).join(" ");
+    if (!body && attachments.readyPaths.length === 0) return;
+    startTransition(() => dispatch(appendPaths(body, attachments.readyPaths)));
+  };
+
   const send = () => {
+    if (voice.recording) {
+      void sendWithVoice();
+      return;
+    }
     if (!canSend) return;
     const message = appendPaths(text, attachments.readyPaths);
     startTransition(() => dispatch(message));
@@ -95,7 +114,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
           <VoiceButton
             recording={voice.recording}
             pending={voice.pending}
-            disabled={text.length > 0 || sending}
+            disabled={sending}
             onToggle={voice.toggle}
           />
           <textarea
@@ -112,7 +131,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
           <button
             type="button"
             onClick={send}
-            disabled={!canSend}
+            disabled={voice.recording ? voice.pending || stopping || sending || attachments.uploading : !canSend}
             className="shrink-0 rounded-full bg-fg px-3 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
           >
             {status.kind === "sending" ? "보내는 중" : attachments.uploading ? "올리는 중" : "보내기"}

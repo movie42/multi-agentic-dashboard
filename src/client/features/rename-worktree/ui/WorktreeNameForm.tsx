@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { TITLE_LIMIT } from "@/common/sessions/limits";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 
@@ -12,7 +12,7 @@ interface WorktreeNameFormProps {
   onDone: (savedName: string | null) => void;
 }
 
-/** Edits the worktree's Orca display name; the folder and branch keep their names. */
+/** Edits the name the board shows for the worktree; the folder and branch keep their names. */
 export function WorktreeNameForm({ worktree, onDone }: WorktreeNameFormProps) {
   const [draft, setDraft] = useState(worktree.name);
   const [error, dispatch, saving] = useActionState(async (_previous: string | null, next: string): Promise<string | null> => {
@@ -72,7 +72,7 @@ export function WorktreeNameForm({ worktree, onDone }: WorktreeNameFormProps) {
           취소
         </button>
       </div>
-      <p className="text-[12px] text-muted">Orca에 보이는 이름만 바뀌어요. 폴더와 브랜치는 그대로예요.</p>
+      <p className="text-[12px] text-muted">보드에 보이는 이름만 바뀌어요. 폴더와 브랜치는 그대로예요.</p>
       {error && <p className="text-[12px] break-all text-accent">{error}</p>}
     </form>
   );

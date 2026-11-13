@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AgentCard } from "@/common/orca/types";
-import { ASK_USER_QUESTION } from "@/common/permissions/questions";
+import type { AgentCard } from "@/common/board/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 
@@ -15,17 +14,14 @@ interface InputAlertsProps {
   onOpen: (agent: AgentCard) => void;
 }
 
-// A hidden alert comes back when the agent asks again: a new permission or a new state start changes the key.
-const alertKey = (agent: AgentCard) => `${agent.id}:${agent.permission?.id ?? agent.stateSince ?? ""}`;
+// A hidden alert comes back when the agent asks again: a new state start changes the key.
+const alertKey = (agent: AgentCard) => `${agent.id}:${agent.stateSince ?? ""}`;
 
 function reasonOf(agent: AgentCard): string {
-  if (agent.permission) {
-    return agent.permission.toolName === ASK_USER_QUESTION ? "질문" : `권한 요청 · ${agent.permission.toolName}`;
-  }
   return agent.state === "blocked" ? "막힘" : "내 입력 대기";
 }
 
-const sinceOf = (agent: AgentCard) => agent.permission?.receivedAt ?? agent.stateSince;
+const sinceOf = (agent: AgentCard) => agent.stateSince;
 
 interface AlertItemProps {
   agent: AgentCard;

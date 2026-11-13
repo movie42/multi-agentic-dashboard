@@ -1,4 +1,4 @@
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 
 export interface BoardGroups {
   needsMe: AgentCard[];
@@ -46,10 +46,10 @@ export interface FoldedAgents {
   workersOf: (agent: AgentCard) => AgentCard[];
 }
 
-// Orca sets parentPaneKey on orchestration workers. A worker answers to its coordinator, so it leaves the top level
-// unless it waits on a human (permission, blocked prompt) or its coordinator is no longer on the board.
+// A worker answers to its coordinator, so it leaves the top level
+// unless it waits on a human (blocked prompt) or its coordinator is no longer on the board.
 export function needsInput(agent: AgentCard): boolean {
-  return agent.permission !== null || agent.state === "blocked" || agent.state === "waiting";
+  return agent.state === "blocked" || agent.state === "waiting";
 }
 
 export function foldWorkers(agents: AgentCard[]): FoldedAgents {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { PENDING_LAUNCH_TTL_MS, usePendingLaunchStore } from "./pendingLaunchStore";
 
 const agent = (id: string, worktreePath = "/w/a", parentId: string | null = null) =>

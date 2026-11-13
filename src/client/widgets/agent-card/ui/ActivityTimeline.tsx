@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { ActivityStep, ToolStatus } from "@/common/sessions/types";
 import { activityQueryOptions } from "@/client/entities/session";
 import { formatClock } from "@/client/shared/lib/format";
@@ -56,7 +56,7 @@ interface ActivityListProps {
   sessionId: string;
 }
 
-function ActivityList({ sessionId }: ActivityListProps) {
+export function ActivityList({ sessionId }: ActivityListProps) {
   const activity = useQuery(activityQueryOptions(sessionId));
   const steps = activity.data ?? null;
   const listRef = useRef<HTMLOListElement>(null);
@@ -85,29 +85,11 @@ function ActivityList({ sessionId }: ActivityListProps) {
     <ol
       ref={listRef}
       onScroll={onScroll}
-      className="mt-2 flex max-h-[24rem] flex-col gap-2 overflow-y-auto border-l-2 border-hair pl-3"
+      className="flex max-h-[36rem] flex-col gap-2 overflow-y-auto border-l-2 border-hair pl-3"
     >
       {steps.map((step) => (
         <StepRow key={step.id} step={step} />
       ))}
     </ol>
-  );
-}
-
-interface ActivityTimelineProps {
-  sessionId: string;
-}
-
-export function ActivityTimeline({ sessionId }: ActivityTimelineProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <details className="group" onToggle={(event: React.SyntheticEvent<HTMLDetailsElement>) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer list-none text-[13px] text-muted hover:text-fg">
-        <span className="group-open:hidden">진행 기록 보기 ▾</span>
-        <span className="hidden group-open:inline">진행 기록 접기 ▴</span>
-      </summary>
-      {open && <ActivityList sessionId={sessionId} />}
-    </details>
   );
 }

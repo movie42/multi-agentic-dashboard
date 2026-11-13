@@ -4,8 +4,17 @@ import type { ActivityStep } from "@/common/sessions/types";
 import { parseJson } from "@/server/shared/fallback";
 
 export const STEP_LIMIT = 40;
+export const CHAT_LIMIT = 300;
 const SUMMARY_CHARS = 140;
 const TEXT_CHARS = 600;
+const CHAT_TEXT_CHARS = 20_000;
+const CHAT_DETAIL_CHARS = 4_000;
+
+interface StepOptions {
+  limit: number;
+  textChars: number;
+  detailOf: (input: Record<string, unknown> | undefined) => string | null;
+}
 
 const text = z.string().optional().catch(undefined);
 const flag = z.boolean().optional().catch(undefined);
@@ -85,7 +94,26 @@ function timeOf(line: TranscriptLine): number | null {
   return Number.isNaN(at) ? null : at;
 }
 
+function commandOf(input: Record<string, unknown> | undefined): string | null {
+  return stringField(input, "command");
+}
+
+export function inputDetail(input: Record<string, unknown> | undefined): string | null {
+  const command = stringField(input, "command");
+  if (command) return clip(command, CHAT_DETAIL_CHARS);
+  if (!input || Object.keys(input).length === 0) return null;
+  return clip(JSON.stringify(input, null, 2), CHAT_DETAIL_CHARS);
+}
+
 export function stepsOf(lines: string[]): ActivityStep[] {
+  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf });
+}
+
+export function chatItemsOf(lines: string[]): ActivityStep[] {
+  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail });
+}
+
+function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
   const steps: ActivityStep[] = [];
   const tools = new Map<string, Extract<ActivityStep, { kind: "tool" }>>();
 
@@ -98,7 +126,7 @@ export function stepsOf(lines: string[]): ActivityStep[] {
     if (line.type === "assistant") {
       blocks.forEach((block, index) => {
         if (block.type === "text" && block.text?.trim()) {
-          steps.push({ kind: "text", id: `${line.uuid}:${index}`, at, text: clip(block.text, TEXT_CHARS) });
+          steps.push({ kind: "text", id: `${line.uuid}:${index}`, at, text: clip(block.text, options.textChars) });
         } else if (block.type === "tool_use" && block.id && block.name) {
           const step: Extract<ActivityStep, { kind: "tool" }> = {
             kind: "tool",
@@ -106,7 +134,7 @@ export function stepsOf(lines: string[]): ActivityStep[] {
             at,
             name: block.name,
             summary: summaryOf(block.name, block.input, line.cwd),
-            detail: stringField(block.input, "command"),
+            detail: options.detailOf(block.input),
             status: "running",
           };
           tools.set(block.id, step);
@@ -127,9 +155,9 @@ export function stepsOf(lines: string[]): ActivityStep[] {
       if (typed) {
         // A new prompt means any tool still waiting for a result was cut off by the user.
         for (const tool of tools.values()) if (tool.status === "running") tool.status = "stopped";
-        steps.push({ kind: "prompt", id: `${line.uuid}:prompt`, at, text: clip(typed, TEXT_CHARS) });
+        steps.push({ kind: "prompt", id: `${line.uuid}:prompt`, at, text: clip(typed, options.textChars) });
       }
     }
   }
-  return steps.slice(-STEP_LIMIT);
+  return steps.slice(-options.limit);
 }

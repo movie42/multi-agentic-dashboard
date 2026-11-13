@@ -1,16 +1,11 @@
 import "server-only";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { z } from "zod";
 import type { WizardOrigin } from "@/common/worktreeWizard/types";
 import { services } from "@/server/container";
 
 const execFileAsync = promisify(execFile);
 const MAX_BRANCHES = 80;
-
-const WorktreeListSchema = z.object({
-  worktrees: z.array(z.object({ repoId: z.string(), path: z.string(), branch: z.string().nullable(), displayName: z.string() })),
-});
 
 async function git(cwd: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], { timeout: 10_000 });
@@ -27,11 +22,13 @@ export async function describeOrigin(origin: WizardOrigin): Promise<string> {
   const [branches, base, listed] = await Promise.all([
     git(origin.anchorPath, ["for-each-ref", "--sort=-committerdate", "--format=%(refname:short)", "refs/heads", "refs/remotes"]),
     defaultBranch(origin.anchorPath),
-    services().orca.cli.run(["worktree", "list"], WorktreeListSchema).catch(() => ({ worktrees: [] })),
+    services()
+      .board.load()
+      .catch(() => ({ worktrees: [] })),
   ]);
   const names = listed.worktrees
-    .filter((worktree) => worktree.repoId === origin.repoId)
-    .map((worktree) => `${worktree.displayName} (${worktree.branch?.replace(/^refs\/heads\//, "") ?? "detached"})`);
+    .filter((worktree) => worktree.repo === origin.repo)
+    .map((worktree) => `${worktree.name} (${worktree.branch ?? "detached"})`);
   const branchList = branches.split("\n").filter((line) => line && !line.endsWith("/HEAD"));
 
   return [

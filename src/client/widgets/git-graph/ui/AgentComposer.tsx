@@ -8,14 +8,14 @@ import { plainMessage } from "@/client/shared/lib/format";
 import { useDraft } from "@/client/shared/lib/useDraft";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import type { GraphCommit } from "@/common/gitGraph/types";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { SessionConversation } from "./SessionConversation";
 
 const NEW_SESSION = "new";
 
 interface AgentComposerProps {
   worktreePath: string;
-  /** Sessions in this worktree that still have an Orca terminal to type into. */
+  /** Sessions in this worktree that still have a terminal to type into. */
   sessions: AgentCard[];
   attached: GraphCommit[];
   onDetach: (sha: string) => void;

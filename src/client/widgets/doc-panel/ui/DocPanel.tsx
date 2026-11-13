@@ -7,7 +7,7 @@ import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { DocFrame } from "./DocFrame";
 import { DocTabButton } from "./DocTabButton";
 import { openInBrowser } from "./openInBrowser";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError, useToastStore } from "@/client/shared/model/toastStore";
 import { handOffAnswers } from "../lib/handOffAnswers";

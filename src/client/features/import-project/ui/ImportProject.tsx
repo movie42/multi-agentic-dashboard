@@ -81,7 +81,7 @@ export function ImportProject() {
         </button>
         {step.kind === "imported" && (
           <p className="mt-1 text-[12px] break-all text-muted">
-            <span className="font-mono">{step.path}</span>를 Orca에 추가했어요. 몇 초 안에 목록에 나타나요.
+            <span className="font-mono">{step.path}</span>를 프로젝트로 추가했어요. 몇 초 안에 목록에 나타나요.
           </p>
         )}
       </div>
@@ -99,7 +99,7 @@ export function ImportProject() {
       }}
       className="mt-2 flex flex-col gap-2 rounded-[8px] bg-bg p-2.5 text-[12px]"
     >
-      <p className="leading-relaxed text-muted">폴더를 고르면 Orca 프로젝트로 추가해요. git 저장소가 아니면 일반 폴더로 추가해요.</p>
+      <p className="leading-relaxed text-muted">폴더를 고르면 프로젝트로 추가해요. git 저장소가 아니면 일반 폴더로 추가해요.</p>
       <button
         type="button"
         disabled={busy}

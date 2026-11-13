@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import type { AgentCard } from "@/common/orca/types";
+import type { AgentCard } from "@/common/board/types";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 
@@ -9,7 +9,7 @@ const sessionOrderKey = (worktreeId: string) => `agent-control:session-order:${w
 
 function arrange(agents: AgentCard[], stored: string[]): AgentCard[] {
   const rank = new Map(stored.map((id, index) => [id, index]));
-  // Orca has no open time, so a session first seen here goes last; Array.prototype.sort is stable for the rest.
+  // A session first seen here goes last; Array.prototype.sort is stable for the rest.
   return [...agents].sort((a, b) => (rank.get(a.id) ?? stored.length) - (rank.get(b.id) ?? stored.length));
 }
 

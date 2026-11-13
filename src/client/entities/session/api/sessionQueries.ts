@@ -14,6 +14,7 @@ export const sessionKeys = {
   list: () => [...sessionKeys.all, "list"] as const,
   activity: (sessionId: string) => [...sessionKeys.all, "activity", sessionId] as const,
   conversation: (sessionId: string) => [...sessionKeys.all, "conversation", sessionId] as const,
+  chat: (sessionId: string) => [...sessionKeys.all, "chat", sessionId] as const,
 };
 
 async function fetchSessions(signal: AbortSignal): Promise<SessionList> {
@@ -23,8 +24,8 @@ async function fetchSessions(signal: AbortSignal): Promise<SessionList> {
   return { sessions: payload.sessions, scannedAt: payload.scannedAt };
 }
 
-async function fetchActivity(sessionId: string, signal: AbortSignal): Promise<ActivityStep[]> {
-  const response = await fetch(`/api/activity?session=${encodeURIComponent(sessionId)}`, { cache: "no-store", signal });
+async function fetchSteps(route: "activity" | "chat", sessionId: string, signal: AbortSignal): Promise<ActivityStep[]> {
+  const response = await fetch(`/api/${route}?session=${encodeURIComponent(sessionId)}`, { cache: "no-store", signal });
   const payload = await readJson<ActivityResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
   return payload.steps;
@@ -50,7 +51,18 @@ export function sessionListQueryOptions() {
 export function activityQueryOptions(sessionId: string) {
   return queryOptions({
     queryKey: sessionKeys.activity(sessionId),
-    queryFn: ({ signal }) => fetchActivity(sessionId, signal),
+    queryFn: ({ signal }) => fetchSteps("activity", sessionId, signal),
+    refetchInterval: ACTIVITY_POLL_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+export function chatQueryOptions(sessionId: string) {
+  return queryOptions({
+    queryKey: sessionKeys.chat(sessionId),
+    queryFn: ({ signal }) => fetchSteps("chat", sessionId, signal),
     refetchInterval: ACTIVITY_POLL_MS,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: false,

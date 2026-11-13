@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { buildSteps, currentStep } from "@/common/workflow/steps";
 import type { StepKey, WorkflowMode, WorkflowStep } from "@/common/workflow/types";
 import { StateBadge } from "@/client/entities/agent";

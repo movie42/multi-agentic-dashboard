@@ -22,7 +22,7 @@ import type {
   BoardSnapshot,
   ProjectSummary,
   WorktreeSummary,
-} from "@/common/orca/types";
+} from "@/common/board/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
@@ -38,8 +38,8 @@ import { LaunchAgent, usePendingLaunchStore } from "@/client/features/launch-age
 import { boardKeys } from "@/client/entities/board";
 import { ProjectSidebar, type ProjectCounts } from "@/client/widgets/project-sidebar";
 import { AgentList } from "@/client/widgets/agent-list";
-import { RuntimeSwitch } from "@/client/features/switch-runtime";
 import { SessionsPage } from "@/client/widgets/session-list";
+import { SessionTabs } from "@/client/widgets/session-tabs";
 import { StageBoard } from "@/client/widgets/stage-board";
 import { TodoBoardPage } from "@/client/widgets/todo-board";
 import { useAttention } from "../model/useAttention";
@@ -152,7 +152,7 @@ const worktreeFocusKey = (repo: string) =>
 export function DashboardLoading() {
   return (
     <main className="flex flex-col items-start gap-4 px-12 py-14 text-[14px] text-muted">
-      <p>Orca에서 에이전트 상태를 불러오는 중…</p>
+      <p>에이전트 상태를 불러오는 중…</p>
     </main>
   );
 }
@@ -211,7 +211,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   }, [jump, prefs.selectedRepo]);
 
   const runAction = async (action: ActionRequest) => {
-    if (action.type === "open-artifact" && action.via === "system" && isViewableDoc(action.target)) {
+    if (action.type === "open-artifact" && isViewableDoc(action.target)) {
       openDoc(action.target);
       return;
     }
@@ -221,6 +221,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         : null;
     try {
       await postAction(action);
+      if (action.type === "resume-session") {
+        window.open(`/runner?session=${encodeURIComponent(action.sessionId)}`, "_blank", "noopener");
+      }
       if (pendingId) void queryClient.invalidateQueries({ queryKey: boardKeys.all });
     } catch (actionError) {
       if (pendingId) cancelPendingLaunch(pendingId);
@@ -240,8 +243,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     if (!error) return <DashboardLoading />;
     return (
       <main className="flex flex-col items-start gap-4 px-12 py-14 text-[14px] text-muted">
-        <p>{`Orca에 연결하지 못했습니다: ${error}`}</p>
-        <RuntimeSwitch />
+        <p>{`보드를 불러오지 못했습니다: ${error}`}</p>
       </main>
     );
   }
@@ -658,7 +660,7 @@ function ProjectView({
   const needle = query.trim().toLowerCase();
 
   const rank = new Map(storedOrder.map((id, index) => [id, index]));
-  // The server passes Orca's order, which reshuffles on every agent event.
+  // The server's order reshuffles on every agent event.
   const ordered = [...worktrees].sort(
     (a, b) =>
       (rank.get(a.worktreeId) ?? storedOrder.length) -
@@ -877,15 +879,23 @@ function ProjectView({
                   featureRow={feature ? rowOf(feature, worktree) : null}
                   mode={mode}
                   groups={groups}
-                  renderAgents={(listed, onReorder) => (
-                    <AgentList
+                  renderAgents={(listed, onReorder, needsMeIds) => (
+                    <SessionTabs
+                      worktreeId={worktree.worktreeId}
+                      worktreePath={worktree.path}
                       agents={listed}
+                      needsMeIds={needsMeIds}
+                      focusId={expandedId}
                       onReorder={onReorder}
-                      now={now}
-                      showRepo={false}
                       renderCard={renderCard}
-                      expandedId={expandedId}
-                      workersOf={agents.workersOf}
+                      renderWorkers={(agent) => {
+                        const workers = agents.workersOf(agent);
+                        return workers.length > 0 ? (
+                          <div className="ml-6">
+                            <AgentList agents={workers} now={now} showRepo={false} renderCard={renderCard} onAction={onAction} />
+                          </div>
+                        ) : null;
+                      }}
                       onAction={onAction}
                     />
                   )}

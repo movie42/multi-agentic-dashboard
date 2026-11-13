@@ -11,15 +11,18 @@ export async function postAction(action: ActionRequest): Promise<void> {
   if (!payload.ok) throw new Error(payload.error);
 }
 
-export async function toggleVoice(terminalHandle: string): Promise<boolean> {
+export async function toggleVoice(
+  terminalHandle: string,
+  intent: "toggle" | "stop" = "toggle",
+): Promise<{ recording: true } | { recording: false; transcript: string }> {
   const response = await fetch("/api/actions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "toggle-voice", terminalHandle } satisfies ActionRequest),
+    body: JSON.stringify({ type: "toggle-voice", terminalHandle, intent } satisfies ActionRequest),
   });
   const payload = await readJson<VoiceToggleResponse>(response);
   if (!payload.ok) throw new Error(payload.error);
-  return payload.recording;
+  return payload.recording ? { recording: true } : { recording: false, transcript: payload.transcript };
 }
 
 export async function readVoice(terminalHandle: string): Promise<{ recording: boolean; transcript: string }> {

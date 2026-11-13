@@ -5,8 +5,9 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS as DndCSS } from "@dnd-kit/utilities";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
+import { requestTerminal } from "@/client/entities/runner";
 import type { ActionRequest } from "@/common/actions/schema";
-import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
+import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type {
   FeatureRowSummary,
@@ -32,6 +33,7 @@ interface WorktreePanelProps {
   renderAgents: (
     agents: AgentCard[],
     onReorder: (draggedId: string, targetId: string, placeAfter: boolean) => void,
+    needsMeIds: ReadonlySet<string>,
   ) => React.ReactNode;
   ancestors: WorktreeLink[];
   childLinks: WorktreeLink[];
@@ -101,7 +103,7 @@ export function WorktreePanel({
 }: WorktreePanelProps) {
   const [editingName, setEditingName] = useState(false);
   const [removing, setRemoving] = useState(false);
-  // Shown until the next poll brings the new display name back from Orca.
+  // Shown until the next poll brings the new display name back.
   const [savedName, setSavedName] = useState<{ value: string; replaces: string } | null>(null);
   const shownName = savedName && savedName.replaces === worktree.name ? savedName.value : worktree.name;
   const [menu, setMenu] = useState<{ at: MenuPoint; confirmingCloseAll: boolean } | null>(null);
@@ -131,12 +133,10 @@ export function WorktreePanel({
     : all;
   const terminalHandle =
     all.find((agent) => agent.terminalHandle)?.terminalHandle ?? null;
-  const toTerminal = () =>
-    onAction(
-      terminalHandle
-        ? { type: "focus-terminal", terminalHandle }
-        : { type: "open-terminal", worktreePath: worktree.path },
-    );
+  const toTerminal = () => {
+    if (terminalHandle) requestTerminal(terminalHandle);
+    else void onAction({ type: "open-terminal", worktreePath: worktree.path });
+  };
   const actions: WorktreeAction[] = [
     {
       key: "session",
@@ -147,8 +147,8 @@ export function WorktreePanel({
     {
       key: "terminal",
       label: "터미널로",
-      description: terminalHandle ? "에이전트가 돌고 있는 Orca 터미널로 가요" : "이 워크트리에 Orca 터미널을 새로 열어요",
-      run: () => void toTerminal(),
+      description: terminalHandle ? "에이전트가 돌고 있는 터미널을 열어요" : "이 워크트리에 터미널을 새로 열어요",
+      run: toTerminal,
     },
     {
       key: "diff",
@@ -172,7 +172,7 @@ export function WorktreePanel({
     {
       key: "rename",
       label: "이름 바꾸기",
-      description: "Orca에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
+      description: "보드에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
       run: () => setEditingName(true),
     },
     {
@@ -187,19 +187,14 @@ export function WorktreePanel({
           {
             key: "remove" as const,
             label: "워크트리 삭제",
-            description: "Orca에서 이 워크트리를 지워요. 브랜치는 남아요",
+            description: "이 워크트리를 지워요. 브랜치는 남아요",
             danger: true,
             run: () => setRemoving(true),
           },
         ]),
   ];
   const open = (target: string) =>
-    onAction({
-      type: "open-artifact",
-      target,
-      via: "system",
-      worktreePath: worktree.path,
-    });
+    onAction({ type: "open-artifact", target });
 
   return (
     <section
@@ -372,7 +367,7 @@ export function WorktreePanel({
           <div className="mt-4 text-[13px]">
             <p
               className="text-[12px] text-muted"
-              title="Orca에서 이 워크트리 아래로 만든 워크트리"
+              title="이 워크트리 아래로 만든 워크트리"
             >
               하위 워크트리 {childLinks.length}
             </p>
@@ -419,9 +414,9 @@ export function WorktreePanel({
                 key={`${task.domain}/${task.taskId}`}
                 className="flex flex-col gap-3"
               >
-                <p className="flex items-baseline gap-2 text-[15px]">
+                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[15px]">
                   <span className="font-semibold">{task.title}</span>
-                  <span className="font-mono text-[12px] text-muted">
+                  <span className="whitespace-nowrap font-mono text-[12px] text-muted">
                     {task.domain}/{task.taskId}
                   </span>
                   {pageIndex && (
@@ -496,7 +491,7 @@ export function WorktreePanel({
         )}
 
         <div className="empty:hidden">
-          {listed.length > 0 && renderAgents(listed, sessions.move)}
+          {listed.length > 0 && renderAgents(listed, sessions.move, new Set(groups.needsMe.map((agent) => agent.id)))}
           <PendingLaunchRows worktreePath={worktree.path} standalone={listed.length === 0} />
         </div>
       </div>

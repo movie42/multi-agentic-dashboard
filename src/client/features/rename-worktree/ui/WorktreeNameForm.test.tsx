@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorktreeSummary } from "@/common/orca/types";
+import type { WorktreeSummary } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
 import { useToastStore } from "@/client/shared/model/toastStore";
 import { WorktreeNameForm } from "./WorktreeNameForm";
@@ -16,6 +16,7 @@ const worktree: WorktreeSummary = {
   name: "feat-a",
   branch: "feat/a",
   path: "/work/feat-a",
+  projectPath: "/work/repo",
   isMain: false,
   parentWorktreeId: null,
   unread: false,
@@ -44,7 +45,7 @@ afterEach(() => {
 });
 
 describe("WorktreeNameForm", () => {
-  it("saves the collapsed name as the Orca display name", async () => {
+  it("saves the collapsed name as the display name", async () => {
     post.mockResolvedValue();
     const onDone = vi.fn();
     render(<WorktreeNameForm worktree={worktree} onDone={onDone} />);

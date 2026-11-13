@@ -16,11 +16,7 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias },
-        test: { name: "node", environment: "node", include: ["src/**/*.test.ts", "test/**/*.test.ts"], restoreMocks: true, env },
-      },
-      {
-        resolve: { alias },
-        test: { name: "contract", environment: "node", include: ["test/contract/**/*.contract.ts"], restoreMocks: true, env },
+        test: { name: "node", environment: "node", include: ["src/**/*.test.ts", "test/**/*.test.ts", "daemon/**/*.test.ts"], restoreMocks: true, env },
       },
       {
         resolve: { alias },

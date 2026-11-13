@@ -8,4 +8,5 @@
 !/agent-control/verify/
 /agent-control/diagrams/.receipts/
 /features/*/index.html
+*.md.html
 # flow:end
