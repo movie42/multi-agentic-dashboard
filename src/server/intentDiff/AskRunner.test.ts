@@ -90,6 +90,29 @@ describe("AskRunner", () => {
     expect(warn).toHaveBeenCalledWith("ask", expect.anything(), { line: "not json" });
   });
 
+  it("keeps a conclusion and a follow-up written while the answer was streaming", async () => {
+    const { runner, store } = await setup(vi.fn<SpawnAsk>(() => fakeChild([{ type: "result", result: "첫 답" }])));
+    const first = await runner.prepareNewThread(input);
+    await runner.run(first, () => {});
+    const thread = await store.get("thread-1");
+    if (!thread) throw new Error("thread missing");
+    const later = runner.prepareFollowUp(thread, "그럼?");
+    const other = runner.prepareFollowUp(thread, "또?");
+    const conclusion = { text: "고침", needsChange: true, draftedAt: 100, confirmedAt: 100, sentAt: null };
+    await Promise.all([
+      runner.run(later, () => {}),
+      runner.run(other, () => {}),
+      store.update(["thread-1"], (current) => ({ ...current, conclusion })),
+    ]);
+    const saved = await store.get("thread-1");
+    expect(saved?.conclusion).toEqual(conclusion);
+    expect(saved?.turns.map((turn) => [turn.question, turn.answer])).toEqual([
+      ["왜?", "첫 답"],
+      ["그럼?", "첫 답"],
+      ["또?", "첫 답"],
+    ]);
+  });
+
   it("forks the writer session when its transcript is found", async () => {
     const { runner, dir } = await setup(vi.fn<SpawnAsk>());
     await mkdir(path.join(dir, "projects", "-w"), { recursive: true });

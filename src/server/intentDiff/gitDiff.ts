@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { DiffLine, DiffRange, FileDiff, Hunk } from "@/common/intentDiff/types";
@@ -206,7 +206,7 @@ async function untrackedFiles(top: string): Promise<FileDiff[]> {
   const diffs = await Promise.all(
     names.map(async (file): Promise<FileDiff | null> => {
       const full = path.join(top, file);
-      const info = await stat(full).catch(() => null);
+      const info = await lstat(full).catch(() => null);
       if (!info?.isFile()) return null;
       if (info.size > UNTRACKED_LIMIT_BYTES) return { file, oldFile: null, change: "added", binary: true, hunks: [] };
       const buffer = await readFile(full);

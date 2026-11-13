@@ -1,6 +1,6 @@
 {
   "api": "Orca CLI <code>orca worktree ps --json</code> · <code>orca terminal read --screen --json</code> → <code>/api/board</code> · <code>/api/terminal</code>",
-  "base": "app 7873de2 (작업 트리 미커밋)",
+  "base": "app 78d1862",
   "flows": [
     {
       "title": "지금: 선택지에 답하는 흐름",
@@ -70,7 +70,7 @@
           "title": "상태 배지",
           "field": "<code>agents[].state</code> · <code>interrupted</code>",
           "rule": "Orca가 준 상태 문자열을 다섯 가지 상태로 좁히고 한국어 이름으로 바꿔요. <code>waiting</code>·<code>blocked</code>면 '내 입력 대기'·'막힘'이에요.",
-          "note": "<code>src/lib/orca/board.ts:28</code> · <code>src/features/board/AgentCardView.tsx:89</code>"
+          "note": "<code>src/server/orca/boardCards.ts:27</code> · <code>src/client/entities/agent/ui/StateBadge.tsx:3</code>"
         },
         {
           "id": "S2",
@@ -80,7 +80,7 @@
           "title": "저장소 이름 · 새 결과 점",
           "field": "<code>worktrees[].repo</code> · <code>unread</code>",
           "rule": "Orca 값을 그대로 보여요. 읽지 않은 결과가 있으면 주황 점이 붙어요.",
-          "note": "<code>src/lib/orca/board.ts:78</code>"
+          "note": "<code>src/server/orca/boardCards.ts:82</code> · <code>src/client/widgets/agent-card/ui/AgentCardView.tsx:121</code>"
         },
         {
           "id": "S3",
@@ -91,7 +91,7 @@
           "title": "상태 경과 시간",
           "field": "<code>agents[].stateStartedAt</code>",
           "rule": "상태가 시작된 시각부터 지금까지를 '1분 전'처럼 보여요. 작업 중이면 '경과'를 붙여요.",
-          "note": "<code>src/features/board/AgentCardView.tsx:136</code>"
+          "note": "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx:123</code>"
         },
         {
           "id": "S4",
@@ -102,7 +102,7 @@
           "title": "브랜치",
           "field": "<code>worktrees[].branch</code>",
           "rule": "<code>refs/heads/</code> 앞부분을 떼고 보여요.",
-          "note": "<code>src/lib/orca/board.ts:68</code>"
+          "note": "<code>src/server/orca/boardCards.ts:31</code>"
         },
         {
           "id": "S5",
@@ -112,7 +112,7 @@
           "title": "에이전트 종류 · 도구",
           "field": "<code>agents[].agentType</code> · <code>toolName</code>",
           "rule": "도구 이름은 작업 중일 때만 붙어요. 대기 중에는 어떤 도구가 권한을 기다리는지 카드에 나오지 않아요.",
-          "note": "<code>src/features/board/AgentCardView.tsx</code> 머리 줄"
+          "note": "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx:181</code>"
         },
         {
           "id": "S6",
@@ -122,7 +122,7 @@
           "title": "마지막 요청",
           "field": "<code>agents[].prompt</code>",
           "rule": "Orca 값을 따옴표로 감싸 두 줄까지 보여요.",
-          "note": "<code>src/features/board/AgentCardView.tsx:199</code>"
+          "note": "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx:197</code>"
         },
         {
           "id": "S7",
@@ -132,7 +132,7 @@
           "title": "마지막 답변",
           "field": "<code>agents[].lastAssistantMessage</code> + 대화 기록 파일",
           "rule": "Orca는 앞 200자만 줘요. 그래서 앱이 그 문구로 <code>~/.claude/projects</code>의 대화 기록 파일(jsonl)을 검색해 원문을 찾아요. 못 찾으면 미리보기 안내가 붙어요.",
-          "note": "<code>src/lib/orca/board.ts:20</code> · <code>src/lib/sessions/fullMessage.ts</code>. 훅이 대화 기록 파일 경로를 직접 주면 검색이 필요 없어져요."
+          "note": "<code>src/server/orca/boardCards.ts:19</code> · <code>src/server/orca/BoardService.ts:184</code> · <code>src/server/sessions/SessionLocator.ts:159</code>. 훅이 대화 기록 파일 경로를 직접 주면 검색이 필요 없어져요."
         },
         {
           "id": "S8",
@@ -142,7 +142,7 @@
           "title": "요청 맥락 · 도구와 입력값",
           "field": "훅 입력 <code>tool_name</code> · <code>tool_input</code>",
           "rule": "권한 요청이 훅으로 들어오면 도구 이름과 입력값을 그대로 보여요. Bash는 <code>command</code>와 <code>description</code>, 파일 도구는 <code>file_path</code>, 그 밖의 도구는 입력값 JSON을 보여요. 훅 요청이 없을 때만 지금의 화면 글자를 대신 보여요.",
-          "note": "[[permission-hook#R1-Q1]] · 화면 파싱 대체 경로는 <code>src/lib/orca/screen.ts</code> 유지 · <code>src/features/board/PermissionPanel.tsx</code> <code>ToolInputView</code>"
+          "note": "[[permission-hook#R1-Q1]] · 화면 파싱 대체 경로는 <code>src/common/orca/screen.ts</code> 유지 · <code>src/client/features/answer-permission/ui/PermissionPanel.tsx:85</code> <code>ToolInputView</code>"
         },
         {
           "id": "S9",
@@ -162,7 +162,7 @@
           "title": "허용",
           "field": "훅 출력 <code>decision.behavior: \"allow\"</code>",
           "rule": "누르면 대기 중인 훅 요청에 허용 결정을 돌려줘요. 요청 ID로 답하므로 다른 질문에 잘못 들어가지 않아요.",
-          "note": "[[permission-hook#R1-Q1]] [[permission-hook#R1-Q3]] · <code>src/lib/permissions/store.ts</code> <code>answerPermission</code>"
+          "note": "[[permission-hook#R1-Q1]] [[permission-hook#R1-Q3]] · <code>src/server/permissions/PermissionStore.ts:74</code> <code>answer</code>"
         },
         {
           "id": "S11",
@@ -192,7 +192,7 @@
           "title": "빠른 답장",
           "field": "—",
           "rule": "입력한 글을 <code>orca terminal send --enter</code>로 터미널에 보내요. 이번 작업에서 바꾸지 않아요.",
-          "note": "<code>src/app/api/actions/route.ts:96</code>"
+          "note": "<code>app/api/actions/route.ts:49</code>"
         },
         {
           "id": "S14",
@@ -203,7 +203,7 @@
           "title": "Orca에서 이어가기",
           "field": "—",
           "rule": "Orca의 해당 터미널 탭으로 전환하고 Orca를 앞으로 가져와요.",
-          "note": "<code>src/features/board/AgentCardView.tsx:236</code>"
+          "note": "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx:271</code>"
         }
       ],
       "offscreenIntro": "선택지 패널은 상태가 '내 입력 대기'·'막힘'이고 터미널 핸들이 있을 때만 나와요.",

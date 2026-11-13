@@ -1,5 +1,9 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseUnifiedDiff } from "./gitDiff";
+import { loadFileDiffs, parseUnifiedDiff } from "./gitDiff";
 
 const DIFF = `diff --git a/src/a.ts b/src/a.ts
 index 1111111..2222222 100644
@@ -46,5 +50,25 @@ describe("parseUnifiedDiff", () => {
 
   it("returns nothing for empty output", () => {
     expect(parseUnifiedDiff("")).toEqual([]);
+  });
+});
+
+describe("loadFileDiffs", () => {
+  it("does not follow an untracked symlink into a file outside the worktree", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "gitdiff-"));
+    try {
+      const repo = path.join(root, "repo");
+      const secret = path.join(root, "secret.txt");
+      writeFileSync(secret, "private\n");
+      execFileSync("git", ["init", "-q", repo]);
+      execFileSync("git", ["-C", repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init"]);
+      symlinkSync(secret, path.join(repo, "link.txt"));
+      writeFileSync(path.join(repo, "plain.txt"), "hello\n");
+      const base = execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+      const diffs = await loadFileDiffs({ worktreePath: repo, branch: null, base, baseLabel: base, head: null, since: 0, until: null });
+      expect(diffs.map((diff) => diff.file)).toEqual(["plain.txt"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
