@@ -42,7 +42,10 @@ test("the card shows the conversation as a chat with the session's model and con
   await expect(chat.getByText("E2E 고정 프롬프트")).toBeVisible();
   await expect(chat.getByText("E2E 마지막 답변")).toBeVisible();
   await expect(page.locator("[data-context-percent]").first()).toHaveText("컨텍스트 34%");
-  await page.locator("[data-model-picker]").first().click();
+  const picker = page.locator("[data-model-picker]").first();
+  await picker.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await picker.click();
   await page.getByRole("menuitem", { name: "sonnet" }).click();
   await expect
     .poll(() => runnerCalls().find((call) => JSON.stringify(call.body).includes("/model")))
@@ -71,6 +74,18 @@ test("the card switches between chat and terminal", async ({ page }) => {
   await expect(page.locator("[data-chat]")).toHaveCount(0);
   await page.locator("[data-card-view=chat]").first().click();
   await expect(page.locator("[data-chat]").first()).toBeVisible();
+});
+
+test("the project view shows a worktree's sessions as tabs and opens a shell from the tab row", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "이동 →" }).first().click();
+  const tabs = page.locator("[data-session-tabs]").first();
+  await expect(tabs.locator(`[data-session-tab="${SESSION_ID}"]`)).toHaveAttribute("aria-selected", "true");
+  await expect(tabs.locator("[data-chat]")).toBeVisible();
+  await tabs.locator("[data-new-terminal]").click();
+  await expect
+    .poll(() => runnerCalls().find((call) => call.url === "/sessions" && JSON.stringify(call.body).includes("shell")))
+    .toMatchObject({ method: "POST", body: { kind: "shell" } });
 });
 
 test("a permission hook left installed gets an empty answer, so Claude asks in its own terminal", async ({ request }) => {

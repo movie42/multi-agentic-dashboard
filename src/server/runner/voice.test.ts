@@ -59,10 +59,16 @@ describe("voice in tap mode", () => {
     expect(typed).toEqual([]);
   });
 
-  it("refuses to start over a draft without typing anything", async () => {
+  it("tries anyway over a draft and blames the draft only when recording fails", async () => {
     const { terminal, typed } = fakeTerminal([box("", "쓰던 글")]);
     await expect(createVoice(terminal, tap).toggle("t")).rejects.toThrow(VOICE_DRAFT_ERROR);
-    expect(typed).toEqual([]);
+    expect(typed).toEqual([" ", "\x7f"]);
+  });
+
+  it("treats the empty-prompt suggestion as an empty prompt", async () => {
+    const { terminal, typed } = fakeTerminal([box("0 tokens", 'Try "refactor <filepath>"'), rec()]);
+    await expect(createVoice(terminal, tap).toggle("t")).resolves.toEqual({ recording: true });
+    expect(typed).toEqual([" "]);
   });
 
   it("erases the typed space and fails when voice mode never starts", async () => {
@@ -114,10 +120,24 @@ describe("voice in hold mode", () => {
     expect(typed).toEqual([]);
   });
 
-  it("refuses to start over a draft without pressing anything", async () => {
-    const { terminal, typed } = fakeTerminal([box("", "쓰던 글")]);
-    await expect(createVoice(terminal, hold).toggle("t")).rejects.toThrow(VOICE_DRAFT_ERROR);
-    expect(typed).toEqual([]);
+  it("starts over the empty-prompt suggestion", async () => {
+    const { terminal, show } = liveTerminal(box("0 tokens", 'Try "refactor <filepath>"'));
+    const voice = createVoice(terminal, { ...hold, sleep: realSleep, repeatMs: 5, pollMs: 10 });
+    const started = voice.toggle("t");
+    await realSleep(20);
+    show(listening());
+    await expect(started).resolves.toEqual({ recording: true });
+    await voice.toggle("t", "stop");
+  });
+
+  it("starts even with a draft when Claude Code accepts it", async () => {
+    const { terminal, show } = liveTerminal(box("", "쓰던 글"));
+    const voice = createVoice(terminal, { ...hold, sleep: realSleep, repeatMs: 5, pollMs: 10 });
+    const started = voice.toggle("t");
+    await realSleep(20);
+    show(listening("쓰던 글 "));
+    await expect(started).resolves.toEqual({ recording: true });
+    await voice.toggle("t", "stop");
   });
 
   it("releases and erases the repeated spaces when recording never starts", async () => {

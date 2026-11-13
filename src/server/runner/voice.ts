@@ -37,6 +37,7 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 const RULE = /^─{10,}$/;
 const PROMPT_MARK = /^❯\s?/;
 const LEVEL_METER = /[▁▂▃▄▅▆▇█]+$/;
+const PLACEHOLDER = /^Try "[^"\n]*"$/;
 
 interface PromptBox {
   status: string;
@@ -52,7 +53,7 @@ export function readPromptBox(lines: string[]): PromptBox | null {
   const continuation = (ruleIndex < 0 ? rest : rest.slice(0, ruleIndex)).map((line) => line.replace(/^ {2}/, ""));
   const text = [first.replace(PROMPT_MARK, ""), ...continuation].join("\n").replace(LEVEL_METER, "").trim();
   const above = promptIndex > 0 && RULE.test(normalized[promptIndex - 1]?.trim() ?? "") ? promptIndex - 2 : promptIndex - 1;
-  return { status: normalized[above] ?? "", text };
+  return { status: normalized[above] ?? "", text: PLACEHOLDER.test(text) ? "" : text };
 }
 
 const statusShows = (lines: string[], marks: string[]) => {
@@ -165,19 +166,21 @@ export function createVoice(terminal: VoiceTerminal, options: VoiceOptions = {})
     return { recording: false, transcript };
   };
 
-  const startHold = async (handle: string): Promise<VoiceToggleResult> => {
+  const failure = (before: string[]) => new Error(readPrompt(before) ? VOICE_DRAFT_ERROR : VOICE_OFF_ERROR);
+
+  const startHold = async (handle: string, before: string[]): Promise<VoiceToggleResult> => {
     const hold = press(handle);
     if (await waitForRecording(handle)) return { recording: true };
     release(handle);
     if (hold.sent > 0) await terminal.type(handle, BACKSPACE.repeat(hold.sent));
-    throw new Error(VOICE_OFF_ERROR);
+    throw failure(before);
   };
 
-  const startTap = async (handle: string): Promise<VoiceToggleResult> => {
+  const startTap = async (handle: string, before: string[]): Promise<VoiceToggleResult> => {
     await terminal.type(handle, VOICE_KEY);
     if (await waitForRecording(handle)) return { recording: true };
     await terminal.type(handle, BACKSPACE);
-    throw new Error(VOICE_OFF_ERROR);
+    throw failure(before);
   };
 
   return {
@@ -187,8 +190,7 @@ export function createVoice(terminal: VoiceTerminal, options: VoiceOptions = {})
       const voiceMode = await mode();
       if (isRecording(before)) return voiceMode === "tap" ? settleTap(handle, readPrompt(before)) : settleHold(handle);
       if (intent === "stop") return { recording: false, transcript: "" };
-      if (readPrompt(before)) throw new Error(VOICE_DRAFT_ERROR);
-      return voiceMode === "tap" ? startTap(handle) : startHold(handle);
+      return voiceMode === "tap" ? startTap(handle, before) : startHold(handle, before);
     },
     async read(handle: string): Promise<{ recording: boolean; transcript: string }> {
       const hold = holds.get(handle);

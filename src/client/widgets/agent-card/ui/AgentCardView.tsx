@@ -232,6 +232,7 @@ export function AgentCardView({
                 type="button"
                 role="tab"
                 data-card-view={tab.key}
+                data-continue={tab.key === "terminal" ? "" : undefined}
                 aria-selected={view === tab.key}
                 disabled={tab.key === "terminal" && !terminalHandle}
                 onClick={() => pick(tab.key)}
