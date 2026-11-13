@@ -82,6 +82,7 @@ interface Entry {
   pty: PtyProcess;
   screen: Screen;
   chunks: string[];
+  chunkSize: number;
   listeners: Set<TerminalListener>;
   held: HeldPermission | null;
 }
@@ -99,13 +100,16 @@ export function asksForTrust(output: string): boolean {
 }
 
 export function trimChunks(chunks: string[], limit: number): string[] {
-  const kept = chunks.reduceRight<{ chunks: string[]; size: number }>(
-    (acc, chunk) => (acc.size >= limit ? acc : { chunks: [chunk, ...acc.chunks], size: acc.size + chunk.length }),
-    { chunks: [], size: 0 },
-  );
-  const overflow = kept.size - limit;
-  const [first, ...rest] = kept.chunks;
-  return overflow > 0 && first !== undefined ? [first.slice(overflow), ...rest] : kept.chunks;
+  let start = chunks.length;
+  let size = 0;
+  while (start > 0 && size < limit) {
+    start -= 1;
+    size += chunks[start]?.length ?? 0;
+  }
+  const kept = chunks.slice(start);
+  const overflow = size - limit;
+  const [first, ...rest] = kept;
+  return overflow > 0 && first !== undefined ? [first.slice(overflow), ...rest] : kept;
 }
 
 export class SessionRegistry {
@@ -167,6 +171,7 @@ export class SessionRegistry {
       pty,
       screen: this.#options.createScreen(INITIAL_COLS, INITIAL_ROWS),
       chunks: [],
+      chunkSize: 0,
       listeners: new Set(),
       held: null,
     };
@@ -191,7 +196,7 @@ export class SessionRegistry {
     const entry = this.#entries.get(id);
     if (!entry) return null;
     entry.listeners.add(listener);
-    return { scrollback: entry.chunks.join(""), detach: () => entry.listeners.delete(listener) };
+    return { scrollback: trimChunks(entry.chunks, this.#options.scrollbackLimit).join(""), detach: () => entry.listeners.delete(listener) };
   }
 
   async screen(id: string): Promise<string[] | null> {
@@ -281,10 +286,15 @@ export class SessionRegistry {
   }
 
   #append(entry: Entry, data: string): void {
-    entry.chunks = trimChunks([...entry.chunks, data], this.#options.scrollbackLimit);
+    entry.chunks.push(data);
+    entry.chunkSize += data.length;
+    if (entry.chunkSize > this.#options.scrollbackLimit * 2) {
+      entry.chunks = trimChunks(entry.chunks, this.#options.scrollbackLimit);
+      entry.chunkSize = entry.chunks.reduce((size, chunk) => size + chunk.length, 0);
+    }
     entry.screen.write(data);
     entry.listeners.forEach((listener) => listener.output(data));
-    if (entry.session.kind === "claude" && !entry.hooked && asksForTrust(entry.chunks.join("").slice(-TRUST_WINDOW))) {
+    if (entry.session.kind === "claude" && !entry.hooked && asksForTrust(trimChunks(entry.chunks, TRUST_WINDOW).join(""))) {
       this.#apply(entry, { event: "trust-prompt" });
     }
   }
