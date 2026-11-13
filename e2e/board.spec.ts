@@ -80,14 +80,18 @@ test("the card switches between chat, terminal and the earlier conversation", as
   await expect(page.locator("[data-permission-prompt]").first()).toBeVisible();
 });
 
-test("the project view shows a worktree's sessions as tabs and opens a shell from the quick menu", async ({ page }) => {
+test("the project view shows a worktree's sessions as tabs and opens a shell from the worktree menu", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "이동 →" }).first().click();
   const tabs = page.locator("[data-session-tabs]").first();
   await expect(tabs.locator(`[data-session-tab="${SESSION_ID}"]`)).toHaveAttribute("aria-selected", "true");
   await expect(tabs.locator("[data-chat]")).toBeVisible();
   await expect(page.locator("[data-sidebar-worktree][aria-current=page]")).toHaveCount(1);
-  await page.getByRole("button", { name: "빠른 메뉴" }).click();
+  await tabs.locator("[data-new-session]").click();
+  await expect
+    .poll(() => runnerCalls().filter((call) => call.url === "/sessions" && call.method === "POST" && !JSON.stringify(call.body).includes("shell")).length)
+    .toBe(1);
+  await page.getByRole("button", { name: /워크트리 메뉴$/ }).first().click();
   await page.getByRole("menuitem", { name: /터미널/ }).click();
   await expect
     .poll(() => runnerCalls().find((call) => call.url === "/sessions" && JSON.stringify(call.body).includes("shell")))

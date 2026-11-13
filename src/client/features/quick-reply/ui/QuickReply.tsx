@@ -22,6 +22,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
   const [text, setText] = useDraft(`quick-reply-draft:${terminalHandle}`);
   const [dismissedId, setDismissedId] = useState(0);
   const [stopping, setStopping] = useState(false);
+  const [interrupting, setInterrupting] = useState(false);
   const attachments = useAttachments("quick-reply");
 
   const [result, dispatch, sending] = useActionState(async (previous: SendResult, message: string): Promise<SendResult> => {
@@ -71,7 +72,24 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
     startTransition(() => dispatch(message));
   };
 
+  const interrupt = async () => {
+    if (interrupting) return;
+    setInterrupting(true);
+    try {
+      await postAction({ type: "interrupt-session", terminalHandle });
+    } catch (error) {
+      toastError("quick-reply", error);
+    } finally {
+      setInterrupting(false);
+    }
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Escape" && working && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      void interrupt();
+      return;
+    }
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
     send();
@@ -90,7 +108,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
   const placeholder = attachments.dragging
     ? "여기에 놓으면 파일이 붙어요"
     : working
-      ? "작업 중이에요 · 보내면 다음 차례로 줄 서요"
+      ? "작업 중이에요 · 보내면 다음 차례로 줄 서요 · Esc 멈추기"
       : "빠른 답장 · Enter 보내기, Shift+Enter 줄바꿈";
 
   return (
@@ -128,6 +146,18 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
             placeholder={placeholder}
             className="field-sizing-content max-h-40 min-h-6 flex-1 resize-none bg-transparent text-[14px] leading-relaxed outline-none placeholder:text-muted"
           />
+          {working && (
+            <button
+              type="button"
+              data-interrupt
+              onClick={() => void interrupt()}
+              disabled={interrupting}
+              title="지금 하던 작업을 멈춰요 (터미널의 Esc와 같아요)"
+              className="shrink-0 rounded-full px-3 py-1 text-[12px] leading-5 font-semibold text-accent shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint-2 disabled:opacity-30"
+            >
+              {interrupting ? "멈추는 중" : "멈추기"}
+            </button>
+          )}
           <button
             type="button"
             onClick={send}

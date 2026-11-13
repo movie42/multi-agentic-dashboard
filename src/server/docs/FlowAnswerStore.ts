@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 /**
- * The personal flow attachment `~/.config/flow/scripts/pull-app.py` reads this folder, so the path
+ * `flow.py pull` (`app_answers` in the flow skill's `scripts/browser.py`) reads this folder, so the path
  * and the file shape are a contract with that script.
  */
 export const FLOW_ANSWERS_DIR =

@@ -27,10 +27,14 @@ export interface CardProgress {
 
 const TITLE_TEXT = "text-[16px] leading-snug font-bold tracking-[-0.01em]";
 
-const VIEW_TABS: { key: Exclude<CardView, "history">; label: string }[] = [
+const VIEW_TABS: { key: CardView; label: string }[] = [
   { key: "chat", label: "채팅" },
   { key: "terminal", label: "터미널" },
+  { key: "history", label: "이전 대화" },
 ];
+
+const ACTION_PILL =
+  "shrink-0 rounded-full px-2 py-1 text-[11px] leading-none font-semibold text-muted shadow-[inset_0_0_0_1px_var(--hair)] hover:text-fg";
 
 const ARTIFACT_LABEL: Record<Artifact["kind"], string> = {
   html: "HTML",
@@ -145,7 +149,7 @@ export function AgentCardView({
             <button
               type="button"
               onClick={onToggleDismiss}
-              className="shrink-0 text-[12px] text-muted hover:text-fg hover:underline"
+              className={ACTION_PILL}
               title={dismissed ? "내 차례로 되돌리기" : "처리했으니 내 차례에서 내리기"}
             >
               {dismissed ? "되돌리기" : "정리"}
@@ -209,6 +213,27 @@ export function AgentCardView({
             {agent.agentType ?? "agent"}
             {agent.toolName && agent.state === "working" ? ` · ${agent.toolName}` : ""}
           </span>
+          {!isShell && (
+            <div role="tablist" aria-label="카드 화면" className="ml-auto flex rounded-full bg-tint-2 p-0.5">
+              {VIEW_TABS.filter((tab) => tab.key !== "history" || agent.session).map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  data-card-view={tab.key}
+                  data-continue={tab.key === "terminal" ? "" : undefined}
+                  aria-selected={view === tab.key}
+                  disabled={tab.key === "terminal" && !terminalHandle}
+                  onClick={() => pick(tab.key)}
+                  className={`rounded-full px-3 py-1 leading-none font-semibold disabled:opacity-40 ${
+                    view === tab.key ? "bg-bg text-fg shadow-[0_0_0_1px_var(--hair)]" : "text-muted hover:text-fg"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -218,43 +243,6 @@ export function AgentCardView({
             <span className="font-mono">{progress.taskId}</span> · {progress.title}
           </p>
           <Stepper steps={progress.steps} size="compact" />
-        </div>
-      )}
-
-      {!isShell && (
-        <div className="flex items-center gap-1.5 text-[12px]">
-          <div role="tablist" aria-label="카드 화면" className="flex rounded-full bg-tint-2 p-0.5">
-            {VIEW_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                data-card-view={tab.key}
-                data-continue={tab.key === "terminal" ? "" : undefined}
-                aria-selected={view === tab.key}
-                disabled={tab.key === "terminal" && !terminalHandle}
-                onClick={() => pick(tab.key)}
-                className={`rounded-full px-3 py-1 leading-none font-semibold disabled:opacity-40 ${
-                  view === tab.key ? "bg-bg text-fg shadow-[0_0_0_1px_var(--hair)]" : "text-muted hover:text-fg"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          {agent.session && (
-            <button
-              type="button"
-              data-card-view="history"
-              aria-pressed={view === "history"}
-              onClick={() => pick(view === "history" ? "chat" : "history")}
-              className={`rounded-full px-3 py-1 leading-none ${
-                view === "history" ? "bg-fg font-semibold text-bg" : "text-muted shadow-[inset_0_0_0_1px_var(--hair)] hover:text-fg"
-              }`}
-            >
-              이전 대화
-            </button>
-          )}
         </div>
       )}
 

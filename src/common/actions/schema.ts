@@ -41,6 +41,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
       z.object({ behavior: z.literal("deny"), message: z.string().max(MAX_PROMPT) }),
     ]),
   }),
+  z.object({ type: z.literal("interrupt-session"), terminalHandle: z.string() }),
   z.object({ type: z.literal("set-model"), terminalHandle: z.string(), model: z.enum(MODEL_CHOICES) }),
   z.object({ type: z.literal("toggle-voice"), terminalHandle: z.string(), intent: z.enum(["toggle", "stop"]).default("toggle") }),
   z.object({ type: z.literal("read-voice"), terminalHandle: z.string() }),

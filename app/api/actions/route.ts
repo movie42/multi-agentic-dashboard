@@ -58,6 +58,8 @@ export async function POST(request: Request) {
       if (failed > 0) throw new Error(`세션 ${body.terminalHandles.length}개 중 ${failed}개를 닫지 못했어요`);
     } else if (body.type === "answer-permission") {
       await runner.answerPermission(body.terminalHandle, body.requestId, body.answer);
+    } else if (body.type === "interrupt-session") {
+      await runner.input(body.terminalHandle, { text: "\x1b", raw: true });
     } else if (body.type === "set-model") {
       await runner.input(body.terminalHandle, { text: `/model ${body.model}`, submit: true });
     } else if (body.type === "send-prompt") {

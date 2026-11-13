@@ -24,6 +24,18 @@ afterEach(() => {
 });
 
 describe("QuickReply", () => {
+  it("stops the running turn from the 멈추기 button and from Esc, only while working", async () => {
+    post.mockResolvedValue();
+    const { rerender } = render(<QuickReply terminalHandle="term-1" working={false} />);
+    expect(screen.queryByRole("button", { name: "멈추기" })).toBeNull();
+    rerender(<QuickReply terminalHandle="term-1" working />);
+    await userEvent.click(screen.getByRole("button", { name: "멈추기" }));
+    expect(post).toHaveBeenLastCalledWith({ type: "interrupt-session", terminalHandle: "term-1" });
+    await userEvent.type(screen.getByRole("textbox"), "{Escape}");
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post).not.toHaveBeenCalledWith(expect.objectContaining({ type: "send-prompt" }));
+  });
+
   it("sends the transcript straight away when 보내기 is pressed while recording", async () => {
     post.mockResolvedValue();
     read.mockResolvedValue({ recording: true, transcript: "" });

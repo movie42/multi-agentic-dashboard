@@ -35,8 +35,6 @@ interface WorktreePanelProps {
   /** Open terminals of every session in this worktree, orchestrated workers included. */
   terminalHandles: string[];
   onAction: (action: ActionRequest) => Promise<void>;
-  /** Project-level controls placed at the right end of the heading row. */
-  trailing?: React.ReactNode;
 }
 
 interface WorktreeAction {
@@ -47,6 +45,8 @@ interface WorktreeAction {
   danger?: boolean;
   run: () => void;
 }
+
+const MENU_WIDTH = 288;
 
 type PanelFilter = "needsMe" | "working";
 
@@ -63,7 +63,6 @@ export function WorktreePanel({
   renderAgents,
   terminalHandles,
   onAction,
-  trailing,
 }: WorktreePanelProps) {
   const [editingName, setEditingName] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -168,13 +167,12 @@ export function WorktreePanel({
             title="워크트리 메뉴 · 우클릭으로도 열려요"
             onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
               const rect = event.currentTarget.getBoundingClientRect();
-              openMenu({ x: rect.left, y: rect.bottom + 4 });
+              openMenu({ x: rect.right - MENU_WIDTH, y: rect.bottom + 4 });
             }}
-            className="shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
+            className="ml-auto shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
           >
             {ACTION_ICONS.menu}
           </button>
-          {trailing && <div className="ml-auto flex shrink-0 items-center gap-2">{trailing}</div>}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] empty:hidden">
           {worktree.branch && worktree.branch !== worktree.name && (

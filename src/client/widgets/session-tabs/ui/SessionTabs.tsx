@@ -127,6 +127,7 @@ interface SessionTabsProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   renderWorkers?: (agent: AgentCard) => React.ReactNode;
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
+  onNewSession: () => void;
   onAction: (action: ActionRequest) => Promise<void>;
 }
 
@@ -138,6 +139,7 @@ export function SessionTabs({
   renderCard,
   renderWorkers,
   onReorder,
+  onNewSession,
   onAction,
 }: SessionTabsProps) {
   const [stored, write] = useStoredList(selectedKey(worktreeId));
@@ -168,6 +170,16 @@ export function SessionTabs({
             );
           })}
         </ul>
+        <button
+          type="button"
+          data-new-session
+          aria-label="새 세션"
+          title="이 워크트리에 새 세션을 띄워요"
+          onClick={onNewSession}
+          className="mb-1 ml-1 flex size-7 shrink-0 items-center justify-center rounded-md text-[18px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
+        >
+          +
+        </button>
       </div>
       {selected && (
         <div role="tabpanel" className="flex flex-col gap-4 pt-0">

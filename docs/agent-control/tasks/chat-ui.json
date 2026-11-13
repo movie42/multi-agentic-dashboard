@@ -390,15 +390,17 @@
     },
     "tasks": {
       "status": "done",
-      "summary": "Phase 1–5 완료",
+      "summary": "Phase 1–7 완료",
       "conclusion": [
         "데몬은 Claude 세션을 띄울 때 상태줄 명령과 권한 요청 훅을 덧붙인다. 상태줄 명령은 모델 · 컨텍스트 · 5시간/7일 사용률을 데몬에 보내고, 원래 상태줄(ccstatusline)도 그대로 그린다.",
         "데몬은 받은 사용률을 ~/.local/share/agent-control/usage.json에 남기고, 앱 사이드바 미터가 그 값을 읽는다([[P2-1b]]의 대체 조회는 다른 세션이 덧붙였다).",
         "권한 요청은 대시보드 창이 열려 있을 때만 데몬이 붙잡고, 채팅 맨 아래 허용 · 거부 · 다시 묻지 않기 버튼의 답을 Claude Code에 돌려준다.",
         "세션 카드는 채팅이 기본이다. 내 메시지는 말풍선, 도구 사용은 한 줄씩 전부(눌러서 입력 펼침), 답은 마크다운으로 위에서 아래로 흐른다. 채팅 | 터미널 전환과 이전 대화 버튼이 카드 머리에 있다.",
         "입력창 아래에 지금 모델 이름과 컨텍스트 %가 보이고, 모델을 고르면 그 세션에 /model <이름>을 보낸다.",
-        "워크트리 안 세션은 세로 목록 대신 탭으로 보인다. 내 차례인 세션 탭에 빨간 점이 붙고, 탭 줄 끝 '+ 터미널'이 셸 세션을 띄운다.",
-        "지금 돌고 있는 데몬은 옛 코드라 상태줄 · 권한 요청 경로가 없다. 데몬을 다시 띄워야 동작하고, 다시 띄우면 데몬이 들고 있던 세션이 모두 닫힌다."
+        "워크트리 안 세션은 세로 목록 대신 탭으로 보인다. 내 차례인 세션 탭에 빨간 점이 붙고, 탭의 × 버튼이 그 세션을 닫는다([[P6]]).",
+        "지금 돌고 있는 데몬은 옛 코드라 상태줄 · 권한 요청 경로가 없다. 데몬을 다시 띄워야 동작하고, 다시 띄우면 데몬이 들고 있던 세션이 모두 닫힌다.",
+        "워크트리는 사이드바의 프로젝트 아래에 줄로 보이고, 고른 워크트리 하나만 본문 전체 폭에 보인다. 셸 터미널은 빠른 메뉴 · 워크트리 메뉴의 '터미널'이 새 탭으로 띄우고, 세션 러너 화면 링크는 없앴다([[P6]]).",
+        "세션 탭 줄 끝 '+'가 그 워크트리에 새 세션을 띄운다. 채팅 입력창은 작업 중일 때 '멈추기' 버튼과 Esc로 지금 턴을 멈춘다(터미널에 Esc를 보내는 것과 같다)([[P7]])."
       ],
       "blocks": [
         {
@@ -814,6 +816,83 @@
               "title": "검증: 전체 tsc · lint · vitest",
               "done": true,
               "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 화면 정리: 탭 × 닫기 · 터미널 진입 · 워크트리를 사이드바로",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "세션 탭에 × 닫기, 카드 아래 '세션 닫기'와 탭 줄 '+ 터미널' 제거",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/session-tabs/ui/SessionTabs.tsx</code> <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "빠른 메뉴 · 워크트리 메뉴의 '터미널'은 늘 새 셸 탭을 띄운다 (세션 러너 창 · 카드 터미널 전환 대신). 사이드바 세션 러너 링크와 이어하기 후 러너 창 열기 제거",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-actions/ui/ProjectQuickMenu.tsx</code> <code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code> <code>src/client/widgets/project-sidebar/ui/ProjectSidebar.tsx</code> <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-3",
+              "title": "워크트리 목록을 사이드바 프로젝트 아래로(접기 · 끌어서 순서 바꾸기 · 하위 워크트리 들여쓰기). 본문은 고른 워크트리 하나, 왼쪽 제목 칸 대신 위쪽 제목 줄. 워크트리 검색 · 워크트리 포커스 제거",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-sidebar/ui/ProjectWorktrees.tsx</code> <code>src/client/entities/workspace/model/useWorktreeOrder.ts</code> <code>src/client/entities/workspace/model/useWorkspacePrefs.ts</code> <code>src/client/widgets/command-palette/ui/CommandPalette.tsx</code>"
+                ],
+                [
+                  "주의",
+                  "빠른 메뉴를 오른쪽 끝에 두면 고정된 입력 알림 목록에 가려져서 워크트리 이름 옆에 둔다"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "Phase 7 · 탭 줄 '+' 새 세션 · 채팅에서 작업 멈추기",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "세션 탭 줄 끝 '+' 버튼 → launch-agent (워크트리 메뉴 '새 세션'과 같은 동작)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/session-tabs/ui/SessionTabs.tsx</code> <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "작업 중일 때 입력창 '멈추기' 버튼 · Esc → 새 액션 interrupt-session이 세션 터미널에 Esc(raw)를 보낸다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/quick-reply/ui/QuickReply.tsx</code> <code>src/common/actions/schema.ts</code> <code>app/api/actions/route.ts</code>"
+                ],
+                [
+                  "주의",
+                  "데몬의 raw 입력 경로는 이미 있어서 데몬을 다시 띄울 필요 없다. 세션이 없는 워크트리는 탭 줄이 안 그려져서 '+'도 없다 — 워크트리 메뉴의 '새 세션'을 쓴다"
+                ]
+              ]
             }
           ]
         }

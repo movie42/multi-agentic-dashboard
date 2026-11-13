@@ -37,8 +37,6 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
-import { ProjectQuickMenu } from "@/client/widgets/project-actions";
-import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "@/client/widgets/doc-panel";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -617,10 +615,6 @@ function ProjectView({
   onToggleFocus,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
-  const wizardAnchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
-  const wizard = useWorktreeWizard(
-    wizardAnchor ? wizardOrigin(wizardAnchor, false) : { repoId: "", repo, anchorPath: "", from: null },
-  );
   const worktree =
     ordered.find((candidate) => candidate.worktreeId === selectedWorktreeId) ?? ordered[0] ?? null;
   const terminalHandlesOf = (target: WorktreeSummary) =>
@@ -629,15 +623,6 @@ function ProjectView({
       .flatMap((agent) => [agent, ...agents.workersOf(agent)])
       .flatMap((agent) => (agent.terminalHandle ? [agent.terminalHandle] : []));
   const feature = worktree?.featureId ? (features.find((entry) => entry.id === worktree.featureId) ?? null) : null;
-
-  const quickMenu = (
-    <ProjectQuickMenu
-      worktrees={worktrees}
-      sessionCountOf={(target) => agents.top.filter((agent) => agent.worktreeId === target.worktreeId).length}
-      onAction={onAction}
-      wizard={wizard}
-    />
-  );
 
   const panel = worktree ? (
     <WorktreePanel
@@ -656,6 +641,7 @@ function ProjectView({
           needsMeIds={needsMeIds}
           focusId={expandedId}
           onReorder={onReorder}
+          onNewSession={() => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" })}
           renderCard={renderCard}
           renderWorkers={(agent) => {
             const workers = agents.workersOf(agent);
@@ -670,7 +656,6 @@ function ProjectView({
       )}
       terminalHandles={terminalHandlesOf(worktree)}
       onAction={onAction}
-      trailing={quickMenu}
     />
   ) : null;
 
@@ -680,10 +665,6 @@ function ProjectView({
         <span className="font-semibold text-fg">{repo}</span>
         <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
         <FocusToggle active={focused} onToggle={onToggleFocus} />
-        {!worktree && <span className="ml-auto">{quickMenu}</span>}
-      </div>
-      <div className="empty:hidden">
-        <WorktreeWizardPanel wizard={wizard} />
       </div>
       {!worktree ? (
         <p className="text-[15px] text-muted">이 프로젝트에 워크트리가 없어요.</p>
