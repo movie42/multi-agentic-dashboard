@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-const listeners = new Set<() => void>();
+const changes = new EventTarget();
 
 function read(key: string): string {
   try {
@@ -14,10 +14,10 @@ function read(key: string): string {
 }
 
 function subscribe(onChange: () => void): () => void {
-  listeners.add(onChange);
+  changes.addEventListener("change", onChange);
   window.addEventListener("storage", onChange);
   return () => {
-    listeners.delete(onChange);
+    changes.removeEventListener("change", onChange);
     window.removeEventListener("storage", onChange);
   };
 }
@@ -33,7 +33,7 @@ export function useDraft(key: string): [string, (next: string) => void] {
     } catch (error) {
       console.warn("[draft] write failed", key, error);
     }
-    listeners.forEach((listener) => listener());
+    changes.dispatchEvent(new Event("change"));
   };
 
   return [text, write];

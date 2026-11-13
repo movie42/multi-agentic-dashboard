@@ -6,8 +6,8 @@
   "links": [],
   "stages": {
     "tasks": {
-      "status": "now",
-      "summary": "앱 확인 대기",
+      "status": "done",
+      "summary": "완료",
       "conclusion": [
         "홈(내 차례 · 작업 중 · 쉬는 중)과 프로젝트 화면의 에이전트 줄을 우클릭하면 커서 위치에 메뉴가 떠요 [[P2]].",
         "메뉴의 '세션 닫기'는 확인 없이 바로 닫고, '이 목록 세션 모두 닫기'는 메뉴 안에서 한 번 확인한 뒤 닫아요 [[P2-2]] [[P2-3]].",
@@ -28,10 +28,6 @@
                 [
                   "파일",
                   "<code>src/common/actions/schema.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "기존 <code>close-terminal</code> 옆에 <code>close-terminals</code>(handle 배열, 1~50개)"
                 ]
               ]
             },
@@ -43,18 +39,13 @@
                 [
                   "파일",
                   "<code>app/api/actions/route.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>services().orca.cli.run</code> · <code>Promise.allSettled</code>"
                 ]
               ]
             },
             {
               "id": "P1-V",
               "title": "검증: <code>src/common/actions/schema.test.ts</code>에 새 액션 케이스 추가 후 <code>bun run test</code> 통과",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -73,10 +64,6 @@
                   "<code>src/client/widgets/agent-list/ui/AgentContextMenu.tsx</code>"
                 ],
                 [
-                  "패턴",
-                  "<code>ColumnMenu.tsx</code>의 전체 화면 오버레이 + <code>role=\"menu\"</code> 스타일"
-                ],
-                [
                   "결정",
                   "메뉴 위치는 <code>--menu-x</code>/<code>--menu-y</code> CSS 변수를 ref로 설정해 Tailwind <code>left-(--menu-x)</code>로 씀 — <code>style={{}}</code> 금지 규칙 때문"
                 ]
@@ -90,10 +77,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/agent-list/ui/AgentList.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "카드의 <code>focus-terminal</code> / <code>close-terminal</code> 액션"
                 ]
               ]
             },
@@ -105,10 +88,6 @@
                 [
                   "파일",
                   "<code>AgentList.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "Phase 1의 <code>close-terminals</code>"
                 ]
               ]
             },
@@ -149,10 +128,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>AgentCardView</code>의 닫기 확인 UI · <code>PendingButton</code>"
                 ]
               ]
             },
@@ -164,27 +139,31 @@
                 [
                   "파일",
                   "<code>Dashboard.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>agents.workersOf</code>"
                 ]
               ]
             },
             {
               "id": "P3-V",
               "title": "검증: <code>bun run desktop</code> 후 앱에서 우클릭 메뉴와 버튼으로 세션이 닫히는지 확인",
-              "done": false,
-              "rows": []
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 앱에서 직접 확인하지는 않았어요."
+                ]
+              ],
+              "by": "inferred"
             }
           ]
         }
       ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 완료 처리했어요. typecheck · lint · test는 실제로 다시 돌려 통과했고, 코드 리뷰와 앱 확인은 하지 않았어요. PR은 만들지 않고 main에 바로 커밋했어요."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -193,27 +172,56 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "PR 없이 main에 직접 커밋 · 푸시했어요 (1503c97)."
+                ]
+              ]
             }
           ]
         },
@@ -231,5 +239,13 @@
       "state": "guess",
       "basis": "사용자 요청"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "코드 리뷰 · 앱 확인",
+      "why": "사용자가 테스트를 마치고 문서를 전부 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-13"
 }

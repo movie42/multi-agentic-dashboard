@@ -6,8 +6,8 @@
   "links": [],
   "stages": {
     "tasks": {
-      "status": "now",
-      "summary": "구현 끝 · 앱 확인 대기",
+      "status": "done",
+      "summary": "완료",
       "conclusion": [
         "워크트리 왼쪽 버튼 줄의 '깃 그래프'를 누르면 새 창(/graph)이 열려요 [[P3-3]].",
         "모든 브랜치의 커밋 300개를 색 있는 선과 점으로 그리고, '커밋 더 보기'로 300개씩 더 불러요. 다른 워크트리가 쓰는 브랜치 칩에는 ⎇ 표시가 붙어요 [[P2]] [[P3-1]].",
@@ -33,10 +33,6 @@
                 [
                   "파일",
                   "<code>src/common/gitGraph/types.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>src/common/intentDiff/types.ts</code>의 <code>{ ok, result } | { ok:false, error }</code> 응답 모양"
                 ]
               ]
             },
@@ -48,10 +44,6 @@
                 [
                   "파일",
                   "<code>src/server/gitGraph/readGraph.ts</code> · <code>readGraph.test.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>src/server/intentDiff/gitDiff.ts</code>의 <code>git -C</code> 실행 방식"
                 ]
               ]
             },
@@ -76,10 +68,6 @@
                   "<code>app/api/git-graph/route.ts</code> · <code>app/api/git-graph/commit/route.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "<code>app/api/intent-diff/route.ts</code>"
-                ],
-                [
                   "결정",
                   "라우트는 lint 규칙대로 <code>services().gitGraph</code>를 거쳐 호출"
                 ]
@@ -88,8 +76,7 @@
             {
               "id": "P1-V",
               "title": "검증: 파서 테스트(병합 · 루트 커밋 · ref 여러 개) <code>bun run test</code> 통과",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -106,18 +93,13 @@
                 [
                   "파일",
                   "<code>src/client/widgets/git-graph/model/layout.ts</code> · <code>layout.test.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "없음 — 새로 작성"
                 ]
               ]
             },
             {
               "id": "P2-V",
               "title": "검증: 직선 · 분기 · 병합 · 문어 병합 케이스 테스트 통과",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -136,10 +118,6 @@
                   "<code>src/client/widgets/git-graph/ui/GitGraph.tsx</code> · <code>GraphRow.tsx</code>"
                 ],
                 [
-                  "패턴",
-                  "색은 기존 토큰(<code>--now</code> <code>--ask</code> <code>--pr</code> 등)을 칸 번호로 돌려 씀"
-                ],
-                [
                   "결정",
                   "브랜치 칩 prop 이름을 <code>gitRef</code>로 두면 React Compiler가 ref로 오인해서 <code>decoration</code>으로 씀"
                 ]
@@ -153,10 +131,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/git-graph/ui/CommitDetail.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "React Query <code>queryOptions</code> 패턴 (<code>intentDiffQuery.ts</code>)"
                 ]
               ]
             },
@@ -168,10 +142,6 @@
                 [
                   "파일",
                   "<code>app/graph/page.tsx</code> · <code>src/client/views/graph/</code> · <code>WorktreePanel.tsx</code> · <code>desktop/main.mjs</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>app/diff/page.tsx</code> · <code>intentDiffHref</code>"
                 ]
               ]
             },
@@ -179,7 +149,6 @@
               "id": "P3-V",
               "title": "검증: <code>bunx tsc --noEmit</code> · lint · test 통과, 이 저장소로 /graph를 열어 그래프 확인",
               "done": true,
-              "rows": [],
               "by": "inferred"
             }
           ]
@@ -208,10 +177,6 @@
                 [
                   "파일",
                   "<code>src/server/gitGraph/switchBranch.ts</code> · <code>switchBranch.test.ts</code> · <code>app/api/git-graph/switch/route.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>src/server/security/origin.ts</code> (POST 출처 검사는 <code>proxy.ts</code>가 이미 함)"
                 ]
               ]
             },
@@ -223,10 +188,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/git-graph/ui/GraphMenu.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "session-menu에서 만든 메뉴 컴포넌트를 쓰려면 위치 이동이 필요해서, 두 번째 사용처가 생기는 이 시점에 <code>src/client/shared/ui/</code>로 옮김"
                 ]
               ]
             },
@@ -234,7 +195,6 @@
               "id": "P4-V",
               "title": "검증: 전환 테스트(변경 있음 거절 · 다른 워크트리 브랜치 거절 · 잘못된 이름 거절) 통과, 임시 저장소에서 앱으로 전환 확인",
               "done": true,
-              "rows": [],
               "by": "inferred"
             }
           ]
@@ -252,10 +212,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/git-graph/ui/AgentComposer.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>send-prompt</code> · <code>launch-agent</code> 액션, <code>useDraft</code>, <code>StateBadge</code>"
                 ],
                 [
                   "결정",
@@ -295,10 +251,6 @@
                   "<code>AgentComposer.tsx</code> · <code>SessionConversation.tsx</code>"
                 ],
                 [
-                  "재사용",
-                  "<code>conversationQueryOptions</code> · <code>useStoredList</code> · <code>Markdown</code>"
-                ],
-                [
                   "결정",
                   "<code>launch-agent</code>가 새 세션 id를 돌려주지 않아서, 띄우기 직전 세션 id 목록에 없던 첫 세션을 그 세션으로 봄"
                 ],
@@ -312,7 +264,6 @@
               "id": "P5-V",
               "title": "검증: <code>AgentComposer.test.tsx</code> 통과, 임시 저장소에서 대화창 · 커밋 칩 표시 확인 (실제 전송은 Orca 세션이 필요해서 앱에서 확인)",
               "done": true,
-              "rows": [],
               "by": "inferred"
             }
           ]
@@ -352,7 +303,6 @@
               "id": "P6-V",
               "title": "검증: 파서 · 실제 저장소 테스트 통과, 임시 저장소에서 줄 · 목록 · diff 표시 확인",
               "done": true,
-              "rows": [],
               "by": "inferred"
             }
           ]
@@ -408,10 +358,6 @@
                 [
                   "파일",
                   "<code>WorktreePanel.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>ContextMenu</code>"
                 ]
               ]
             },
@@ -442,7 +388,6 @@
               "id": "P7-V",
               "title": "검증: 실제 보드에서 덱 · ⋯ 메뉴 항목 확인, 임시 저장소에서 기준 워크트리 전환 확인. <code>bun run test</code> 통과",
               "done": true,
-              "rows": [],
               "by": "inferred"
             }
           ]
@@ -450,9 +395,11 @@
       ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "사용자 지시로 05 완료 체크리스트를 완료 처리했어요. typecheck · lint · test는 실제로 다시 돌려 통과했고, 코드 리뷰와 앱 확인은 하지 않았어요. PR은 만들지 않고 main에 바로 커밋했어요."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -461,27 +408,56 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자 지시로 완료 처리했어요. 이 항목을 직접 확인하지는 않았어요."
+                ]
+              ]
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "PR 없이 main에 직접 커밋 · 푸시했어요 (1503c97)."
+                ]
+              ]
             }
           ]
         },
@@ -499,5 +475,13 @@
       "state": "guess",
       "basis": "사용자 요청"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "코드 리뷰 · 앱 확인",
+      "why": "사용자가 테스트를 마치고 문서를 전부 완료 처리하라고 함"
+    }
+  ],
+  "pruned": "2026-11-13"
 }
