@@ -67,22 +67,28 @@ test("a held permission request is answered from the chat", async ({ page }) => 
     });
 });
 
-test("the card switches between chat and terminal", async ({ page }) => {
+test("the card switches between chat, terminal and the earlier conversation", async ({ page }) => {
   await openAgent(page);
   await expect(page.locator("[data-chat]").first()).toBeVisible();
   await page.locator("[data-card-view=terminal]").first().click();
   await expect(page.locator("[data-chat]")).toHaveCount(0);
   await page.locator("[data-card-view=chat]").first().click();
   await expect(page.locator("[data-chat]").first()).toBeVisible();
+  await page.locator("[data-card-view=history]").first().click();
+  const history = page.locator("[data-conversation-history]").first();
+  await expect(history.locator("summary", { hasText: "E2E 고정 프롬프트" })).toBeVisible();
+  await expect(page.locator("[data-permission-prompt]").first()).toBeVisible();
 });
 
-test("the project view shows a worktree's sessions as tabs and opens a shell from the tab row", async ({ page }) => {
+test("the project view shows a worktree's sessions as tabs and opens a shell from the quick menu", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "이동 →" }).first().click();
   const tabs = page.locator("[data-session-tabs]").first();
   await expect(tabs.locator(`[data-session-tab="${SESSION_ID}"]`)).toHaveAttribute("aria-selected", "true");
   await expect(tabs.locator("[data-chat]")).toBeVisible();
-  await tabs.locator("[data-new-terminal]").click();
+  await expect(page.locator("[data-sidebar-worktree][aria-current=page]")).toHaveCount(1);
+  await page.getByRole("button", { name: "빠른 메뉴" }).click();
+  await page.getByRole("menuitem", { name: /터미널/ }).click();
   await expect
     .poll(() => runnerCalls().find((call) => call.url === "/sessions" && JSON.stringify(call.body).includes("shell")))
     .toMatchObject({ method: "POST", body: { kind: "shell" } });

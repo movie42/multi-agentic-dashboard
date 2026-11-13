@@ -1,10 +1,12 @@
 "use client";
 
-import type { ProjectSummary } from "@/common/board/types";
+import type { ProjectSummary, WorktreeSummary } from "@/common/board/types";
 import { formatClock } from "@/client/shared/lib/format";
+import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { ImportProject } from "@/client/features/import-project";
 import { UsageMeter } from "@/client/entities/usage";
 import type { WorkspacePrefs } from "@/client/entities/workspace";
+import { ProjectWorktrees, type WorktreeCounts } from "./ProjectWorktrees";
 
 export interface ProjectCounts {
   needsInput: number;
@@ -16,6 +18,8 @@ export interface ProjectCounts {
 interface ProjectSidebarProps {
   projects: ProjectSummary[];
   countsByRepo: Map<string, ProjectCounts>;
+  worktreesByRepo: Map<string, WorktreeSummary[]>;
+  countsByWorktree: Map<string, WorktreeCounts>;
   totalNeedsInput: number;
   totalNeedsMe: number;
   totalWorking: number;
@@ -62,16 +66,29 @@ interface NavItemProps {
   needsInput?: number;
   needsMe: number;
   working: number;
+  /** A project row whose selection is shown by its highlighted worktree instead. */
+  heading?: boolean;
   onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-function itemTone(active: boolean, focused: boolean): string {
+function itemTone(active: boolean, focused: boolean, heading: boolean): string {
+  if (active && heading) return `font-semibold hover:bg-tint-2${focused ? " text-focus" : ""}`;
   if (active) return `bg-bg font-semibold${focused ? " text-focus" : ""}`;
   if (focused) return "bg-focus/12 font-semibold text-focus hover:bg-focus/20";
   return "hover:bg-tint-2";
 }
 
-function NavItem({ label, note, active, focused = false, needsInput = 0, needsMe, working, onSelect }: NavItemProps) {
+function NavItem({
+  label,
+  note,
+  active,
+  focused = false,
+  needsInput = 0,
+  needsMe,
+  working,
+  heading = false,
+  onSelect,
+}: NavItemProps) {
   return (
     <button
       type="button"
@@ -79,6 +96,7 @@ function NavItem({ label, note, active, focused = false, needsInput = 0, needsMe
       className={`-mx-2 grid min-w-0 flex-1 grid-cols-[8px_1fr_auto] items-center gap-x-2.5 rounded-md px-2 py-1.5 text-left text-[14px] leading-[1.4] ${itemTone(
         active,
         focused,
+        heading,
       )}`}
     >
       <span className={`size-2 rounded-full ${dotClass(needsInput, needsMe, working)}`} />
@@ -102,6 +120,8 @@ function NavItem({ label, note, active, focused = false, needsInput = 0, needsMe
 export function ProjectSidebar({
   projects,
   countsByRepo,
+  worktreesByRepo,
+  countsByWorktree,
   totalNeedsInput,
   totalNeedsMe,
   totalWorking,
@@ -113,6 +133,10 @@ export function ProjectSidebar({
   collapsed,
   onToggleCollapsed,
 }: ProjectSidebarProps) {
+  const [collapsedRepos, writeCollapsedRepos] = useStoredList("agent-control:sidebar-collapsed-repos");
+  const isOpen = (repo: string) => !collapsedRepos.includes(repo);
+  const setOpen = (repo: string, open: boolean) =>
+    writeCollapsedRepos(open ? collapsedRepos.filter((item) => item !== repo) : [...collapsedRepos, repo]);
   return (
     <aside
       className={`bg-tint px-6 pt-10 pb-6 text-[14px] md:fixed md:inset-y-0 md:left-0 md:w-[var(--sidebar-w,18rem)] md:overflow-y-auto ${
@@ -133,10 +157,7 @@ export function ProjectSidebar({
       </div>
       <p className="mt-1.5 mb-6 text-[12px] text-muted">
         {error ? <span className="text-accent">갱신 실패 · </span> : null}
-        {formatClock(fetchedAt)} 갱신 ·{" "}
-        <a href="/runner" target="_blank" rel="noopener" className="hover:text-fg hover:underline">
-          세션 러너
-        </a>
+        {formatClock(fetchedAt)} 갱신
       </p>
       <div className="mb-6">
         <p className="mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">Claude 사용량</p>
@@ -176,33 +197,64 @@ export function ProjectSidebar({
           const counts = countsByRepo.get(project.repo) ?? { needsInput: 0, needsMe: 0, working: 0, worktrees: 0 };
           const mode = prefs.modeOf(project);
           const inFocus = focused.has(project.repo);
+          const active = prefs.selectedRepo === project.repo;
+          const worktrees = worktreesByRepo.get(project.repo) ?? [];
+          const open = isOpen(project.repo) && worktrees.length > 0;
           return (
-            <div key={project.repo} className="flex items-center gap-3">
-              <NavItem
-                label={project.repo}
-                active={prefs.selectedRepo === project.repo}
-                focused={inFocus}
-                needsInput={counts.needsInput}
-                needsMe={counts.needsMe}
-                working={counts.working}
-                onSelect={(event) =>
-                  event.metaKey || event.shiftKey
-                    ? onToggleFocus(project.repo)
-                    : prefs.selectRepo(project.repo)
-                }
-              />
-              <button
-                type="button"
-                onClick={() => prefs.toggleMode(project)}
-                title={`${MODE_LABEL[mode]} 워크플로${prefs.isModeOverridden(project.repo) ? " (직접 지정)" : " (자동)"}: ${MODE_STEPS[mode]}\n눌러서 전환`}
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                  mode === "company"
-                    ? "text-muted shadow-[inset_0_0_0_1px_var(--hair)] hover:text-fg"
-                    : "bg-tint-2 text-fg hover:bg-fg hover:text-bg"
-                }`}
-              >
-                {MODE_LABEL[mode]}
-              </button>
+            <div key={project.repo} className="flex flex-col">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label={`${project.repo} 워크트리 ${open ? "접기" : "펼치기"}`}
+                  aria-expanded={open}
+                  disabled={worktrees.length === 0}
+                  onClick={() => setOpen(project.repo, !open)}
+                  className="-ml-2 flex size-5 shrink-0 items-center justify-center rounded text-[10px] text-muted hover:bg-tint-2 hover:text-fg disabled:invisible"
+                >
+                  <span aria-hidden className={`inline-block transition-transform ${open ? "rotate-90" : ""}`}>
+                    ▶
+                  </span>
+                </button>
+                <NavItem
+                  label={project.repo}
+                  active={active}
+                  heading
+                  focused={inFocus}
+                  needsInput={counts.needsInput}
+                  needsMe={counts.needsMe}
+                  working={counts.working}
+                  onSelect={(event) => {
+                    if (event.metaKey || event.shiftKey) {
+                      onToggleFocus(project.repo);
+                      return;
+                    }
+                    if (!active) prefs.selectRepo(project.repo);
+                    setOpen(project.repo, active ? !open : true);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => prefs.toggleMode(project)}
+                  title={`${MODE_LABEL[mode]} 워크플로${prefs.isModeOverridden(project.repo) ? " (직접 지정)" : " (자동)"}: ${MODE_STEPS[mode]}\n눌러서 전환`}
+                  className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    mode === "company"
+                      ? "text-muted shadow-[inset_0_0_0_1px_var(--hair)] hover:text-fg"
+                      : "bg-tint-2 text-fg hover:bg-fg hover:text-bg"
+                  }`}
+                >
+                  {MODE_LABEL[mode]}
+                </button>
+              </div>
+              {open && (
+                <ProjectWorktrees
+                  repo={project.repo}
+                  worktrees={worktrees}
+                  countsOf={(worktreeId) => countsByWorktree.get(worktreeId)}
+                  active={active}
+                  selectedId={active ? prefs.selectedWorktreeId : null}
+                  onSelect={(worktreeId) => prefs.selectWorktree(project.repo, worktreeId)}
+                />
+              )}
             </div>
           );
         })}

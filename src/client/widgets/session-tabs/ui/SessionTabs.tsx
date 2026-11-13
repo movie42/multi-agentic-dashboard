@@ -6,7 +6,6 @@ import type { AgentCard } from "@/common/board/types";
 import { useTerminalRequest } from "@/client/entities/runner";
 import { parseMessage } from "@/client/shared/lib/message";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
-import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 
 const SESSION_DRAG_TYPE = "application/x-agent-control-session";
 
@@ -32,10 +31,11 @@ interface SessionTabProps {
   selected: boolean;
   needsMe: boolean;
   onSelect: () => void;
+  onClose: (() => void) | null;
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
 }
 
-function SessionTab({ agent, selected, needsMe, onSelect, onReorder }: SessionTabProps) {
+function SessionTab({ agent, selected, needsMe, onSelect, onClose, onReorder }: SessionTabProps) {
   const terminalRequest = useTerminalRequest(agent.terminalHandle);
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -69,7 +69,9 @@ function SessionTab({ agent, selected, needsMe, onSelect, onReorder }: SessionTa
         event.preventDefault();
         if (draggedId !== agent.id) onReorder(draggedId, agent.id, edgeOf(event) === "after");
       }}
-      className={`relative flex shrink-0 ${dragging ? "opacity-40" : ""}`}
+      className={`group/tab relative flex shrink-0 items-center rounded-t-lg ${
+        selected ? "bg-tint" : "hover:bg-tint/60"
+      } ${dragging ? "opacity-40" : ""}`}
     >
       {dropEdge && (
         <span
@@ -91,23 +93,34 @@ function SessionTab({ agent, selected, needsMe, onSelect, onReorder }: SessionTa
         onDragEnd={() => setDragging(false)}
         onClick={onSelect}
         title={`${title}${needsMe ? " · 내 차례" : ""}`}
-        className={`flex max-w-60 items-center gap-2 rounded-t-lg px-3 py-2 text-[13px] leading-none ${
-          selected
-            ? "bg-tint font-semibold text-fg"
-            : "text-muted hover:bg-tint/60 hover:text-fg"
+        className={`flex max-w-60 items-center gap-2 py-2 pl-3 text-[13px] leading-none ${onClose ? "pr-1" : "pr-3"} ${
+          selected ? "font-semibold text-fg" : "text-muted hover:text-fg"
         }`}
       >
         <span className={`size-2 shrink-0 rounded-full ${dotTone(agent, needsMe)}`} />
         {agent.agentType === "shell" && <span className="shrink-0 font-mono text-[11px] text-faint">$</span>}
         <span className="truncate">{title}</span>
       </button>
+      {onClose && (
+        <button
+          type="button"
+          data-close-session={agent.id}
+          aria-label={`${title} 세션 닫기`}
+          title="세션을 닫아요. 기록은 지난 세션에 남아요"
+          onClick={onClose}
+          className={`mr-1.5 flex size-5 shrink-0 items-center justify-center rounded text-[14px] leading-none text-muted hover:bg-tint-2 hover:text-fg ${
+            selected ? "" : "opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100"
+          }`}
+        >
+          ×
+        </button>
+      )}
     </li>
   );
 }
 
 interface SessionTabsProps {
   worktreeId: string;
-  worktreePath: string;
   agents: AgentCard[];
   needsMeIds: ReadonlySet<string>;
   focusId: string | null;
@@ -119,7 +132,6 @@ interface SessionTabsProps {
 
 export function SessionTabs({
   worktreeId,
-  worktreePath,
   agents,
   needsMeIds,
   focusId,
@@ -139,31 +151,23 @@ export function SessionTabs({
 
   return (
     <div data-session-tabs className="flex flex-col">
-      <div className="flex items-end gap-1 border-b border-hair">
+      <div className="flex items-end border-b border-hair">
         <ul role="tablist" aria-label="세션" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
-          {agents.map((agent) => (
-            <SessionTab
-              key={agent.id}
-              agent={agent}
-              selected={agent.id === selected?.id}
-              needsMe={needsMeIds.has(agent.id)}
-              onSelect={() => select(agent.id)}
-              onReorder={onReorder}
-            />
-          ))}
+          {agents.map((agent) => {
+            const terminalHandle = agent.terminalHandle;
+            return (
+              <SessionTab
+                key={agent.id}
+                agent={agent}
+                selected={agent.id === selected?.id}
+                needsMe={needsMeIds.has(agent.id)}
+                onSelect={() => select(agent.id)}
+                onClose={terminalHandle ? () => void onAction({ type: "close-terminal", terminalHandle }) : null}
+                onReorder={onReorder}
+              />
+            );
+          })}
         </ul>
-        <button
-          type="button"
-          data-new-terminal
-          onClick={() => void onAction({ type: "open-terminal", worktreePath })}
-          title="이 워크트리에서 셸 터미널을 새로 열어요"
-          className="mb-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[12px] text-muted hover:bg-tint hover:text-fg"
-        >
-          <span aria-hidden className="inline-flex size-3.5 items-center">
-            {ACTION_ICONS.terminal}
-          </span>
-          + 터미널
-        </button>
       </div>
       {selected && (
         <div role="tabpanel" className="flex flex-col gap-4 pt-0">

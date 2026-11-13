@@ -1,20 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type CollisionDetection,
-  type DragEndEvent,
-  useDndContext,
-} from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DiffTab } from "@/client/widgets/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
 import type {
@@ -36,7 +23,7 @@ import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
 import { LaunchAgent, usePendingLaunchStore } from "@/client/features/launch-agent";
 import { boardKeys } from "@/client/entities/board";
-import { ProjectSidebar, type ProjectCounts } from "@/client/widgets/project-sidebar";
+import { ProjectSidebar, type ProjectCounts, type WorktreeCounts } from "@/client/widgets/project-sidebar";
 import { AgentList } from "@/client/widgets/agent-list";
 import { SessionsPage } from "@/client/widgets/session-list";
 import { SessionTabs } from "@/client/widgets/session-tabs";
@@ -48,10 +35,9 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useBoard } from "../model/useBoard";
 import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
-import { useWorkspacePrefs } from "@/client/entities/workspace";
-import { WorktreePanel, type WorktreeLink } from "@/client/widgets/worktree-panel";
+import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
+import { WorktreePanel } from "@/client/widgets/worktree-panel";
 import { ProjectQuickMenu } from "@/client/widgets/project-actions";
-import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "@/client/widgets/doc-panel";
@@ -144,10 +130,6 @@ function agentMatches(
   );
 }
 
-const worktreeOrderKey = (repo: string) =>
-  `agent-control:worktree-order:${repo}`;
-const worktreeFocusKey = (repo: string) =>
-  `agent-control:worktree-focus:${repo}`;
 
 export function DashboardLoading() {
   return (
@@ -184,9 +166,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     if (board) usePendingLaunchStore.getState().settle(board.agents);
   }, [board]);
 
-  const jumpTo = (repo: string, targets: string[]) => {
+  const jumpTo = (repo: string, targets: string[], worktreeId?: string) => {
     setJump({ repo, targets });
-    prefs.selectRepo(repo);
+    if (worktreeId) prefs.selectWorktree(repo, worktreeId);
+    else prefs.selectRepo(repo);
   };
 
   useEffect(() => {
@@ -221,9 +204,6 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         : null;
     try {
       await postAction(action);
-      if (action.type === "resume-session") {
-        window.open(`/runner?session=${encodeURIComponent(action.sessionId)}`, "_blank", "noopener");
-      }
       if (pendingId) void queryClient.invalidateQueries({ queryKey: boardKeys.all });
     } catch (actionError) {
       if (pendingId) cancelPendingLaunch(pendingId);
@@ -235,7 +215,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const needsMeCount = groupAgents(folded.top, dismissed.isDismissed).needsMe
     .length;
   const jumpToAgent = (agent: AgentCard) =>
-    jumpTo(agent.repo, [agent.id, agent.worktreeId]);
+    jumpTo(agent.repo, [agent.id, agent.worktreeId], agent.worktreeId);
   useAttention(board?.agents ?? null, needsMeCount, folded.foldedIds, jumpToAgent);
   useKeyboardNav();
 
@@ -346,6 +326,18 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   allGroups.needsMe.forEach((agent) => bump(agent.repo, "needsMe"));
   allGroups.working.forEach((agent) => bump(agent.repo, "working"));
   board.worktrees.forEach((worktree) => bump(worktree.repo, "worktrees"));
+  const countsByWorktree = new Map<string, WorktreeCounts>();
+  const bumpWorktree = (worktreeId: string, key: keyof WorktreeCounts) => {
+    const counts = countsByWorktree.get(worktreeId) ?? { needsInput: 0, needsMe: 0, working: 0 };
+    countsByWorktree.set(worktreeId, { ...counts, [key]: counts[key] + 1 });
+  };
+  inputAgents.forEach((agent) => bumpWorktree(agent.worktreeId, "needsInput"));
+  allGroups.needsMe.forEach((agent) => bumpWorktree(agent.worktreeId, "needsMe"));
+  allGroups.working.forEach((agent) => bumpWorktree(agent.worktreeId, "working"));
+  const worktreesByRepo = new Map<string, WorktreeSummary[]>();
+  board.worktrees.forEach((worktree) =>
+    worktreesByRepo.set(worktree.repo, [...(worktreesByRepo.get(worktree.repo) ?? []), worktree]),
+  );
 
   const selectedRepo =
     prefs.selectedRepo && projectByRepo.has(prefs.selectedRepo)
@@ -380,11 +372,14 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       <CommandPalette
         board={board}
         onSelectRepo={prefs.selectRepo}
+        onSelectWorktree={prefs.selectWorktree}
         onOpenSessions={prefs.openSessions}
       />
       <ProjectSidebar
         projects={board.projects}
         countsByRepo={countsByRepo}
+        worktreesByRepo={worktreesByRepo}
+        countsByWorktree={countsByWorktree}
         totalNeedsInput={inputAgents.filter((agent) => inFocus(agent.repo)).length}
         totalNeedsMe={focusGroups.needsMe.length}
         totalWorking={focusGroups.working.length}
@@ -397,7 +392,13 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         onToggleCollapsed={toggleSidebar}
       />
 
-      <main className="mx-auto flex max-w-[1920px] min-w-0 flex-col gap-16 px-5 pt-14 pb-36 md:px-12">
+      <main
+        className={`mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 pb-36 md:px-12 ${
+          selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
+            ? "gap-6 pt-8"
+            : "gap-16 pt-14"
+        }`}
+      >
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />
         ) : prefs.showingTodo ? (
@@ -479,7 +480,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                 agents={visibleAgents}
                 modeOfRepo={modeOfRepo}
                 isDismissed={dismissed.isDismissed}
-                onJump={(repo, worktreeId) => jumpTo(repo, [worktreeId])}
+                onJump={(repo, worktreeId) => jumpTo(repo, [worktreeId], worktreeId)}
               />
             ) : (
               <>
@@ -551,6 +552,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
           <ProjectView
             key={selectedRepo}
             repo={selectedRepo}
+            selectedWorktreeId={prefs.selectedWorktreeId}
             worktrees={board.worktrees.filter(
               (worktree) => worktree.repo === selectedRepo,
             )}
@@ -583,39 +585,9 @@ function rowOf(feature: FeatureSummary, worktree: WorktreeSummary) {
   );
 }
 
-const headingOf = (worktreeId: string) =>
-  document.querySelector<HTMLElement>(`[data-jump="${CSS.escape(worktreeId)}"] h3`);
-
-function CollapseAnchor({
-  reordering,
-  grab,
-}: {
-  reordering: boolean;
-  grab: React.RefObject<{ id: string; top: number } | null>;
-}) {
-  const { measureDroppableContainers } = useDndContext();
-  const spacerRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const spacer = spacerRef.current;
-    if (!spacer) return;
-    spacer.style.height = "";
-    const anchor = grab.current;
-    const heading = anchor ? headingOf(anchor.id) : null;
-    if (anchor && heading) {
-      window.scrollBy(0, heading.getBoundingClientRect().top - anchor.top);
-      const shortfall = anchor.top - heading.getBoundingClientRect().top;
-      if (reordering && shortfall > 0) spacer.style.height = `${shortfall}px`;
-    }
-    if (!reordering) return;
-    measureDroppableContainers(
-      [...document.querySelectorAll<HTMLElement>("section[data-jump]")].flatMap((el) => el.dataset.jump ?? []),
-    );
-  }, [reordering, grab, measureDroppableContainers]);
-  return <div ref={spacerRef} aria-hidden />;
-}
-
 interface ProjectViewProps {
   repo: string;
+  selectedWorktreeId: string | null;
   worktrees: WorktreeSummary[];
   features: FeatureSummary[];
   agents: FoldedAgents;
@@ -631,6 +603,7 @@ interface ProjectViewProps {
 
 function ProjectView({
   repo,
+  selectedWorktreeId,
   worktrees,
   features,
   agents,
@@ -643,312 +616,84 @@ function ProjectView({
   focused,
   onToggleFocus,
 }: ProjectViewProps) {
-  const [query, setQuery] = useState("");
-  const [storedOrder, writeOrder] = useStoredList(worktreeOrderKey(repo));
-  const [storedFocus, writeFocus] = useStoredList(worktreeFocusKey(repo));
-  const [reordering, setReordering] = useState(false);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const grab = useRef<{ id: string; top: number } | null>(null);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const { ordered } = useWorktreeOrder(repo, worktrees);
   const wizardAnchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
   const wizard = useWorktreeWizard(
     wizardAnchor ? wizardOrigin(wizardAnchor, false) : { repoId: "", repo, anchorPath: "", from: null },
   );
-  const needle = query.trim().toLowerCase();
-
-  const rank = new Map(storedOrder.map((id, index) => [id, index]));
-  // The server's order reshuffles on every agent event.
-  const ordered = [...worktrees].sort(
-    (a, b) =>
-      (rank.get(a.worktreeId) ?? storedOrder.length) -
-        (rank.get(b.worktreeId) ?? storedOrder.length) ||
-      a.name.localeCompare(b.name) ||
-      a.worktreeId.localeCompare(b.worktreeId),
-  );
-  const moveWorktree = (
-    draggedId: string,
-    targetId: string,
-    placeAfter: boolean,
-  ) => {
-    const rest = ordered
-      .map((worktree) => worktree.worktreeId)
-      .filter((id) => id !== draggedId);
-    const at = rest.indexOf(targetId);
-    if (at === -1) return;
-    writeOrder([
-      ...rest.slice(0, at + Number(placeAfter)),
-      draggedId,
-      ...rest.slice(at + Number(placeAfter)),
-    ]);
-  };
-
-  const worktreeById = new Map(
-    worktrees.map((worktree) => [worktree.worktreeId, worktree]),
-  );
-  const focusedWorktrees = ordered.filter((worktree) => storedFocus.includes(worktree.worktreeId));
-  const isFocused = (worktree: WorktreeSummary) => storedFocus.includes(worktree.worktreeId);
-  const toggleWorktreeFocus = (worktree: WorktreeSummary) =>
-    writeFocus(
-      isFocused(worktree)
-        ? storedFocus.filter((id) => id !== worktree.worktreeId)
-        : [...storedFocus, worktree.worktreeId],
-    );
-  // A removed worktree leaves its id behind in storage; it must not hide every other worktree.
-  const inScope = focusedWorktrees.length > 0 ? focusedWorktrees : ordered;
-  const scopeIds = new Set(inScope.map((worktree) => worktree.worktreeId));
-  const visibleTop = agents.top.filter(
-    (agent) =>
-      scopeIds.has(agent.worktreeId) &&
-      agentMatches(agent, worktreeById.get(agent.worktreeId), needle),
-  );
-  const visibleWorktrees = needle
-    ? inScope.filter(
-        (worktree) =>
-          worktreeMatches(worktree, needle) ||
-          visibleTop.some((agent) => agent.worktreeId === worktree.worktreeId),
-      )
-    : inScope;
-
-  const allPanels = visibleWorktrees.map((worktree) => ({
-    worktree,
-    groups: groupAgents(
-      visibleTop.filter((agent) => agent.worktreeId === worktree.worktreeId),
-      isDismissed,
-    ),
-  }));
-  const ids = new Set(visibleWorktrees.map((worktree) => worktree.worktreeId));
-  const isChild = (worktree: WorktreeSummary) =>
-    worktree.parentWorktreeId !== null && ids.has(worktree.parentWorktreeId);
-  const panels = allPanels.filter((panel) => !isChild(panel.worktree));
-  const childrenOf = (worktree: WorktreeSummary) =>
-    allPanels.filter(
-      (panel) => panel.worktree.parentWorktreeId === worktree.worktreeId,
-    );
-  const featureById = new Map(features.map((feature) => [feature.id, feature]));
-  const sections: { feature: FeatureSummary | null; panels: typeof panels }[] =
-    [];
-  for (const panel of panels) {
-    const feature = panel.worktree.featureId
-      ? (featureById.get(panel.worktree.featureId) ?? null)
-      : null;
-    const section = sections.find((entry) => entry.feature === feature);
-    if (section) section.panels.push(panel);
-    else sections.push({ feature, panels: [panel] });
-  }
-  sections.sort(
-    (a, b) => Number(a.feature === null) - Number(b.feature === null),
-  );
-  const hasFeatures = sections.some((section) => section.feature !== null);
-  const siblingGroupOf = new Map<string, string>();
-  const renderedIdsOf = (panel: (typeof panels)[number], group: string): string[] => {
-    siblingGroupOf.set(panel.worktree.worktreeId, group);
-    return [
-      panel.worktree.worktreeId,
-      ...childrenOf(panel.worktree).flatMap((child) => renderedIdsOf(child, `parent:${panel.worktree.worktreeId}`)),
-    ];
-  };
-  const renderedIds = sections.flatMap((section) =>
-    section.panels.flatMap((panel) => renderedIdsOf(panel, `section:${section.feature?.id ?? ""}`)),
-  );
-  const closestSibling: CollisionDetection = (args) =>
-    closestCenter({
-      ...args,
-      droppableContainers: args.droppableContainers.filter(
-        (container) => siblingGroupOf.get(String(container.id)) === siblingGroupOf.get(String(args.active.id)),
-      ),
-    });
-  const endDrag = () => {
-    const dropped = grab.current?.id;
-    const heading = dropped ? headingOf(dropped) : null;
-    grab.current = dropped && heading ? { id: dropped, top: heading.getBoundingClientRect().top } : null;
-    setDraggedId(null);
-    setReordering(false);
-  };
-  const dropWorktree = ({ active, over }: DragEndEvent) => {
-    endDrag();
-    if (!over || over.id === active.id) return;
-    const from = renderedIds.indexOf(String(active.id));
-    const to = renderedIds.indexOf(String(over.id));
-    if (from === -1 || to === -1) return;
-    moveWorktree(String(active.id), String(over.id), from < to);
-  };
-  const draggedWorktree = draggedId ? worktreeById.get(draggedId) : undefined;
-  const terminalHandlesOf = (worktree: WorktreeSummary) =>
+  const worktree =
+    ordered.find((candidate) => candidate.worktreeId === selectedWorktreeId) ?? ordered[0] ?? null;
+  const terminalHandlesOf = (target: WorktreeSummary) =>
     agents.top
-      .filter((agent) => agent.worktreeId === worktree.worktreeId)
+      .filter((agent) => agent.worktreeId === target.worktreeId)
       .flatMap((agent) => [agent, ...agents.workersOf(agent)])
       .flatMap((agent) => (agent.terminalHandle ? [agent.terminalHandle] : []));
+  const feature = worktree?.featureId ? (features.find((entry) => entry.id === worktree.featureId) ?? null) : null;
+
+  const quickMenu = (
+    <ProjectQuickMenu
+      worktrees={worktrees}
+      sessionCountOf={(target) => agents.top.filter((agent) => agent.worktreeId === target.worktreeId).length}
+      onAction={onAction}
+      wizard={wizard}
+    />
+  );
+
+  const panel = worktree ? (
+    <WorktreePanel
+      key={worktree.worktreeId}
+      worktree={worktree}
+      featureRow={feature ? rowOf(feature, worktree) : null}
+      mode={mode}
+      groups={groupAgents(
+        agents.top.filter((agent) => agent.worktreeId === worktree.worktreeId),
+        isDismissed,
+      )}
+      renderAgents={(listed, onReorder, needsMeIds) => (
+        <SessionTabs
+          worktreeId={worktree.worktreeId}
+          agents={listed}
+          needsMeIds={needsMeIds}
+          focusId={expandedId}
+          onReorder={onReorder}
+          renderCard={renderCard}
+          renderWorkers={(agent) => {
+            const workers = agents.workersOf(agent);
+            return workers.length > 0 ? (
+              <div className="ml-6">
+                <AgentList agents={workers} now={now} showRepo={false} renderCard={renderCard} onAction={onAction} />
+              </div>
+            ) : null;
+          }}
+          onAction={onAction}
+        />
+      )}
+      terminalHandles={terminalHandlesOf(worktree)}
+      onAction={onAction}
+      trailing={quickMenu}
+    />
+  ) : null;
 
   return (
     <>
-      {/* Zero-height and pulled up over main's gap, so the menu sits beside the title and then sticks while scrolling. */}
-      <div className="sticky top-4 z-30 -mb-16 flex h-0 justify-end">
-        <div className="mt-1">
-          <ProjectQuickMenu
-            worktrees={worktrees}
-            terminalOf={(worktree) => terminalHandlesOf(worktree)[0] ?? null}
-            sessionCountOf={(worktree) => agents.top.filter((agent) => agent.worktreeId === worktree.worktreeId).length}
-            onAction={onAction}
-            wizard={wizard}
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+        <span className="font-semibold text-fg">{repo}</span>
+        <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
+        <FocusToggle active={focused} onToggle={onToggleFocus} />
+        {!worktree && <span className="ml-auto">{quickMenu}</span>}
       </div>
-      <header className="pr-36">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-[36px] leading-[1.15] font-bold tracking-[-0.025em]">
-            {repo}
-          </h1>
-          <FocusToggle active={focused} onToggle={onToggleFocus} />
-        </div>
-        <p className="mt-2.5 text-[13px] text-muted">
-          {mode === "company" ? "회사 워크플로" : "개인 워크플로"}
-        </p>
-        <div className="mt-3 empty:hidden">
-          <WorktreeWizardPanel wizard={wizard} />
-        </div>
-        <FocusChips
-          items={focusedWorktrees.map((worktree) => ({ key: worktree.worktreeId, label: worktree.name }))}
-          onRemove={(id) => writeFocus(storedFocus.filter((item) => item !== id))}
-          onClear={() => writeFocus([])}
-        />
-      </header>
-      <div className="-mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[15px] font-semibold">
-          워크트리 {worktrees.length}개
-          {focusedWorktrees.length > 0 && (
-            <span className="ml-2 text-[12px] font-normal text-focus">
-              포커스 {focusedWorktrees.length}개만 보는 중
-            </span>
-          )}
-          {needle && (
-            <span className="ml-2 text-[12px] font-normal text-muted">
-              거른 결과 · 워크트리 {visibleWorktrees.length} · 세션 {visibleTop.length}
-            </span>
-          )}
-        </h2>
-        <input
-          type="search"
-          aria-label="워크트리와 세션 거르기"
-          value={query}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
-          placeholder="워크트리 · 브랜치 · 작업 · 요청 · 답변 거르기"
-          className={`${SEARCH_INPUT_CLASS} sm:w-80`}
-        />
+      <div className="empty:hidden">
+        <WorktreeWizardPanel wizard={wizard} />
       </div>
-      {needle && visibleWorktrees.length === 0 && (
-        <p className="text-[15px] text-muted">거른 결과가 없어요.</p>
+      {!worktree ? (
+        <p className="text-[15px] text-muted">이 프로젝트에 워크트리가 없어요.</p>
+      ) : feature ? (
+        <FeatureGroup feature={feature} onAction={onAction}>
+          <div className="pt-4">{panel}</div>
+        </FeatureGroup>
+      ) : (
+        panel
       )}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestSibling}
-        autoScroll={{ layoutShiftCompensation: false }}
-        onDragStart={({ active }) => {
-          const heading = headingOf(String(active.id));
-          grab.current = heading ? { id: String(active.id), top: heading.getBoundingClientRect().top } : null;
-          setDraggedId(String(active.id));
-          setReordering(true);
-        }}
-        onDragEnd={dropWorktree}
-        onDragCancel={endDrag}
-      >
-        <CollapseAnchor reordering={reordering} grab={grab} />
-        <SortableContext items={renderedIds} strategy={verticalListSortingStrategy}>
-          {sections.map(({ feature, panels: sectionPanels }) => {
-            const linkOf = ({
-              worktree,
-              groups,
-            }: (typeof panels)[number]): WorktreeLink => ({
-              worktreeId: worktree.worktreeId,
-              name: worktree.name,
-              needsMe: groups.needsMe.length,
-              working: groups.working.length,
-            });
-            const renderPanel = (
-              panel: (typeof panels)[number],
-              ancestors: WorktreeLink[] = [],
-            ): React.ReactNode[] => {
-              const { worktree, groups } = panel;
-              const children = childrenOf(worktree);
-              return [
-                <WorktreePanel
-                  key={worktree.worktreeId}
-                  worktree={worktree}
-                  featureRow={feature ? rowOf(feature, worktree) : null}
-                  mode={mode}
-                  groups={groups}
-                  renderAgents={(listed, onReorder, needsMeIds) => (
-                    <SessionTabs
-                      worktreeId={worktree.worktreeId}
-                      worktreePath={worktree.path}
-                      agents={listed}
-                      needsMeIds={needsMeIds}
-                      focusId={expandedId}
-                      onReorder={onReorder}
-                      renderCard={renderCard}
-                      renderWorkers={(agent) => {
-                        const workers = agents.workersOf(agent);
-                        return workers.length > 0 ? (
-                          <div className="ml-6">
-                            <AgentList agents={workers} now={now} showRepo={false} renderCard={renderCard} onAction={onAction} />
-                          </div>
-                        ) : null;
-                      }}
-                      onAction={onAction}
-                    />
-                  )}
-                  ancestors={ancestors}
-                  childLinks={children.map(linkOf)}
-                  terminalHandles={terminalHandlesOf(worktree)}
-                  onAction={onAction}
-                  reordering={reordering}
-                  focused={isFocused(worktree)}
-                  onToggleFocus={() => toggleWorktreeFocus(worktree)}
-                />,
-                ...children.flatMap((child) =>
-                  renderPanel(child, [...ancestors, linkOf(panel)]),
-                ),
-              ];
-            };
-            const rendered = sectionPanels.flatMap((panel) => renderPanel(panel));
-            if (feature) {
-              return (
-                <FeatureGroup
-                  key={feature.id}
-                  feature={feature}
-                  onAction={onAction}
-                >
-                  {rendered}
-                </FeatureGroup>
-              );
-            }
-            return (
-              <section
-                key="no-feature"
-                className={hasFeatures ? "border-t-2 border-fg pt-6" : undefined}
-              >
-                {hasFeatures && (
-                  <h2 className="text-[22px] leading-[1.3] font-bold tracking-[-0.015em]">
-                    기능 문서 없음
-                  </h2>
-                )}
-                <div className={hasFeatures ? "mt-2" : undefined}>{rendered}</div>
-              </section>
-            );
-          })}
-        </SortableContext>
-        {reordering && <div aria-hidden className="h-screen" />}
-        <DragOverlay dropAnimation={null}>
-          {draggedWorktree && (
-            <div className="flex w-fit max-w-full cursor-grabbing items-start gap-1 rounded-md bg-bg px-1.5 py-0.5 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] shadow-lg ring-1 ring-hair">
-              <span className="mt-[0.1em] shrink-0 text-muted">{ACTION_ICONS.drag}</span>
-              <span className="min-w-0 truncate">{draggedWorktree.name}</span>
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
     </>
   );
 }

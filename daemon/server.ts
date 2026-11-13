@@ -264,6 +264,7 @@ export function createRunnerServer({ registry, port, allowedOrigins }: RunnerSer
 
     if (url.pathname === "/events") {
       sockets.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("error", (error) => console.error("[runner] events socket error", error));
         watchers.add(ws);
         send(ws, { type: "sessions", sessions: registry.list() });
         ws.on("close", () => watchers.delete(ws));
@@ -280,6 +281,7 @@ export function createRunnerServer({ registry, port, allowedOrigins }: RunnerSer
     }
 
     sockets.handleUpgrade(request, socket, head, (ws) => {
+      ws.on("error", (error) => console.error("[runner] terminal socket error", id, error));
       const attachment = registry.attach(id, {
         output: (data) => send(ws, { type: "output", data }),
         exit: (exitCode) => send(ws, { type: "exit", exitCode }),

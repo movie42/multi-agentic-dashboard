@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { isValidElement, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { ActivityStep, ToolStatus } from "@/common/sessions/types";
 import { chatQueryOptions } from "@/client/entities/session";
 import { formatClock } from "@/client/shared/lib/format";
@@ -96,24 +96,21 @@ function ChatRow({ step, copyable }: ChatRowProps) {
 interface ChatViewProps {
   sessionId: string;
   working: boolean;
-  footer?: React.ReactNode;
 }
 
-export function ChatView({ sessionId, working, footer }: ChatViewProps) {
+export function ChatView({ sessionId, working }: ChatViewProps) {
   const chat = useQuery(chatQueryOptions(sessionId));
   const steps = chat.data ?? null;
   const listRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const lastTextId = steps?.findLast((step) => step.kind === "text")?.id ?? null;
 
-  const footerKey = isValidElement(footer) ? footer.key : null;
-
   useEffect(() => {
     const list = listRef.current;
     if (!list || !stickRef.current) return;
     const bottom = list.scrollHeight - list.clientHeight;
     if (Math.abs(list.scrollTop - bottom) > 1) list.scrollTop = bottom;
-  }, [steps, footerKey, working]);
+  }, [steps, working]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const list = event.currentTarget;
@@ -140,7 +137,6 @@ export function ChatView({ sessionId, working, footer }: ChatViewProps) {
           작업 중
         </p>
       )}
-      {footer}
     </div>
   );
 }

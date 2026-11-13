@@ -24,7 +24,7 @@ const statusLine = { node: process.execPath, script: path.join(import.meta.dirna
 
 async function saveUsage(usage: RunnerUsage): Promise<void> {
   await mkdir(path.dirname(usageFile), { recursive: true });
-  const temporary = `${usageFile}.${process.pid}.tmp`;
+  const temporary = `${usageFile}.${process.pid}.${crypto.randomUUID()}.tmp`;
   await writeFile(temporary, JSON.stringify(usage));
   await rename(temporary, usageFile);
 }

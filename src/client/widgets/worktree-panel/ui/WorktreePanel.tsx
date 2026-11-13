@@ -1,11 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS as DndCSS } from "@dnd-kit/utilities";
+import { useState } from "react";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
-import { requestTerminal } from "@/client/entities/runner";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { buildSteps } from "@/common/workflow/steps";
@@ -35,23 +32,11 @@ interface WorktreePanelProps {
     onReorder: (draggedId: string, targetId: string, placeAfter: boolean) => void,
     needsMeIds: ReadonlySet<string>,
   ) => React.ReactNode;
-  ancestors: WorktreeLink[];
-  childLinks: WorktreeLink[];
   /** Open terminals of every session in this worktree, orchestrated workers included. */
   terminalHandles: string[];
   onAction: (action: ActionRequest) => Promise<void>;
-  /** While a worktree is being dragged, every panel collapses to its heading row. */
-  reordering: boolean;
-  /** Whether this worktree is in the project view's worktree focus. */
-  focused: boolean;
-  onToggleFocus: () => void;
-}
-
-export interface WorktreeLink {
-  worktreeId: string;
-  name: string;
-  needsMe: number;
-  working: number;
+  /** Project-level controls placed at the right end of the heading row. */
+  trailing?: React.ReactNode;
 }
 
 interface WorktreeAction {
@@ -61,23 +46,6 @@ interface WorktreeAction {
   disabled?: boolean;
   danger?: boolean;
   run: () => void;
-}
-
-const INDENT = ["", "pl-3.5", "pl-7"] as const;
-const indentOf = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];
-
-const scrollToWorktree = (worktreeId: string) =>
-  document
-    .querySelector<HTMLElement>(`[data-jump="${CSS.escape(worktreeId)}"]`)
-    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-function Elbow() {
-  return (
-    <span
-      aria-hidden
-      className="mr-1.5 inline-block h-2.5 w-2 -translate-y-1 border-b border-l border-muted"
-    />
-  );
 }
 
 type PanelFilter = "needsMe" | "working";
@@ -93,13 +61,9 @@ export function WorktreePanel({
   mode,
   groups,
   renderAgents,
-  ancestors,
-  childLinks,
   terminalHandles,
   onAction,
-  reordering,
-  focused,
-  onToggleFocus,
+  trailing,
 }: WorktreePanelProps) {
   const [editingName, setEditingName] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -111,15 +75,6 @@ export function WorktreePanel({
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id: worktree.worktreeId, animateLayoutChanges: () => false });
-  const sectionRef = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-    section.style.transform = DndCSS.Translate.toString(transform) ?? "";
-    section.style.transition = transition ?? "";
-  }, [transform, transition]);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
   const sessions = useSessionOrder(worktree.worktreeId, [
@@ -131,12 +86,6 @@ export function WorktreePanel({
   const listed = activeFilter
     ? all.filter((agent) => groups[activeFilter].includes(agent))
     : all;
-  const terminalHandle =
-    all.find((agent) => agent.terminalHandle)?.terminalHandle ?? null;
-  const toTerminal = () => {
-    if (terminalHandle) requestTerminal(terminalHandle);
-    else void onAction({ type: "open-terminal", worktreePath: worktree.path });
-  };
   const actions: WorktreeAction[] = [
     {
       key: "session",
@@ -146,9 +95,9 @@ export function WorktreePanel({
     },
     {
       key: "terminal",
-      label: "터미널로",
-      description: terminalHandle ? "에이전트가 돌고 있는 터미널을 열어요" : "이 워크트리에 터미널을 새로 열어요",
-      run: toTerminal,
+      label: "터미널",
+      description: "이 워크트리에 셸 터미널을 새 탭으로 열어요",
+      run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }),
     },
     {
       key: "diff",
@@ -175,12 +124,6 @@ export function WorktreePanel({
       description: "보드에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
       run: () => setEditingName(true),
     },
-    {
-      key: "focus",
-      label: focused ? "포커스 해제" : "이 워크트리만 보기",
-      description: focused ? "프로젝트의 다른 워크트리도 다시 보여요" : "이 프로젝트에서 이 워크트리만 남기고 가려요",
-      run: onToggleFocus,
-    },
     ...(worktree.isMain
       ? []
       : [
@@ -197,42 +140,17 @@ export function WorktreePanel({
     onAction({ type: "open-artifact", target });
 
   return (
-    <section
-      ref={(element: HTMLElement | null) => {
-        sectionRef.current = element;
-        setNodeRef(element);
-      }}
-      data-jump={worktree.worktreeId}
-      className={`grid scroll-mt-6 grid-cols-1 gap-x-6 border-t border-hair ${
-        reordering ? "gap-y-2 py-2" : "gap-y-4 pt-6 pb-10 lg:grid-cols-[176px_minmax(0,1fr)]"
-      } ${isDragging ? "opacity-40" : ""}`}
-    >
-      <div
-        onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
-          if (event.target instanceof HTMLElement && event.target.closest("a, input, textarea")) return;
+    <section data-jump={worktree.worktreeId} className="flex min-w-0 flex-col gap-5">
+      <header
+        onContextMenu={(event: React.MouseEvent<HTMLElement>) => {
+          if (event.target instanceof HTMLElement && event.target.closest("a, button, input, textarea")) return;
           event.preventDefault();
           openMenu({ x: event.clientX, y: event.clientY });
         }}
-        className={`relative ${menu ? "z-20" : "z-10"} min-w-0 ${
-          reordering
-            ? "[&>*:not([data-reorder-keep])]:hidden"
-            : "lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
-        }`}
+        className="flex flex-col gap-1.5"
       >
-        {ancestors.map((ancestor, depth) => (
-          <button
-            key={ancestor.worktreeId}
-            type="button"
-            onClick={() => scrollToWorktree(ancestor.worktreeId)}
-            title={`${ancestor.name} 워크트리로 이동해요`}
-            className={`block max-w-full truncate text-left text-[13px] leading-[1.6] text-muted hover:text-current ${indentOf(depth)}`}
-          >
-            {depth > 0 && <Elbow />}
-            {ancestor.name}
-          </button>
-        ))}
-        {editingName ? (
-          <div className={indentOf(ancestors.length)}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+          {editingName ? (
             <WorktreeNameForm
               worktree={worktree}
               onDone={(saved) => {
@@ -240,74 +158,52 @@ export function WorktreePanel({
                 if (saved) setSavedName({ value: saved, replaces: worktree.name });
               }}
             />
-          </div>
-        ) : (
-          <div data-reorder-keep className={`flex items-start gap-1 ${indentOf(ancestors.length)}`}>
-            <h3
-              ref={setActivatorNodeRef}
-              {...attributes}
-              {...listeners}
-              aria-roledescription="끌어서 순서 바꾸기"
-              title="끌어서 워크트리 순서를 바꿔요"
-              className="group -mx-1.5 flex min-w-0 flex-1 cursor-grab touch-none items-start gap-1 rounded-md px-1.5 py-0.5 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all hover:bg-tint active:cursor-grabbing"
-            >
-              <span className="mt-[0.1em] shrink-0 text-faint group-hover:text-muted">{ACTION_ICONS.drag}</span>
-              <span className="min-w-0 flex-1">
-                {ancestors.length > 0 && <Elbow />}
-                {shownName}
-              </span>
-            </h3>
-            <button
-              type="button"
-              aria-label={`${worktree.name} 워크트리 메뉴`}
-              aria-expanded={menu !== null}
-              title="워크트리 메뉴 · 우클릭으로도 열려요"
-              onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                openMenu({ x: rect.left, y: rect.bottom + 4 });
-              }}
-              className="mt-px shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
-            >
-              {ACTION_ICONS.menu}
-            </button>
-          </div>
-        )}
-        {worktree.branch && worktree.branch !== worktree.name && (
-          <p className="mt-1 font-mono text-[12px] break-all text-muted">
-            {worktree.branch}
-          </p>
-        )}
-        <p className="mt-2 flex flex-wrap gap-x-1 text-[12px]">
-          {FILTER_OPTIONS.filter((option) => groups[option.key].length > 0).map(
-            (option) => (
-              <button
-                key={option.key}
-                type="button"
-                aria-pressed={activeFilter === option.key}
-                onClick={() =>
-                  setFilter(activeFilter === option.key ? null : option.key)
-                }
-                className={`-mx-0.5 rounded-full px-2 py-0.5 ${option.tone} ${
-                  activeFilter === option.key
-                    ? "bg-tint font-semibold"
-                    : "hover:bg-tint"
-                }`}
-              >
-                {option.label} {groups[option.key].length}
-              </button>
-            ),
+          ) : (
+            <h2 className="min-w-0 text-[22px] leading-[1.3] font-bold tracking-[-0.015em] break-all">{shownName}</h2>
           )}
-        </p>
-        {pr.kind === "found" && (
           <button
             type="button"
-            onClick={() => open(pr.url)}
-            className="mt-2 text-[13px] underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            aria-label={`${worktree.name} 워크트리 메뉴`}
+            aria-expanded={menu !== null}
+            title="워크트리 메뉴 · 우클릭으로도 열려요"
+            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              openMenu({ x: rect.left, y: rect.bottom + 4 });
+            }}
+            className="shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
           >
-            PR #{pr.number} 열기
+            {ACTION_ICONS.menu}
           </button>
-        )}
-        <JiraLine jira={worktree.jira} featureRow={featureRow} onOpen={(url) => void open(url)} />
+          {trailing && <div className="ml-auto flex shrink-0 items-center gap-2">{trailing}</div>}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] empty:hidden">
+          {worktree.branch && worktree.branch !== worktree.name && (
+            <span className="font-mono break-all text-muted">{worktree.branch}</span>
+          )}
+          {pr.kind === "found" && (
+            <button
+              type="button"
+              onClick={() => open(pr.url)}
+              className="text-[13px] underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              PR #{pr.number} 열기
+            </button>
+          )}
+          <JiraLine jira={worktree.jira} featureRow={featureRow} onOpen={(url) => void open(url)} />
+          {FILTER_OPTIONS.filter((option) => groups[option.key].length > 0).map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              aria-pressed={activeFilter === option.key}
+              onClick={() => setFilter(activeFilter === option.key ? null : option.key)}
+              className={`-mx-0.5 rounded-full px-2 py-0.5 ${option.tone} ${
+                activeFilter === option.key ? "bg-tint font-semibold" : "hover:bg-tint"
+              }`}
+            >
+              {option.label} {groups[option.key].length}
+            </button>
+          ))}
+        </div>
         {removing && <RemoveWorktree worktree={worktree} sessionCount={all.length} onCancel={() => setRemoving(false)} />}
         {menu && (
           <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-72">
@@ -363,44 +259,9 @@ export function WorktreePanel({
             )}
           </ContextMenu>
         )}
-        {childLinks.length > 0 && (
-          <div className="mt-4 text-[13px]">
-            <p
-              className="text-[12px] text-muted"
-              title="이 워크트리 아래로 만든 워크트리"
-            >
-              하위 워크트리 {childLinks.length}
-            </p>
-            <ul className="mt-1">
-              {childLinks.map((child) => (
-                <li key={child.worktreeId}>
-                  <button
-                    type="button"
-                    onClick={() => scrollToWorktree(child.worktreeId)}
-                    title={`${child.name} 워크트리로 이동해요`}
-                    className="flex max-w-full items-baseline py-0.5 text-left hover:underline"
-                  >
-                    <Elbow />
-                    <span className="mr-1.5 truncate">{child.name}</span>
-                    {child.needsMe > 0 && (
-                      <span className="shrink-0 text-[12px] text-ask">
-                        {child.needsMe}
-                      </span>
-                    )}
-                    {child.needsMe === 0 && child.working > 0 && (
-                      <span className="shrink-0 text-[12px] text-now">
-                        {child.working}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      </header>
 
-      <div className={`flex min-w-0 flex-col gap-6 ${reordering ? "hidden" : ""}`}>
+      <div className="flex min-w-0 flex-col gap-6">
         <WorktreeWizardPanel wizard={wizard} />
         {worktree.flowTasks.length === 0 ? (
           <p className="text-[14px] text-muted">
@@ -520,7 +381,7 @@ function JiraLine({ jira, featureRow, onOpen }: JiraLineProps) {
   const todo = featureRow?.jiraTodo ?? null;
   if (!key && !todo) return null;
   return (
-    <p className="mt-2 text-[12px]">
+    <span className="text-[12px]">
       {key &&
         (url ? (
           <button
@@ -534,7 +395,7 @@ function JiraLine({ jira, featureRow, onOpen }: JiraLineProps) {
           <span className="font-mono text-muted">{key}</span>
         ))}
       {key && status && <span className="text-muted"> · {status}</span>}
-      {todo && <span className="block text-ask">사람이 옮길 것 · {todo}</span>}
-    </p>
+      {todo && <span className="ml-2 text-ask">사람이 옮길 것 · {todo}</span>}
+    </span>
   );
 }

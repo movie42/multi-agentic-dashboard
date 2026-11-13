@@ -232,11 +232,13 @@ describe("SessionRegistry", () => {
     expect(registry.get("s1")?.permission).toBeNull();
   });
 
-  it("lets go of a held request once the session moves on after a terminal answer", async () => {
+  it("keeps a held request while a parallel tool finishes, and lets go once the turn ends", async () => {
     const { registry } = setup();
     registry.launch({ cwd: "/repo" });
     const pending = registry.holdPermission("s1", { toolName: "Bash", toolInput: {}, suggestions: [] });
     registry.signal("s1", { event: "PostToolUse" });
+    expect(registry.get("s1")?.permission).not.toBeNull();
+    registry.signal("s1", { event: "Stop" });
     await expect(pending).resolves.toEqual({});
     expect(registry.get("s1")?.permission).toBeNull();
   });

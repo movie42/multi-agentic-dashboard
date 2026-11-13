@@ -30,29 +30,26 @@ function reportedPart(input) {
   };
 }
 
-async function shouldReport(url, body) {
-  const stateDir = path.join(tmpdir(), "agent-control-statusline");
-  const stateFile = path.join(stateDir, `${createHash("sha1").update(url).digest("hex")}.json`);
-  const key = createHash("sha1").update(body).digest("hex");
-  const previous = parse(await readFile(stateFile, "utf8").catch(() => ""));
-  const now = Date.now();
-  if (previous && previous.key === key && now - Number(previous.at) < SAME_VALUE_INTERVAL_MS) return false;
-  await mkdir(stateDir, { recursive: true });
-  await writeFile(stateFile, JSON.stringify({ key, at: now }));
-  return true;
-}
+const stateDir = path.join(tmpdir(), "agent-control-statusline");
 
 async function report(url, input) {
   if (!url || !input) return;
   const body = JSON.stringify(reportedPart(input));
+  const stateFile = path.join(stateDir, `${createHash("sha1").update(url).digest("hex")}.json`);
+  const key = createHash("sha1").update(body).digest("hex");
   try {
-    if (!(await shouldReport(url, body))) return;
-    await fetch(url, {
+    const previous = parse(await readFile(stateFile, "utf8").catch(() => ""));
+    const now = Date.now();
+    if (previous && previous.key === key && now - Number(previous.at) < SAME_VALUE_INTERVAL_MS) return;
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
       signal: AbortSignal.timeout(REPORT_TIMEOUT_MS),
     });
+    if (!response.ok) return;
+    await mkdir(stateDir, { recursive: true });
+    await writeFile(stateFile, JSON.stringify({ key, at: now }));
   } catch {
     return;
   }

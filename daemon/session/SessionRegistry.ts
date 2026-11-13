@@ -74,7 +74,7 @@ interface HeldPermission {
   timer: ReturnType<typeof setTimeout>;
 }
 
-const SETTLING_EVENTS: ReadonlySet<StatusSignal["event"]> = new Set<StatusSignal["event"]>(["UserPromptSubmit", "PostToolUse", "Stop", "exit"]);
+const SETTLING_EVENTS: ReadonlySet<StatusSignal["event"]> = new Set<StatusSignal["event"]>(["UserPromptSubmit", "Stop", "exit"]);
 
 interface Entry {
   hooked: boolean;

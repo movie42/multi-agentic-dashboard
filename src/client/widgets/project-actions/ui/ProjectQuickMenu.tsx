@@ -26,8 +26,6 @@ type DeckStep = "deck" | PickAction | "confirm-remove";
 
 interface ProjectQuickMenuProps {
   worktrees: WorktreeSummary[];
-  /** The session an agent already runs in for that worktree, if any. */
-  terminalOf: (worktree: WorktreeSummary) => string | null;
   /** Agent sessions attached to the worktree; removing it closes them. */
   sessionCountOf: (worktree: WorktreeSummary) => number;
   onAction: (action: ActionRequest) => Promise<void>;
@@ -35,7 +33,7 @@ interface ProjectQuickMenuProps {
 }
 
 /** A 빠른 메뉴 button listing the project's actions; an action that needs a worktree asks for one next. */
-export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onAction, wizard }: ProjectQuickMenuProps) {
+export function ProjectQuickMenu({ worktrees, sessionCountOf, onAction, wizard }: ProjectQuickMenuProps) {
   const [open, setOpen] = useState<{ at: MenuPoint; step: DeckStep; target?: WorktreeSummary } | null>(null);
   const anchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
   if (!anchor) return null;
@@ -66,11 +64,6 @@ export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onActi
     }
     if (action === "session") {
       void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" });
-      return;
-    }
-    const terminalHandle = terminalOf(worktree);
-    if (terminalHandle) {
-      window.open(`/runner?session=${encodeURIComponent(terminalHandle)}`, "_blank", "noopener");
       return;
     }
     void onAction({ type: "open-terminal", worktreePath: worktree.path });
@@ -144,7 +137,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, sessionCountOf, onActi
               </MenuItem>
               <MenuItem
                 icon={ACTION_ICONS.terminal}
-                description="이 워크트리의 터미널을 열어요"
+                description="워크트리에 셸 터미널을 새 탭으로 열어요"
                 hint={worktrees.length > 1 ? "워크트리 고르기 →" : undefined}
                 onSelect={() => pick("terminal")}
               >

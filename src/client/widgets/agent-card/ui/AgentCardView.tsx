@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, Artifact } from "@/common/board/types";
 import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { useCardView, type CardView } from "../model/cardViewStore";
-import { ActivityList } from "./ActivityTimeline";
+import { TurnList } from "./ConversationHistory";
 import { ChatView } from "./ChatView";
 import { MessageView } from "./MessageView";
 import { PermissionPrompt } from "@/client/features/answer-permission";
@@ -18,7 +18,6 @@ import { SessionTitle } from "@/client/features/rename-session";
 import { Stepper } from "@/client/entities/workflow";
 import { StateBadge } from "@/client/entities/agent";
 import { RunnerTerminal, useTerminalRequest } from "@/client/entities/runner";
-import { PendingButton } from "@/client/shared/ui/PendingButton";
 
 export interface CardProgress {
   taskId: string;
@@ -95,7 +94,6 @@ export function AgentCardView({
   onAction,
 }: AgentCardViewProps) {
   const terminalHandle = agent.terminalHandle;
-  const [confirmingClose, setConfirmingClose] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
   const terminalRequest = useTerminalRequest(terminalHandle);
   const isShell = agent.agentType === "shell";
@@ -254,7 +252,7 @@ export function AgentCardView({
                 view === "history" ? "bg-fg font-semibold text-bg" : "text-muted shadow-[inset_0_0_0_1px_var(--hair)] hover:text-fg"
               }`}
             >
-              진행 기록
+              이전 대화
             </button>
           )}
         </div>
@@ -266,28 +264,24 @@ export function AgentCardView({
             key={`chat-${agent.session.id}`}
             sessionId={agent.session.id}
             working={agent.state === "working"}
-            footer={
-              agent.permission && terminalHandle ? (
-                <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} />
-              ) : null
-            }
           />
         ) : (
           <div className="flex flex-col gap-3">
             {agent.prompt && <p className="line-clamp-2 text-[14px] leading-relaxed text-muted">“{agent.prompt}”</p>}
             <MessageView message={agent.lastMessage} />
-            {agent.permission && terminalHandle && (
-              <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} />
-            )}
           </div>
         ))}
 
-      {view === "history" && agent.session && <ActivityList key={`activity-${agent.session.id}`} sessionId={agent.session.id} />}
+      {view === "history" && agent.session && <TurnList key={`conversation-${agent.session.id}`} sessionId={agent.session.id} />}
 
       {view === "terminal" && terminalHandle && (
         <div className="h-[420px]">
           <RunnerTerminal key={terminalHandle} sessionId={terminalHandle} />
         </div>
+      )}
+
+      {agent.permission && terminalHandle && (
+        <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} />
       )}
 
       {terminalHandle && !isShell && view !== "terminal" && (
@@ -308,7 +302,7 @@ export function AgentCardView({
         </div>
       )}
 
-      {(files.length > 0 || terminalHandle) && (
+      {files.length > 0 && (
         <footer className="flex flex-wrap items-center gap-1.5">
           {files.map((artifact, index) => (
             <button
@@ -323,38 +317,6 @@ export function AgentCardView({
               <span className="truncate">{artifact.label}</span>
             </button>
           ))}
-          {terminalHandle &&
-            (confirmingClose ? (
-              <span className="ml-auto flex items-center gap-1.5 text-[13px]">
-                <span className="text-muted">이 세션을 닫을까요?</span>
-                <PendingButton
-                  onRun={async () => {
-                    await onAction({ type: "close-terminal", terminalHandle });
-                    setConfirmingClose(false);
-                  }}
-                  pendingLabel="닫는 중"
-                  className="rounded-full bg-accent px-3 py-1 leading-none font-semibold text-accent-ink hover:opacity-85 disabled:opacity-70"
-                >
-                  닫기
-                </PendingButton>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingClose(false)}
-                  className="rounded-full px-3 py-1 leading-none text-muted hover:text-fg"
-                >
-                  취소
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingClose(true)}
-                title="세션을 닫아요. 세션 기록은 남아서 세션 목록에서 다시 열 수 있어요"
-                className="ml-auto rounded-full px-3 py-1.5 text-[13px] leading-none text-muted hover:text-fg"
-              >
-                세션 닫기
-              </button>
-            ))}
         </footer>
       )}
     </article>
