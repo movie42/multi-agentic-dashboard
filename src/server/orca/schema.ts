@@ -56,7 +56,9 @@ export const orcaTerminalRawSchema = z.looseObject({
 
 export const worktreePsSchema = z.looseObject({ worktrees: z.array(orcaWorktreeRawSchema) });
 export const terminalListSchema = z.looseObject({ terminals: z.array(orcaTerminalRawSchema) });
-export const terminalReadSchema = z.looseObject({ terminal: z.looseObject({ tail: z.array(z.string()) }) });
+export const terminalReadSchema = z.looseObject({
+  terminal: z.looseObject({ tail: z.array(z.string()), draft: z.string().optional() }),
+});
 export const orcaStatusSchema = z.looseObject({
   app: z.looseObject({ running: z.boolean(), pid: z.number().nullable(), desktopWindowStatus: z.string().optional() }),
   runtime: z.looseObject({ reachable: z.boolean() }),

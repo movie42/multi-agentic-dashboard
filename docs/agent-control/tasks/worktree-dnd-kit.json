@@ -1,0 +1,356 @@
+{
+  "id": "worktree-dnd-kit",
+  "title": "워크트리 끌어서 순서 바꾸기를 dnd-kit으로 교체",
+  "type": "기능 수정",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료",
+      "conclusion": [
+        "워크트리 순서 바꾸기를 @dnd-kit으로 바꿨어요. 커서에 붙는 복제본은 매 프레임 그려져서 패널이 접혀도 커서에서 떨어지지 않아요.",
+        "패널이 접힌 직후 끌던 제목을 원래 화면 높이로 되돌리고(스크롤, 안 되면 위쪽 빈 공간), 놓을 자리를 다시 재요.",
+        "다른 워크트리가 비켜 주는 애니메이션으로 놓일 자리를 보여 주고, Esc로 취소, 키보드(Space·화살표)로도 옮길 수 있어요.",
+        "브라우저에서 아래→맨 위 이동, 키보드 이동, Esc 취소를 확인했어요. tsc · lint · 테스트 413개 통과.",
+        "같은 기능 묶음·같은 부모 아래의 워크트리끼리만 자리를 바꿀 수 있어요. 묶음을 넘는 이동은 저장해도 화면에 반영되지 않아서 막았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 의존성",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "@dnd-kit/core · @dnd-kit/sortable · @dnd-kit/utilities 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>package.json</code> · <code>bun.lock</code>"
+                ],
+                [
+                  "패턴",
+                  "bun add (저장소가 bun.lock 사용)"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "type": "checklist",
+          "title": "Phase 2 · 프로젝트 화면에 드래그 영역",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "ProjectView를 DndContext + SortableContext로 감싸기. 항목 순서는 화면에 그려지는 순서(기능 묶음 → 부모 → 자식)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>moveWorktree</code> · <code>ordered</code> · <code>renderPanel</code>"
+                ],
+                [
+                  "패턴",
+                  "PointerSensor는 4px 이상 움직여야 시작(클릭·우클릭 메뉴 보존), KeyboardSensor 추가, 측정은 MeasuringStrategy.Always"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "onDragStart에서 접기 켜기, onDragEnd에서 놓인 위치로 moveWorktree 호출 후 접기 끄기, onDragCancel에서 접기만 끄기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>reordering</code> · <code>setReordering</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "DragOverlay에 끌고 있는 워크트리 제목 줄 복제본 그리기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "제목 줄과 같은 글꼴·아이콘, 그림자로 떠 있는 느낌"
+                ],
+                [
+                  "결정",
+                  "처음엔 복제본 위치를 보정하는 modifier를 썼지만, 충돌 판정 영역과 화면 위치가 갈라져 드롭이 안 먹었어요. 제목 위치를 되돌리는 방식으로 바꾸고 modifier는 뺐어요"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run lint</code> 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "id": "P3",
+          "type": "checklist",
+          "title": "Phase 3 · 워크트리 패널",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "패널 section에 useSortable 연결. 제목(h3)만 끄는 손잡이로 쓰기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "setNodeRef는 section, setActivatorNodeRef와 listeners는 h3"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "브라우저 기본 드래그 코드 걷어내기: draggable, onDragStart/End/Over/Leave/Drop, WORKTREE_DRAG_TYPE, DropSlot, dropEdge, dragging",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "끌리는 원래 자리는 opacity-40으로 남기고, 다른 줄이 비켜 주는 애니메이션으로 놓일 자리를 보여 줘요. 이동 값은 style 속성 대신 레이아웃 이펙트에서 DOM에 직접 넣어요(style={{}} 금지 규칙)"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "접힐 때 끌던 제목을 커서 아래에 다시 맞추고, 놓을 자리를 다시 재기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code> (<code>CollapseAnchor</code>)"
+                ],
+                [
+                  "결정",
+                  "보정은 Dashboard의 CollapseAnchor 한 곳으로 옮겼어요. 스크롤로 못 맞추면(페이지 맨 위) 목록 위에 빈 공간을 넣어 제목을 커서 아래에 둬요"
+                ],
+                [
+                  "결정",
+                  "MeasuringStrategy.Always만으로는 접힌 뒤 위치를 다시 재지 않아서, 접힌 직후 measureDroppableContainers를 직접 불러요"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "Props 정리: onDropWorktree · onReorderChange 대신 sortable 여부만 받기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>WorktreePanel.tsx</code> · <code>Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run lint</code> · <code>bun run test</code> 통과, 브라우저에서 위·아래·기능 묶음 넘어 옮기기와 Esc 취소 확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 리뷰 반영",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "다른 기능 묶음이나 부모·자식 사이로는 놓을 자리가 생기지 않게 막기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code> (<code>closestSibling</code>)"
+                ],
+                [
+                  "결정",
+                  "저장 순서가 바뀌어도 화면은 기능 묶음·부모 기준으로 다시 묶여서, 묶음을 넘는 이동은 놓자마자 원래 자리로 돌아갔어요. 같은 묶음·같은 부모 안의 워크트리끼리만 자리를 바꾸게 했어요"
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "매 프레임 모든 패널 위치를 다시 재던 MeasuringStrategy.Always 제거 (접힌 직후 한 번만 잼)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "패널마다 걸던 드래그 감시 대신, 끝날 때 Dashboard에서 한 번만 그 워크트리로 스크롤",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code> · <code>WorktreePanel.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: tsc · lint · 테스트 413개 통과, 브라우저에서 포인터·키보드 이동 재확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 앱에서 본 어긋남 수정",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "스크롤을 내린 채 끌면 페이지가 맨 위로 튀어 제목이 커서에서 벗어나던 문제",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "끄는 동안 목록 아래에 화면 높이만큼 빈 공간을 둬서, 접힌 뒤에도 스크롤로 제목을 커서 아래에 맞출 수 있게 했어요"
+                ],
+                [
+                  "결정",
+                  "라이브러리의 레이아웃 변화 보정(layoutShiftCompensation)이 우리 보정과 겹쳐 16px 더 밀어서 껐어요"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "놓은 뒤 패널이 펼쳐질 때 화면이 크게 움직이던 문제",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code> · <code>WorktreePanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "놓은 자리의 제목 높이를 기억했다가 펼친 뒤 그 높이로 스크롤을 맞춰요. 놓을 때 날아가는 애니메이션(dropAnimation)과 순서가 바뀐 뒤의 이동 애니메이션(animateLayoutChanges)은 접힘·펼침과 엇갈려서 껐어요"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: tsc · lint · 테스트 413개, 스크롤 내린 상태에서 끌기·놓기 브라우저 측정, 앱 재설치",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "ask",
+      "summary": "PR 여부 확인 대기",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "SOT 맵을 쓰지 않는 작업이라 해당 없어요. base만 현재 커밋으로 맞췄어요"
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "서버·기획에 넘길 것 없어요"
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "리뷰 8건 중 4건 반영(묶음 넘는 이동 차단, 매 프레임 측정 제거, 패널별 드래그 감시 제거, 들여쓰기). 이동 값을 DOM에 직접 쓰는 방식은 style 속성 금지 규칙 때문에 유지했어요. 접근성 역할·키보드 좌표·복제본 들여쓰기 지적은 크리티컬하지 않고 브라우저 확인에서 문제가 없어 넘겼어요"
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "tsc · lint · bun run test(413개) 통과"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "워크트리 제목을 끌어 순서를 바꿀 때, 패널이 접히면서 커서와 끌던 항목·놓을 자리가 어긋나지 않게 한다",
+      "state": "confirmed",
+      "basis": "사용자 요청 (2026-11-13 대화)"
+    }
+  ],
+  "base": "7f91711"
+}

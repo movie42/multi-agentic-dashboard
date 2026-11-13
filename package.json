@@ -22,6 +22,9 @@
     "test:contract": "vitest run --project contract"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@shikijs/core": "3.23.0",
     "@shikijs/engine-oniguruma": "3.23.0",
     "@shikijs/langs": "3.23.0",

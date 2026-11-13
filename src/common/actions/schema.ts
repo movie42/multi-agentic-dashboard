@@ -32,6 +32,8 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
     terminalHandle: z.string(),
     text: z.string().max(MAX_PROMPT).refine((value) => value.trim().length > 0),
   }),
+  z.object({ type: z.literal("toggle-voice"), terminalHandle: z.string() }),
+  z.object({ type: z.literal("read-voice"), terminalHandle: z.string() }),
   z.object({ type: z.literal("choose-option"), terminalHandle: z.string(), option: z.number().int().min(1).max(9) }),
   z.object({ type: z.literal("launch-agent"), worktreePath: absolutePath, prompt: z.string().max(MAX_PROMPT) }),
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
@@ -43,5 +45,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
 
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionResponse = { ok: true } | { ok: false; error: string };
+export type VoiceToggleResponse = { ok: true; recording: boolean } | { ok: false; error: string };
+export type VoiceReadResponse = { ok: true; recording: boolean; transcript: string } | { ok: false; error: string };
 export type FolderPickResponse = { ok: true; path: string | null } | { ok: false; error: string };
 export type AttachmentResponse = { ok: true; path: string } | { ok: false; error: string };

@@ -6,6 +6,8 @@ import { toastError } from "@/client/shared/model/toastStore";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 import { useDraft } from "@/client/shared/lib/useDraft";
+import { useVoice } from "../model/useVoice";
+import { VoiceButton } from "./VoiceButton";
 
 type SendResult = { kind: "idle"; id: number } | { kind: "sent"; id: number } | { kind: "error"; id: number; message: string };
 type SendStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string };
@@ -20,6 +22,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
   const [text, setText] = useDraft(`quick-reply-draft:${terminalHandle}`);
   const [dismissedId, setDismissedId] = useState(0);
   const attachments = useAttachments("quick-reply");
+  const voice = useVoice(terminalHandle);
 
   const [result, dispatch, sending] = useActionState(async (previous: SendResult, message: string): Promise<SendResult> => {
     const id = previous.id + 1;
@@ -82,8 +85,19 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
         }`}
       >
         <AttachmentList attachments={attachments.list} onRemove={attachments.remove} />
+        {voice.recording && (
+          <p aria-live="polite" className="text-[13px] leading-relaxed whitespace-pre-wrap text-muted">
+            {voice.transcript || "듣고 있어요…"}
+          </p>
+        )}
         <div className="flex items-end gap-2">
           <AttachButton onFiles={addFiles} />
+          <VoiceButton
+            recording={voice.recording}
+            pending={voice.pending}
+            disabled={text.length > 0 || sending}
+            onToggle={voice.toggle}
+          />
           <textarea
             data-quick-reply
             autoFocus={autoFocus}

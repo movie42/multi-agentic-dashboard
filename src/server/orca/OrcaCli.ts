@@ -46,8 +46,19 @@ export class OrcaCli {
   ) {}
 
   async readScreen(handle: string): Promise<string[]> {
+    return (await this.readTerminal(handle)).lines;
+  }
+
+  async readTerminal(handle: string): Promise<{ lines: string[]; draft: string }> {
     const result = await this.run(["terminal", "read", "--terminal", handle, "--screen"], terminalReadSchema);
-    return result.terminal.tail.map((line) => line.replace(/\s+$/, ""));
+    return {
+      lines: result.terminal.tail.map((line) => line.replace(/\s+$/, "")),
+      draft: result.terminal.draft ?? "",
+    };
+  }
+
+  async type(handle: string, text: string): Promise<void> {
+    await this.run(["terminal", "send", "--terminal", handle, "--text", text]);
   }
 
   async run(args: string[], timeoutMs?: number): Promise<unknown>;

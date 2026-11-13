@@ -1,6 +1,8 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS as DndCSS } from "@dnd-kit/utilities";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
@@ -36,10 +38,8 @@ interface WorktreePanelProps {
   /** Open terminals of every session in this worktree, orchestrated workers included. */
   terminalHandles: string[];
   onAction: (action: ActionRequest) => Promise<void>;
-  onDropWorktree?: (draggedId: string, placeAfter: boolean) => void;
   /** While a worktree is being dragged, every panel collapses to its heading row. */
   reordering: boolean;
-  onReorderChange: (reordering: boolean) => void;
   /** Whether this worktree is in the project view's worktree focus. */
   focused: boolean;
   onToggleFocus: () => void;
@@ -59,14 +59,6 @@ interface WorktreeAction {
   disabled?: boolean;
   danger?: boolean;
   run: () => void;
-}
-
-const WORKTREE_DRAG_TYPE = "application/x-agent-control-worktree";
-
-type DropEdge = "before" | "after";
-
-function DropSlot() {
-  return <div aria-hidden className="col-span-full h-11 rounded-md border border-dashed border-focus bg-tint" />;
 }
 
 const INDENT = ["", "pl-3.5", "pl-7"] as const;
@@ -103,9 +95,7 @@ export function WorktreePanel({
   childLinks,
   terminalHandles,
   onAction,
-  onDropWorktree,
   reordering,
-  onReorderChange,
   focused,
   onToggleFocus,
 }: WorktreePanelProps) {
@@ -119,21 +109,15 @@ export function WorktreePanel({
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
-  const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const headingTopBeforeCollapse = useRef<number | null>(null);
-  // Collapsing the panels shrinks the page; keep the dragged heading under the cursor.
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: worktree.worktreeId, animateLayoutChanges: () => false });
+  const sectionRef = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
-    const before = headingTopBeforeCollapse.current;
-    if (!reordering || before === null || !headingRef.current) return;
-    headingTopBeforeCollapse.current = null;
-    window.scrollBy(0, headingRef.current.getBoundingClientRect().top - before);
-  }, [reordering]);
-  const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-  };
+    const section = sectionRef.current;
+    if (!section) return;
+    section.style.transform = DndCSS.Translate.toString(transform) ?? "";
+    section.style.transition = transition ?? "";
+  }, [transform, transition]);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
   const sessions = useSessionOrder(worktree.worktreeId, [
@@ -219,38 +203,15 @@ export function WorktreePanel({
 
   return (
     <section
+      ref={(element: HTMLElement | null) => {
+        sectionRef.current = element;
+        setNodeRef(element);
+      }}
       data-jump={worktree.worktreeId}
-      onDragOver={(event: React.DragEvent<HTMLElement>) => {
-        if (
-          !onDropWorktree ||
-          !event.dataTransfer.types.includes(WORKTREE_DRAG_TYPE)
-        )
-          return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        if (!dragging) setDropEdge(edgeOf(event));
-      }}
-      onDragLeave={(event: React.DragEvent<HTMLElement>) => {
-        if (
-          event.relatedTarget instanceof Node &&
-          event.currentTarget.contains(event.relatedTarget)
-        )
-          return;
-        setDropEdge(null);
-      }}
-      onDrop={(event: React.DragEvent<HTMLElement>) => {
-        setDropEdge(null);
-        const draggedId = event.dataTransfer.getData(WORKTREE_DRAG_TYPE);
-        if (!onDropWorktree || !draggedId) return;
-        event.preventDefault();
-        if (draggedId !== worktree.worktreeId)
-          onDropWorktree(draggedId, edgeOf(event) === "after");
-      }}
       className={`grid scroll-mt-6 grid-cols-1 gap-x-6 border-t border-hair ${
         reordering ? "gap-y-2 py-2" : "gap-y-4 pt-6 pb-10 lg:grid-cols-[176px_minmax(0,1fr)]"
-      } ${dragging ? "opacity-40" : ""}`}
+      } ${isDragging ? "opacity-40" : ""}`}
     >
-      {dropEdge === "before" && <DropSlot />}
       <div
         onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
           if (event.target instanceof HTMLElement && event.target.closest("a, input, textarea")) return;
@@ -288,29 +249,14 @@ export function WorktreePanel({
         ) : (
           <div data-reorder-keep className={`flex items-start gap-1 ${indentOf(ancestors.length)}`}>
             <h3
-              ref={headingRef}
-              draggable={onDropWorktree !== undefined}
-              onDragStart={(event: React.DragEvent<HTMLHeadingElement>) => {
-                event.dataTransfer.setData(WORKTREE_DRAG_TYPE, worktree.worktreeId);
-                event.dataTransfer.effectAllowed = "move";
-                setDragging(true);
-                headingTopBeforeCollapse.current = event.currentTarget.getBoundingClientRect().top;
-                // Changing the DOM inside dragstart cancels the drag in Chromium.
-                window.setTimeout(() => onReorderChange(true));
-              }}
-              onDragEnd={() => {
-                setDragging(false);
-                onReorderChange(false);
-                requestAnimationFrame(() => scrollToWorktree(worktree.worktreeId));
-              }}
-              title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
-              className={`group flex min-w-0 flex-1 items-start gap-1 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${
-                onDropWorktree ? "-mx-1.5 cursor-grab rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing" : ""
-              }`}
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              aria-roledescription="끌어서 순서 바꾸기"
+              title="끌어서 워크트리 순서를 바꿔요"
+              className="group -mx-1.5 flex min-w-0 flex-1 cursor-grab touch-none items-start gap-1 rounded-md px-1.5 py-0.5 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all hover:bg-tint active:cursor-grabbing"
             >
-              {onDropWorktree && (
-                <span className="mt-[0.1em] shrink-0 text-faint group-hover:text-muted">{ACTION_ICONS.drag}</span>
-              )}
+              <span className="mt-[0.1em] shrink-0 text-faint group-hover:text-muted">{ACTION_ICONS.drag}</span>
               <span className="min-w-0 flex-1">
                 {ancestors.length > 0 && <Elbow />}
                 {shownName}
@@ -554,7 +500,6 @@ export function WorktreePanel({
           <PendingLaunchRows worktreePath={worktree.path} standalone={listed.length === 0} />
         </div>
       </div>
-      {dropEdge === "after" && <DropSlot />}
     </section>
   );
 }

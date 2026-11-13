@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { actionRequestSchema, type ActionResponse } from "@/common/actions/schema";
+import { actionRequestSchema, type ActionResponse, type VoiceReadResponse, type VoiceToggleResponse } from "@/common/actions/schema";
 import { services } from "@/server/container";
 
 const execFileAsync = promisify(execFile);
@@ -32,6 +32,28 @@ export async function POST(request: Request) {
     });
   }
   const body = parsed.data;
+
+  if (body.type === "toggle-voice") {
+    try {
+      const recording = await services().orca.toggleVoice(body.terminalHandle);
+      return Response.json({ ok: true, recording } satisfies VoiceToggleResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[actions]", body.type, message);
+      return Response.json({ ok: false, error: message } satisfies VoiceToggleResponse, { status: 500 });
+    }
+  }
+
+  if (body.type === "read-voice") {
+    try {
+      const voice = await services().orca.readVoice(body.terminalHandle);
+      return Response.json({ ok: true, ...voice } satisfies VoiceReadResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[actions]", body.type, message);
+      return Response.json({ ok: false, error: message } satisfies VoiceReadResponse, { status: 500 });
+    }
+  }
 
   try {
     if (body.type === "open-artifact") {

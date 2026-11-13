@@ -10,6 +10,7 @@ import type { SessionTitles } from "@/server/sessions/SessionTitles";
 import { nodeExecFile, nodeFileSystem } from "@/server/shared/ports";
 import type { Reporters, WorkflowServices } from "@/server/workflow/services";
 import { BoardService } from "./BoardService";
+import { readVoice, toggleVoice } from "./voice";
 import { importProject, type ProjectKind } from "./importProject";
 import { DEFAULT_ORCA_BIN, OrcaCli } from "./OrcaCli";
 import { OrcaRuntime, type ProcessPort } from "./OrcaRuntime";
@@ -21,6 +22,8 @@ export interface OrcaServices {
   orphans: OrphanReattacher;
   board: BoardService;
   importProject: (folder: string) => Promise<ProjectKind>;
+  toggleVoice: (terminalHandle: string) => Promise<boolean>;
+  readVoice: (terminalHandle: string) => Promise<{ recording: boolean; transcript: string }>;
 }
 
 export const ORCA_BIN = process.env.ORCA_BIN ?? DEFAULT_ORCA_BIN;
@@ -65,5 +68,8 @@ export function createOrcaServices({ warn }: Reporters, deps: OrcaDeps): OrcaSer
     fs: nodeFileSystem,
     warn,
   });
-  return { cli, runtime, orphans, board, importProject: (folder) => importProject(cli, folder) };
+  return { cli, runtime, orphans, board, importProject: (folder) => importProject(cli, folder),
+    toggleVoice: (terminalHandle) => toggleVoice(cli, terminalHandle),
+    readVoice: (terminalHandle) => readVoice(cli, terminalHandle),
+  };
 }

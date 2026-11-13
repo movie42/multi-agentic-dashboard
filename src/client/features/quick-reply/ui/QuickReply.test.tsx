@@ -5,7 +5,7 @@ import { postAction } from "@/client/shared/api/actions";
 import { useToastStore } from "@/client/shared/model/toastStore";
 import { QuickReply } from "./QuickReply";
 
-vi.mock("@/client/shared/api/actions", () => ({ postAction: vi.fn(), uploadAttachment: vi.fn() }));
+vi.mock("@/client/shared/api/actions", () => ({ postAction: vi.fn(), uploadAttachment: vi.fn(), toggleVoice: vi.fn(), readVoice: vi.fn() }));
 
 const post = vi.mocked(postAction);
 
