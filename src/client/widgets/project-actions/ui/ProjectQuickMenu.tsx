@@ -5,6 +5,7 @@ import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import type { WorktreeWizard } from "@/client/features/create-worktree";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { WorktreeSummary } from "@/common/orca/types";
@@ -15,53 +16,6 @@ const PICK_LABEL: Record<PickAction, string> = {
   session: "새 세션을 띄울 워크트리",
   terminal: "터미널을 열 워크트리",
   diff: "변경을 읽을 워크트리",
-};
-
-interface IconProps {
-  children: React.ReactNode;
-}
-
-function Icon({ children }: IconProps) {
-  return (
-    <svg aria-hidden viewBox="0 0 20 20" className="size-[18px] fill-none stroke-current" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
-}
-
-const ICONS = {
-  graph: (
-    <Icon>
-      <circle cx="5" cy="4.5" r="1.8" />
-      <circle cx="5" cy="15.5" r="1.8" />
-      <circle cx="14.5" cy="8" r="1.8" />
-      <path d="M5 6.3v7.4M14.5 9.8c0 3-3 3.2-9.5 4" />
-    </Icon>
-  ),
-  diff: (
-    <Icon>
-      <rect x="3.5" y="2.5" width="13" height="15" rx="2" />
-      <path d="M7 7h6M10 4.8v4.4M7 13.5h6" />
-    </Icon>
-  ),
-  worktree: (
-    <Icon>
-      <path d="M2.5 6.5a2 2 0 0 1 2-2h3l1.6 1.8h6.4a2 2 0 0 1 2 2v6.7a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z" />
-      <path d="M10 9.5v4M8 11.5h4" />
-    </Icon>
-  ),
-  session: (
-    <Icon>
-      <path d="M3.5 5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v6.5a2 2 0 0 1-2 2H9l-3.5 3v-3a2 2 0 0 1-2-2z" />
-      <path d="M10 5.8v5M7.5 8.3h5" />
-    </Icon>
-  ),
-  terminal: (
-    <Icon>
-      <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
-      <path d="m6 8 2.5 2L6 12M10.5 12.5h3.5" />
-    </Icon>
-  ),
 };
 
 const MENU_WIDTH = 320;
@@ -136,7 +90,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
             <>
               <MenuHeading>이 프로젝트에서 · 워크트리가 필요한 항목은 다음에 골라요</MenuHeading>
               <MenuItem
-                icon={ICONS.session}
+                icon={ACTION_ICONS.session}
                 description="워크트리에 빈 에이전트 세션을 띄워요"
                 hint={worktrees.length > 1 ? "워크트리 고르기 →" : undefined}
                 onSelect={() => pick("session")}
@@ -144,7 +98,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
                 새 세션
               </MenuItem>
               <MenuItem
-                icon={ICONS.worktree}
+                icon={ACTION_ICONS.worktree}
                 description="기본 브랜치에서 새 작업 폴더를 만들어요"
                 onSelect={() => {
                   close();
@@ -155,7 +109,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
               </MenuItem>
               <MenuSeparator />
               <MenuItem
-                icon={ICONS.graph}
+                icon={ACTION_ICONS.graph}
                 description="모든 브랜치와 워크트리의 커밋 흐름을 새 창에서 봐요"
                 onSelect={() => {
                   close();
@@ -165,7 +119,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
                 깃 그래프
               </MenuItem>
               <MenuItem
-                icon={ICONS.diff}
+                icon={ACTION_ICONS.diff}
                 description="갈라진 지점 이후 바뀐 코드를 새 창에서 읽어요"
                 hint={worktrees.length > 1 ? "워크트리 고르기 →" : undefined}
                 onSelect={() => pick("diff")}
@@ -173,7 +127,7 @@ export function ProjectQuickMenu({ worktrees, terminalOf, onAction, wizard }: Pr
                 변경 읽기
               </MenuItem>
               <MenuItem
-                icon={ICONS.terminal}
+                icon={ACTION_ICONS.terminal}
                 description="Orca 앱의 터미널로 이동해요"
                 hint={worktrees.length > 1 ? "워크트리 고르기 →" : undefined}
                 onSelect={() => pick("terminal")}

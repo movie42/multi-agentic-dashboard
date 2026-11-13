@@ -16,6 +16,7 @@ import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
+import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { useSessionOrder } from "../model/useSessionOrder";
 
@@ -215,9 +216,7 @@ export function WorktreePanel({
             onClick={() => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" })}
             className="mt-[0.1em] shrink-0 cursor-pointer rounded-md p-0.5 text-faint hover:bg-tint-2 hover:text-fg"
           >
-            <svg aria-hidden viewBox="0 0 16 16" className="size-4 fill-none stroke-current" strokeWidth={1.6} strokeLinecap="round">
-              <path d="M8 3v10M3 8h10" />
-            </svg>
+            {ACTION_ICONS.session}
           </button>
           <button
             type="button"
@@ -310,6 +309,7 @@ export function WorktreePanel({
               <>
                 <MenuHeading>{worktree.name} 워크트리에서</MenuHeading>
                 <MenuItem
+                  icon={ACTION_ICONS.session}
                   description="이 워크트리에 빈 에이전트 세션을 띄워요"
                   onSelect={() => {
                     closeMenu();
@@ -319,6 +319,7 @@ export function WorktreePanel({
                   새 세션
                 </MenuItem>
                 <MenuItem
+                  icon={ACTION_ICONS.terminal}
                   description={terminalHandle ? "에이전트가 돌고 있는 Orca 터미널로 가요" : "이 워크트리에 Orca 터미널을 새로 열어요"}
                   onSelect={() => {
                     closeMenu();
@@ -328,6 +329,7 @@ export function WorktreePanel({
                   터미널로
                 </MenuItem>
                 <MenuItem
+                  icon={ACTION_ICONS.diff}
                   description="갈라진 지점 이후 바뀐 코드를 새 창에서 읽어요"
                   onSelect={() => {
                     closeMenu();
@@ -337,6 +339,7 @@ export function WorktreePanel({
                   변경 읽기
                 </MenuItem>
                 <MenuItem
+                  icon={ACTION_ICONS.graph}
                   description="이 워크트리를 기준으로 커밋 흐름을 새 창에서 봐요"
                   onSelect={() => {
                     closeMenu();
@@ -346,6 +349,7 @@ export function WorktreePanel({
                   깃 그래프
                 </MenuItem>
                 <MenuItem
+                  icon={ACTION_ICONS.worktree}
                   description="이 브랜치에서 갈라지는 새 작업 폴더를 만들어요"
                   disabled={wizard.busy}
                   onSelect={() => {
