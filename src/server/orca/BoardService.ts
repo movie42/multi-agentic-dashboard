@@ -116,6 +116,7 @@ export class BoardService {
         summary,
         agents,
         taskFeatureDocs: flow.current.map((task) => task.featureDoc),
+        docsHere,
         featureDocs: [...flow.current, ...flow.other]
           .map((task) => task.featureDoc)
           .filter((doc): doc is string => Boolean(doc))
@@ -134,9 +135,10 @@ export class BoardService {
       await workflow.featureDocs.load(new Set(perWorktree.flatMap((entry) => entry.featureDocs))),
       repoOfPath,
     );
-    const worktrees: WorktreeSummary[] = perWorktree.map(({ summary, taskFeatureDocs }) => ({
+    const worktrees: WorktreeSummary[] = perWorktree.map(({ summary, taskFeatureDocs, docsHere }) => ({
       ...summary,
-      featureId: featureOfWorktree(features, summary.repo, summary.path, summary.branch, taskFeatureDocs)?.id ?? null,
+      featureId:
+        featureOfWorktree(features, summary.repo, summary.path, summary.branch, taskFeatureDocs, docsHere)?.id ?? null,
     }));
     const agents: AgentCard[] = perWorktree.flatMap((entry) => entry.agents);
 

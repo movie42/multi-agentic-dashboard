@@ -1,0 +1,503 @@
+{
+  "id": "git-graph",
+  "title": "워크트리 깃 그래프 창",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "now",
+      "summary": "구현 끝 · 앱 확인 대기",
+      "conclusion": [
+        "워크트리 왼쪽 버튼 줄의 '깃 그래프'를 누르면 새 창(/graph)이 열려요 [[P3-3]].",
+        "모든 브랜치의 커밋 300개를 색 있는 선과 점으로 그리고, '커밋 더 보기'로 300개씩 더 불러요. 다른 워크트리가 쓰는 브랜치 칩에는 ⎇ 표시가 붙어요 [[P2]] [[P3-1]].",
+        "커밋을 누르면 오른쪽에 메시지 · 작성자 · 부모 · 바뀐 파일이 떠요. 병합 커밋은 첫 번째 부모와 비교해요 [[P3-2]].",
+        "줄을 우클릭하면 로컬 브랜치 전환, 원격 브랜치를 받아 전환, 그 커밋에서 새 브랜치 만들기를 할 수 있어요. 커밋 안 한 변경이 있으면 막아요 [[P4]].",
+        "그래프 창 아래 '에이전트에게 말하기'로 이 워크트리의 세션에 메시지를 보내거나 새 세션을 띄울 수 있어요. 우클릭으로 커밋을 붙이면 메시지 앞에 커밋 정보가 들어가요 [[P5]].",
+        "임시 저장소에서 그래프 모양, 상세 패널, 전환, 변경 있을 때 막힘을 헤드리스 브라우저로 확인했어요 [[P4-V]].",
+        "그래프에서 띄운 세션은 대화창이 자동으로 따라가서, 대화 기록을 보며 그래프에서 계속 대화할 수 있어요 [[P5-4]].",
+        "그래프 맨 위에 '커밋 안 한 변경 N개' 줄이 생겨, 누르면 파일 목록과 파일별 diff를 볼 수 있어요 [[P6]].",
+        "깃 그래프는 레포 단위로 열리고 창 상단에서 기준 워크트리를 고르며, 프로젝트 상단 아이콘 덱과 워크트리 ⋯ 메뉴에서 열 수 있어요 [[P7]]."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 서버: 커밋 목록 읽기",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "그래프 응답 타입 (커밋 · 부모 · ref · HEAD)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/gitGraph/types.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/common/intentDiff/types.ts</code>의 <code>{ ok, result } | { ok:false, error }</code> 응답 모양"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "<code>git log --all --topo-order</code> 출력을 파싱하는 리더 (구분자 <code>%x00</code>, <code>--skip</code>으로 페이지)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/gitGraph/readGraph.ts</code> · <code>readGraph.test.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/server/intentDiff/gitDiff.ts</code>의 <code>git -C</code> 실행 방식"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "커밋 하나의 바뀐 파일 목록 (<code>git show --name-status</code>)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/gitGraph/readCommit.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "API 라우트 두 개",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/git-graph/route.ts</code> · <code>app/api/git-graph/commit/route.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>app/api/intent-diff/route.ts</code>"
+                ],
+                [
+                  "결정",
+                  "라우트는 lint 규칙대로 <code>services().gitGraph</code>를 거쳐 호출"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 파서 테스트(병합 · 루트 커밋 · ref 여러 개) <code>bun run test</code> 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 선 배치 계산",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "커밋 목록 → 줄마다 점의 칸 번호와 위아래로 이어지는 선 목록을 계산하는 순수 함수 (갈라짐 · 합쳐짐 · 칸 재사용)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/git-graph/model/layout.ts</code> · <code>layout.test.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "없음 — 새로 작성"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 직선 · 분기 · 병합 · 문어 병합 케이스 테스트 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "줄마다 SVG 한 조각으로 선과 점을 그리는 그래프 목록 + ref 칩",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/git-graph/ui/GitGraph.tsx</code> · <code>GraphRow.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "색은 기존 토큰(<code>--now</code> <code>--ask</code> <code>--pr</code> 등)을 칸 번호로 돌려 씀"
+                ],
+                [
+                  "결정",
+                  "브랜치 칩 prop 이름을 <code>gitRef</code>로 두면 React Compiler가 ref로 오인해서 <code>decoration</code>으로 씀"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "커밋 상세 패널 (메시지 · 파일 목록)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/git-graph/ui/CommitDetail.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "React Query <code>queryOptions</code> 패턴 (<code>intentDiffQuery.ts</code>)"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "/graph 페이지 · 워크트리 버튼 · 데스크톱 창 허용",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/graph/page.tsx</code> · <code>src/client/views/graph/</code> · <code>WorktreePanel.tsx</code> · <code>desktop/main.mjs</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>app/diff/page.tsx</code> · <code>intentDiffHref</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · lint · test 통과, 이 저장소로 /graph를 열어 그래프 확인",
+              "done": true,
+              "rows": [],
+              "by": "inferred"
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 브랜치 전환",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "그래프 응답에 워크트리별 체크아웃 브랜치(<code>git worktree list --porcelain</code>)와 이 워크트리의 커밋 안 한 변경 수(<code>git status --porcelain</code>)를 함께 담음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/gitGraph/readGraph.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "전환 API — 세 가지: 로컬 브랜치(<code>git switch <b></code>), 원격 브랜치(<code>git switch --track origin/<b></code>), 커밋에서 새 브랜치(<code>git switch -c <name> <sha></code>). 변경이 남아 있으면 거절, 브랜치 이름은 <code>git check-ref-format</code>으로 검사",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/gitGraph/switchBranch.ts</code> · <code>switchBranch.test.ts</code> · <code>app/api/git-graph/switch/route.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/server/security/origin.ts</code> (POST 출처 검사는 <code>proxy.ts</code>가 이미 함)"
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "그래프 우클릭 메뉴와 확인 창 — 이 워크트리에 작업 중인 세션이 있으면 확인 창에 경고 한 줄",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/git-graph/ui/GraphMenu.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "session-menu에서 만든 메뉴 컴포넌트를 쓰려면 위치 이동이 필요해서, 두 번째 사용처가 생기는 이 시점에 <code>src/client/shared/ui/</code>로 옮김"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 전환 테스트(변경 있음 거절 · 다른 워크트리 브랜치 거절 · 잘못된 이름 거절) 통과, 임시 저장소에서 앱으로 전환 확인",
+              "done": true,
+              "rows": [],
+              "by": "inferred"
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 그래프에서 에이전트에게 말하기",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "그래프 창 아래 대화창 — 이 워크트리의 세션을 골라 보내거나, 세션이 없으면 새 세션을 띄움. 고른 세션의 상태와 마지막 답을 보여 줌",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/git-graph/ui/AgentComposer.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>send-prompt</code> · <code>launch-agent</code> 액션, <code>useDraft</code>, <code>StateBadge</code>"
+                ],
+                [
+                  "결정",
+                  "첨부 파일 기능은 넣지 않음 — 커밋 참조가 목적이라서"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "우클릭 메뉴 '에이전트에게 이 커밋으로 말하기' — 대화창을 열고 커밋을 칩으로 붙임. 보낼 때 커밋 SHA · 제목 · 브랜치를 메시지 앞에 붙임",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>GraphMenu.tsx</code> · <code>GitGraphView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-3",
+              "title": "대화창이 열려 있으면 보드를 3초마다, 작업 중인 세션이 있으면 그래프를 10초마다 새로 읽음 — 에이전트가 만든 커밋이 그래프에 바로 보이게",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>GitGraphView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-4",
+              "title": "그래프에서 띄운 세션을 대화창이 자동으로 따라가고, 대화 기록을 채팅처럼 보여 줌. 그래프에서 띄운 세션은 ◆ 표시와 함께 목록 맨 위에 오고, 창을 다시 열어도 기억함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>AgentComposer.tsx</code> · <code>SessionConversation.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>conversationQueryOptions</code> · <code>useStoredList</code> · <code>Markdown</code>"
+                ],
+                [
+                  "결정",
+                  "<code>launch-agent</code>가 새 세션 id를 돌려주지 않아서, 띄우기 직전 세션 id 목록에 없던 첫 세션을 그 세션으로 봄"
+                ],
+                [
+                  "결정",
+                  "<code>Markdown</code>을 두 번째 사용처가 생겨 <code>src/client/shared/ui/</code>로 옮김"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: <code>AgentComposer.test.tsx</code> 통과, 임시 저장소에서 대화창 · 커밋 칩 표시 확인 (실제 전송은 Orca 세션이 필요해서 앱에서 확인)",
+              "done": true,
+              "rows": [],
+              "by": "inferred"
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 커밋 안 한 변경",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "<code>git status --porcelain=v1 -z</code> 파서와 파일별 diff (HEAD 기준, 새 파일은 전부 추가로)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/gitGraph/readWorkingTree.ts</code> · <code>readWorkingTree.test.ts</code> · <code>app/api/git-graph/working/</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "그래프 맨 위에 HEAD에 점선으로 이어진 '커밋 안 한 변경 N개' 줄. 누르면 오른쪽에 충돌 · 스테이징됨 · 수정됨 · 새 파일로 나눈 목록, 파일을 누르면 diff",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>GraphRow.tsx</code> · <code>WorkingTreeDetail.tsx</code> · <code>GitGraphView.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "5초마다 새로 읽고, 브랜치 전환을 막는 기준도 이 값(새 파일 제외)을 씀"
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: 파서 · 실제 저장소 테스트 통과, 임시 저장소에서 줄 · 목록 · diff 표시 확인",
+              "done": true,
+              "rows": [],
+              "by": "inferred"
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P7",
+          "title": "Phase 7 · 레포 단위 그래프 · 프로젝트 빠른 메뉴",
+          "items": [
+            {
+              "id": "P7-1",
+              "title": "그래프 응답에 레포의 워크트리 목록을 담고, 창 상단에 '기준 워크트리' 선택을 둠. 각 워크트리가 체크아웃한 커밋에 ⌂ 칩, 누르면 기준이 바뀜",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/gitGraph/git.ts</code> · <code>GitGraphView.tsx</code> · <code>GraphRow.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "워크트리들은 커밋과 브랜치를 공유해서 그래프 모양은 같고, 커밋 안 한 변경 · 전환 · 대화창만 기준 워크트리를 따름"
+                ],
+                [
+                  "결정",
+                  "기준을 바꾸면 주소의 <code>path</code>를 <code>history.replaceState</code>로 따라 바꿈 — 화면 상태가 원본"
+                ]
+              ]
+            },
+            {
+              "id": "P7-2",
+              "title": "프로젝트 제목 줄 오른쪽 '빠른 메뉴' 버튼 — 누르면 새 세션 · 새 워크트리 · 깃 그래프 · 변경 읽기 · 터미널이 한 줄 설명과 함께 뜸. 워크트리가 필요한 항목은 다음 단계에서 워크트리를 고름",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-actions/ui/ProjectQuickMenu.tsx</code> · <code>Dashboard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "처음엔 제목 아래 아이콘 덱으로 늘 펼쳐 뒀다가, 사용자 피드백으로 버튼을 눌러 여는 메뉴로 바꿈"
+                ],
+                [
+                  "결정",
+                  "기존 '새 워크트리' 버튼(<code>ProjectWorktreeWizard</code>)은 메뉴로 옮기고 지움"
+                ]
+              ]
+            },
+            {
+              "id": "P7-3",
+              "title": "워크트리 패널의 버튼 줄(새 세션 · 터미널로 · 변경 읽기 · 깃 그래프 · 여기서 워크트리)과 '세션 모두 닫기' 링크를 지우고, 이름 옆 ⋯ 버튼과 왼쪽 칸 우클릭 메뉴로 옮김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>WorktreePanel.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>ContextMenu</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P7-4",
+              "done": true,
+              "title": "프로젝트 화면 정리 — 제목 줄 오른쪽 빠른 메뉴, '워크트리 N개' 머리줄 오른쪽 거르기 칸. 메뉴 맨 위에 어디에 작용하는지 적고 항목마다 한 줄 설명",
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code> · <code>WorktreePanel.tsx</code> · <code>src/client/shared/ui/ContextMenu.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "레이아웃 세 안 중 사용자가 '역할별 3단'을 고름"
+                ],
+                [
+                  "결정",
+                  "프로젝트 화면의 새 세션 입력 상자(<code>LaunchAgent</code>)는 사용자 요청으로 지움 — 새 세션은 빠른 메뉴 · 워크트리 ⋯ 메뉴에서. 홈 화면 입력 상자는 그대로"
+                ],
+                [
+                  "결정",
+                  "빠른 메뉴는 높이 0인 <code>sticky top-4</code> 줄에 둬서, 처음엔 제목 옆에 있다가 스크롤하면 화면 위에 붙음"
+                ]
+              ]
+            },
+            {
+              "id": "P7-V",
+              "title": "검증: 실제 보드에서 덱 · ⋯ 메뉴 항목 확인, 임시 저장소에서 기준 워크트리 전환 확인. <code>bun run test</code> 통과",
+              "done": true,
+              "rows": [],
+              "by": "inferred"
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "wait",
+      "summary": "리뷰 전",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": false
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": false
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": false
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": false
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "브랜치가 어디서 갈라지고 합쳐졌는지 보려면 지금은 GitLens · Fork 같은 다른 도구를 열어야 해요. 워크트리 화면에서 바로 커밋 그래프를 보게 해요.",
+      "state": "guess",
+      "basis": "사용자 요청"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { parseMessage } from "@/client/shared/lib/message";
-import { Markdown } from "./Markdown";
+import { Markdown } from "@/client/shared/ui/Markdown";
 import { SlackCopyButton } from "./SlackCopyButton";
 
 interface MessageViewProps {

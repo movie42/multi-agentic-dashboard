@@ -1,0 +1,235 @@
+{
+  "id": "session-menu",
+  "title": "에이전트 목록 우클릭 메뉴 · 세션 전체 닫기",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "now",
+      "summary": "앱 확인 대기",
+      "conclusion": [
+        "홈(내 차례 · 작업 중 · 쉬는 중)과 프로젝트 화면의 에이전트 줄을 우클릭하면 커서 위치에 메뉴가 떠요 [[P2]].",
+        "메뉴의 '세션 닫기'는 확인 없이 바로 닫고, '이 목록 세션 모두 닫기'는 메뉴 안에서 한 번 확인한 뒤 닫아요 [[P2-2]] [[P2-3]].",
+        "'모두 닫기'는 터미널이 열린 세션만 대상으로 하고, 오케스트레이션 작업 세션도 포함해요. 실패한 개수는 토스트로 알려요 [[P1-2]].",
+        "워크트리 단위 '세션 모두 닫기'는 처음에 버튼으로 넣었다가, 워크트리 이름 옆 ⋯ · 우클릭 메뉴 안으로 옮겼어요 [[P3]] [[git-graph#P7-3]]."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 여러 세션 닫기 액션",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "여러 터미널을 한 번에 닫는 액션 스키마",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "기존 <code>close-terminal</code> 옆에 <code>close-terminals</code>(handle 배열, 1~50개)"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "서버에서 병렬로 닫고 실패 개수를 에러로 돌려줌",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/actions/route.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>services().orca.cli.run</code> · <code>Promise.allSettled</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>src/common/actions/schema.test.ts</code>에 새 액션 케이스 추가 후 <code>bun run test</code> 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 우클릭 메뉴",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "커서 위치에 뜨는 메뉴 컴포넌트 (바깥 클릭 · Esc · 스크롤로 닫힘, 화면 밖으로 넘치면 안쪽으로 당김)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-list/ui/AgentContextMenu.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>ColumnMenu.tsx</code>의 전체 화면 오버레이 + <code>role=\"menu\"</code> 스타일"
+                ],
+                [
+                  "결정",
+                  "메뉴 위치는 <code>--menu-x</code>/<code>--menu-y</code> CSS 변수를 ref로 설정해 Tailwind <code>left-(--menu-x)</code>로 씀 — <code>style={{}}</code> 금지 규칙 때문"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "AgentRow에 <code>onContextMenu</code> 연결 — 펼치기/접기 · 답장 · 이어가기 · 이동 · 세션 닫기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-list/ui/AgentList.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "카드의 <code>focus-terminal</code> / <code>close-terminal</code> 액션"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "'이 목록 세션 모두 닫기' — 메뉴 안에서 한 번 확인 후 실행",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>AgentList.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "Phase 1의 <code>close-terminals</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-4",
+              "title": "Dashboard · ProjectView에서 <code>onAction</code>을 AgentList로 넘김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code> — 홈 세 목록과 ProjectView 모두"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>AgentList.test.tsx</code> — 우클릭 시 메뉴, 세션 닫기 클릭 시 액션 호출. <code>bun run test</code> · <code>bunx tsc --noEmit</code> · lint 통과",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-list/ui/AgentList.test.tsx</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 워크트리 '세션 모두 닫기' 버튼",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "WorktreePanel 버튼 줄에 버튼 추가, 인라인 확인(“N개 세션을 닫을까요?”) 후 실행",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>AgentCardView</code>의 닫기 확인 UI · <code>PendingButton</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "작업 세션까지 포함하도록 ProjectView가 handle 목록을 계산해 넘김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>Dashboard.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>agents.workersOf</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bun run desktop</code> 후 앱에서 우클릭 메뉴와 버튼으로 세션이 닫히는지 확인",
+              "done": false,
+              "rows": []
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "wait",
+      "summary": "리뷰 전",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": false
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": false
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": false
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": false
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "세션을 닫으려면 줄을 펼치고 카드 맨 아래 '세션 닫기' → '닫기'를 눌러야 해서, 여러 세션을 정리하기가 번거로워요.",
+      "state": "guess",
+      "basis": "사용자 요청"
+    }
+  ]
+}

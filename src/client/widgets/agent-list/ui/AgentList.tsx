@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/orca/types";
 import { StateBadge } from "@/client/entities/agent";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 import { QuickReply } from "@/client/features/quick-reply";
 import { BookmarkMark, bookmarkTarget } from "@/client/features/bookmark-session";
+import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 
 interface AgentListProps {
   agents: AgentCard[];
@@ -17,6 +19,7 @@ interface AgentListProps {
   onJump?: (agent: AgentCard) => void;
   workersOf?: (agent: AgentCard) => AgentCard[];
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
+  onAction?: (action: ActionRequest) => Promise<void>;
 }
 
 const SESSION_DRAG_TYPE = "application/x-agent-control-session";
@@ -36,7 +39,20 @@ function GripIcon() {
   );
 }
 
-export function AgentList({ agents, now, showRepo, renderCard, expandedId = null, onJump, workersOf, onReorder }: AgentListProps) {
+export function AgentList({
+  agents,
+  now,
+  showRepo,
+  renderCard,
+  expandedId = null,
+  onJump,
+  workersOf,
+  onReorder,
+  onAction,
+}: AgentListProps) {
+  const listHandles = agents
+    .flatMap((agent) => [agent, ...(workersOf?.(agent) ?? [])])
+    .flatMap((agent) => (agent.terminalHandle ? [agent.terminalHandle] : []));
   return (
     <ul className="border-t border-hair">
       {agents.map((agent) => (
@@ -50,6 +66,8 @@ export function AgentList({ agents, now, showRepo, renderCard, expandedId = null
           onJump={onJump}
           workers={workersOf?.(agent) ?? []}
           onReorder={onReorder}
+          onAction={onAction}
+          listHandles={listHandles}
         />
       ))}
     </ul>
@@ -65,9 +83,26 @@ interface AgentRowProps {
   onJump?: (agent: AgentCard) => void;
   workers: AgentCard[];
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
+  onAction?: (action: ActionRequest) => Promise<void>;
+  listHandles: string[];
 }
 
-function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump, workers, onReorder }: AgentRowProps) {
+type MenuState = { at: MenuPoint; confirmingCloseAll: boolean };
+
+function AgentRow({
+  agent,
+  now,
+  showRepo,
+  renderCard,
+  initiallyExpanded,
+  onJump,
+  workers,
+  onReorder,
+  onAction,
+  listHandles,
+}: AgentRowProps) {
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const closeMenu = () => setMenu(null);
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
   const edgeOf = (event: React.DragEvent<HTMLElement>): DropEdge => {
@@ -104,7 +139,13 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump,
       }}
       className={`scroll-mt-6 border-b border-hair ${dropEdge ? DROP_EDGE_CLASS[dropEdge] : ""}`}
     >
-      <div className="group flex items-center gap-2 hover:bg-tint">
+      <div
+        onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
+          event.preventDefault();
+          setMenu({ at: { x: event.clientX, y: event.clientY }, confirmingCloseAll: false });
+        }}
+        className={`group flex items-center gap-2 hover:bg-tint ${menu ? "bg-tint" : ""}`}
+      >
         {onReorder && (
           <span
             draggable
@@ -175,6 +216,90 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump,
           </button>
         )}
       </div>
+      {menu && (
+        <ContextMenu at={menu.at} label={`${agent.session?.title ?? agent.worktreeName} 세션 메뉴`} onClose={closeMenu}>
+          {menu.confirmingCloseAll && onAction ? (
+            <div className="flex flex-col gap-2 p-2">
+              <p>이 목록의 세션 {listHandles.length}개를 닫을까요?</p>
+              <p className="text-[12px] text-muted">세션 기록은 남아서 세션 목록에서 다시 열 수 있어요.</p>
+              <div className="flex justify-end gap-1.5">
+                <MenuItem onSelect={closeMenu}>취소</MenuItem>
+                <MenuItem
+                  tone="danger"
+                  onSelect={() => {
+                    closeMenu();
+                    void onAction({ type: "close-terminals", terminalHandles: listHandles });
+                  }}
+                >
+                  모두 닫기
+                </MenuItem>
+              </div>
+            </div>
+          ) : (
+            <>
+              <MenuItem
+                onSelect={() => {
+                  closeMenu();
+                  setExpanded(!expanded);
+                }}
+              >
+                {expanded ? "접기" : "펼치기"}
+              </MenuItem>
+              {terminalHandle && !expanded && (
+                <MenuItem
+                  onSelect={() => {
+                    closeMenu();
+                    setReplying(true);
+                  }}
+                >
+                  답장
+                </MenuItem>
+              )}
+              {terminalHandle && onAction && (
+                <MenuItem
+                  onSelect={() => {
+                    closeMenu();
+                    void onAction({ type: "focus-terminal", terminalHandle });
+                  }}
+                >
+                  Orca에서 이어가기
+                </MenuItem>
+              )}
+              {onJump && (
+                <MenuItem
+                  onSelect={() => {
+                    closeMenu();
+                    onJump(agent);
+                  }}
+                >
+                  프로젝트 화면에서 열기
+                </MenuItem>
+              )}
+              {onAction && (terminalHandle || listHandles.length > 0) && <MenuSeparator />}
+              {terminalHandle && onAction && (
+                <MenuItem
+                  tone="danger"
+                  onSelect={() => {
+                    closeMenu();
+                    void onAction({ type: "close-terminal", terminalHandle });
+                  }}
+                >
+                  세션 닫기
+                </MenuItem>
+              )}
+              {onAction && listHandles.length > 0 && (
+                <MenuItem
+                  tone="danger"
+                  hint={`${listHandles.length}개`}
+                  onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
+                >
+                  이 목록 세션 모두 닫기
+                </MenuItem>
+              )}
+            </>
+          )}
+        </ContextMenu>
+      )}
       {terminalHandle && replying && !expanded && (
         <div className="pb-3">
           <QuickReply terminalHandle={terminalHandle} working={working} autoFocus />
@@ -183,7 +308,7 @@ function AgentRow({ agent, now, showRepo, renderCard, initiallyExpanded, onJump,
       {expanded && <div className="pb-4">{renderCard(agent)}</div>}
       {expanded && workers.length > 0 && (
         <div className="mb-4 ml-6">
-          <AgentList agents={workers} now={now} showRepo={showRepo} renderCard={renderCard} />
+          <AgentList agents={workers} now={now} showRepo={showRepo} renderCard={renderCard} onAction={onAction} />
         </div>
       )}
     </li>

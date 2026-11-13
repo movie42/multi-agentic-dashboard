@@ -43,11 +43,20 @@ export function featureOfWorktree(
   worktreePath: string,
   branch: string | null,
   taskFeatureDocs: (string | null)[],
+  docsHere: string[] = [],
 ): FeatureSummary | null {
   const sameRepo = features.filter((feature) => feature.repo === null || feature.repo === repo);
   const byRow = sameRepo.find((feature) =>
     feature.rows.some((row) => row.worktree === worktreePath || (branch !== null && row.branch === branch)),
   );
   if (byRow) return byRow;
-  return sameRepo.find((feature) => taskFeatureDocs.includes(feature.docPath)) ?? null;
+  const byTask = sameRepo.find((feature) => taskFeatureDocs.includes(feature.docPath));
+  if (byTask) return byTask;
+  // A drafted feature document has no row branch or worktree until `flow.py start` runs, so it
+  // can only be tied to the checkout it was written in.
+  return sameRepo.find((feature) => isDraftFeature(feature) && docsHere.includes(feature.docPath)) ?? null;
+}
+
+function isDraftFeature(feature: FeatureSummary): boolean {
+  return feature.rows.every((row) => row.branch === null && row.worktree === null);
 }

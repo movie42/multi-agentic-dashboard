@@ -72,6 +72,9 @@ function openHandler({ url }) {
   if (pathname === "/diff") {
     return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, width: 1440, height: 960, title: "변경 읽기" } };
   }
+  if (pathname === "/graph") {
+    return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, width: 1440, height: 960, title: "깃 그래프" } };
+  }
   // Size and position come from the window.open features of a tab dragged out of the doc panel.
   if (pathname === "/doc") {
     return { action: "allow", overrideBrowserWindowOptions: { minWidth: 480, minHeight: 400, title: "문서" } };

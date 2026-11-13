@@ -35,7 +35,8 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs } from "@/client/entities/workspace";
 import { WorktreePanel, type WorktreeLink } from "@/client/widgets/worktree-panel";
-import { ProjectWorktreeWizard } from "@/client/features/create-worktree";
+import { ProjectQuickMenu } from "@/client/widgets/project-actions";
+import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "@/client/widgets/doc-panel";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -467,6 +468,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                       renderCard={withProgressCard}
                       onJump={jumpToAgent}
                       workersOf={visibleFold.workersOf}
+                      onAction={runAction}
                     />
                   )}
                 </Section>
@@ -485,6 +487,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                       renderCard={withProgressCard}
                       onJump={jumpToAgent}
                       workersOf={visibleFold.workersOf}
+                      onAction={runAction}
                     />
                   </Section>
                 )}
@@ -503,6 +506,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                       renderCard={withProgressCard}
                       onJump={jumpToAgent}
                       workersOf={visibleFold.workersOf}
+                      onAction={runAction}
                     />
                   </Section>
                 )}
@@ -576,6 +580,10 @@ function ProjectView({
 }: ProjectViewProps) {
   const [query, setQuery] = useState("");
   const [storedOrder, writeOrder] = useStoredList(worktreeOrderKey(repo));
+  const wizardAnchor = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0];
+  const wizard = useWorktreeWizard(
+    wizardAnchor ? wizardOrigin(wizardAnchor, false) : { repoId: "", repo, anchorPath: "", from: null },
+  );
   const needle = query.trim().toLowerCase();
 
   const rank = new Map(storedOrder.map((id, index) => [id, index]));
@@ -648,10 +656,26 @@ function ProjectView({
     (a, b) => Number(a.feature === null) - Number(b.feature === null),
   );
   const hasFeatures = sections.some((section) => section.feature !== null);
+  const terminalHandlesOf = (worktree: WorktreeSummary) =>
+    agents.top
+      .filter((agent) => agent.worktreeId === worktree.worktreeId)
+      .flatMap((agent) => [agent, ...agents.workersOf(agent)])
+      .flatMap((agent) => (agent.terminalHandle ? [agent.terminalHandle] : []));
 
   return (
     <>
-      <header>
+      {/* Zero-height and pulled up over main's gap, so the menu sits beside the title and then sticks while scrolling. */}
+      <div className="sticky top-4 z-30 -mb-16 flex h-0 justify-end">
+        <div className="mt-1">
+          <ProjectQuickMenu
+            worktrees={worktrees}
+            terminalOf={(worktree) => terminalHandlesOf(worktree)[0] ?? null}
+            onAction={onAction}
+            wizard={wizard}
+          />
+        </div>
+      </div>
+      <header className="pr-36">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h1 className="text-[36px] leading-[1.15] font-bold tracking-[-0.025em]">
             {repo}
@@ -659,30 +683,30 @@ function ProjectView({
           <FocusToggle active={focused} onToggle={onToggleFocus} />
         </div>
         <p className="mt-2.5 text-[13px] text-muted">
-          worktree {worktrees.length}개 ·{" "}
           {mode === "company" ? "회사 워크플로" : "개인 워크플로"}
         </p>
-        {worktrees[0] && <ProjectWorktreeWizard key={repo} anchor={worktrees[0]} />}
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <input
-            type="search"
-            value={query}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setQuery(event.target.value)
-            }
-            placeholder="이 화면 거르기 · 워크트리, 브랜치, 작업, 요청, 답변"
-            className={SEARCH_INPUT_CLASS}
-          />
-          {needle && (
-            <span className="text-[12px] text-muted">
-              에이전트 {visibleTop.length} · worktree {visibleWorktrees.length}
-            </span>
-          )}
-        </div>
-        <div className="mt-4">
-          <LaunchAgent key={repo} worktrees={worktrees} showRepo={false} draftKey={repo} />
+        <div className="mt-3 empty:hidden">
+          <WorktreeWizardPanel wizard={wizard} />
         </div>
       </header>
+      <div className="-mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[15px] font-semibold">
+          워크트리 {worktrees.length}개
+          {needle && (
+            <span className="ml-2 text-[12px] font-normal text-muted">
+              거른 결과 · 워크트리 {visibleWorktrees.length} · 세션 {visibleTop.length}
+            </span>
+          )}
+        </h2>
+        <input
+          type="search"
+          aria-label="워크트리와 세션 거르기"
+          value={query}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
+          placeholder="워크트리 · 브랜치 · 작업 · 요청 · 답변 거르기"
+          className={`${SEARCH_INPUT_CLASS} sm:w-80`}
+        />
+      </div>
       {needle && visibleWorktrees.length === 0 && (
         <p className="text-[15px] text-muted">거른 결과가 없어요.</p>
       )}
@@ -718,10 +742,12 @@ function ProjectView({
                   renderCard={renderCard}
                   expandedId={expandedId}
                   workersOf={agents.workersOf}
+                  onAction={onAction}
                 />
               )}
               ancestors={ancestors}
               childLinks={children.map(linkOf)}
+              terminalHandles={terminalHandlesOf(worktree)}
               onAction={onAction}
               onDropWorktree={(draggedId, placeAfter) =>
                 moveWorktree(draggedId, worktree.worktreeId, placeAfter)

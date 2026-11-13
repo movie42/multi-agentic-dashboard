@@ -27,6 +27,10 @@ import { TodoAgent } from "./todos/TodoAgent";
 import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
 import { TodoStore } from "./todos/TodoStore";
 import { UsageReader } from "./usage/UsageReader";
+import { readCommit } from "./gitGraph/readCommit";
+import { readGraph } from "./gitGraph/readGraph";
+import { switchBranch } from "./gitGraph/switchBranch";
+import { readWorkingDiff, readWorkingTree } from "./gitGraph/readWorkingTree";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
 
@@ -58,6 +62,13 @@ export interface Services {
   usage: UsageReader;
   docs: DocServer;
   flowAnswers: FlowAnswerStore;
+  gitGraph: {
+    readGraph: typeof readGraph;
+    readCommit: typeof readCommit;
+    switchBranch: typeof switchBranch;
+    readWorkingTree: typeof readWorkingTree;
+    readWorkingDiff: typeof readWorkingDiff;
+  };
 }
 
 function createServices(): Services {
@@ -106,6 +117,7 @@ function createServices(): Services {
     usage: new UsageReader(),
     docs,
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
+    gitGraph: { readGraph, readCommit, switchBranch, readWorkingTree, readWorkingDiff },
   };
 }
 

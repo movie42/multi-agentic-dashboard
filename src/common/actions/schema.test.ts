@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionRequestSchema, MAX_PROMPT } from "./schema";
+import { actionRequestSchema, MAX_CLOSE_TERMINALS, MAX_PROMPT } from "./schema";
 
 const SESSION = "0b8c1a7e-1234-4abc-8def-0123456789ab";
 const ok = (value: unknown) => actionRequestSchema.safeParse(value).success;
@@ -22,6 +22,9 @@ describe("actionRequestSchema", () => {
     [{ type: "answer-permission", requestId: "r", answer: { behavior: "allow", suggestionIndex: 0.5 } }, false],
     [{ type: "answer-permission", requestId: "r", answer: { behavior: "answer", answers: { q: "a" } } }, true],
     [{ type: "open-artifact", target: "/f", via: "browser", worktreePath: "/w" }, false],
+    [{ type: "close-terminals", terminalHandles: ["a", "b"] }, true],
+    [{ type: "close-terminals", terminalHandles: [] }, false],
+    [{ type: "close-terminals", terminalHandles: Array.from({ length: MAX_CLOSE_TERMINALS + 1 }, (_, i) => `t${i}`) }, false],
     [{ type: "unknown" }, false],
     [null, false],
   ])("%j → %s", (value, expected) => {

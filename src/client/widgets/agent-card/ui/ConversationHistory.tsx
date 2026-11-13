@@ -6,7 +6,7 @@ import type { ConversationTurn } from "@/common/sessions/types";
 import { conversationQueryOptions } from "@/client/entities/session";
 import { formatClock } from "@/client/shared/lib/format";
 import { StatusLine } from "@/client/shared/ui/StatusLine";
-import { Markdown } from "./Markdown";
+import { Markdown } from "@/client/shared/ui/Markdown";
 import { SlackCopyButton } from "./SlackCopyButton";
 
 interface TurnRowProps {

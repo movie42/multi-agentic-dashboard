@@ -49,6 +49,12 @@ export async function POST(request: Request) {
       await services().orca.runtime.bringForward();
     } else if (body.type === "close-terminal") {
       await services().orca.cli.run(["terminal", "close", "--terminal", body.terminalHandle]);
+    } else if (body.type === "close-terminals") {
+      const results = await Promise.allSettled(
+        body.terminalHandles.map((handle) => services().orca.cli.run(["terminal", "close", "--terminal", handle])),
+      );
+      const failed = results.filter((result) => result.status === "rejected").length;
+      if (failed > 0) throw new Error(`세션 ${body.terminalHandles.length}개 중 ${failed}개를 닫지 못했어요`);
     } else if (body.type === "send-prompt") {
       await services().orca.cli.run([
         "terminal",

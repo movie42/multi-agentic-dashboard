@@ -61,4 +61,12 @@ describe("featureOfWorktree", () => {
     expect(featureOfWorktree([byDoc], "repo", "/w", "feat/z", ["/doc/x.json"])?.id).toBe("doc");
     expect(featureOfWorktree([byDoc], "repo", "/w", "feat/z", [])).toBeNull();
   });
+
+  it("ties a drafted feature document with no row branches to the worktree that holds it", () => {
+    const draft = feature({ id: "draft", docPath: "/w/docs/features/draft/feature.json", rows: [toFeatureRow({ id: "r1" }, 0)] });
+    const started = feature({ id: "started", docPath: "/w/docs/features/started/feature.json", rows: [toFeatureRow({ branch: "feat/b" }, 0)] });
+    expect(featureOfWorktree([draft], "repo", "/w", "feat/a", [], [draft.docPath])?.id).toBe("draft");
+    expect(featureOfWorktree([draft], "repo", "/other", "feat/a", [], [])).toBeNull();
+    expect(featureOfWorktree([started], "repo", "/w", "feat/a", [], [started.docPath])).toBeNull();
+  });
 });

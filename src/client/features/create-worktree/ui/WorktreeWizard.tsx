@@ -285,28 +285,3 @@ export function WorktreeWizardPanel({ wizard }: WorktreeWizardPanelProps) {
     </div>
   );
 }
-
-interface ProjectWorktreeWizardProps {
-  /** Any worktree of the project; only its repo and checkout are used. */
-  anchor: WorktreeSummary;
-}
-
-export function ProjectWorktreeWizard({ anchor }: ProjectWorktreeWizardProps) {
-  const wizard = useWorktreeWizard(wizardOrigin(anchor, false));
-  return (
-    <div className="mt-3 flex flex-col gap-3">
-      <button
-        type="button"
-        onClick={wizard.open}
-        disabled={wizard.busy}
-        aria-busy={wizard.busy}
-        title="에이전트가 어떤 작업인지 묻고 기본 브랜치에서 새 워크트리를 만들어요"
-        className="inline-flex items-center gap-1.5 self-start rounded-full border border-hair px-3 py-1 text-[13px] hover:bg-tint disabled:cursor-progress disabled:text-muted"
-      >
-        {wizard.busy && <Spinner />}
-        새 워크트리
-      </button>
-      <WorktreeWizardPanel wizard={wizard} />
-    </div>
-  );
-}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/orca/types";
@@ -14,8 +15,7 @@ import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
-import { PendingButton } from "@/client/shared/ui/PendingButton";
-import { Spinner } from "@/client/shared/ui/Spinner";
+import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { useSessionOrder } from "../model/useSessionOrder";
 
 interface WorktreePanelProps {
@@ -29,6 +29,8 @@ interface WorktreePanelProps {
   ) => React.ReactNode;
   ancestors: WorktreeLink[];
   childLinks: WorktreeLink[];
+  /** Open terminals of every session in this worktree, orchestrated workers included. */
+  terminalHandles: string[];
   onAction: (action: ActionRequest) => Promise<void>;
   onDropWorktree?: (draggedId: string, placeAfter: boolean) => void;
 }
@@ -95,9 +97,13 @@ export function WorktreePanel({
   renderAgents,
   ancestors,
   childLinks,
+  terminalHandles,
   onAction,
   onDropWorktree,
 }: WorktreePanelProps) {
+  const [menu, setMenu] = useState<{ at: MenuPoint; confirmingCloseAll: boolean } | null>(null);
+  const closeMenu = () => setMenu(null);
+  const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
@@ -165,7 +171,14 @@ export function WorktreePanel({
         dropEdge ? DROP_EDGE_CLASS[dropEdge] : ""
       }`}
     >
-      <div className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
+      <div
+        onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
+          if (event.target instanceof HTMLElement && event.target.closest("a, input, textarea")) return;
+          event.preventDefault();
+          openMenu({ x: event.clientX, y: event.clientY });
+        }}
+        className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto"
+      >
         {ancestors.map((ancestor, depth) => (
           <button
             key={ancestor.worktreeId}
@@ -185,17 +198,28 @@ export function WorktreePanel({
             event.dataTransfer.effectAllowed = "move";
           }}
           title={onDropWorktree ? "끌어서 워크트리 순서를 바꿔요" : undefined}
-          className={`group text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)} ${
-            onDropWorktree
-              ? "-mx-1.5 flex cursor-grab items-start gap-1 rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing"
-              : ""
+          className={`group flex items-start gap-1 text-[17px] leading-[1.35] font-bold tracking-[-0.01em] break-all ${indentOf(ancestors.length)} ${
+            onDropWorktree ? "-mx-1.5 cursor-grab rounded-md px-1.5 py-0.5 hover:bg-tint active:cursor-grabbing" : ""
           }`}
         >
           {onDropWorktree && <GripIcon />}
-          <span className="min-w-0">
+          <span className="min-w-0 flex-1">
             {ancestors.length > 0 && <Elbow />}
             {worktree.name}
           </span>
+          <button
+            type="button"
+            aria-label={`${worktree.name} 워크트리 메뉴`}
+            aria-expanded={menu !== null}
+            title="워크트리 메뉴 · 우클릭으로도 열려요"
+            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              openMenu({ x: rect.left, y: rect.bottom + 4 });
+            }}
+            className="shrink-0 cursor-pointer rounded-md px-1 text-[17px] leading-none font-normal text-faint hover:bg-tint-2 hover:text-fg"
+          >
+            ⋯
+          </button>
         </h3>
         {worktree.branch && worktree.branch !== worktree.name && (
           <p className="mt-1 font-mono text-[12px] break-all text-muted">
@@ -250,54 +274,92 @@ export function WorktreePanel({
               )}
             </p>
           )}
-        <p className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
-          <PendingButton
-            onRun={() =>
-              onAction({
-                type: "launch-agent",
-                worktreePath: worktree.path,
-                prompt: "",
-              })
-            }
-            pendingLabel="여는 중"
-            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:text-muted"
-          >
-            새 세션
-          </PendingButton>
-          <PendingButton
-            onRun={toTerminal}
-            pendingLabel="여는 중"
-            title={
-              terminalHandle
-                ? "에이전트 터미널로 이동해요"
-                : "이 워크트리에 새 터미널을 열어요"
-            }
-            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:text-muted"
-          >
-            터미널로
-          </PendingButton>
-          <a
-            href={intentDiffHref({ worktreePath: worktree.path })}
-            target="_blank"
-            rel="noreferrer"
-            title="분기점 이후 변경을 계획 항목 → 의도 순서로 새 창에서 읽어요"
-            className="rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint"
-          >
-            변경 읽기
-          </a>
-          <button
-            type="button"
-            onClick={wizard.open}
-            disabled={wizard.busy}
-            aria-busy={wizard.busy}
-            title="에이전트가 어떤 작업인지 묻고, 이 브랜치에서 새 워크트리를 만들어요"
-            className="inline-flex items-center gap-1.5 rounded-full border border-hair px-2.5 py-0.5 hover:bg-tint disabled:cursor-progress disabled:text-muted"
-          >
-            {wizard.busy && <Spinner />}
-            여기서 워크트리
-          </button>
-        </p>
         <RemoveWorktree worktree={worktree} sessionCount={all.length} />
+        {menu && (
+          <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-72">
+            {menu.confirmingCloseAll ? (
+              <div className="flex flex-col gap-2 p-2">
+                <p>이 워크트리의 세션 {terminalHandles.length}개를 닫을까요?</p>
+                <p className="text-[12px] text-muted">세션 기록은 남아서 세션 목록에서 다시 열 수 있어요.</p>
+                <div className="flex justify-end gap-1.5">
+                  <MenuItem onSelect={closeMenu}>취소</MenuItem>
+                  <MenuItem
+                    tone="danger"
+                    onSelect={() => {
+                      closeMenu();
+                      void onAction({ type: "close-terminals", terminalHandles });
+                    }}
+                  >
+                    모두 닫기
+                  </MenuItem>
+                </div>
+              </div>
+            ) : (
+              <>
+                <MenuHeading>{worktree.name} 워크트리에서</MenuHeading>
+                <MenuItem
+                  description="이 워크트리에 빈 에이전트 세션을 띄워요"
+                  onSelect={() => {
+                    closeMenu();
+                    void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" });
+                  }}
+                >
+                  새 세션
+                </MenuItem>
+                <MenuItem
+                  description={terminalHandle ? "에이전트가 돌고 있는 Orca 터미널로 가요" : "이 워크트리에 Orca 터미널을 새로 열어요"}
+                  onSelect={() => {
+                    closeMenu();
+                    void toTerminal();
+                  }}
+                >
+                  터미널로
+                </MenuItem>
+                <MenuItem
+                  description="갈라진 지점 이후 바뀐 코드를 새 창에서 읽어요"
+                  onSelect={() => {
+                    closeMenu();
+                    window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener");
+                  }}
+                >
+                  변경 읽기
+                </MenuItem>
+                <MenuItem
+                  description="이 워크트리를 기준으로 커밋 흐름을 새 창에서 봐요"
+                  onSelect={() => {
+                    closeMenu();
+                    window.open(gitGraphHref(worktree.path), "_blank", "noopener");
+                  }}
+                >
+                  깃 그래프
+                </MenuItem>
+                <MenuItem
+                  description="이 브랜치에서 갈라지는 새 작업 폴더를 만들어요"
+                  disabled={wizard.busy}
+                  onSelect={() => {
+                    closeMenu();
+                    wizard.open();
+                  }}
+                >
+                  여기서 워크트리 만들기
+                </MenuItem>
+                {terminalHandles.length > 0 && (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem
+                      tone="danger"
+                      description="기록은 세션 목록에 남아요"
+                      hint={`${terminalHandles.length}개`}
+                      onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
+                    >
+                      세션 모두 닫기
+                    </MenuItem>
+                  </>
+                )}
+              </>
+            )}
+          </ContextMenu>
+        )}
         {childLinks.length > 0 && (
           <div className="mt-4 text-[13px]">
             <p

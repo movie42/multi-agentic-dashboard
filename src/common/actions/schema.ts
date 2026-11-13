@@ -3,6 +3,7 @@ import { permissionAnswerSchema } from "../permissions/schema";
 import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits";
 
 export const MAX_PROMPT = 8000;
+export const MAX_CLOSE_TERMINALS = 50;
 
 const absolutePath = z.string().refine((value) => value.startsWith("/"), "absolute path required");
 const sessionId = z.string().regex(SESSION_ID);
@@ -15,6 +16,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("open-artifact"), target: z.string(), via: z.enum(["system", "orca"]), worktreePath: z.string() }),
   z.object({ type: z.literal("focus-terminal"), terminalHandle: z.string() }),
   z.object({ type: z.literal("close-terminal"), terminalHandle: z.string() }),
+  z.object({ type: z.literal("close-terminals"), terminalHandles: z.array(z.string()).min(1).max(MAX_CLOSE_TERMINALS) }),
   z.object({ type: z.literal("resume-session"), sessionId, cwd: absolutePath, title: z.string() }),
   z.object({ type: z.literal("rename-session"), sessionId, title }),
   z.object({
