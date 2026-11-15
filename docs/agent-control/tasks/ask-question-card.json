@@ -40,7 +40,7 @@
                 ],
                 [
                   "실패 커밋",
-                  "<code>9475b46</code>"
+                  "<code>c98d970</code>"
                 ]
               ]
             },
@@ -197,6 +197,28 @@
               ]
             }
           ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 리뷰 지적 수정",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "읽을 수 없는 질문은 붙잡지 않고 터미널로 넘기기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/permissions.ts</code> · <code>daemon/session/permissionQuestions.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "질문 형식이 깨진 AskUserQuestion에 일반 허용 버튼이 떠서, 누르면 답 없이 통과되던 경로를 막았다."
+                ]
+              ]
+            }
+          ]
         }
       ]
     },
@@ -240,7 +262,7 @@
               "rows": [
                 [
                   "결정",
-                  "질문 형식을 읽을 수 없는 AskUserQuestion은 붙잡지 않고 터미널로 넘긴다. 일반 허용 버튼으로 답 없이 통과되던 경로를 막았다(<code>daemon/session/permissionQuestions.test.ts</code>). 브랜치를 바꿀 수 없어 이 수정은 feat/session-restore에 들어갔다."
+                  "질문 형식을 읽을 수 없는 AskUserQuestion은 붙잡지 않고 터미널로 넘긴다. 일반 허용 버튼으로 답 없이 통과되던 경로를 막았다(<code>daemon/session/permissionQuestions.test.ts</code>)."
                 ],
                 [
                   "결정",
