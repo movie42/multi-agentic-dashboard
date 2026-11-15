@@ -1,0 +1,137 @@
+{
+  "id": "session-restore",
+  "title": "데몬을 다시 띄워도 열려 있던 세션 다시 열기",
+  "type": "기능 개발",
+  "branch": "feat/session-restore",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "now",
+      "summary": "Phase 1–2 완료 · 실제 재시작 대기",
+      "conclusion": [
+        "데몬이 열린 세션 목록(ID · 폴더 · 종류 · 프롬프트 여부 · 시작 시각)을 ~/.local/share/agent-control/sessions.json에 적어 둬요.",
+        "데몬이 켜지면 이 목록을 읽어 다시 열어요. 대화가 있는 Claude 세션은 --resume으로 같은 ID에 이어 열고, 셸과 빈 Claude 세션은 같은 폴더에 새로 열어요.",
+        "종료 신호로 꺼질 때는 목록을 지우지 않아요. 사용자가 닫거나 스스로 끝난 세션만 목록에서 빠져요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 목록 형식과 복원 요청",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "저장할 세션 목록과 복원 요청을 만드는 순수 함수",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/restore.ts</code> · <code>daemon/session/restore.test.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "읽은 JSON은 <code>permissionInputOf</code>처럼 한 칸씩 검사하고, 틀린 항목은 버려요"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bunx vitest run daemon/session/restore.test.ts</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 데몬 연결",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "SessionRegistry가 복원 요청을 원래 시작 시각으로 띄우기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code> · <code>daemon/session/SessionRegistry.test.ts</code>"
+                ],
+                [
+                  "이유",
+                  "세션 탭 순서가 시작 시각(<code>startedAt</code>) 순이라, 다시 열어도 탭 순서가 그대로여야 해요"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "데몬 시작 시 목록 읽어 다시 열기 · 바뀔 때마다 적기 · 종료 중에는 적지 않기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/main.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>saveUsage</code>의 임시 파일 → rename 쓰기"
+                ],
+                [
+                  "결정",
+                  "파일은 목록 내용이 실제로 바뀔 때만 다시 쓰고, 쓰기는 하나씩 줄 세워서 늦게 시작한 쓰기가 먼저 끝나 옛 목록이 남는 일을 막는다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>NODE_ENV=test bun run test</code> · <code>bunx tsc --noEmit</code> · 바꾼 파일 eslint",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "테스트 499개 · 타입 검사 통과. 포트 3299에 가짜 claude로 띄운 데몬에서 세션 2개 → 종료 → 재시작을 해 보니, Claude 세션은 같은 ID로 --resume, 셸은 같은 폴더에 새로 열렸고 시작 시각도 그대로였다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 실제 재시작",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "지금 돌고 있는 옛 데몬의 세션 목록을 파일로 한 번 옮겨 적기",
+              "done": false,
+              "rows": [
+                [
+                  "이유",
+                  "옛 데몬은 목록을 남기지 않아서, 이번 재시작만 GET /sessions 결과로 파일을 만들어요"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: 데몬을 다시 띄운 뒤 세션들이 같은 탭 순서로 다시 열리고 대화가 이어지는지",
+              "done": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "데몬을 다시 띄워도(코드 반영, 앱 재시작) 열려 있던 Claude · 셸 세션이 같은 자리에 다시 열려서, 사용자가 세션을 하나씩 다시 띄우지 않는다",
+      "state": "confirmed",
+      "basis": "사용자 요청 (2026-11-15 대화)"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "채팅에서 설계(목록 파일 · --resume · 셸은 새로 열기)를 설명하고 '진행해'를 받아 페이지 승인 없이 진행"
+    }
+  ],
+  "base": "04f22c9"
+}

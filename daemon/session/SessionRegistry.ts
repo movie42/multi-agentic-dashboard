@@ -12,6 +12,7 @@ import {
   type PermissionHookOutput,
   type PermissionRequestInput,
 } from "./permissions.ts";
+import type { RestoreRequest } from "./restore.ts";
 import { createHeadlessScreen, type CreateScreen, type Screen } from "./screen.ts";
 import type { StatusLineReport } from "./statusLine.ts";
 import { nextStatus, type StatusSignal } from "./status.ts";
@@ -190,6 +191,23 @@ export class SessionRegistry {
     console.log("[runner] launched", kind, id, cwd, resumeSessionId ? "(resume)" : "");
     this.#changed();
     return entry.session;
+  }
+
+  restore(requests: RestoreRequest[]): RunnerSession[] {
+    const restored = requests.flatMap((request) => {
+      try {
+        const session = this.launch(request.launch);
+        const entry = this.#entries.get(session.id);
+        if (!entry) return [];
+        entry.session = { ...entry.session, startedAt: request.startedAt };
+        return [entry.session];
+      } catch (error) {
+        console.error("[runner] restore failed", request.launch.cwd, error);
+        return [];
+      }
+    });
+    this.#changed();
+    return restored;
   }
 
   attach(id: string, listener: TerminalListener): Attachment | null {

@@ -1,4 +1,4 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import pty from "node-pty";
@@ -7,6 +7,7 @@ import { DEFAULT_ALLOWED_ORIGINS } from "./guard.ts";
 import { createRunnerServer } from "./server.ts";
 import { commandFor } from "./session/command.ts";
 import { SessionRegistry } from "./session/SessionRegistry.ts";
+import { parseSavedSessions, restoreRequestsOf, savedSessionsOf, SESSIONS_FILE } from "./session/restore.ts";
 import { readShellEnv } from "./session/shellEnv.ts";
 
 const port = Number(process.env.RUNNER_PORT ?? RUNNER_PORT);
@@ -22,12 +23,40 @@ const dataDir = process.env.AGENT_CONTROL_DATA_DIR ?? path.join(homedir(), ".loc
 const usageFile = process.env.RUNNER_USAGE_FILE ?? path.join(dataDir, RUNNER_USAGE_FILE);
 const statusLine = { node: process.execPath, script: path.join(import.meta.dirname, "statusline.mjs") };
 
-async function saveUsage(usage: RunnerUsage): Promise<void> {
-  await mkdir(path.dirname(usageFile), { recursive: true });
-  const temporary = `${usageFile}.${process.pid}.${crypto.randomUUID()}.tmp`;
-  await writeFile(temporary, JSON.stringify(usage));
-  await rename(temporary, usageFile);
+const sessionsFile = process.env.RUNNER_SESSIONS_FILE ?? path.join(dataDir, SESSIONS_FILE);
+
+async function writeAtomic(file: string, body: string): Promise<void> {
+  await mkdir(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporary, body);
+  await rename(temporary, file);
 }
+
+async function saveUsage(usage: RunnerUsage): Promise<void> {
+  await writeAtomic(usageFile, JSON.stringify(usage));
+}
+
+async function readSavedSessions(): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(sessionsFile, "utf8"));
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error("[runner] saved sessions unreadable", error);
+    return null;
+  }
+}
+
+const sessionSaver = { stopped: false, last: "", queue: Promise.resolve() };
+
+function saveSessions(sessions: RunnerSession[]): void {
+  if (sessionSaver.stopped) return;
+  const body = JSON.stringify({ sessions: savedSessionsOf(sessions) });
+  if (body === sessionSaver.last) return;
+  sessionSaver.last = body;
+  sessionSaver.queue = sessionSaver.queue
+    .then(() => writeAtomic(sessionsFile, body))
+    .catch((error: unknown) => console.error("[runner] sessions save failed", error));
+}
+
 const shellEnv = await readShellEnv(shell);
 
 function sessionEnv(): Record<string, string> {
@@ -50,19 +79,28 @@ const registry = new SessionRegistry({
 });
 
 const runner = createRunnerServer({ registry, port, allowedOrigins });
-relay.onChange = (sessions) => runner.broadcast({ type: "sessions", sessions });
+relay.onChange = (sessions) => {
+  runner.broadcast({ type: "sessions", sessions });
+  saveSessions(sessions);
+};
 
 runner.server.on("error", (error) => {
   console.error("[runner] server error", error);
   process.exit(1);
 });
 
+const saved = parseSavedSessions(await readSavedSessions());
+
 runner.server.listen(port, "127.0.0.1", () => {
   console.log(`[runner] listening on ${baseUrl} (claude: ${command})`);
+  if (saved.length === 0) return;
+  const restored = registry.restore(restoreRequestsOf(saved));
+  console.log(`[runner] restored ${restored.length}/${saved.length} sessions from ${sessionsFile}`);
 });
 
 function shutdown(signal: string) {
   console.log(`[runner] ${signal} — closing sessions`);
+  sessionSaver.stopped = true;
   registry.closeAll();
   runner.server.close();
   process.exit(0);

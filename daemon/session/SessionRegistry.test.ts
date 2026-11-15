@@ -220,6 +220,26 @@ describe("SessionRegistry", () => {
     expect(registry.report("none", { model: null, contextPercent: null, usage: null })).toBe(false);
   });
 
+  it("reopens saved sessions with their original start time, skipping one that fails to spawn", () => {
+    const { registry, spawn } = setup();
+    spawn.mockImplementationOnce(() => {
+      throw new Error("no such directory");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const restored = registry.restore([
+      { startedAt: 5, launch: { cwd: "/gone", resumeSessionId: "old" } },
+      { startedAt: 10, launch: { cwd: "/repo", resumeSessionId: "talk" } },
+      { startedAt: 20, launch: { cwd: "/repo", kind: "shell" } },
+    ]);
+    expect(restored.map((session) => [session.id, session.kind, session.startedAt])).toEqual([
+      ["talk", "claude", 10],
+      ["s1", "shell", 20],
+    ]);
+    expect(spawn).toHaveBeenLastCalledWith("zsh", [], expect.objectContaining({ cwd: "/repo" }));
+    expect(spawn).toHaveBeenNthCalledWith(2, "claude", ["--resume", "talk"], expect.objectContaining({ cwd: "/repo" }));
+    expect(registry.get("talk")?.prompted).toBe(true);
+  });
+
   it("holds a permission request until the dashboard answers it", async () => {
     const { registry } = setup();
     registry.launch({ cwd: "/repo" });
