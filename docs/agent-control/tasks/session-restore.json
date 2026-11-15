@@ -2,7 +2,7 @@
   "id": "session-restore",
   "title": "데몬을 다시 띄워도 열려 있던 세션 다시 열기",
   "type": "기능 개발",
-  "branch": "feat/session-restore",
+  "branch": "feat/daemon-session-restore",
   "links": [],
   "stages": {
     "tasks": {
@@ -150,21 +150,6 @@
                   "종료 때 저장을 최대 2초 기다린다. 시험용 데몬에서 세션을 연 직후 바로 꺼도 목록 2개가 남고, 재시작 후 파일에도 2개가 그대로 있었다."
                 ]
               ]
-            },
-            {
-              "id": "P4-2",
-              "title": "질문 카드 리뷰 수정이 이 브랜치에 같이 들어감",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>daemon/session/permissions.ts</code> · <code>daemon/session/permissionQuestions.test.ts</code>"
-                ],
-                [
-                  "결정",
-                  "공유 작업 폴더라 fix/ask-question-card로 브랜치를 바꿀 수 없어 이 브랜치에서 고쳤다. 내용은 [[ask-question-card]]의 05에 적었다."
-                ]
-              ]
             }
           ]
         }
@@ -258,5 +243,5 @@
       "why": "채팅에서 설계(목록 파일 · --resume · 셸은 새로 열기)를 설명하고 '진행해'를 받아 페이지 승인 없이 진행"
     }
   ],
-  "base": "04f22c9"
+  "base": "b85c292"
 }
