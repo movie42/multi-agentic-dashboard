@@ -3,7 +3,12 @@
   "title": "데몬을 다시 띄워도 열려 있던 세션 다시 열기",
   "type": "기능 개발",
   "branch": "feat/daemon-session-restore",
-  "links": [],
+  "links": [
+    {
+      "label": "PR",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/8"
+    }
+  ],
   "stages": {
     "tasks": {
       "status": "done",
@@ -28,10 +33,6 @@
                 [
                   "파일",
                   "<code>daemon/session/restore.ts</code> · <code>daemon/session/restore.test.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "읽은 JSON은 <code>permissionInputOf</code>처럼 한 칸씩 검사하고, 틀린 항목은 버려요"
                 ]
               ]
             },
@@ -55,10 +56,6 @@
                 [
                   "파일",
                   "<code>daemon/session/SessionRegistry.ts</code> · <code>daemon/session/SessionRegistry.test.ts</code>"
-                ],
-                [
-                  "이유",
-                  "세션 탭 순서가 시작 시각(<code>startedAt</code>) 순이라, 다시 열어도 탭 순서가 그대로여야 해요"
                 ]
               ]
             },
@@ -70,10 +67,6 @@
                 [
                   "파일",
                   "<code>daemon/main.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>saveUsage</code>의 임시 파일 → rename 쓰기"
                 ],
                 [
                   "결정",
@@ -108,10 +101,6 @@
               "title": "지금 돌고 있는 옛 데몬의 세션 목록을 파일로 한 번 옮겨 적기",
               "done": true,
               "rows": [
-                [
-                  "이유",
-                  "옛 데몬은 목록을 남기지 않아서, 이번 재시작만 GET /sessions 결과로 파일을 만들어요"
-                ],
                 [
                   "결정",
                   "작업 중인 다른 세션의 답이 끊기지 않게, 모든 세션이 작업 중이 아닐 때 목록을 다시 적고 옛 데몬을 끄는 대기 스크립트로 재시작한다. 앱은 새로 빌드해 설치했다."
@@ -156,10 +145,10 @@
       ]
     },
     "done": {
-      "status": "ask",
-      "summary": "D1–D4 완료 · PR 여부 대기",
+      "status": "done",
+      "summary": "완료",
       "conclusion": [
-        "리뷰 지적 3건(종료 직전 저장 · 쓰기 실패 · 복원 중 일부 저장)을 고쳤어요. 나머지 검사는 통과했고, PR 여부만 남았어요."
+        "체인 PR 두 번째로 올렸어요. 실제 재시작에서 세션 5개가 다시 열리는 것을 확인했어요."
       ],
       "blocks": [
         {
@@ -217,7 +206,13 @@
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<a href=\"https://github.com/movie42/multi-agentic-dashboard/pull/8\">https://github.com/movie42/multi-agentic-dashboard/pull/8</a> — 질문 카드 PR 위에 쌓은 체인 PR로 올려 main에 squash 병합한다."
+                ]
+              ]
             }
           ]
         },
@@ -243,5 +238,6 @@
       "why": "채팅에서 설계(목록 파일 · --resume · 셸은 새로 열기)를 설명하고 '진행해'를 받아 페이지 승인 없이 진행"
     }
   ],
-  "base": "b85c292"
+  "base": "b85c292",
+  "pruned": "2026-11-15"
 }
