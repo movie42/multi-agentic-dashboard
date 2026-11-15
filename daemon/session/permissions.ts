@@ -1,4 +1,4 @@
-import { questionsOf } from "../../src/common/runner/questions.ts";
+import { ASK_USER_QUESTION, questionsOf } from "../../src/common/runner/questions.ts";
 import type { RunnerPermission, RunnerPermissionAnswer, RunnerPermissionSuggestion } from "../../src/common/runner/types.ts";
 
 export const PERMISSION_HOLD_MS = 590_000;
@@ -27,6 +27,7 @@ export function permissionInputOf(body: unknown): PermissionRequestInput | null 
   const toolName = raw?.tool_name;
   const toolInput = record(raw?.tool_input);
   if (typeof toolName !== "string" || !toolInput) return null;
+  if (toolName === ASK_USER_QUESTION && questionsOf({ toolName, toolInput }).length === 0) return null;
   const suggestions = Array.isArray(raw?.permission_suggestions)
     ? raw.permission_suggestions.flatMap((item: unknown) => {
         const suggestion = record(item);
