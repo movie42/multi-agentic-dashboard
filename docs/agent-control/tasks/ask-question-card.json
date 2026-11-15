@@ -3,7 +3,12 @@
   "title": "채팅 화면에 Claude 질문(AskUserQuestion) 카드 복원",
   "type": "버그 수정",
   "branch": "fix/ask-question-card",
-  "links": [],
+  "links": [
+    {
+      "label": "PR",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/7"
+    }
+  ],
   "stages": {
     "tasks": {
       "status": "done",
@@ -29,14 +34,6 @@
                 [
                   "테스트",
                   "<code>daemon/session/permissions.test.ts</code>"
-                ],
-                [
-                  "내용",
-                  "permissionInputOf가 AskUserQuestion을 null 대신 요청으로 읽는지, decisionFor가 answer를 updatedInput.answers로 바꾸는지, 묻지 않은 질문 키는 거절하는지, answerOf가 answer 형식을 받는지"
-                ],
-                [
-                  "재사용",
-                  "예전 <code>src/server/permissions/PermissionStore.test.ts</code>(커밋 a8bc768)의 'answers AskUserQuestion only with the asked questions'"
                 ],
                 [
                   "실패 커밋",
@@ -66,14 +63,6 @@
                   "<code>src/common/runner/types.ts</code> · <code>src/common/runner/questions.ts</code> · <code>src/common/actions/schema.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "RunnerPermissionAnswer에 { behavior: \"answer\"; answers: Record&lt;string, string&gt; } 추가, 액션 스키마 answer-permission에 같은 변형 추가"
-                ],
-                [
-                  "재사용",
-                  "질문 타입 UserQuestion · 해석 함수 questionsOf는 예전 <code>src/common/permissions/</code>(커밋 a8bc768)에서 <code>src/common/runner/</code>로 옮겨 와요"
-                ],
-                [
                   "결정",
                   "질문 타입과 해석 함수는 데몬도 실행 중에 불러 써서, 타입만 두는 <code>types.ts</code> 대신 <code>src/common/runner/questions.ts</code>에 두었다."
                 ]
@@ -87,14 +76,6 @@
                 [
                   "파일",
                   "<code>daemon/session/permissions.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "permissionInputOf의 AskUserQuestion 제외 제거, decisionFor에 answer 분기(묻은 질문 키만 허용 → allow + updatedInput), answerOf가 answers를 문자열 맵으로 검증"
-                ],
-                [
-                  "재사용",
-                  "예전 <code>PermissionStore.decisionFor</code>의 answer 분기(커밋 a8bc768)"
                 ]
               ]
             },
@@ -118,14 +99,6 @@
                 [
                   "파일",
                   "<code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "예전 <code>PermissionPanel</code>의 <code>QuestionPermission</code>(커밋 a8bc768): 질문 머리표 · 선택지 버튼 · ☐/☑ 복수 선택 · 직접 입력 · 질문 하나짜리 단일 선택은 누르는 즉시 보내기 · 그 밖에는 '보내기' 버튼"
-                ],
-                [
-                  "패턴",
-                  "기존 useSend(terminalHandle, requestId)로 보내고, 카드 테두리 · 상태 문구는 지금 PermissionPrompt와 같게"
                 ]
               ]
             },
@@ -137,10 +110,6 @@
                 [
                   "파일",
                   "<code>src/client/features/answer-permission/ui/PermissionPrompt.test.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "예전 <code>PermissionPanel.test.tsx</code>(커밋 a8bc768)"
                 ]
               ]
             },
@@ -152,10 +121,6 @@
                 [
                   "결정",
                   "이 세션의 셸에 <code>NODE_ENV=production</code>이 들어 있어 React 테스트 도구가 실패했다. <code>NODE_ENV=test bun run test</code>로 495개 통과."
-                ],
-                [
-                  "주의",
-                  "<code>bun run lint</code>는 이번에 손대지 않은 <code>daemon/session/SessionRegistry.ts</code> 103–104행의 기존 오류 2건으로 실패한다. 바꾼 파일만 돌린 eslint는 통과."
                 ]
               ]
             }
@@ -169,27 +134,13 @@
             {
               "id": "P4-1",
               "title": "chat-ui 결정과 SOT 맵 문구를 지금 동작에 맞추기",
-              "done": true,
-              "rows": [
-                [
-                  "문서",
-                  "<code>docs/agent-control/tasks/chat-ui.json</code>"
-                ],
-                [
-                  "내용",
-                  "chat-ui의 'AskUserQuestion은 터미널에 맡긴다' 결정에 이 작업으로 바뀌었다는 줄을 달았다. screens.json의 X6 행은 이미 질문 카드 동작을 적고 있어 그대로 둔다."
-                ]
-              ]
+              "done": true
             },
             {
               "id": "P4-V",
               "title": "검증: 데몬을 다시 띄운 뒤 새 세션에서 질문을 던지게 해 채팅 카드로 답하기",
               "done": true,
               "rows": [
-                [
-                  "주의",
-                  "데몬을 다시 띄우면 데몬이 들고 있는 세션이 모두 닫혀요. 다시 띄우기 전에 사용자에게 확인해요"
-                ],
                 [
                   "결정",
                   "새 데몬에서 질문을 던지게 한 세션(ec79d360)에 앱 채팅 카드로 직접 입력 답을 보냈고, Claude Code 화면에 'Allowed by PermissionRequest hook'과 받은 답이 찍혔다."
@@ -223,10 +174,10 @@
       ]
     },
     "done": {
-      "status": "ask",
-      "summary": "D1–D4 완료 · PR 여부 대기",
+      "status": "done",
+      "summary": "완료",
       "conclusion": [
-        "리뷰 지적 중 질문 형식이 깨진 경우의 허용 버튼 경로를 막았어요. 나머지 검사는 통과했고, PR 여부만 남았어요."
+        "PR #7로 올렸어요. 질문 카드가 실제 앱에서 Claude Code까지 답을 전달하는 것을 확인했어요."
       ],
       "blocks": [
         {
@@ -284,7 +235,13 @@
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<a href=\"https://github.com/movie42/multi-agentic-dashboard/pull/7\">https://github.com/movie42/multi-agentic-dashboard/pull/7</a> — 체인 PR로 올려 main에 squash 병합한다."
+                ]
+              ]
             }
           ]
         },
@@ -302,5 +259,6 @@
       "state": "confirmed",
       "basis": "사용자 요청 (2026-11-15 대화, A안 선택)"
     }
-  ]
+  ],
+  "pruned": "2026-11-15"
 }
