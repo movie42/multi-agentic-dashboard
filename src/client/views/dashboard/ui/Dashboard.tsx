@@ -392,10 +392,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       />
 
       <main
-        className={`mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 pb-36 md:px-12 ${
+        className={`mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 md:px-12 ${
           selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
             ? "gap-6 pt-8"
-            : "gap-16 pt-14"
+            : "gap-16 pt-14 pb-36"
         }`}
       >
         {prefs.showingSessions ? (
