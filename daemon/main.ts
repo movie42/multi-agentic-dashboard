@@ -16,7 +16,7 @@ const command = process.env.RUNNER_CLAUDE_BIN ?? "claude";
 const allowedOrigins = process.env.RUNNER_ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()) ?? DEFAULT_ALLOWED_ORIGINS;
 
 const DROPPED_ENV =
-  /^(ORCA_|CLAUDECODE$|CLAUDE_PID$|CLAUDE_CODE_(ENTRYPOINT|CHILD_SESSION|SESSION_ID|SESSION_ATTENDED|EXECPATH|MESSAGING_SOCKET|MESSAGING_TOKEN)$)/;
+  /^(ORCA_|NODE_ENV$|CLAUDECODE$|CLAUDE_PID$|CLAUDE_CODE_(ENTRYPOINT|CHILD_SESSION|SESSION_ID|SESSION_ATTENDED|EXECPATH|MESSAGING_SOCKET|MESSAGING_TOKEN)$)/;
 
 const shell = process.env.SHELL ?? "/bin/zsh";
 const dataDir = process.env.AGENT_CONTROL_DATA_DIR ?? path.join(homedir(), ".local", "share", "agent-control");
