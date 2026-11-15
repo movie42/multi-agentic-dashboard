@@ -153,7 +153,7 @@ export function SessionTabs({
 
   return (
     <div data-session-tabs className="flex flex-col">
-      <div className="flex items-end border-b border-hair">
+      <div className="sticky top-[var(--strip-h,0px)] z-20 flex h-[var(--tabs-h,auto)] items-end border-b border-hair bg-bg">
         <ul role="tablist" aria-label="세션" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
           {agents.map((agent) => {
             const terminalHandle = agent.terminalHandle;

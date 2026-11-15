@@ -93,26 +93,47 @@ function ChatRow({ step, copyable }: ChatRowProps) {
   return <TextRow text={step.text} copyable={copyable} />;
 }
 
+export type ChatLayout = "box" | "page";
+
 interface ChatViewProps {
   sessionId: string;
   working: boolean;
+  layout: ChatLayout;
 }
 
-export function ChatView({ sessionId, working }: ChatViewProps) {
+export function ChatView({ sessionId, working, layout }: ChatViewProps) {
   const chat = useQuery(chatQueryOptions(sessionId));
   const steps = chat.data ?? null;
   const listRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   const lastTextId = steps?.findLast((step) => step.kind === "text")?.id ?? null;
 
   useEffect(() => {
+    if (!stickRef.current) return;
+    if (layout === "page") {
+      endRef.current?.scrollIntoView({ block: "end" });
+      return;
+    }
     const list = listRef.current;
-    if (!list || !stickRef.current) return;
+    if (!list) return;
     const bottom = list.scrollHeight - list.clientHeight;
     if (Math.abs(list.scrollTop - bottom) > 1) list.scrollTop = bottom;
-  }, [steps, working]);
+  }, [steps, working, layout]);
+
+  useEffect(() => {
+    if (layout !== "page") return;
+    const onWindowScroll = () => {
+      const end = endRef.current;
+      if (!end) return;
+      stickRef.current = end.getBoundingClientRect().bottom - window.innerHeight < STICK_PX;
+    };
+    window.addEventListener("scroll", onWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onWindowScroll);
+  }, [layout]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    if (layout === "page") return;
     const list = event.currentTarget;
     stickRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < STICK_PX;
   };
@@ -121,7 +142,12 @@ export function ChatView({ sessionId, working }: ChatViewProps) {
   if (!steps) return <p className="text-[12px] text-muted">불러오는 중…</p>;
 
   return (
-    <div ref={listRef} onScroll={onScroll} data-chat className="flex max-h-[36rem] min-h-24 flex-col gap-2 overflow-y-auto pr-1">
+    <div
+      ref={listRef}
+      onScroll={onScroll}
+      data-chat
+      className={`flex min-h-24 flex-col gap-2 pr-1 ${layout === "box" ? "max-h-[36rem] overflow-y-auto" : ""}`}
+    >
       {steps.length === 0 ? (
         <p className="text-[13px] text-muted">아직 대화가 없어요</p>
       ) : (
@@ -137,6 +163,7 @@ export function ChatView({ sessionId, working }: ChatViewProps) {
           작업 중
         </p>
       )}
+      <div ref={endRef} aria-hidden className="scroll-mb-40" />
     </div>
   );
 }

@@ -10,7 +10,9 @@ import type {
   FeatureRowSummary,
   JiraIssueInfo,
   PullRequestInfo,
+  StepStatus,
   WorkflowMode,
+  WorkflowStep,
 } from "@/common/workflow/types";
 import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
@@ -20,6 +22,7 @@ import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { WorktreeNameForm } from "@/client/features/rename-worktree";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { useScrolledPast } from "../model/useScrolledPast";
 import { useSessionOrder } from "../model/useSessionOrder";
 
 interface WorktreePanelProps {
@@ -47,6 +50,23 @@ interface WorktreeAction {
 }
 
 const MENU_WIDTH = 288;
+
+const STRIP_PX = 32;
+
+const STRIP_DOT: Record<StepStatus, string> = {
+  done: "bg-done",
+  now: "bg-now",
+  ask: "bg-ask",
+  wait: "bg-faint",
+  skip: "bg-faint opacity-50",
+};
+
+function currentStepIndex(steps: WorkflowStep[]): number {
+  const active = steps.findIndex((step) => step.status === "now" || step.status === "ask");
+  if (active >= 0) return active;
+  const firstWaiting = steps.findIndex((step) => step.status === "wait");
+  return firstWaiting >= 0 ? firstWaiting : steps.length - 1;
+}
 
 type PanelFilter = "needsMe" | "working";
 
@@ -137,9 +157,45 @@ export function WorktreePanel({
   ];
   const open = (target: string) =>
     onAction({ type: "open-artifact", target });
+  const [markOverviewEnd, overviewHidden] = useScrolledPast<HTMLDivElement>(STRIP_PX);
+  const leadTask = worktree.flowTasks[0] ?? null;
+  const leadSteps = leadTask ? buildSteps(mode, leadTask, pr) : [];
+  const leadIndex = currentStepIndex(leadSteps);
+  const leadStep = leadSteps[leadIndex] ?? null;
 
   return (
-    <section data-jump={worktree.worktreeId} className="flex min-w-0 flex-col gap-5">
+    <section data-jump={worktree.worktreeId} className="flex min-w-0 flex-col gap-5 [--strip-h:2rem] [--tabs-h:2.5rem]">
+      <div className="sticky top-0 z-30 -mb-5 h-0">
+        <div
+          aria-hidden={!overviewHidden}
+          inert={!overviewHidden}
+          className={`absolute inset-x-0 top-0 -mx-3 flex h-[var(--strip-h)] min-w-0 items-center bg-bg px-3 transition-opacity duration-150 ${
+            overviewHidden ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            title={leadTask ? `${leadTask.title} · 맨 위로` : "맨 위로"}
+            className="flex min-w-0 items-center gap-2 text-left text-[12px] leading-none"
+          >
+            <span className="shrink-0 font-bold">{shownName}</span>
+            {leadStep && (
+              <>
+                <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
+                  {leadSteps.map((step) => (
+                    <span key={step.key} className={`size-1.5 rounded-full ${STRIP_DOT[step.status]}`} />
+                  ))}
+                </span>
+                <span className="shrink-0 font-semibold">
+                  {leadIndex + 1}/{leadSteps.length} {leadStep.label}
+                </span>
+                <span className="truncate text-muted">{leadTask?.title}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
       <header
         onContextMenu={(event: React.MouseEvent<HTMLElement>) => {
           if (event.target instanceof HTMLElement && event.target.closest("a, button, input, textarea")) return;
@@ -349,6 +405,7 @@ export function WorktreePanel({
           </details>
         )}
 
+        <div ref={markOverviewEnd} aria-hidden className="-mb-6 h-0" />
         <div className="empty:hidden">
           {listed.length > 0 && renderAgents(listed, sessions.move, new Set(groups.needsMe.map((agent) => agent.id)))}
           <PendingLaunchRows worktreePath={worktree.path} standalone={listed.length === 0} />

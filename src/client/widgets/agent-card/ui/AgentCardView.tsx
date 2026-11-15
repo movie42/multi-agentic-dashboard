@@ -7,7 +7,7 @@ import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { useCardView, type CardView } from "../model/cardViewStore";
 import { TurnList } from "./ConversationHistory";
-import { ChatView } from "./ChatView";
+import { ChatView, type ChatLayout } from "./ChatView";
 import { MessageView } from "./MessageView";
 import { PermissionPrompt } from "@/client/features/answer-permission";
 import { ModelPicker } from "@/client/features/choose-model";
@@ -84,6 +84,7 @@ interface AgentCardViewProps {
   progress: CardProgress | null;
   worktreePr: PullRequestInfo | null;
   dismissed: boolean;
+  chatLayout: ChatLayout;
   onToggleDismiss: () => void;
   onAction: (action: ActionRequest) => Promise<void>;
 }
@@ -94,6 +95,7 @@ export function AgentCardView({
   progress,
   worktreePr,
   dismissed,
+  chatLayout,
   onToggleDismiss,
   onAction,
 }: AgentCardViewProps) {
@@ -117,15 +119,42 @@ export function AgentCardView({
     ? bookmarkTarget(agent.session.id, agent.session.title ?? fallbackTitle, agent.worktreePath, agent.session.bookmark)
     : null;
 
+  const filesFooter =
+    files.length > 0 ? (
+      <footer className="flex flex-wrap items-center gap-1.5">
+        {files.map((artifact, index) => (
+          <button
+            key={artifact.target}
+            type="button"
+            data-open-artifact={index === 0 ? "" : undefined}
+            title={`${artifact.target}\n클릭: 기본 앱으로 열기`}
+            onClick={() => onAction({ type: "open-artifact", target: artifact.target })}
+            className="flex max-w-64 items-center gap-1.5 rounded-full bg-tint-2 px-3 py-1 text-[13px] hover:bg-fg hover:text-bg"
+          >
+            <span className="font-mono text-[10px] opacity-60">{ARTIFACT_LABEL[artifact.kind]}</span>
+            <span className="truncate">{artifact.label}</span>
+          </button>
+        ))}
+      </footer>
+    ) : null;
+
   return (
     <article
       ref={cardRef}
       data-card
       data-card-id={agent.id}
       tabIndex={0}
-      className="flex scroll-mt-6 flex-col gap-4 rounded-[10px] bg-tint p-5 outline-none focus-visible:shadow-[0_0_0_2px_var(--fg)]"
+      className={`flex flex-col gap-4 rounded-[10px] bg-tint p-5 outline-none focus-visible:shadow-[0_0_0_2px_var(--fg)] ${
+        chatLayout === "page" ? "scroll-mt-[calc(var(--strip-h,0px)+var(--tabs-h,0px)+1rem)] pt-3 pb-0" : "scroll-mt-6"
+      }`}
     >
-      <header className="flex flex-col gap-2">
+      <header
+        className={`flex flex-col gap-2 ${
+          chatLayout === "page"
+            ? "sticky top-[calc(var(--strip-h,0px)+var(--tabs-h,0px))] z-10 -mx-5 -mt-3 bg-tint px-5 pt-3 pb-3 shadow-[0_12px_16px_-12px_var(--hair)]"
+            : ""
+        }`}
+      >
         <div className="flex items-center gap-2.5">
           <StateBadge agent={agent} />
           {agent.session ? (
@@ -173,7 +202,7 @@ export function AgentCardView({
             </span>
           )}
         </div>
-        {bookmark && <BookmarkMemo target={bookmark} />}
+        {bookmark && chatLayout === "box" && <BookmarkMemo target={bookmark} />}
         <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-none">
           <span className="rounded-md bg-tint-2 px-2 py-1 font-semibold" title="프로젝트">
             {agent.repo}
@@ -237,6 +266,8 @@ export function AgentCardView({
         </div>
       </header>
 
+      {bookmark && chatLayout === "page" && <BookmarkMemo target={bookmark} />}
+
       {progress && (
         <div className="flex flex-col gap-1.5">
           <p className="truncate text-[12px] text-muted">
@@ -252,6 +283,7 @@ export function AgentCardView({
             key={`chat-${agent.session.id}`}
             sessionId={agent.session.id}
             working={agent.state === "working"}
+            layout={chatLayout}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -272,8 +304,14 @@ export function AgentCardView({
         <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} />
       )}
 
+      {chatLayout === "page" && filesFooter}
+
       {terminalHandle && !isShell && view !== "terminal" && (
-        <div className="flex flex-col gap-1.5">
+        <div
+          className={`flex flex-col gap-1.5 ${
+            chatLayout === "page" ? "sticky bottom-0 z-10 -mx-5 bg-tint px-5 pt-3 pb-4 shadow-[0_-12px_16px_-12px_var(--hair)]" : ""
+          }`}
+        >
           <QuickReply terminalHandle={terminalHandle} working={agent.state === "working"} />
           <div className="flex flex-wrap items-center gap-2 px-1">
             <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
@@ -290,23 +328,7 @@ export function AgentCardView({
         </div>
       )}
 
-      {files.length > 0 && (
-        <footer className="flex flex-wrap items-center gap-1.5">
-          {files.map((artifact, index) => (
-            <button
-              key={artifact.target}
-              type="button"
-              data-open-artifact={index === 0 ? "" : undefined}
-              title={`${artifact.target}\n클릭: 기본 앱으로 열기`}
-              onClick={() => onAction({ type: "open-artifact", target: artifact.target })}
-              className="flex max-w-64 items-center gap-1.5 rounded-full bg-tint-2 px-3 py-1 text-[13px] hover:bg-fg hover:text-bg"
-            >
-              <span className="font-mono text-[10px] opacity-60">{ARTIFACT_LABEL[artifact.kind]}</span>
-              <span className="truncate">{artifact.label}</span>
-            </button>
-          ))}
-        </footer>
-      )}
+      {chatLayout === "box" && filesFooter}
     </article>
   );
 }
