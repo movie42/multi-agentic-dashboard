@@ -54,7 +54,16 @@ function saveSessions(sessions: RunnerSession[]): void {
   sessionSaver.last = body;
   sessionSaver.queue = sessionSaver.queue
     .then(() => writeAtomic(sessionsFile, body))
-    .catch((error: unknown) => console.error("[runner] sessions save failed", error));
+    .catch((error: unknown) => {
+      if (sessionSaver.last === body) sessionSaver.last = "";
+      console.error("[runner] sessions save failed", error);
+    });
+}
+
+const SAVE_FLUSH_MS = 2000;
+
+function flushSessions(): Promise<void> {
+  return Promise.race([sessionSaver.queue, new Promise<void>((resolve) => setTimeout(resolve, SAVE_FLUSH_MS).unref())]);
 }
 
 const shellEnv = await readShellEnv(shell);
@@ -94,17 +103,21 @@ const saved = parseSavedSessions(await readSavedSessions());
 runner.server.listen(port, "127.0.0.1", () => {
   console.log(`[runner] listening on ${baseUrl} (claude: ${command})`);
   if (saved.length === 0) return;
+  sessionSaver.stopped = true;
   const restored = registry.restore(restoreRequestsOf(saved));
+  sessionSaver.stopped = false;
+  saveSessions(registry.list());
   console.log(`[runner] restored ${restored.length}/${saved.length} sessions from ${sessionsFile}`);
 });
 
-function shutdown(signal: string) {
+async function shutdown(signal: string) {
   console.log(`[runner] ${signal} — closing sessions`);
   sessionSaver.stopped = true;
+  await flushSessions();
   registry.closeAll();
   runner.server.close();
   process.exit(0);
 }
 
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));

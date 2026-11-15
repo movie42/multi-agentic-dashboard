@@ -6,12 +6,13 @@
   "links": [],
   "stages": {
     "tasks": {
-      "status": "now",
-      "summary": "재시작 대기 · 다시 열린 뒤 P3-V 확인",
+      "status": "done",
+      "summary": "구현 · 실제 재시작 확인 완료",
       "conclusion": [
         "데몬이 열린 세션 목록(ID · 폴더 · 종류 · 프롬프트 여부 · 시작 시각)을 ~/.local/share/agent-control/sessions.json에 적어 둬요.",
         "데몬이 켜지면 이 목록을 읽어 다시 열어요. 대화가 있는 Claude 세션은 --resume으로 같은 ID에 이어 열고, 셸과 빈 Claude 세션은 같은 폴더에 새로 열어요.",
-        "종료 신호로 꺼질 때는 목록을 지우지 않아요. 사용자가 닫거나 스스로 끝난 세션만 목록에서 빠져요."
+        "종료 신호로 꺼질 때는 목록을 지우지 않아요. 사용자가 닫거나 스스로 끝난 세션만 목록에서 빠져요.",
+        "실제 재시작에서 세션 5개가 다시 열렸어요. 재시작 순간 답을 쓰던 세션은 그 답이 끊기고, 대화는 이어져요."
       ],
       "blocks": [
         {
@@ -120,9 +121,125 @@
             {
               "id": "P3-V",
               "title": "검증: 데몬을 다시 띄운 뒤 세션들이 같은 탭 순서로 다시 열리고 대화가 이어지는지",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "22:20 재시작에서 세션 5개가 다시 열렸다(restored 5/5). 대화가 있는 4개는 같은 ID로 --resume, 빈 세션 1개는 새 ID로 열렸고 시작 시각 순서도 그대로였다. 그때 답을 쓰던 2개는 답이 끊겼다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 리뷰 지적 수정",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "세션 목록 저장: 종료 직전 쓰기 기다리기 · 쓰기 실패 뒤 다시 쓰기 · 복원 중에는 쓰지 않고 끝나고 한 번 쓰기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/main.ts</code>"
+                ],
+                [
+                  "결정",
+                  "종료 때 저장을 최대 2초 기다린다. 시험용 데몬에서 세션을 연 직후 바로 꺼도 목록 2개가 남고, 재시작 후 파일에도 2개가 그대로 있었다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "질문 카드 리뷰 수정이 이 브랜치에 같이 들어감",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/permissions.ts</code> · <code>daemon/session/permissionQuestions.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "공유 작업 폴더라 fix/ask-question-card로 브랜치를 바꿀 수 없어 이 브랜치에서 고쳤다. 내용은 [[ask-question-card]]의 05에 적었다."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "ask",
+      "summary": "D1–D4 완료 · PR 여부 대기",
+      "conclusion": [
+        "리뷰 지적 3건(종료 직전 저장 · 쓰기 실패 · 복원 중 일부 저장)을 고쳤어요. 나머지 검사는 통과했고, PR 여부만 남았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 SOT 맵(screens.json) 행을 새로 쓰거나 바꾸지 않아 옮길 근거가 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행도, 서버 · 기획에 넘길 요청도 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "저장이 종료 · 복원 · 쓰기 실패 때 빠지거나 일부만 남는 지적 3건을 고쳤다([[P4-1]])."
+                ],
+                [
+                  "결정",
+                  "채팅 스크롤(ChatView.tsx) 지적은 이번에 바꾸지 않은 파일의 기존 동작이라 고치지 않는다."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<code>NODE_ENV=test bun run test</code> 500개 · <code>bunx tsc --noEmit</code> 통과, 바꾼 파일 eslint 통과. <code>bun run lint</code>는 이번에 손대지 않은 <code>daemon/session/SessionRegistry.ts</code>의 기존 오류 2건(let 사용)으로 실패한다."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
               "done": false
             }
           ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
         }
       ]
     }
