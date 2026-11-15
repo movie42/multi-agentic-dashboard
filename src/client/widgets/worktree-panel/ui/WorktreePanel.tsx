@@ -20,6 +20,7 @@ import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { WorktreeNameForm } from "@/client/features/rename-worktree";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { useScrolledPast } from "../model/useScrolledPast";
 import { useSessionOrder } from "../model/useSessionOrder";
 
 interface WorktreePanelProps {
@@ -137,9 +138,31 @@ export function WorktreePanel({
   ];
   const open = (target: string) =>
     onAction({ type: "open-artifact", target });
+  const [markOverviewEnd, overviewHidden] = useScrolledPast<HTMLDivElement>();
+  const leadTask = worktree.flowTasks[0] ?? null;
 
   return (
     <section data-jump={worktree.worktreeId} className="flex min-w-0 flex-col gap-5">
+      <div className="sticky top-0 z-30 -mb-5 h-0">
+        <div
+          aria-hidden={!overviewHidden}
+          inert={!overviewHidden}
+          className={`absolute inset-x-0 top-0 -mx-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-hair bg-bg px-3 py-2.5 transition-[opacity,translate] duration-150 ${
+            overviewHidden ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            title="맨 위로"
+            className="flex min-w-0 items-baseline gap-2 text-left"
+          >
+            <span className="truncate text-[15px] font-bold tracking-[-0.01em]">{shownName}</span>
+            {leadTask && <span className="truncate text-[13px] text-muted">{leadTask.title}</span>}
+          </button>
+          {leadTask && <Stepper steps={buildSteps(mode, leadTask, pr)} size="compact" />}
+        </div>
+      </div>
       <header
         onContextMenu={(event: React.MouseEvent<HTMLElement>) => {
           if (event.target instanceof HTMLElement && event.target.closest("a, button, input, textarea")) return;
@@ -349,6 +372,7 @@ export function WorktreePanel({
           </details>
         )}
 
+        <div ref={markOverviewEnd} aria-hidden className="-mb-6 h-0" />
         <div className="empty:hidden">
           {listed.length > 0 && renderAgents(listed, sessions.move, new Set(groups.needsMe.map((agent) => agent.id)))}
           <PendingLaunchRows worktreePath={worktree.path} standalone={listed.length === 0} />

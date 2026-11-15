@@ -15,7 +15,7 @@ import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
-import { AgentCardView, type CardProgress } from "@/client/widgets/agent-card";
+import { AgentCardView, type CardProgress, type ChatLayout } from "@/client/widgets/agent-card";
 import { foldWorkers, groupAgents, needsInput, type FoldedAgents } from "@/client/entities/agent";
 import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
@@ -248,7 +248,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     };
   };
 
-  const renderCard = (agent: AgentCard, withProgress: boolean) => (
+  const renderCard = (agent: AgentCard, withProgress: boolean, chatLayout: ChatLayout) => (
     <AgentCardView
       key={agent.id}
       agent={agent}
@@ -258,6 +258,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       }
       worktreePr={worktreeById.get(agent.worktreeId)?.pullRequest ?? null}
       dismissed={dismissed.isDismissed(agent)}
+      chatLayout={chatLayout}
       onToggleDismiss={() =>
         dismissed.isDismissed(agent)
           ? dismissed.restore(agent)
@@ -267,8 +268,8 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     />
   );
 
-  const withProgressCard = (agent: AgentCard) => renderCard(agent, true);
-  const withoutProgressCard = (agent: AgentCard) => renderCard(agent, false);
+  const withProgressCard = (agent: AgentCard) => renderCard(agent, true, "box");
+  const projectViewCard = (agent: AgentCard) => renderCard(agent, false, "page");
 
   const focused = new Set(focusKeys.filter((repo) => projectByRepo.has(repo)));
   const toggleFocus = (repo: string) =>
@@ -561,7 +562,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             mode={modeOfRepo(selectedRepo)}
             now={now}
             isDismissed={dismissed.isDismissed}
-            renderCard={withoutProgressCard}
+            renderCard={projectViewCard}
             expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
             focused={focused.has(selectedRepo)}

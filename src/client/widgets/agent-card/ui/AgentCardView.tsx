@@ -7,7 +7,7 @@ import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { useCardView, type CardView } from "../model/cardViewStore";
 import { TurnList } from "./ConversationHistory";
-import { ChatView } from "./ChatView";
+import { ChatView, type ChatLayout } from "./ChatView";
 import { MessageView } from "./MessageView";
 import { PermissionPrompt } from "@/client/features/answer-permission";
 import { ModelPicker } from "@/client/features/choose-model";
@@ -84,6 +84,7 @@ interface AgentCardViewProps {
   progress: CardProgress | null;
   worktreePr: PullRequestInfo | null;
   dismissed: boolean;
+  chatLayout: ChatLayout;
   onToggleDismiss: () => void;
   onAction: (action: ActionRequest) => Promise<void>;
 }
@@ -94,6 +95,7 @@ export function AgentCardView({
   progress,
   worktreePr,
   dismissed,
+  chatLayout,
   onToggleDismiss,
   onAction,
 }: AgentCardViewProps) {
@@ -252,6 +254,7 @@ export function AgentCardView({
             key={`chat-${agent.session.id}`}
             sessionId={agent.session.id}
             working={agent.state === "working"}
+            layout={chatLayout}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -273,7 +276,11 @@ export function AgentCardView({
       )}
 
       {terminalHandle && !isShell && view !== "terminal" && (
-        <div className="flex flex-col gap-1.5">
+        <div
+          className={`flex flex-col gap-1.5 ${
+            chatLayout === "page" ? "sticky bottom-0 z-10 -mx-5 bg-tint px-5 pt-3 pb-4 shadow-[0_-12px_16px_-12px_var(--hair)]" : ""
+          }`}
+        >
           <QuickReply terminalHandle={terminalHandle} working={agent.state === "working"} />
           <div className="flex flex-wrap items-center gap-2 px-1">
             <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
