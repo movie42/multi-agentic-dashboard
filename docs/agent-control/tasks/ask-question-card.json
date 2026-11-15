@@ -62,7 +62,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/common/runner/types.ts</code> · <code>src/common/actions/schema.ts</code>"
+                  "<code>src/common/runner/types.ts</code> · <code>src/common/runner/questions.ts</code> · <code>src/common/actions/schema.ts</code>"
                 ],
                 [
                   "패턴",
@@ -171,8 +171,8 @@
               "done": true,
               "rows": [
                 [
-                  "파일",
-                  "<code>docs/agent-control/tasks/chat-ui.json</code> · <code>docs/agent-control/screens.json</code>"
+                  "문서",
+                  "<code>docs/agent-control/tasks/chat-ui.json</code>"
                 ],
                 [
                   "내용",
