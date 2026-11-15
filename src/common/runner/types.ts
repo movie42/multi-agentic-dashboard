@@ -30,6 +30,7 @@ export interface RunnerPermission {
 
 export type RunnerPermissionAnswer =
   | { behavior: "allow"; suggestionIndex: number | null }
+  | { behavior: "answer"; answers: Record<string, string> }
   | { behavior: "deny"; message: string };
 
 export interface RunnerUsageWindow {
