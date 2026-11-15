@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { questionsOf, type RunnerQuestion } from "@/common/runner/questions";
 import type { RunnerPermission, RunnerPermissionAnswer, RunnerPermissionSuggestion } from "@/common/runner/types";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
@@ -93,12 +94,22 @@ function ToolInputView({ toolInput }: ToolInputViewProps) {
   );
 }
 
-interface PermissionPromptProps {
+interface StatusLineProps {
+  status: SendStatus;
+}
+
+function StatusLine({ status }: StatusLineProps) {
+  if (status.kind === "sent") return <p className="text-[12px] text-muted">보냈어요. 상태가 곧 바뀌어요.</p>;
+  if (status.kind === "error") return <p className="text-[12px] text-accent">못 보냈어요: {status.message}</p>;
+  return null;
+}
+
+interface PromptBodyProps {
   terminalHandle: string;
   permission: RunnerPermission;
 }
 
-export function PermissionPrompt({ terminalHandle, permission }: PermissionPromptProps) {
+function ToolPrompt({ terminalHandle, permission }: PromptBodyProps) {
   const { status, send, locked } = useSend(terminalHandle, permission.id);
   const [denying, setDenying] = useState(false);
   const [reason, setReason] = useState("");
@@ -106,7 +117,7 @@ export function PermissionPrompt({ terminalHandle, permission }: PermissionPromp
   const onReasonChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => setReason(event.target.value);
 
   return (
-    <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
+    <>
       <p className="text-[14px] font-bold">{permission.toolName} 실행 허락이 필요해요</p>
       <ToolInputView toolInput={permission.toolInput} />
       {denying ? (
@@ -161,8 +172,136 @@ export function PermissionPrompt({ terminalHandle, permission }: PermissionPromp
           ))}
         </div>
       )}
-      {status.kind === "sent" && <p className="text-[12px] text-muted">보냈어요. 상태가 곧 바뀌어요.</p>}
-      {status.kind === "error" && <p className="text-[12px] text-accent">못 보냈어요: {status.message}</p>}
+      <StatusLine status={status} />
+    </>
+  );
+}
+
+interface QuestionPromptProps extends PromptBodyProps {
+  questions: RunnerQuestion[];
+}
+
+function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromptProps) {
+  const { status, send, locked } = useSend(terminalHandle, permission.id);
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [typed, setTyped] = useState<Record<string, string>>({});
+  const instant = questions.length === 1 && !questions[0]?.multiSelect;
+
+  const answerFor = (question: RunnerQuestion): string => {
+    const own = (typed[question.question] ?? "").trim();
+    if (own) return own;
+    return (picked[question.question] ?? []).join(", ");
+  };
+  const ready = questions.every((question) => answerFor(question) !== "");
+
+  const submit = (answers: Record<string, string>) => send({ behavior: "answer", answers });
+
+  const pick = (question: RunnerQuestion, label: string) => {
+    if (instant) {
+      submit({ [question.question]: label });
+      return;
+    }
+    setPicked((previous) => {
+      const current = previous[question.question] ?? [];
+      const next = question.multiSelect
+        ? current.includes(label)
+          ? current.filter((item) => item !== label)
+          : [...current, label]
+        : [label];
+      return { ...previous, [question.question]: next };
+    });
+  };
+
+  const onType = (question: RunnerQuestion) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    setTyped((previous) => ({ ...previous, [question.question]: event.target.value }));
+
+  const onTypeKeyDown = (question: RunnerQuestion) => (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || !instant) return;
+    const own = (typed[question.question] ?? "").trim();
+    if (own) submit({ [question.question]: own });
+  };
+
+  return (
+    <>
+      {questions.map((question) => {
+        const selected = picked[question.question] ?? [];
+        return (
+          <div key={question.question} className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              {question.header && (
+                <span className="self-start rounded-md bg-tint-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                  {question.header}
+                </span>
+              )}
+              <p className="text-[14px] font-bold whitespace-pre-wrap">{question.question}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {question.options.map((option) => {
+                const on = selected.includes(option.label);
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    disabled={locked}
+                    aria-pressed={question.multiSelect || !instant ? on : undefined}
+                    onClick={() => pick(question, option.label)}
+                    className={`flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] leading-snug disabled:cursor-default disabled:opacity-40 ${
+                      on ? "bg-fg text-bg" : "bg-bg shadow-[inset_0_0_0_1px_var(--hair)] hover:shadow-[inset_0_0_0_1.5px_var(--fg)]"
+                    }`}
+                  >
+                    <span className="font-semibold">
+                      {question.multiSelect && <span className="mr-1.5 font-mono">{on ? "☑" : "☐"}</span>}
+                      {option.label}
+                    </span>
+                    {option.description && <span className="text-[12px] opacity-70">{option.description}</span>}
+                  </button>
+                );
+              })}
+              <input
+                type="text"
+                disabled={locked}
+                value={typed[question.question] ?? ""}
+                onChange={onType(question)}
+                onKeyDown={onTypeKeyDown(question)}
+                placeholder="직접 입력"
+                aria-label={`${question.question} 직접 입력`}
+                className="rounded-lg bg-bg px-3 py-2 text-[13px] shadow-[inset_0_0_0_1px_var(--hair)] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
+              />
+            </div>
+          </div>
+        );
+      })}
+      {!instant && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={locked || !ready}
+            onClick={() => submit(Object.fromEntries(questions.map((question) => [question.question, answerFor(question)])))}
+            className={PRIMARY}
+          >
+            보내기
+          </button>
+        </div>
+      )}
+      <StatusLine status={status} />
+    </>
+  );
+}
+
+interface PermissionPromptProps {
+  terminalHandle: string;
+  permission: RunnerPermission;
+}
+
+export function PermissionPrompt({ terminalHandle, permission }: PermissionPromptProps) {
+  const questions = questionsOf(permission);
+  return (
+    <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
+      {questions.length > 0 ? (
+        <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} />
+      ) : (
+        <ToolPrompt terminalHandle={terminalHandle} permission={permission} />
+      )}
     </div>
   );
 }

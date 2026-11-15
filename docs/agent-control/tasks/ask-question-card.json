@@ -1,0 +1,264 @@
+{
+  "id": "ask-question-card",
+  "title": "채팅 화면에 Claude 질문(AskUserQuestion) 카드 복원",
+  "type": "버그 수정",
+  "branch": "fix/ask-question-card",
+  "links": [
+    {
+      "label": "PR",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/7"
+    }
+  ],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 · 실제 확인 완료",
+      "conclusion": [
+        "데몬이 AskUserQuestion 질문 요청도 붙잡아요. 예전에는 요청 해석 함수 permissionInputOf가 질문을 걸러 내서 터미널에만 떴어요.",
+        "채팅 맨 아래 권한 카드가 질문이면 질문 카드로 바뀌어요. 선택지 · 복수 선택(☐/☑) · 직접 입력이 있고, 질문 하나짜리 단일 선택은 누르는 즉시 보내요.",
+        "고른 답은 데몬이 Claude Code에 updatedInput.answers로 돌려줘요. 묻지 않은 질문의 답이 섞이면 거절해요.",
+        "테스트 495개와 타입 검사는 통과했어요. 실제 질문을 채팅으로 받는 확인은 데몬을 다시 띄운 뒤에 해요.",
+        "실제 앱에서 질문 카드로 보낸 답이 Claude Code까지 들어가는 것을 확인했어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 재현 테스트",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "질문 요청을 붙잡고 답을 updatedInput.answers로 돌려주는지 확인하는 테스트",
+              "done": true,
+              "rows": [
+                [
+                  "테스트",
+                  "<code>daemon/session/permissions.test.ts</code>"
+                ],
+                [
+                  "실패 커밋",
+                  "<code>c98d970</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bunx vitest run daemon/session/permissions.test.ts</code>가 질문 관련 항목에서 실패하고, 테스트만 따로 커밋",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 타입 · 데몬 · 액션 경로",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "답 형식에 질문 답(answer) 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/runner/types.ts</code> · <code>src/common/runner/questions.ts</code> · <code>src/common/actions/schema.ts</code>"
+                ],
+                [
+                  "결정",
+                  "질문 타입과 해석 함수는 데몬도 실행 중에 불러 써서, 타입만 두는 <code>types.ts</code> 대신 <code>src/common/runner/questions.ts</code>에 두었다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "데몬이 질문 요청을 붙잡고 답을 hook 결정으로 바꾸기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/permissions.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: Phase 1 테스트 통과 · <code>bunx tsc --noEmit</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 채팅 화면 질문 카드",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "권한 카드가 AskUserQuestion이면 질문 카드를 그리기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "질문 카드 화면 테스트",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/ui/PermissionPrompt.test.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bun run test</code> · <code>bunx tsc --noEmit</code> · <code>bun run lint</code>",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "이 세션의 셸에 <code>NODE_ENV=production</code>이 들어 있어 React 테스트 도구가 실패했다. <code>NODE_ENV=test bun run test</code>로 495개 통과."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 문서 · 실제 화면 확인",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "chat-ui 결정과 SOT 맵 문구를 지금 동작에 맞추기",
+              "done": true
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 데몬을 다시 띄운 뒤 새 세션에서 질문을 던지게 해 채팅 카드로 답하기",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "새 데몬에서 질문을 던지게 한 세션(ec79d360)에 앱 채팅 카드로 직접 입력 답을 보냈고, Claude Code 화면에 'Allowed by PermissionRequest hook'과 받은 답이 찍혔다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 리뷰 지적 수정",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "읽을 수 없는 질문은 붙잡지 않고 터미널로 넘기기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/permissions.ts</code> · <code>daemon/session/permissionQuestions.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "질문 형식이 깨진 AskUserQuestion에 일반 허용 버튼이 떠서, 누르면 답 없이 통과되던 경로를 막았다."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "PR #7로 올렸어요. 질문 카드가 실제 앱에서 Claude Code까지 답을 전달하는 것을 확인했어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 SOT 맵(screens.json) 행을 새로 쓰거나 바꾸지 않아 옮길 근거가 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행도, 서버 · 기획에 넘길 요청도 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "질문 형식을 읽을 수 없는 AskUserQuestion은 붙잡지 않고 터미널로 넘긴다. 일반 허용 버튼으로 답 없이 통과되던 경로를 막았다(<code>daemon/session/permissionQuestions.test.ts</code>)."
+                ],
+                [
+                  "결정",
+                  "같은 문구 질문 충돌 · 직접 입력 중 선택지 클릭 · 답 키 개수 제한 지적은 고치지 않는다. Claude Code가 질문 문구를 답 키로 쓰고, 나머지는 예전 카드와 같은 동작이다."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<code>NODE_ENV=test bun run test</code> 500개 · <code>bunx tsc --noEmit</code> 통과, 바꾼 파일 eslint 통과. <code>bun run lint</code>는 이번에 손대지 않은 <code>daemon/session/SessionRegistry.ts</code>의 기존 오류 2건(let 사용)으로 실패한다."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<a href=\"https://github.com/movie42/multi-agentic-dashboard/pull/7\">https://github.com/movie42/multi-agentic-dashboard/pull/7</a> — 체인 PR로 올려 main에 squash 병합한다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "세션 실행기로 띄운 Claude가 질문(AskUserQuestion)을 던지면, 터미널로 가지 않고 채팅 화면에서 질문을 읽고 답한다",
+      "state": "confirmed",
+      "basis": "사용자 요청 (2026-11-15 대화, A안 선택)"
+    }
+  ],
+  "pruned": "2026-11-15"
+}

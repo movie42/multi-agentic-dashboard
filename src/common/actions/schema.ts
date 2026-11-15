@@ -38,6 +38,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
     requestId: z.string(),
     answer: z.discriminatedUnion("behavior", [
       z.object({ behavior: z.literal("allow"), suggestionIndex: z.number().int().min(0).nullable() }),
+      z.object({ behavior: z.literal("answer"), answers: z.record(z.string(), z.string().max(MAX_PROMPT)) }),
       z.object({ behavior: z.literal("deny"), message: z.string().max(MAX_PROMPT) }),
     ]),
   }),

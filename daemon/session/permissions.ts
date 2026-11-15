@@ -1,11 +1,11 @@
+import { ASK_USER_QUESTION, questionsOf } from "../../src/common/runner/questions.ts";
 import type { RunnerPermission, RunnerPermissionAnswer, RunnerPermissionSuggestion } from "../../src/common/runner/types.ts";
 
 export const PERMISSION_HOLD_MS = 590_000;
-export const ASK_USER_QUESTION = "AskUserQuestion";
 export const DENIED_MESSAGE = "The user denied this from the Agent Control dashboard.";
 
 export type PermissionDecision =
-  | { behavior: "allow"; updatedPermissions?: RunnerPermissionSuggestion[] }
+  | { behavior: "allow"; updatedPermissions?: RunnerPermissionSuggestion[]; updatedInput?: Record<string, unknown> }
   | { behavior: "deny"; message: string };
 
 export interface PermissionHookOutput {
@@ -26,7 +26,8 @@ export function permissionInputOf(body: unknown): PermissionRequestInput | null 
   const raw = record(body);
   const toolName = raw?.tool_name;
   const toolInput = record(raw?.tool_input);
-  if (typeof toolName !== "string" || !toolInput || toolName === ASK_USER_QUESTION) return null;
+  if (typeof toolName !== "string" || !toolInput) return null;
+  if (toolName === ASK_USER_QUESTION && questionsOf({ toolName, toolInput }).length === 0) return null;
   const suggestions = Array.isArray(raw?.permission_suggestions)
     ? raw.permission_suggestions.flatMap((item: unknown) => {
         const suggestion = record(item);
@@ -38,6 +39,12 @@ export function permissionInputOf(body: unknown): PermissionRequestInput | null 
 
 export function decisionFor(permission: RunnerPermission, answer: RunnerPermissionAnswer): PermissionDecision | null {
   if (answer.behavior === "deny") return { behavior: "deny", message: answer.message };
+  if (answer.behavior === "answer") {
+    const asked = new Set(questionsOf(permission).map((question) => question.question));
+    const keys = Object.keys(answer.answers);
+    if (asked.size === 0 || keys.length === 0 || keys.some((key) => !asked.has(key))) return null;
+    return { behavior: "allow", updatedInput: { ...permission.toolInput, answers: answer.answers } };
+  }
   if (answer.suggestionIndex === null) return { behavior: "allow" };
   const suggestion = permission.suggestions[answer.suggestionIndex];
   return suggestion ? { behavior: "allow", updatedPermissions: [suggestion] } : null;
@@ -54,6 +61,11 @@ export function answerOf(body: unknown): { requestId: string; answer: RunnerPerm
   if (typeof requestId !== "string" || !answer) return null;
   if (answer.behavior === "deny") {
     return { requestId, answer: { behavior: "deny", message: typeof answer.message === "string" && answer.message.trim() ? answer.message : DENIED_MESSAGE } };
+  }
+  if (answer.behavior === "answer") {
+    const answers = record(answer.answers);
+    if (!answers || !Object.values(answers).every((value: unknown) => typeof value === "string")) return null;
+    return { requestId, answer: { behavior: "answer", answers: Object.fromEntries(Object.entries(answers).map(([key, value]) => [key, String(value)])) } };
   }
   if (answer.behavior !== "allow") return null;
   const index = answer.suggestionIndex;
