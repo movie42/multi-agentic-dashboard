@@ -23,6 +23,8 @@ export interface MenuContext {
   onTidy: () => void;
   /** Open the conductor form on the canvas for this worktree. */
   onLaunchConductor: (worktreeId: string) => void;
+  onExpandTemplate: () => void;
+  onSaveAsTemplate: (agents: AgentCard[]) => void;
 }
 
 export interface MenuContent {
@@ -78,6 +80,7 @@ function sessionsItems(agents: AgentCard[], context: MenuContext, label: string)
       confirm: `한 번 더 누르면 연결 ${links.length}개를 끊어요`,
       run: () => links.forEach((edge) => edge.linkId && void onAction({ type: "unlink-sessions", linkId: edge.linkId })),
     },
+    { label: many ? `${label} 템플릿으로 저장` : "템플릿으로 저장", run: () => context.onSaveAsTemplate(agents) },
     {
       label: many ? `${label} 닫기 (${closable.length}개)` : "세션 닫기",
       danger: true,
@@ -133,6 +136,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       items: compact([
         { label: "새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
         { label: "지휘자", run: () => context.onLaunchConductor(worktree.worktreeId) },
+        { label: "템플릿 펼치기", run: context.onExpandTemplate },
         { label: "터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
         { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },
         { label: "깃 그래프", run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener") },

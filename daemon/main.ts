@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
@@ -6,6 +7,9 @@ import { RUNNER_PORT, RUNNER_USAGE_FILE, type RunnerSession, type RunnerUsage } 
 import { DEFAULT_ALLOWED_ORIGINS } from "./guard.ts";
 import { Orchestration, ORCHESTRATION_FILE, parseSavedOrchestration } from "./orchestration/Orchestration.ts";
 import { createRunnerServer, pasteOf } from "./server.ts";
+import { runsOf } from "../src/common/templates/types.ts";
+import { RUNS_FILE, TemplateRuns } from "./templates/TemplateRuns.ts";
+import { TEMPLATES_FILE, TemplateStore } from "./templates/TemplateStore.ts";
 import { commandFor } from "./session/command.ts";
 import { SessionRegistry } from "./session/SessionRegistry.ts";
 import { parseSavedSessions, restoreRequestsOf, savedSessionsOf, SESSIONS_FILE } from "./session/restore.ts";
@@ -29,7 +33,10 @@ mkdir(attachmentDir, { recursive: true }).catch((error: unknown) => console.warn
 
 const sessionsFile = process.env.RUNNER_SESSIONS_FILE ?? path.join(dataDir, SESSIONS_FILE);
 const orchestrationFile = process.env.RUNNER_ORCHESTRATION_FILE ?? path.join(dataDir, ORCHESTRATION_FILE);
+const runsFile = process.env.RUNNER_RUNS_FILE ?? path.join(dataDir, RUNS_FILE);
+const templatesFile = process.env.RUNNER_TEMPLATES_FILE ?? path.join(dataDir, TEMPLATES_FILE);
 const SUBMIT_DELAY_MS = 300;
+const CHECK_TIMEOUT_MS = 120_000;
 
 async function writeAtomic(file: string, body: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
@@ -62,6 +69,7 @@ const savers = {
   stopped: false,
   sessions: { file: sessionsFile, label: "sessions", last: "", queue: Promise.resolve() } satisfies Saver,
   orchestration: { file: orchestrationFile, label: "orchestration", last: "", queue: Promise.resolve() } satisfies Saver,
+  runs: { file: runsFile, label: "runs", last: "", queue: Promise.resolve() } satisfies Saver,
 };
 
 function save(saver: Saver, body: string): void {
@@ -79,7 +87,7 @@ const SAVE_FLUSH_MS = 2000;
 
 function flushSaves(): Promise<void> {
   const timeout = new Promise<void>((resolve) => setTimeout(resolve, SAVE_FLUSH_MS).unref());
-  return Promise.race([Promise.all([savers.sessions.queue, savers.orchestration.queue]).then(() => {}), timeout]);
+  return Promise.race([Promise.all([savers.sessions.queue, savers.orchestration.queue, savers.runs.queue]).then(() => {}), timeout]);
 }
 
 const shellEnv = await readShellEnv(shell);
@@ -113,19 +121,44 @@ const orchestration = new Orchestration({
 });
 orchestration.load(parseSavedOrchestration(await readSaved(orchestrationFile, "orchestration")));
 
-const runner = createRunnerServer({ registry, orchestration, port, allowedOrigins });
+function runCheck(cwd: string, command: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(shell, ["-lc", command], { cwd, env: { ...process.env, ...sessionEnv() }, timeout: CHECK_TIMEOUT_MS }, (error) => {
+      if (error) console.log("[templates] check did not pass", cwd, command, error.code ?? error.message);
+      resolve(!error);
+    });
+  });
+}
+
+const runs = new TemplateRuns({
+  get: (id) => registry.get(id),
+  launch: (request) => registry.launch(request),
+  deliver: (id, text) => orchestration.deliver(id, text, null),
+  lastAnswer: (id) => orchestration.lastAnswer(id),
+  check: runCheck,
+  onChange: () => relay.onChange(),
+});
+runs.load(runsOf(await readSaved(runsFile, "runs")));
+const templates = new TemplateStore({ file: templatesFile, write: writeAtomic });
+
+const runner = createRunnerServer({ registry, orchestration, runs, templates, port, allowedOrigins });
 const lifecycle = { restored: false };
 
 function persist(sessions: RunnerSession[]): void {
   save(savers.sessions, JSON.stringify({ sessions: savedSessionsOf(sessions) }));
   save(savers.orchestration, JSON.stringify(orchestration.snapshot(sessions)));
+  save(savers.runs, JSON.stringify(runs.snapshot(sessions)));
 }
 
 relay.onChange = () => {
   const sessions = registry.list();
   // Before restore the registry is empty, and pruning then would drop every saved line.
-  if (lifecycle.restored) orchestration.prune(new Set(sessions.map((session) => session.id)));
-  runner.broadcast({ type: "sessions", sessions: orchestration.decorate(sessions) });
+  if (lifecycle.restored) {
+    const liveIds = new Set(sessions.filter((session) => session.status !== "exited").map((session) => session.id));
+    orchestration.prune(new Set(sessions.map((session) => session.id)));
+    runs.prune(liveIds);
+  }
+  runner.broadcast({ type: "sessions", sessions: orchestration.decorate(sessions), runs: runs.list() });
   persist(sessions);
 };
 
@@ -155,6 +188,7 @@ runner.server.listen(port, "127.0.0.1", () => {
         ...request.launch,
         ...(conductor ? { conductor: { scope: conductor.scope, grants: conductor.grants } } : {}),
         ...(askPermissions ? { askPermissions } : {}),
+        ...(id && runs.isJudge(id) ? { judge: true } : {}),
       },
     };
   });

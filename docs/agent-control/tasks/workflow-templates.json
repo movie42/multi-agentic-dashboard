@@ -15,7 +15,7 @@
         {
           "type": "table",
           "title": "예: /flow 흐름을 템플릿으로 만들면",
-          "sub": "R1 결정을 반영한 모습이에요. 카드 이름과 순서는 예시예요.",
+          "sub": "R1 · R2 결정을 반영한 모습이에요. 카드 이름과 순서는 예시예요.",
           "columns": [
             "카드",
             "하는 일",
@@ -26,7 +26,7 @@
             [
               "① 계획",
               "<code>/flow</code>로 질문 · 03 계획까지 작성",
-              "② 구현으로 (완료 판단은 [[R2-Q1]])",
+              "확인 명령(03 계획이 승인됐는지)이 통과하면 ② 구현으로 [[R2-Q1]]",
               "멈춤 — 계획 승인"
             ],
             [
@@ -44,7 +44,7 @@
             [
               "④ 리뷰 (판단 카드)",
               "<code>/code-review</code> 후 고를 길을 정함",
-              "'통과' → ⑤, '고칠 것 있음' → ② ([[R2-Q2]] · [[R2-Q3]])",
+              "'통과' → ⑤, '고칠 것 있음' → ② 구현 세션에 이어 보냄 [[R2-Q2]] · [[R2-Q3]]",
               "없음"
             ],
             [
@@ -336,12 +336,18 @@
               "recommended": "b",
               "recommendation": "b를 추천해요. 대부분의 카드는 한 턴에 끝나 설정이 필요 없고, 여러 턴에 걸치는 카드만 명령의 종료 코드로 정하니 AI의 말에 기대지 않아요.",
               "answer": {
-                "choice": "",
+                "choice": "b",
                 "why": "",
                 "note": "",
                 "followUp": "",
                 "copy": ""
-              }
+              },
+              "decision": "카드는 기본적으로 세션이 턴을 끝내면 끝난 것으로 봐요. 카드에 확인 명령을 달면 턴이 끝날 때마다 그 명령을 돌려 종료 코드가 0일 때만 다음 카드로 넘겨요. 그래서 질문을 올리고 답을 기다리는 ① 계획 카드도 계획이 승인되기 전에는 ② 구현으로 넘어가지 않아요. 여러 턴에 걸치는 카드마다 확인 명령을 직접 적어야 하는 수고가 남아요.",
+              "reason": {
+                "text": "대부분의 카드는 한 턴에 끝나 설정이 필요 없고, 여러 턴에 걸치는 카드만 명령의 종료 코드로 정해 AI의 말에 기대지 않아요.",
+                "by": "recommended"
+              },
+              "appliedTo": "예시 표 ① 계획 행, 03 계획 작성 시"
             },
             {
               "id": "Q2",
@@ -362,12 +368,18 @@
               "recommended": "a",
               "recommendation": "a를 추천해요. 갈림길만 판단한다는 R1-Q1의 뜻과 맞고, 흐름이 항상 캔버스에 그려진 대로만 움직여요.",
               "answer": {
-                "choice": "",
+                "choice": "a",
                 "why": "",
                 "note": "",
                 "followUp": "",
                 "copy": ""
-              }
+              },
+              "decision": "판단 카드에서 나가는 선마다 조건 글('통과', '고칠 것 있음')을 달고, 판단 카드의 지휘자는 그중 하나를 고르는 도구만 받아요. 고른 선으로 앞 결과와 고른 이유가 넘어가요. 템플릿에 없는 세션을 새로 열 수는 없어서, 흐름은 항상 캔버스에 그려진 길 안에서만 움직여요.",
+              "reason": {
+                "text": "갈림길만 AI가 판단한다는 [[R1-Q1]]의 뜻을 지키고, 흐름이 캔버스에 그려진 대로만 움직이게 해요.",
+                "by": "recommended"
+              },
+              "appliedTo": "예시 표 ④ 리뷰 행, 03 계획 작성 시"
             },
             {
               "id": "Q3",
@@ -388,12 +400,18 @@
               "recommended": "a",
               "recommendation": "a를 추천해요. 고칠 것만 전달하면 되는 상황이라 기억을 살리는 쪽이 빠르고 토큰도 덜 들어요.",
               "answer": {
-                "choice": "",
+                "choice": "a",
                 "why": "",
                 "note": "",
                 "followUp": "",
                 "copy": ""
-              }
+              },
+              "decision": "앞 카드로 되돌아갈 때 그 카드가 이미 세션이 됐으면 그 세션에 리뷰 결과를 이어 보내요. 구현 세션은 자기가 짠 코드를 기억한 채 고칠 것만 받아요. 같은 길을 3번 넘게 왕복하면 멈추고 사람에게 묻는 지금의 안전장치(<code>MAX_TRIPS</code>)는 그대로 둬요.",
+              "reason": {
+                "text": "고칠 것만 전달하면 되는 상황이라 기억을 살리는 쪽이 빠르고 토큰도 덜 들어요.",
+                "by": "recommended"
+              },
+              "appliedTo": "예시 표 ④ 리뷰 행, 03 계획 작성 시"
             },
             {
               "id": "Q4",
@@ -414,12 +432,18 @@
               "recommended": "a",
               "recommendation": "a를 추천해요. 브랜치 이름에 Jira 키를 넣는 습관이면 아무것도 안 써도 끝까지 돌아요.",
               "answer": {
-                "choice": "",
+                "choice": "a",
                 "why": "",
                 "note": "",
                 "followUp": "",
                 "copy": ""
-              }
+              },
+              "decision": "워크트리를 만드는 창에서 템플릿을 고르면 '이번 작업 내용' 칸이 나타나요. 비워 두면 브랜치 이름을 작업 내용으로 써서 바로 시작해요. 브랜치 이름에 작업 정보가 없으면 카드들이 브랜치 이름만 보고 일을 시작하게 돼요.",
+              "reason": {
+                "text": "브랜치 이름에 Jira 키를 넣는 습관이면 아무것도 쓰지 않아도 끝까지 돌아요.",
+                "by": "recommended"
+              },
+              "appliedTo": "작업 intent, 03 계획 작성 시"
             },
             {
               "id": "Q5",
@@ -440,22 +464,312 @@
               "recommended": "a",
               "recommendation": "a를 추천해요. 워크트리 하나 = 작업 하나로 쓰고 있어서, 폴더를 나눌 일이 드물고 펼치기도 한 번에 끝나요.",
               "answer": {
-                "choice": "",
+                "choice": "a",
                 "why": "",
                 "note": "",
                 "followUp": "",
                 "copy": ""
-              }
+              },
+              "decision": "템플릿의 모든 카드는 템플릿을 펼친 워크트리 하나에서 세션이 돼요. 카드마다 다른 폴더를 지정하는 칸은 만들지 않아요.",
+              "reason": {
+                "text": "워크트리 하나를 작업 하나로 쓰고 있어서 폴더를 나눌 일이 드물고, 펼치기도 한 번에 끝나요.",
+                "by": "recommended"
+              },
+              "appliedTo": "03 계획 작성 시"
             }
           ]
         }
       ]
     },
     "tasks": {
-      "status": "wait",
-      "summary": "R2 답을 받은 뒤 계획",
-      "conclusion": [],
-      "blocks": []
+      "status": "ask",
+      "summary": "Phase 1–4 구현 완료 · 화면 확인 남음",
+      "conclusion": [
+        "템플릿은 카드와 길로 된 JSON이고 전역 파일 ~/.local/share/agent-control/templates.json 하나에 저장한다. 데몬이 매번 파일을 다시 읽어서 손으로 고친 내용이 바로 반영된다.",
+        "템플릿을 워크트리에 펼치면 '실행'이 하나 생긴다. 실행은 카드마다 세션을 열고, 세션이 턴을 끝내면 데몬이 다음 카드로 넘긴다. 실행 상태는 ~/.local/share/agent-control/runs.json에 저장돼 데몬을 다시 띄워도 남는다.",
+        "판단 카드 세션에는 choose_route 도구 하나만 붙는다. 판단 카드가 길을 고르지 않고 턴을 마치면 실행이 멈추고, 실행 패널에서 사람이 '이 길로'를 눌러 고른다.",
+        "아직 세션이 없는 카드는 캔버스의 워크트리 영역 안에 점선 상자(예약 카드)로 보이고, 카드 사이 길은 조건 글을 붙인 점선으로 그린다.",
+        "시작하는 곳은 두 군데다: 캔버스 워크트리 메뉴의 '템플릿 펼치기', 그리고 워크트리 만드는 창의 템플릿 고르기. 워크트리 패널(목록 화면)의 메뉴에는 넣지 않았다.",
+        "가짜 claude 실행 파일로 띄운 시험 데몬에서 카드 3개짜리 템플릿을 끝까지 돌렸다: 확인 명령 실패 시 머묾 → 통과 후 판단 카드로, 판단 카드가 --model sonnet --effort low와 MCP 설정으로 열림, choose_route로 '통과'를 고르자 구현 카드가 열림, 마지막 카드가 끝나자 상태가 done으로 저장됨.",
+        "캔버스 · 실행 패널 · 편집 창 · 워크트리 만드는 창은 아직 실제 화면에서 보지 않았다. 지금 돌고 있는 데몬을 다시 띄워야 새 기능이 켜진다."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 템플릿과 실행 기록의 모양",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "템플릿 · 카드 · 길 · 실행(펼친 템플릿) 타입과 JSON 읽기 함수",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/templates/types.ts</code> · <code>src/common/templates/types.test.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>daemon/orchestration/Orchestration.ts</code>의 <code>parseSavedOrchestration</code> — 모르는 값은 버리고 읽는다"
+                ],
+                [
+                  "결정",
+                  "카드는 이름 · 프롬프트 · 종류(일 / 판단) · 모델 · effort · 앞 카드 세션에 이어서 · 끝나면 멈춤 · 확인 명령을 가진다 [[R1-Q5]] [[R1-Q6]] [[R2-Q1]]. 길은 from · to · 조건 글을 가진다 [[R2-Q2]]"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bun run test src/common/templates</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 데몬: 템플릿 저장과 실행 엔진",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "전역 템플릿 파일 읽기 · 쓰기 · 지우기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/templates/TemplateStore.ts</code> · <code>daemon/templates/TemplateStore.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "전역 <code>~/.local/share/agent-control/templates.json</code>에 저장하고, 매번 파일을 다시 읽어 손으로 고친 내용이 바로 반영된다 [[R1-Q2]] [[R1-Q3]]"
+                ],
+                [
+                  "재사용",
+                  "<code>daemon/main.ts</code>의 <code>writeAtomic</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "실행 엔진: 펼치기 · 시작 · 턴 끝 처리 · 다음 카드로 넘기기 · 계속 / 고쳐서 다시 · 멈추기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/templates/TemplateRuns.ts</code> · <code>daemon/templates/TemplateRuns.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "모든 카드 프롬프트 맨 위에 이번 작업 내용을 붙이고, 앞 카드의 마지막 답을 같이 넘긴다 [[R1-Q4]]. 다음 카드는 새 세션으로 열되 '이어서'가 켜진 카드는 앞 카드 세션에 보낸다 [[R1-Q5]]. 이미 세션이 된 카드로 되돌아가면 그 세션에 이어 보낸다 [[R2-Q3]]. 같은 길을 MAX_TRIPS(3)번 되돌면 멈춘다"
+                ],
+                [
+                  "재사용",
+                  "<code>Orchestration.deliver</code>(세션이 바쁘면 턴 끝까지 기다렸다 보냄) · <code>lastAnswer</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "확인 명령: 턴이 끝날 때 워크트리에서 명령을 돌려 종료 코드 0일 때만 넘기기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/main.ts</code> · <code>daemon/templates/TemplateRuns.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R2-Q1]]"
+                ],
+                [
+                  "결정",
+                  "확인 명령은 로그인 셸(<code>$SHELL -lc</code>)로 워크트리 폴더에서 돌리고 2분이 지나면 실패로 본다. 실패하면 실행이 멈추지 않고 그 카드에 머물며, 실행 패널에 '그래도 계속'이 생긴다"
+                ]
+              ]
+            },
+            {
+              "id": "P2-4",
+              "title": "판단 카드: <code>choose_route</code> 도구 하나만 주는 MCP, 고른 길과 이유를 다음 카드로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/templates/judgeMcp.ts</code> · <code>daemon/session/command.ts</code> · <code>daemon/session/command.test.ts</code> · <code>daemon/server.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>daemon/orchestration/conductorMcp.ts</code>의 <code>handleMcpMessage</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q1]] [[R2-Q2]]"
+                ]
+              ]
+            },
+            {
+              "id": "P2-5",
+              "title": "카드별 모델 · effort로 세션 열기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/runner/types.ts</code> · <code>daemon/session/SessionRegistry.ts</code> · <code>daemon/session/command.ts</code>"
+                ],
+                [
+                  "결정",
+                  "<code>claude --model</code> · <code>--effort</code> 플래그로 연다"
+                ]
+              ]
+            },
+            {
+              "id": "P2-6",
+              "title": "데몬 HTTP: 템플릿 목록 · 저장 · 삭제, 실행 펼치기 · 시작 · 계속 · 고쳐서 다시 · 멈추기 · 치우기, 실행 상태를 sessions 방송에 싣고 파일에 저장",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code> · <code>daemon/main.ts</code> · <code>daemon/server.test.ts</code> · <code>daemon/orchestration/conductorServer.test.ts</code> · <code>src/server/runner/RunnerClient.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "sessions 저장과 같은 <code>Saver</code> · conversation id로 키를 바꾸는 <code>snapshot</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bun run test daemon</code> · <code>bunx tsc --noEmit</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 캔버스: 예약 카드 · 템플릿 펼치기 · 템플릿으로 저장",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "실행 상태 받기 · 템플릿 목록 · 실행 조작 API (화면 → 데몬)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/runner/api/templateApi.ts</code> · <code>src/client/entities/runner/index.ts</code> · <code>src/client/entities/runner/model/useRunnerSessions.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/client/entities/runner/api/runnerApi.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "그래프에 예약 카드와 템플릿 길 넣기, 예약 카드 상자 그리기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/model/graph.ts</code> · <code>src/client/widgets/project-graph/model/layout.ts</code> · <code>src/client/widgets/project-graph/ui/CanvasStage.tsx</code> · <code>src/client/widgets/project-graph/ui/ReservedBox.tsx</code> · <code>src/client/widgets/project-graph/ui/GraphEdges.tsx</code> · <code>src/client/widgets/project-graph/ui/Legend.tsx</code> · <code>src/client/widgets/project-graph/ui/NodeBox.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "세션이 아직 없는 카드는 워크트리 영역 안에 점선 상자로 그리고, 카드 사이 길은 조건 글을 붙인 선으로 그린다"
+                ],
+                [
+                  "결정",
+                  "예약 카드는 연결 선을 이을 수 없고 오른쪽 클릭 메뉴도 없다. 누르면 오른쪽 패널에 실행 패널이 뜬다"
+                ],
+                [
+                  "결정",
+                  "<code>NodeBox.tsx</code>의 모델 · effort · 컨텍스트 줄은 같은 워크트리의 다른 세션이 고친 것이고, 사용자 요청대로 이 작업에 같이 담는다"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "워크트리 메뉴 '템플릿 펼치기': 템플릿 고르기 · 이번 작업 내용 · 펼치기 / 펼치고 시작",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/canvasMenuItems.ts</code> · <code>src/client/widgets/project-graph/ui/CanvasOverlays.tsx</code> · <code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q7]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "실행 패널: 카드 순서와 상태, 시작 · 계속 · 고쳐서 다시 · 이 길로 · 멈추기 · 치우기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/RunPanel.tsx</code> · <code>src/client/widgets/project-graph/ui/SidePanel.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q6]] [[R2-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-5",
+              "title": "템플릿 편집 창: 고른 세션과 '끝나면 다음' 선으로 초안을 채우고, 카드 · 길을 고쳐 저장",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/edit-template/index.ts</code> · <code>src/client/features/edit-template/model/editTemplate.ts</code> · <code>src/client/features/edit-template/model/editTemplate.test.ts</code> · <code>src/client/features/edit-template/ui/TemplateEditor.tsx</code> · <code>src/client/widgets/project-graph/model/templateDraft.ts</code> · <code>src/client/widgets/project-graph/model/templateDraft.test.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q2]] [[R2-Q5]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bun run test src/client</code> · 타입 · lint",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 워크트리 만드는 창에서 바로 시작",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "만들기 창에 템플릿 고르기 · '이번 작업 내용' 칸, 만든 뒤 펼치고 시작 (비우면 브랜치 이름)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/worktreeWizard/types.ts</code> · <code>app/api/worktree-wizard/route.ts</code> · <code>src/client/features/create-worktree/ui/WorktreeWizard.tsx</code> · <code>src/server/worktreeWizard/create.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[R1-Q7]] [[R2-Q4]]"
+                ],
+                [
+                  "결정",
+                  "템플릿을 고르면 '첫 요청' 칸은 숨기고, 워크트리는 터미널만 열어 만든 뒤 데몬에 펼치고 시작을 요청한다. 시작이 실패해도 워크트리는 남기고 알림으로 알린다"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 전체 테스트 · 타입 · lint, 데몬을 띄워 2카드 템플릿을 실제로 펼쳐 돌려 보기",
+              "done": true
+            }
+          ]
+        }
+      ]
     }
   },
   "intent": [
@@ -467,7 +781,7 @@
     {
       "text": "세션을 하나씩 열고, 지휘자를 만들고, 다음에 무엇을 시킬지 정하는 손작업을 없앤다. 워크트리를 만드는 한 번으로 시작까지 간다.",
       "state": "confirmed",
-      "basis": "11/16 채팅, [[R1-Q7]]",
+      "basis": "11/16 채팅, [[R1-Q7]], [[R2-Q4]]",
       "was": [
         "세션을 하나씩 열고, 지휘자를 만들고, 다음에 무엇을 시킬지 정하는 손작업을 없앤다."
       ]
@@ -475,8 +789,15 @@
     {
       "text": "순서는 템플릿이 정하고, AI의 판단은 결과를 보고 갈라지는 곳에만 쓴다.",
       "state": "confirmed",
-      "basis": "[[R1-Q1]]"
+      "basis": "[[R1-Q1]], [[R2-Q2]]"
     }
   ],
-  "pulledAt": 1794834306000
+  "pulledAt": 1794835629015,
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "요청 세션이 '구현 맡기기'로 구현까지 맡김"
+    }
+  ]
 }

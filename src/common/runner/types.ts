@@ -1,4 +1,5 @@
 import type { ConductorLaunch, SessionOrchestration } from "../orchestration/types";
+import type { TemplateRun } from "../templates/types";
 
 export const RUNNER_PORT = 3198;
 
@@ -71,6 +72,9 @@ export interface RunnerLaunchRequest {
    * conductor's workers keep the prompts so delegated grants and the git push block still apply.
    */
   askPermissions?: boolean;
+  model?: string;
+  effort?: string;
+  judge?: boolean;
 }
 
 export interface RunnerInputRequest {
@@ -94,4 +98,5 @@ export type TerminalClientMessage =
 export interface SessionsMessage {
   type: "sessions";
   sessions: RunnerSession[];
+  runs?: TemplateRun[];
 }

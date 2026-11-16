@@ -1,5 +1,5 @@
 import "server-only";
-import type { WizardOrigin, WorktreePlan } from "@/common/worktreeWizard/types";
+import type { WizardOrigin, WizardTemplate, WorktreePlan } from "@/common/worktreeWizard/types";
 import { services } from "@/server/container";
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
@@ -18,16 +18,33 @@ export function planProblems(plan: WorktreePlan): string[] {
   return problems;
 }
 
-export async function createWorktree(origin: WizardOrigin, plan: WorktreePlan): Promise<{ path: string; name: string; launchError?: string }> {
+export function templateIntent(template: WizardTemplate, plan: WorktreePlan): string {
+  return template.intent.trim() || plan.branch;
+}
+
+export async function createWorktree(
+  origin: WizardOrigin,
+  plan: WorktreePlan,
+  template: WizardTemplate | null = null,
+): Promise<{ path: string; name: string; launchError?: string }> {
   const problems = planProblems(plan);
   if (problems.length > 0) throw new Error(problems.join(" · "));
-  return services().worktrees.create({
+  const created = await services().worktrees.create({
     projectPath: origin.repoId,
     name: plan.name,
     branch: plan.branch,
     baseBranch: plan.baseBranch,
     parentPath: plan.parent === "from" && origin.from ? origin.from.path : null,
     reference: plan.reference,
-    prompt: plan.firstPrompt,
+    prompt: template ? "" : plan.firstPrompt,
   });
+  if (!template) return created;
+  try {
+    await services().runner.startRun({ templateId: template.id, cwd: created.path, intent: templateIntent(template, plan), start: true });
+    return created;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[worktree-wizard] template start failed", created.path, message);
+    return { ...created, launchError: `워크트리는 만들었지만 템플릿을 시작하지 못했어요: ${message}` };
+  }
 }

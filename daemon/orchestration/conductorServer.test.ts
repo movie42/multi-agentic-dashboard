@@ -1,3 +1,5 @@
+import { TemplateRuns } from "../templates/TemplateRuns.ts";
+import { TemplateStore } from "../templates/TemplateStore.ts";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import type { RunnerSession } from "../../src/common/runner/types.ts";
@@ -26,7 +28,7 @@ function setup() {
   });
   const sent: Array<{ id: string; text: string }> = [];
   const orchestration = new Orchestration({ get: (id) => registry.get(id), send: (id, text) => sent.push({ id, text }), onChange: () => {} });
-  const runner = createRunnerServer({ registry, orchestration, port: PORT, allowedOrigins: [] });
+  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), port: PORT, allowedOrigins: [] });
   current = runner;
   const post = async (path: string, body: unknown) =>
     fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

@@ -16,7 +16,11 @@ import { CanvasStage, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
-import { ConductorPopover, ConnectPicker } from "./CanvasOverlays";
+import { useRunnerSessions } from "@/client/entities/runner";
+import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
+import type { WorkflowTemplate } from "@/common/templates/types";
+import { draftFromSelection } from "../model/templateDraft";
+import { ConductorPopover, ConnectPicker, TemplatePopover } from "./CanvasOverlays";
 import { GraphToolbar } from "./GraphToolbar";
 import { Legend } from "./Legend";
 import { nodeTitle } from "./NodeBox";
@@ -57,7 +61,9 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [showWorktreeLines, setShowWorktreeLines] = useState(false);
   const overlapPaths = showWorktreeLines ? worktrees.filter((worktree) => !worktree.isMain).map((worktree) => worktree.path) : [];
   const overlaps = useQuery(fileOverlapsQueryOptions(overlapPaths)).data ?? [];
-  const built = buildGraph(agents, worktrees, overlaps);
+  const runner = useRunnerSessions();
+  const runs = runner.state === "online" ? runner.runs : [];
+  const built = buildGraph(agents, worktrees, overlaps, runs);
   const graph = showWorktreeLines ? built : { ...built, edges: built.edges.filter((edge) => edge.kind !== "fork" && edge.kind !== "overlap") };
   const auto = autoLayout(graph);
   const [canvas, updateCanvas] = useCanvasState(repo);
@@ -72,12 +78,15 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [stageKey, setStageKey] = useState(0);
   const [menu, setMenu] = useState<{ target: MenuTarget; at: Point } | null>(null);
   const [conductorFor, setConductorFor] = useState<{ clusterId: string; at: Point } | null>(null);
+  const [templateFor, setTemplateFor] = useState<{ clusterId: string; at: Point } | null>(null);
+  const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean } | null>(null);
   const [panelPref, writePanelPref] = useStoredList("agent-control:canvas-panel");
   const panelCollapsed = panelPref.includes("collapsed");
 
-  const liveIds = new Set([...graph.nodes.keys(), ...graph.clusters.map((cluster) => cluster.id)]);
+  const liveIds = new Set([...graph.nodes.keys(), ...graph.reserved.keys(), ...graph.clusters.map((cluster) => cluster.id)]);
   const save = (change: (current: typeof canvas) => typeof canvas) => updateCanvas((current) => pruneCanvas(change(current), liveIds));
-  const liveSelected = selected.filter((id) => graph.nodes.has(id));
+  const liveSelected = selected.filter((id) => graph.nodes.has(id) || graph.reserved.has(id));
+  const selectedSessions = liveSelected.filter((id) => graph.nodes.has(id));
   const selectedEdge = graph.edges.find((edge) => edge.id === edgeId) ?? null;
 
   const select = (ids: string[], additive: boolean) => {
@@ -120,6 +129,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         setPending(null);
         setMenu(null);
         setConductorFor(null);
+        setTemplateFor(null);
         setConnecting(false);
       }
     };
@@ -144,6 +154,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   };
 
   const connect = (from: string, to: string, at: Point) => {
+    if (graph.reserved.has(from) || graph.reserved.has(to)) return;
     setPending({ from, to, at });
   };
   const pick = (kind: LinkKind, prompt: string | null) => {
@@ -162,7 +173,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
     ? menuFor(menu.target, {
         graph,
         canvas,
-        selected: liveSelected,
+        selected: selectedSessions,
         save,
         select: (ids) => select(ids, false),
         onAction,
@@ -177,20 +188,29 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         onLaunchConductor: () => {
           if (menu.target.kind === "cluster") setConductorFor({ clusterId: menu.target.id, at: menu.at });
         },
+        onExpandTemplate: () => {
+          if (menu.target.kind === "cluster") setTemplateFor({ clusterId: menu.target.id, at: menu.at });
+        },
+        onSaveAsTemplate: (chosen) => setEditing({ template: draftFromSelection(crypto.randomUUID(), chosen, graph.edges, nodeTitle), isNew: true }),
       })
     : null;
 
+  const reservedPick = liveSelected.length === 1 ? graph.reserved.get(liveSelected[0]!) : undefined;
+  const agentPick = liveSelected.length === 1 ? graph.nodes.get(liveSelected[0]!) : undefined;
   const view: PanelView = showAllLinks
     ? { kind: "all" }
     : selectedEdge
       ? { kind: "edge", edge: selectedEdge }
-      : liveSelected.length === 1
-        ? { kind: "agent", agent: graph.nodes.get(liveSelected[0]!)!.agent }
+      : reservedPick
+        ? { kind: "run", run: reservedPick.run, cardKey: reservedPick.card.key }
+        : agentPick
+        ? { kind: "agent", agent: agentPick.agent }
         : liveSelected.length > 1
           ? { kind: "many", count: liveSelected.length }
           : { kind: "empty" };
 
   const conductorCluster = conductorFor ? graph.clusters.find((cluster) => cluster.id === conductorFor.clusterId) ?? null : null;
+  const templateCluster = templateFor ? graph.clusters.find((cluster) => cluster.id === templateFor.clusterId) ?? null : null;
 
   /** Double-clicking a box answers it in the side panel, opening the panel if it was folded away. */
   const openNode = (id: string) => {
@@ -206,6 +226,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
 
   return (
     <div className="flex h-dvh min-w-0">
+      {editing && <TemplateEditor key={editing.template.id} initial={editing.template} isNew={editing.isNew} onClose={() => setEditing(null)} />}
       <div className="relative min-w-0 flex-1">
         <CanvasStage
           key={stageKey}
@@ -234,6 +255,18 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
                   worktreePath={conductorCluster.worktree.path}
                   worktreeName={conductorCluster.worktree.name}
                   onClose={() => setConductorFor(null)}
+                />
+              )}
+              {templateFor && templateCluster && (
+                <TemplatePopover
+                  key={templateFor.clusterId}
+                  at={templateFor.at}
+                  zoom={zoom}
+                  worktreePath={templateCluster.worktree.path}
+                  worktreeName={templateCluster.worktree.name}
+                  branch={templateCluster.worktree.branch}
+                  onEdit={(template) => setEditing(template ? { template, isNew: false } : { template: blankTemplate(crypto.randomUUID()), isNew: true })}
+                  onClose={() => setTemplateFor(null)}
                 />
               )}
               {pending && (
@@ -286,7 +319,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
             worktrees={worktrees}
             connecting={connecting}
             showAllLinks={showAllLinks}
-            canGroup={liveSelected.length > 0}
+            canGroup={selectedSessions.length > 0}
             showWorktreeLines={showWorktreeLines}
             onToggleWorktreeLines={() => setShowWorktreeLines((value) => !value)}
             onToggleConnect={() => setConnecting((value) => !value)}

@@ -6,9 +6,11 @@ import type { AgentCard } from "@/common/board/types";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { paneWidth } from "@/client/shared/lib/paneWidth";
-import type { GraphEdge, ProjectGraph } from "../model/graph";
+import type { TemplateRun } from "@/common/templates/types";
+import { runOfNode, type GraphEdge, type ProjectGraph } from "../model/graph";
 import { EDGE_STYLE } from "./GraphEdges";
 import { nodeTitle } from "./NodeBox";
+import { RunPanel } from "./RunPanel";
 
 const MIN_PANEL = 320;
 /** Room the canvas keeps when the panel is dragged wide. */
@@ -141,6 +143,7 @@ export type PanelView =
   | { kind: "agent"; agent: AgentCard }
   | { kind: "many"; count: number }
   | { kind: "edge"; edge: GraphEdge }
+  | { kind: "run"; run: TemplateRun; cardKey: string }
   | { kind: "all" };
 
 interface SidePanelProps {
@@ -160,6 +163,7 @@ const FOOT_BUTTON =
 export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onCollapse }: SidePanelProps) {
   const links = graph.edges.filter((edge) => edge.linkId !== null);
   const agent = view.kind === "agent" ? view.agent : null;
+  const agentRun = agent ? runOfNode(graph.runs, agent.id) : null;
   return (
     <aside data-scroll className="relative flex h-full w-[var(--canvas-panel-w,440px)] shrink-0 flex-col border-l border-hair bg-bg">
       <ResizeHandle
@@ -202,6 +206,7 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
             ⌘G로 그룹으로 묶을 수 있어요.
           </p>
         )}
+        {view.kind === "run" && <RunPanel key={view.run.id} run={view.run} focusKey={view.cardKey} />}
         {view.kind === "empty" && <p className="pt-10 text-center text-[14px] text-muted">상자를 누르면 여기서 답할 수 있어요.</p>}
         {agent && (
           <div className="flex flex-col gap-5">
@@ -209,6 +214,11 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
               {agent.repo} / <span className="font-semibold text-fg">{agent.worktreeName}</span>
             </p>
             {renderCard(agent)}
+            {agentRun && (
+              <div className="border-t border-hair pt-4">
+                <RunPanel key={agentRun.id} run={agentRun} focusKey={Object.entries(agentRun.sessions).find(([, id]) => id === agent.id)?.[0] ?? null} />
+              </div>
+            )}
             <section className="flex flex-col gap-2 border-t border-hair pt-4">
               <p className={HEADING}>연결</p>
               <ConnectionList graph={graph} edges={links.filter((edge) => edge.from === agent.id || edge.to === agent.id)} focusId={agent.id} onAction={onAction} />
