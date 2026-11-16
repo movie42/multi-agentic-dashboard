@@ -16,6 +16,28 @@
   --hair: #e2e7ee;
   --tint: #f5f7fa;
   --tint-2: #edf1f6;
+  /* Terminal palette: Tango Light, the light theme Orca ships as "Builtin Tango Light". */
+  --term-bg: #ffffff;
+  --term-fg: #2e3436;
+  --term-cursor: #2e3436;
+  --term-selection: #b3d1f5;
+  --term-selection-inactive: #d6e4f5;
+  --term-black: #000000;
+  --term-red: #cc0000;
+  --term-green: #4e9a06;
+  --term-yellow: #c4a000;
+  --term-blue: #3465a4;
+  --term-magenta: #75507b;
+  --term-cyan: #06989a;
+  --term-white: #d3d7cf;
+  --term-bright-black: #555753;
+  --term-bright-red: #ef2929;
+  --term-bright-green: #8ae234;
+  --term-bright-yellow: #fce94f;
+  --term-bright-blue: #729fcf;
+  --term-bright-magenta: #ad7fa8;
+  --term-bright-cyan: #34e2e2;
+  --term-bright-white: #eeeeec;
   color-scheme: light;
 }
 
@@ -32,6 +54,28 @@
     --tint-2: #1a212b;
     --st-pr: #a371f7;
     --focus: #2bb5ae;
+    /* Terminal palette: Ghostty's default dark, the dark theme Orca ships as "Ghostty Default Style Dark". */
+    --term-bg: #282c34;
+    --term-fg: #ffffff;
+    --term-cursor: #ffffff;
+    --term-selection: #4a6286;
+    --term-selection-inactive: #3a4556;
+    --term-black: #1d1f21;
+    --term-red: #cc6666;
+    --term-green: #b5bd68;
+    --term-yellow: #f0c674;
+    --term-blue: #81a2be;
+    --term-magenta: #b294bb;
+    --term-cyan: #8abeb7;
+    --term-white: #c5c8c6;
+    --term-bright-black: #666666;
+    --term-bright-red: #d54e53;
+    --term-bright-green: #b9ca4a;
+    --term-bright-yellow: #e7c547;
+    --term-bright-blue: #7aa6da;
+    --term-bright-magenta: #c397d8;
+    --term-bright-cyan: #70c0b1;
+    --term-bright-white: #eaeaea;
     color-scheme: dark;
   }
 }
@@ -52,6 +96,7 @@
   --color-hair: var(--hair);
   --color-tint: var(--tint);
   --color-tint-2: var(--tint-2);
+  --color-term-bg: var(--term-bg);
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
