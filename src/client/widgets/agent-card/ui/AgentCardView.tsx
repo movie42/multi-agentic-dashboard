@@ -241,8 +241,13 @@ export function AgentCardView({
               백그라운드 실행 중
             </span>
           )}
-          <span className="text-muted">
+          <span data-card-meta className="text-muted tabular-nums">
             {agent.agentType ?? "agent"}
+            {agent.model && <span title="이 세션이 쓰는 모델"> · {agent.model}</span>}
+            {agent.effort && <span title="이 세션이 생각을 얼마나 깊게 하는지 (effort)"> · {agent.effort}</span>}
+            {agent.contextPercent !== null && (
+              <span title="지금 대화가 모델의 컨텍스트 창을 얼마나 채웠는지예요"> · 컨텍스트 {agent.contextPercent}%</span>
+            )}
             {agent.toolName && agent.state === "working" ? ` · ${agent.toolName}` : ""}
           </span>
           {!isShell && (

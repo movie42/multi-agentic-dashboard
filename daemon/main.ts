@@ -88,7 +88,7 @@ function sessionEnv(): Record<string, string> {
   const entries = Object.entries({ ...process.env, ...shellEnv }).filter(
     (entry): entry is [string, string] => typeof entry[1] === "string" && !DROPPED_ENV.test(entry[0]),
   );
-  return { ...Object.fromEntries(entries), TERM: "xterm-256color", COLORTERM: "truecolor" };
+  return { ...Object.fromEntries(entries), TERM: "xterm-256color", COLORTERM: "truecolor", FLOW_NO_OPEN: "1" };
 }
 
 const relay: { onChange: () => void } = { onChange: () => {} };
