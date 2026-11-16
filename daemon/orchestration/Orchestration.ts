@@ -219,9 +219,9 @@ export class Orchestration {
     const accept = PROPOSAL_ACCEPT_PATH.exec(pathname);
     if (accept && method === "POST") {
       const cwd = record(await body())?.cwd;
+      if (typeof cwd !== "string" || !cwd.startsWith("/")) return fail(400, "만든 워크트리 경로가 필요해요.");
       const proposal = this.store.takeProposal(decodeURIComponent(accept[1] ?? ""));
       if (!proposal) return fail(404, "제안이 없어요.");
-      if (typeof cwd !== "string" || !cwd.startsWith("/")) return fail(400, "만든 워크트리 경로가 필요해요.");
       const worker = this.#registry.launch({ cwd, prompt: proposal.prompt || undefined });
       this.store.addLink({ from: proposal.conductorId, to: worker.id, kind: "delegate" }, "conductor");
       this.store.addLink({ from: worker.id, to: proposal.conductorId, kind: "report" }, "conductor");

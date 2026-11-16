@@ -98,6 +98,19 @@ describe("orchestration over HTTP", () => {
   });
 });
 
+describe("proposals", () => {
+  it("keeps a proposal when the accept request carries no worktree path", async () => {
+    const { runner, orchestration } = setup();
+    const boss = orchestration.launchConductor({ cwd: "/repo", scope: { kind: "project", root: "/repo" }, grants: [], prompt: "" });
+    const proposal = orchestration.store.addProposal({ conductorId: boss.id, name: "x", branch: "feat/x", baseBranch: "main", prompt: "" });
+    await listen(runner);
+    expect((await post(`/orchestration/proposals/${proposal.id}/accept`, {})).ok).toBe(false);
+    expect(orchestration.store.state().proposals).toHaveLength(1);
+    expect((await post(`/orchestration/proposals/${proposal.id}/accept`, { cwd: "/repo-x" })).ok).toBe(true);
+    expect(orchestration.store.state().proposals).toHaveLength(0);
+  });
+});
+
 describe("descendantsOf", () => {
   it("keeps the root and the worktrees branched from it, through any depth", () => {
     const all = ["/a", "/b", "/c", "/d"].map((path) => ({ path, branch: null }));

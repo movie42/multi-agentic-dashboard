@@ -67,9 +67,6 @@ function saveSessions(sessions: RunnerSession[]): void {
 
 const SAVE_FLUSH_MS = 2000;
 
-function flushSessions(): Promise<void> {
-  return Promise.race([sessionSaver.queue, new Promise<void>((resolve) => setTimeout(resolve, SAVE_FLUSH_MS).unref())]);
-}
 
 const shellEnv = await readShellEnv(shell);
 
@@ -157,7 +154,10 @@ async function shutdown(signal: string) {
   console.log(`[runner] ${signal} — closing sessions`);
   sessionSaver.stopped = true;
   orchestrationSaver.stopped = true;
-  await Promise.race([Promise.all([sessionSaver.queue, orchestrationSaver.queue]), flushSessions()]);
+  await Promise.race([
+    Promise.all([sessionSaver.queue, orchestrationSaver.queue]),
+    new Promise<void>((resolve) => setTimeout(resolve, SAVE_FLUSH_MS).unref()),
+  ]);
   registry.closeAll();
   runner.server.close();
   process.exit(0);

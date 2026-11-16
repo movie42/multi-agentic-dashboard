@@ -286,7 +286,7 @@
           "title": "프로젝트 이름",
           "field": "<code>projects[].repo</code>",
           "rule": "누르면 그 프로젝트의 그래프 화면이 열려요. 워크트리 줄을 누르면 지금처럼 그 워크트리 화면이 열려요.",
-          "note": "[[project-overview#R1-Q1]]"
+          "note": "<code>src/client/widgets/project-sidebar/ui/ProjectSidebar.tsx:231</code> · [[project-overview#R1-Q1]]"
         },
         {
           "id": "S16",
@@ -297,7 +297,7 @@
           "title": "프로젝트 집계 · 도구",
           "field": "<code>agents[].state</code>",
           "rule": "세션 수, 내 차례, 작업 중 수와 함께 + 세션 · 잇기 · 규칙 · 정렬 도구가 있어요.",
-          "note": "사용자 스케치 11/16"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:456</code> 위 집계 줄 · 도구 막대 <code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:483</code>"
         },
         {
           "id": "S17",
@@ -308,18 +308,18 @@
           "title": "잇기",
           "field": "—",
           "rule": "켜면 상자에서 상자로 끌어 선을 이어요. 선 종류는 맡김 · 이어서 중에서 골라요.",
-          "note": "[[session-orchestration]]에서 실제 동작 설계"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:491</code> · 선 저장 <code>daemon/orchestration/OrchestrationStore.ts</code>"
         },
         {
           "id": "S18",
           "section": "그래프",
           "node": "coordinator",
           "side": "right",
-          "kind": "pending",
+          "kind": "format",
           "title": "프로젝트 세션 (코디네이터)",
           "field": "—",
           "rule": "워크트리가 아니라 프로젝트(main 폴더)에 붙은 세션이에요. 맨 위에 두고 워크트리 세션들에 일을 맡겨요.",
-          "note": "프로젝트 레벨 세션을 따로 표시할 필드가 아직 없어요 — main 체크아웃 세션으로 볼지 정해야 해요"
+          "note": "<code>src/client/widgets/project-graph/model/orchestration.ts:16</code> — 프로젝트 범위 지휘자만 맨 위 줄 ([[session-orchestration#R1-Q2]])"
         },
         {
           "id": "S19",
@@ -330,7 +330,7 @@
           "title": "워크트리 묶음 (점선 상자)",
           "field": "<code>worktrees[].name · flowTasks[0] · pullRequest</code>",
           "rule": "같은 워크트리의 세션 상자들을 점선 상자로 묶고, 제목에 이름 · 단계 · PR을 적어요.",
-          "note": "[[project-overview#R1-Q2]]"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:159</code> · 배치 <code>src/client/widgets/project-graph/model/layout.ts:90</code>"
         },
         {
           "id": "S20",
@@ -341,7 +341,7 @@
           "title": "세션 상자",
           "field": "<code>agents[].state · title · lastMessage</code>",
           "rule": "상태 점, 제목, 마지막 메시지 한 줄이에요. 상자 사이의 선이 맡김 · 보고 · 이어서 관계예요.",
-          "note": "사용자 스케치 11/16"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:237</code>"
         },
         {
           "id": "S21",
@@ -352,7 +352,7 @@
           "title": "고른 세션",
           "field": "<code>agents[]</code>",
           "rule": "상자를 누르면 테두리가 진해지고, 오른쪽 패널에 그 세션 카드가 열려 바로 답할 수 있어요.",
-          "note": "[[project-overview#R1-Q3]]"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:237</code> 선택 · 패널 카드 <code>AgentCardView</code>"
         },
         {
           "id": "S22",
@@ -363,7 +363,7 @@
           "title": "새 세션 끌어 잇기",
           "field": "—",
           "rule": "빈 자리에서 새 세션을 만들어 기존 상자와 바로 이어요.",
-          "note": "[[session-orchestration]]"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:483</code> 지휘자 · <code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:491</code> 잇기 (초안의 끌어 잇기 대신 두 상자를 차례로 누름)"
         },
         {
           "id": "S23",
@@ -374,7 +374,7 @@
           "title": "선 종류",
           "field": "—",
           "rule": "맡김(실선 화살표), 보고(점선 화살표), 이어서(끝나면 다음, 실선), 갈라진 워크트리(회색), 같은 파일 수정(주황 점선)이에요.",
-          "note": "[[project-overview#R3-Q1]] · 사용자 스케치"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:105</code> · 같은 파일 계산 <code>src/server/projectOverview/overlaps.ts:27</code> · [[project-overview#R3-Q1]]"
         },
         {
           "id": "S24",
@@ -385,18 +385,18 @@
           "title": "세션 카드",
           "field": "<code>agents[]</code>",
           "rule": "고른 세션의 질문 · 선택지 · 직접 답하기와 '워크트리 열기'가 있어요.",
-          "note": "[[project-overview#R1-Q3]]"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:556</code> 위 패널 · [[project-overview#R1-Q3]]"
         },
         {
           "id": "S25",
           "section": "오른쪽 패널",
           "node": "panel-rule",
           "side": "right",
-          "kind": "pending",
+          "kind": "action",
           "title": "연결 · 규칙",
           "field": "—",
           "rule": "이 세션에 걸린 선과 규칙(예: 대화가 끝나면 맡긴 세션에 보고)을 보여요.",
-          "note": "규칙 저장 위치와 실행 주체는 [[session-orchestration]]에서 정해요"
+          "note": "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx:556</code> <code>Connections</code> · 규칙은 데몬 <code>daemon/orchestration/RuleRunner.ts</code>"
         }
       ],
       "offscreen": [
