@@ -355,8 +355,10 @@ export function AgentCardView({
             currentSessionId={agent.session?.id ?? null}
           />
           <div className="flex flex-wrap items-center gap-2 px-1">
-            <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
-            <EffortPicker terminalHandle={terminalHandle} effort={agent.effort} />
+            <span className="inline-flex items-center">
+              <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
+              <EffortPicker terminalHandle={terminalHandle} effort={agent.effort} />
+            </span>
             {agent.contextPercent !== null && (
               <span
                 data-context-percent

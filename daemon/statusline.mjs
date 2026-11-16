@@ -26,6 +26,7 @@ function reportedPart(input) {
   return {
     model: input.model ?? null,
     context_window: input.context_window ?? null,
+    effort: input.effort ?? null,
     rate_limits: input.rate_limits ?? null,
   };
 }

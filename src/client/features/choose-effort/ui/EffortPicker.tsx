@@ -49,12 +49,15 @@ export function EffortPicker({ terminalHandle, effort, disabled = false }: Effor
         className="inline-flex max-w-40 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] text-muted hover:bg-tint-2 hover:text-fg disabled:opacity-50"
       >
         {pending && <Spinner />}
-        <span className="truncate">{effort ? `effort ${effort}` : "effort 확인 전"}</span>
+        <span className="truncate">{effort ?? "effort"}</span>
         <span aria-hidden className="text-[10px]">▾</span>
       </button>
       {menu && (
-        <ContextMenu at={menu} label="effort 고르기" onClose={() => setMenu(null)} widthClass="w-44">
+        <ContextMenu at={menu} label="effort 고르기" onClose={() => setMenu(null)} widthClass="w-56">
           <MenuHeading>effort 바꾸기</MenuHeading>
+          <p data-effort-default-note className="px-2.5 pb-1.5 text-[12px] leading-snug text-muted">
+            이 모델로 여는 새 세션 기본값도 바뀌어요
+          </p>
           {EFFORT_CHOICES.map((choice) => (
             <MenuItem key={choice} onSelect={() => choose(choice)}>
               {choice === effort ? `${EFFORT_LABEL[choice]} ✓` : EFFORT_LABEL[choice]}
