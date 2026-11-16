@@ -289,6 +289,11 @@ export function AgentCardView({
           <div className="flex flex-col gap-3">
             {agent.prompt && <p className="line-clamp-2 text-[14px] leading-relaxed text-muted">“{agent.prompt}”</p>}
             <MessageView message={agent.lastMessage} />
+            {!agent.prompt && !agent.lastMessage && agent.agentType === "claude" && (
+              <p className="text-[13px] text-muted">
+                아직 대화 기록을 찾지 못했어요. 터미널에서 다른 대화로 옮겨 갔다면 다음 입력부터 여기에 보여요.
+              </p>
+            )}
           </div>
         ))}
 
@@ -297,6 +302,19 @@ export function AgentCardView({
       {view === "terminal" && terminalHandle && (
         <div className="h-[420px]">
           <RunnerTerminal key={terminalHandle} sessionId={terminalHandle} />
+        </div>
+      )}
+
+      {view !== "terminal" && agent.state === "blocked" && !agent.permission && terminalHandle && !isShell && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-tint-2 px-3 py-2 text-[13px]">
+          <p className="min-w-0 flex-1">터미널 화면에서 입력을 기다리고 있어요. 채팅에서는 보이지 않아요.</p>
+          <button
+            type="button"
+            onClick={() => pick("terminal")}
+            className="shrink-0 font-semibold underline decoration-faint underline-offset-[3px] hover:decoration-current"
+          >
+            터미널 열기
+          </button>
         </div>
       )}
 
@@ -312,7 +330,12 @@ export function AgentCardView({
             chatLayout === "page" ? "sticky bottom-0 z-10 -mx-5 bg-tint px-5 pt-3 pb-4 shadow-[0_-12px_16px_-12px_var(--hair)]" : ""
           }`}
         >
-          <QuickReply terminalHandle={terminalHandle} working={agent.state === "working"} />
+          <QuickReply
+            terminalHandle={terminalHandle}
+            working={agent.state === "working"}
+            cwd={agent.worktreePath}
+            currentSessionId={agent.session?.id ?? null}
+          />
           <div className="flex flex-wrap items-center gap-2 px-1">
             <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
             {agent.contextPercent !== null && (
