@@ -1,6 +1,6 @@
 {
   "api": "Orca CLI <code>orca worktree ps --json</code> · <code>orca terminal read --screen --json</code> → <code>/api/board</code> · <code>/api/terminal</code>",
-  "base": "app 78d1862",
+  "base": "app d10881b",
   "flows": [
     {
       "title": "지금: 선택지에 답하는 흐름",

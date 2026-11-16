@@ -517,9 +517,12 @@
       ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "ask",
+      "summary": "PR 여부 확인 대기",
+      "conclusion": [
+        "갈라진 관계 · 같은 파일 수정 선과 그래프 화면만 이 작업의 범위예요.",
+        "코드 리뷰 지적 2건을 고쳤고 타입 검사 · 린트 · 테스트가 통과해요. PR은 만들지 확인을 기다려요."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -528,22 +531,34 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review low 지적 2건(제안 수락 순서 · 종료 때 저장 대기)을 <code>d10881b</code>에서 고침"
+                ]
+              ]
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "tsc · eslint · vitest 103개 파일 548개 통과"
+                ]
+              ]
             },
             {
               "id": "D5",
