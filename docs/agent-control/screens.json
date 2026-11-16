@@ -269,6 +269,169 @@
           "shows": "대시보드가 바로 '결정 없음'으로 돌려보내 터미널 대화상자가 떠요. [[permission-hook#R1-Q5]]"
         }
       ]
+    },
+    {
+      "id": "project-overview",
+      "title": "프로젝트 전체 보기 (그래프 초안)",
+      "figma": "Figma 없음 · HTML 초안 images/project-overview.mock.html (샘플 데이터)",
+      "image": "images/project-overview.png",
+      "metadata": "images/project-overview.xml",
+      "markers": [
+        {
+          "id": "S15",
+          "section": "사이드바",
+          "node": "sidebar-project",
+          "side": "left",
+          "kind": "action",
+          "title": "프로젝트 이름",
+          "field": "<code>projects[].repo</code>",
+          "rule": "누르면 그 프로젝트의 그래프 화면이 열려요. 워크트리 줄을 누르면 지금처럼 그 워크트리 화면이 열려요.",
+          "note": "[[project-overview#R1-Q1]]"
+        },
+        {
+          "id": "S16",
+          "section": "도구 막대",
+          "node": "toolbar",
+          "side": "left",
+          "kind": "format",
+          "title": "프로젝트 집계 · 도구",
+          "field": "<code>agents[].state</code>",
+          "rule": "세션 수, 내 차례, 작업 중 수와 함께 + 세션 · 잇기 · 규칙 · 정렬 도구가 있어요.",
+          "note": "사용자 스케치 11/16"
+        },
+        {
+          "id": "S17",
+          "section": "도구 막대",
+          "node": "connect-tool",
+          "side": "right",
+          "kind": "action",
+          "title": "잇기",
+          "field": "—",
+          "rule": "켜면 상자에서 상자로 끌어 선을 이어요. 선 종류는 맡김 · 이어서 중에서 골라요.",
+          "note": "[[session-orchestration]]에서 실제 동작 설계"
+        },
+        {
+          "id": "S18",
+          "section": "그래프",
+          "node": "coordinator",
+          "side": "right",
+          "kind": "pending",
+          "title": "프로젝트 세션 (코디네이터)",
+          "field": "—",
+          "rule": "워크트리가 아니라 프로젝트(main 폴더)에 붙은 세션이에요. 맨 위에 두고 워크트리 세션들에 일을 맡겨요.",
+          "note": "프로젝트 레벨 세션을 따로 표시할 필드가 아직 없어요 — main 체크아웃 세션으로 볼지 정해야 해요"
+        },
+        {
+          "id": "S19",
+          "section": "그래프",
+          "node": "cluster",
+          "side": "left",
+          "kind": "format",
+          "title": "워크트리 묶음 (점선 상자)",
+          "field": "<code>worktrees[].name · flowTasks[0] · pullRequest</code>",
+          "rule": "같은 워크트리의 세션 상자들을 점선 상자로 묶고, 제목에 이름 · 단계 · PR을 적어요.",
+          "note": "[[project-overview#R1-Q2]]"
+        },
+        {
+          "id": "S20",
+          "section": "그래프",
+          "node": "session-node",
+          "side": "left",
+          "kind": "format",
+          "title": "세션 상자",
+          "field": "<code>agents[].state · title · lastMessage</code>",
+          "rule": "상태 점, 제목, 마지막 메시지 한 줄이에요. 상자 사이의 선이 맡김 · 보고 · 이어서 관계예요.",
+          "note": "사용자 스케치 11/16"
+        },
+        {
+          "id": "S21",
+          "section": "그래프",
+          "node": "selected-node",
+          "side": "left",
+          "kind": "action",
+          "title": "고른 세션",
+          "field": "<code>agents[]</code>",
+          "rule": "상자를 누르면 테두리가 진해지고, 오른쪽 패널에 그 세션 카드가 열려 바로 답할 수 있어요.",
+          "note": "[[project-overview#R1-Q3]]"
+        },
+        {
+          "id": "S22",
+          "section": "그래프",
+          "node": "ghost-node",
+          "side": "right",
+          "kind": "action",
+          "title": "새 세션 끌어 잇기",
+          "field": "—",
+          "rule": "빈 자리에서 새 세션을 만들어 기존 상자와 바로 이어요.",
+          "note": "[[session-orchestration]]"
+        },
+        {
+          "id": "S23",
+          "section": "그래프",
+          "node": "legend",
+          "side": "left",
+          "kind": "format",
+          "title": "선 종류",
+          "field": "—",
+          "rule": "맡김(실선 화살표), 보고(점선 화살표), 이어서(끝나면 다음, 실선), 갈라진 워크트리(회색), 같은 파일 수정(주황 점선)이에요.",
+          "note": "[[project-overview#R3-Q1]] · 사용자 스케치"
+        },
+        {
+          "id": "S24",
+          "section": "오른쪽 패널",
+          "node": "panel",
+          "side": "right",
+          "kind": "action",
+          "title": "세션 카드",
+          "field": "<code>agents[]</code>",
+          "rule": "고른 세션의 질문 · 선택지 · 직접 답하기와 '워크트리 열기'가 있어요.",
+          "note": "[[project-overview#R1-Q3]]"
+        },
+        {
+          "id": "S25",
+          "section": "오른쪽 패널",
+          "node": "panel-rule",
+          "side": "right",
+          "kind": "pending",
+          "title": "연결 · 규칙",
+          "field": "—",
+          "rule": "이 세션에 걸린 선과 규칙(예: 대화가 끝나면 맡긴 세션에 보고)을 보여요.",
+          "note": "규칙 저장 위치와 실행 주체는 [[session-orchestration]]에서 정해요"
+        }
+      ],
+      "offscreen": [
+        {
+          "id": "X11",
+          "state": "워크트리 없음",
+          "when": "프로젝트에 워크트리가 하나도 없을 때",
+          "shows": "프로젝트 세션 상자와 + 세션만"
+        },
+        {
+          "id": "X12",
+          "state": "선 없는 세션",
+          "when": "어떤 세션과도 이어지지 않았을 때",
+          "shows": "자기 워크트리 묶음 안에 상자만 놓여요"
+        },
+        {
+          "id": "X13",
+          "state": "겹침 읽는 중 · 실패",
+          "when": "같은 파일 계산이 아직이거나 실패했을 때",
+          "shows": "주황 점선만 빠져요"
+        },
+        {
+          "id": "X14",
+          "state": "패널 비어 있음",
+          "when": "아무 상자도 고르지 않았을 때",
+          "shows": "'상자를 누르면 여기서 답할 수 있어요'"
+        },
+        {
+          "id": "X15",
+          "state": "세션이 많을 때",
+          "when": "상자가 화면을 넘칠 때",
+          "shows": "끌어서 이동 · 확대/축소, 정렬로 다시 배치"
+        }
+      ],
+      "offscreenIntro": "초안 이미지에 없는 상태들"
     }
   ]
 }
