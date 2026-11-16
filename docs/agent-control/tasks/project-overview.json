@@ -2,7 +2,7 @@
   "id": "project-overview",
   "title": "프로젝트 전체 보기",
   "type": "기능 개발",
-  "branch": "main",
+  "branch": "feat/project-overview",
   "links": [],
   "stages": {
     "screen": {
@@ -11,7 +11,7 @@
       "conclusion": [
         "사용자 스케치(상자와 선)대로 다시 그렸어요: 맨 위 프로젝트 세션 [[S18]]이 워크트리 세션 [[S20]]에 일을 맡기고, 세션은 워크트리별 점선 상자 [[S19]]로 묶여요.",
         "상자를 누르면 오른쪽 패널 [[S24]]에서 바로 답해요. 선 종류는 [[S23]]이에요.",
-        "정해지지 않은 것: 프로젝트 레벨 세션을 무엇으로 볼지 [[S18]], 규칙을 어디에 두고 누가 실행할지 [[S25]]."
+        "[[S17]] 잇기 · [[S18]] 지휘자 · [[S22]] 끌어 잇기 · [[S25]] 규칙은 session-orchestration에서 붙여요."
       ]
     },
     "grill": {
@@ -330,10 +330,13 @@
       ]
     },
     "tasks": {
-      "status": "ask",
-      "summary": "그래프 초안 확인 뒤 다시 씀",
+      "status": "done",
+      "summary": "구현 완료 · Phase 3개",
       "conclusion": [
-        "목록형 초안 기준이던 계획이에요. 그래프 초안이 확정되면 다시 써요."
+        "사이드바에서 프로젝트 이름을 누르면 그 프로젝트의 그래프 화면이 열려요. 워크트리마다 점선 영역 안에 세션 상자가 놓이고, 상자를 누르면 오른쪽 패널에서 바로 답해요.",
+        "같은 파일 선은 고른 세션의 워크트리 것만 그려요. 실제 프로젝트(워크트리 9개)에서 거의 모든 쌍이 겹쳐 선 수십 개가 엉켰기 때문이에요. 다른 워크트리는 영역 머리의 ⇄n으로 수를 보이고, 누르면 그 워크트리 선을 봐요.",
+        "워크트리가 많으면 영역을 여러 줄로 감싸고, 세션이 6개를 넘는 영역은 3열로 놓아요.",
+        "vitest 104개 파일 · tsc · eslint 통과, compose_mis(세션 34개)와 이 저장소로 라이트 · 다크 화면을 확인했어요."
       ],
       "blocks": [
         {
@@ -343,118 +346,129 @@
           "items": [
             {
               "id": "P1-1",
-              "title": "워크트리마다 바뀐 파일 목록을 모으고, 두 워크트리가 함께 고친 파일을 짝으로 계산",
-              "done": false,
+              "title": "워크트리마다 갈라진 뒤 바뀐 파일(커밋 · 커밋 안 한 변경 · 새 파일)을 모아 겹치는 쌍 계산",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/projectOverview/overlaps.ts</code> · <code>src/common/projectOverview/types.ts</code>"
+                  "<code>src/server/projectOverview/overlaps.ts</code> · <code>src/common/projectOverview/types.ts</code> · <code>src/server/projectOverview/overlaps.test.ts</code>"
                 ],
                 [
                   "재사용",
-                  "<code>resolveRange</code>(gitDiff.ts:46 — 루트 브랜치에서 갈라진 지점 찾기) · <code>git diff --name-only</code> + <code>git status --porcelain</code>(커밋 안 한 변경 포함)"
+                  "<code>resolveRange</code> (갈라진 지점) · <code>tryGit</code>"
                 ],
                 [
                   "결정",
-                  "[[R3-Q1]] 메인 체크아웃은 비교에서 뺀다"
+                  "[[R3-Q1]] 메인 체크아웃은 비교에서 뺌"
                 ]
               ]
             },
             {
               "id": "P1-2",
-              "title": "프로젝트 단위로 겹침을 돌려주는 API",
-              "done": false,
+              "title": "프로젝트 단위 겹침 API",
+              "done": true,
               "rows": [
                 [
                   "파일",
                   "<code>app/api/project-overlaps/route.ts</code> · <code>src/server/container.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "app/api/git-graph 라우트 · container의 서비스 등록"
                 ]
               ]
             },
             {
               "id": "P1-V",
-              "title": "검증: <code>bun test src/server/projectOverview</code> (가짜 git 출력으로 겹침 계산)",
-              "done": false
+              "title": "검증: <code>vitest src/server/projectOverview</code> 3개 (실제 git 저장소로 확인)",
+              "done": true
             }
           ]
         },
         {
           "type": "checklist",
           "id": "P2",
-          "title": "Phase 2 · 프로젝트 전체 보기 화면",
+          "title": "Phase 2 · 그래프 화면",
           "items": [
             {
               "id": "P2-1",
-              "title": "겹침 조회 훅 (30초마다 다시 읽기)",
-              "done": false,
+              "title": "배치 계산: 갈라진 워크트리는 부모 영역 아래, 루트 영역은 화면 비율에 맞춰 여러 줄, 위쪽 줄은 지휘자 자리",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/entities/project-overview/</code>"
+                  "<code>src/client/widgets/project-graph/model/layout.ts</code> · <code>src/client/widgets/project-graph/model/layout.test.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "entities/git-graph의 react-query 키·조회 구성"
+                  "SOT",
+                  "[[S19]] [[S20]]"
                 ]
               ]
             },
             {
               "id": "P2-2",
-              "title": "전체 보기 위젯: 머리말(프로젝트·워크플로·포커스) · 새 세션 입력창 · 워크트리 묶음",
-              "done": false,
+              "title": "선 모양: 아래로 가는 선은 아래→위 곡선, 옆 영역끼리는 마주 보는 옆면끼리",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/project-overview/ui/ProjectOverview.tsx</code>"
+                  "<code>src/client/widgets/project-graph/model/edges.ts</code> · <code>src/client/widgets/project-graph/model/edges.test.ts</code>"
                 ],
                 [
-                  "재사용",
-                  "<code>LaunchAgent</code>(이 프로젝트 워크트리만) · <code>useWorktreeOrder</code>(사이드바와 같은 순서) · <code>AgentList</code>(제자리 펼침 · <code>onJump</code>=워크트리로 가기) · <code>Stepper</code>"
-                ],
-                [
-                  "결정",
-                  "[[R1-Q2]] [[R1-Q3]] [[R1-Q4]]"
+                  "SOT",
+                  "[[S23]]"
                 ]
               ]
             },
             {
               "id": "P2-3",
-              "title": "워크트리 묶음 머리: 이름 · 브랜치 · 단계 · PR · 세션 수 · '워크트리 열기' 버튼",
-              "done": false,
+              "title": "끌어서 이동 · 휠 스크롤 · ⌘/Ctrl+휠 확대, 처음엔 화면에 맞춤",
+              "done": true,
               "rows": [
                 [
-                  "재사용",
-                  "WorktreePanel의 단계 점 줄(STRIP_DOT) · ACTION_ICONS에서 같은 동작 아이콘"
+                  "파일",
+                  "<code>src/client/widgets/project-graph/model/useViewport.ts</code>"
+                ],
+                [
+                  "결정",
+                  "위치는 SVG 속성(transform · x · y)으로만 정해 style 속성을 쓰지 않음"
                 ]
               ]
             },
             {
               "id": "P2-4",
-              "title": "관계선: 묶음 왼쪽 여백에 갈라진 관계(실선)와 같은 파일 수정(점선 · 파일 수, 올리면 파일 목록)",
-              "done": false,
+              "title": "그래프 위젯: 영역 · 상자 · 선 · 범례 · 새 세션 · 맞춤 · 오른쪽 패널",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/project-overview/ui/RelationLines.tsx</code>"
+                  "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx</code> · <code>src/client/widgets/project-graph/index.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "묶음 위치를 재서 SVG로 그림 · 색은 테마 토큰"
+                  "재사용",
+                  "<code>AgentCardView</code>(패널) · <code>LaunchAgent</code> · <code>groupAgents</code> · <code>buildSteps</code> · <code>ACTION_ICONS.session</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S16]] [[S21]] [[S24]]"
                 ],
                 [
                   "결정",
-                  "[[R3-Q1]]"
+                  "같은 파일 선은 고른 세션의 워크트리 것만, 나머지는 영역 머리 ⇄n"
+                ]
+              ]
+            },
+            {
+              "id": "P2-5",
+              "title": "겹침 조회 (30초마다)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/project-overview/</code>"
                 ]
               ]
             },
             {
               "id": "P2-V",
-              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun test</code> · 위젯 테스트(묶음·선 개수)",
-              "done": false
+              "title": "검증: <code>vitest src/client/widgets/project-graph</code> 7개 · tsc · eslint",
+              "done": true
             }
           ]
         },
@@ -465,8 +479,8 @@
           "items": [
             {
               "id": "P3-1",
-              "title": "워크트리를 고르지 않은 프로젝트 화면 = 전체 보기",
-              "done": false,
+              "title": "워크트리를 고르지 않은 프로젝트 화면 = 그래프",
+              "done": true,
               "rows": [
                 [
                   "파일",
@@ -474,25 +488,29 @@
                 ],
                 [
                   "결정",
-                  "[[R1-Q1]] 지금은 첫 워크트리를 대신 보여 줌 → 전체 보기로 바꿈"
+                  "[[R1-Q1]] 지금까지는 첫 워크트리를 대신 보여 줬음"
                 ]
               ]
             },
             {
               "id": "P3-2",
-              "title": "사이드바 프로젝트 이름 클릭: 워크트리가 골라져 있어도 전체 보기로",
-              "done": false,
+              "title": "사이드바 프로젝트 이름: 워크트리가 골라져 있어도 그래프로, 그래프에서 다시 누르면 접기",
+              "done": true,
               "rows": [
                 [
                   "파일",
                   "<code>src/client/widgets/project-sidebar/ui/ProjectSidebar.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S15]]"
                 ]
               ]
             },
             {
               "id": "P3-V",
-              "title": "검증: browse로 프로젝트 클릭 → 전체 보기 · 세션 펼쳐 답장 · 워크트리 열기 · 선 표시 확인, <code>bun run desktop</code> 재빌드",
-              "done": false
+              "title": "검증: 개발 서버(3111)에서 compose_mis · multi-agentic-dashboard 그래프, 상자 선택 → 패널 카드, 다크 모드 확인",
+              "done": true
             }
           ]
         }

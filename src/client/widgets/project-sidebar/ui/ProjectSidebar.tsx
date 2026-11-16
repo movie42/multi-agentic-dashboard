@@ -218,7 +218,7 @@ export function ProjectSidebar({
                 <NavItem
                   label={project.repo}
                   active={active}
-                  heading
+                  heading={prefs.selectedWorktreeId !== null}
                   focused={inFocus}
                   needsInput={counts.needsInput}
                   needsMe={counts.needsMe}
@@ -228,8 +228,9 @@ export function ProjectSidebar({
                       onToggleFocus(project.repo);
                       return;
                     }
-                    if (!active) prefs.selectRepo(project.repo);
-                    setOpen(project.repo, active ? !open : true);
+                    const inOverview = active && prefs.selectedWorktreeId === null;
+                    if (!inOverview) prefs.selectRepo(project.repo);
+                    setOpen(project.repo, inOverview ? !open : true);
                   }}
                 />
                 <button

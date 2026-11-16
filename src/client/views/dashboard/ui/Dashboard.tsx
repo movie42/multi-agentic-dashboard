@@ -37,6 +37,7 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
+import { ProjectGraph } from "@/client/widgets/project-graph";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "@/client/widgets/doc-panel";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -270,6 +271,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
 
   const withProgressCard = (agent: AgentCard) => renderCard(agent, true, "box");
   const projectViewCard = (agent: AgentCard) => renderCard(agent, false, "page");
+  const graphPanelCard = (agent: AgentCard) => renderCard(agent, true, "box");
 
   const focused = new Set(focusKeys.filter((repo) => projectByRepo.has(repo)));
   const toggleFocus = (repo: string) =>
@@ -563,6 +565,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             now={now}
             isDismissed={dismissed.isDismissed}
             renderCard={projectViewCard}
+            renderPanelCard={graphPanelCard}
+            allAgents={board.agents.filter((agent) => agent.repo === selectedRepo)}
+            onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
             expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
             focused={focused.has(selectedRepo)}
@@ -594,6 +599,11 @@ interface ProjectViewProps {
   now: number;
   isDismissed: (agent: AgentCard) => boolean;
   renderCard: (agent: AgentCard) => React.ReactNode;
+  /** Card shown in the project graph's side panel. */
+  renderPanelCard: (agent: AgentCard) => React.ReactNode;
+  /** Every session of the project, orchestrated workers included, for the graph. */
+  allAgents: AgentCard[];
+  onOpenWorktree: (worktreeId: string) => void;
   expandedId: string | null;
   onAction: (action: ActionRequest) => Promise<void>;
   focused: boolean;
@@ -610,14 +620,16 @@ function ProjectView({
   now,
   isDismissed,
   renderCard,
+  renderPanelCard,
+  allAgents,
+  onOpenWorktree,
   expandedId,
   onAction,
   focused,
   onToggleFocus,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
-  const worktree =
-    ordered.find((candidate) => candidate.worktreeId === selectedWorktreeId) ?? ordered[0] ?? null;
+  const worktree = ordered.find((candidate) => candidate.worktreeId === selectedWorktreeId) ?? null;
   const terminalHandlesOf = (target: WorktreeSummary) =>
     agents.top
       .filter((agent) => agent.worktreeId === target.worktreeId)
@@ -667,8 +679,20 @@ function ProjectView({
         <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
         <FocusToggle active={focused} onToggle={onToggleFocus} />
       </div>
-      {!worktree ? (
+      {ordered.length === 0 ? (
         <p className="text-[15px] text-muted">이 프로젝트에 워크트리가 없어요.</p>
+      ) : !worktree ? (
+        <ProjectGraph
+          worktrees={ordered}
+          agents={allAgents}
+          mode={mode}
+          now={now}
+          isDismissed={isDismissed}
+          focusId={expandedId}
+          renderCard={renderPanelCard}
+          onOpenWorktree={(target) => onOpenWorktree(target.worktreeId)}
+          onAction={onAction}
+        />
       ) : feature ? (
         <FeatureGroup feature={feature} onAction={onAction}>
           <div className="pt-4">{panel}</div>

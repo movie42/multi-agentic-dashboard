@@ -46,6 +46,8 @@ import { switchBranch } from "./gitGraph/switchBranch";
 import { readWorkingDiff, readWorkingTree } from "./gitGraph/readWorkingTree";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
+import { readOverlaps } from "./projectOverview/overlaps";
+import type { WorktreeOverlap } from "@/common/projectOverview/types";
 
 export interface Services {
   errorLog: ErrorLog;
@@ -90,6 +92,8 @@ export interface Services {
     readWorkingTree: typeof readWorkingTree;
     readWorkingDiff: typeof readWorkingDiff;
   };
+  /** Pairs of the project's worktrees (main checkout excluded) that change the same files. */
+  projectOverlaps: (projectPath: string) => Promise<WorktreeOverlap[]>;
 }
 
 function graphReader(merged: MergedReader) {
@@ -188,6 +192,12 @@ function createServices(): Services {
     docs,
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
     gitGraph: { readGraph: graphReader(new MergedReader()), readCommit, readCommitDiff, switchBranch, readWorkingTree, readWorkingDiff },
+    projectOverlaps: async (projectPath) => {
+      const project = (await projects.list()).find((candidate) => candidate.path === projectPath);
+      if (!project) throw new Error("프로젝트를 찾지 못했어요");
+      const paths = (await worktreesOf(project)).filter((worktree) => !worktree.isMain).map((worktree) => worktree.path);
+      return readOverlaps(paths, undefined, (error, worktreePath) => warn("project-overlaps", error, { worktreePath }));
+    },
   };
 }
 
