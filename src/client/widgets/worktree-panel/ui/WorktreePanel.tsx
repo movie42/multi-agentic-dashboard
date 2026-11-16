@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
@@ -158,14 +158,35 @@ export function WorktreePanel({
   const open = (target: string) =>
     onAction({ type: "open-artifact", target });
   const [markOverviewEnd, overviewHidden] = useScrolledPast<HTMLDivElement>(STRIP_PX);
+  const [peekOpen, setPeekOpen] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
   const leadTask = worktree.flowTasks[0] ?? null;
   const leadSteps = leadTask ? buildSteps(mode, leadTask, pr) : [];
   const leadIndex = currentStepIndex(leadSteps);
   const leadStep = leadSteps[leadIndex] ?? null;
 
+  const peekShown = peekOpen && overviewHidden;
+
+  useEffect(() => {
+    if (!peekShown) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && stripRef.current?.contains(event.target)) return;
+      setPeekOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPeekOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [peekShown]);
+
   return (
     <section data-jump={worktree.worktreeId} className="flex min-w-0 flex-col gap-5 [--strip-h:2rem] [--tabs-h:2.5rem]">
-      <div className="sticky top-0 z-30 -mb-5 h-0">
+      <div ref={stripRef} className="sticky top-0 z-30 -mb-5 h-0">
         <div
           aria-hidden={!overviewHidden}
           inert={!overviewHidden}
@@ -175,8 +196,9 @@ export function WorktreePanel({
         >
           <button
             type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            title={leadTask ? `${leadTask.title} · 맨 위로` : "맨 위로"}
+            onClick={() => setPeekOpen((value) => !value)}
+            aria-expanded={peekShown}
+            title={leadTask ? `${leadTask.title} · 개요 펼치기` : "개요 펼치기"}
             className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-left text-[12px] leading-none"
           >
             <span className="shrink-0 font-bold">{shownName}</span>
@@ -193,6 +215,9 @@ export function WorktreePanel({
                 <span className="truncate text-muted">{leadTask?.title}</span>
               </>
             )}
+            <span aria-hidden className={`shrink-0 text-muted transition-transform ${peekShown ? "rotate-180" : ""}`}>
+              ▾
+            </span>
           </button>
           {leadTask?.pageIndex && (
             <button
@@ -219,6 +244,21 @@ export function WorktreePanel({
             {ACTION_ICONS.menu}
           </button>
         </div>
+        {peekShown && (
+          <div className="absolute inset-x-0 top-[var(--strip-h)] -mx-3 flex max-h-[70vh] flex-col gap-6 overflow-y-auto border-b border-hair bg-bg px-3 pt-3 pb-5 shadow-[0_12px_16px_-12px_var(--hair)]">
+            <FlowOverview worktree={worktree} mode={mode} pr={pr} onOpen={(target) => void open(target)} />
+            <button
+              type="button"
+              onClick={() => {
+                setPeekOpen(false);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="self-start text-[12px] text-muted underline decoration-faint underline-offset-[3px] hover:text-fg"
+            >
+              맨 위로
+            </button>
+          </div>
+        )}
       </div>
       <header
         onContextMenu={(event: React.MouseEvent<HTMLElement>) => {
@@ -341,93 +381,7 @@ export function WorktreePanel({
 
       <div className="flex min-w-0 flex-col gap-6">
         <WorktreeWizardPanel wizard={wizard} />
-        {worktree.flowTasks.length === 0 ? (
-          <p className="text-[14px] text-muted">
-            진행 중인 flow 작업 문서가 없어요.
-          </p>
-        ) : (
-          worktree.flowTasks.map((task) => {
-            const pageIndex = task.pageIndex;
-            return (
-              <div
-                key={`${task.domain}/${task.taskId}`}
-                className="flex flex-col gap-3"
-              >
-                <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[15px]">
-                  <span className="font-semibold">{task.title}</span>
-                  <span className="whitespace-nowrap font-mono text-[12px] text-muted">
-                    {task.domain}/{task.taskId}
-                  </span>
-                  {pageIndex && (
-                    <button
-                      type="button"
-                      onClick={() => open(pageIndex)}
-                      className="ml-auto shrink-0 text-[13px] underline decoration-faint underline-offset-[3px] hover:decoration-current"
-                    >
-                      문서 열기
-                    </button>
-                  )}
-                </p>
-                {task.branch !== worktree.branch && (
-                  <p className="-mt-2 text-[12px] text-muted">
-                    문서에 기록된 브랜치는{" "}
-                    <span className="font-mono">{task.branch ?? "없음"}</span>
-                    이에요
-                  </p>
-                )}
-                <Stepper steps={buildSteps(mode, task, pr)} size="full" />
-              </div>
-            );
-          })
-        )}
-
-        {worktree.otherFlowTasks.length > 0 && (
-          <details className="text-[13px]">
-            <summary className="cursor-pointer text-muted hover:text-current">
-              다른 flow 문서 {worktree.otherFlowTasks.length}
-            </summary>
-            <ul className="mt-3 flex flex-col gap-4">
-              {worktree.otherFlowTasks.map((task) => {
-                const pageIndex = task.pageIndex;
-                const taskPr: PullRequestInfo =
-                  task.branch === worktree.branch
-                    ? pr
-                    : { kind: "not-applicable" };
-                return (
-                  <li
-                    key={`${task.domain}/${task.taskId}`}
-                    className="flex flex-col gap-1.5"
-                  >
-                    <p className="flex items-baseline gap-2">
-                      <span>{task.title}</span>
-                      <span className="font-mono text-[12px] text-muted">
-                        {task.domain}/{task.taskId}
-                        {task.branch && ` · ${task.branch}`}
-                      </span>
-                      {pageIndex ? (
-                        <button
-                          type="button"
-                          onClick={() => open(pageIndex)}
-                          className="ml-auto shrink-0 underline decoration-faint underline-offset-[3px] hover:decoration-current"
-                        >
-                          열기
-                        </button>
-                      ) : (
-                        <span className="ml-auto shrink-0 text-muted">
-                          빌드 필요
-                        </span>
-                      )}
-                    </p>
-                    <Stepper
-                      steps={buildSteps(mode, task, taskPr)}
-                      size="compact"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </details>
-        )}
+        <FlowOverview worktree={worktree} mode={mode} pr={pr} onOpen={(target) => void open(target)} />
 
         <div ref={markOverviewEnd} aria-hidden className="-mb-6 h-0" />
         <div className="empty:hidden">
@@ -436,6 +390,109 @@ export function WorktreePanel({
         </div>
       </div>
     </section>
+  );
+}
+
+interface FlowOverviewProps {
+  worktree: WorktreeSummary;
+  mode: WorkflowMode;
+  pr: PullRequestInfo;
+  onOpen: (target: string) => void;
+}
+
+function FlowOverview({ worktree, mode, pr, onOpen }: FlowOverviewProps) {
+  const open = onOpen;
+  return (
+    <>
+      {worktree.flowTasks.length === 0 ? (
+        <p className="text-[14px] text-muted">
+          진행 중인 flow 작업 문서가 없어요.
+        </p>
+      ) : (
+        worktree.flowTasks.map((task) => {
+          const pageIndex = task.pageIndex;
+          return (
+            <div
+              key={`${task.domain}/${task.taskId}`}
+              className="flex flex-col gap-3"
+            >
+              <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[15px]">
+                <span className="font-semibold">{task.title}</span>
+                <span className="whitespace-nowrap font-mono text-[12px] text-muted">
+                  {task.domain}/{task.taskId}
+                </span>
+                {pageIndex && (
+                  <button
+                    type="button"
+                    onClick={() => open(pageIndex)}
+                    className="ml-auto shrink-0 text-[13px] underline decoration-faint underline-offset-[3px] hover:decoration-current"
+                  >
+                    문서 열기
+                  </button>
+                )}
+              </p>
+              {task.branch !== worktree.branch && (
+                <p className="-mt-2 text-[12px] text-muted">
+                  문서에 기록된 브랜치는{" "}
+                  <span className="font-mono">{task.branch ?? "없음"}</span>
+                  이에요
+                </p>
+              )}
+              <Stepper steps={buildSteps(mode, task, pr)} size="full" />
+            </div>
+          );
+        })
+      )}
+
+      {worktree.otherFlowTasks.length > 0 && (
+        <details className="text-[13px]">
+          <summary className="cursor-pointer text-muted hover:text-current">
+            다른 flow 문서 {worktree.otherFlowTasks.length}
+          </summary>
+          <ul className="mt-3 flex flex-col gap-4">
+            {worktree.otherFlowTasks.map((task) => {
+              const pageIndex = task.pageIndex;
+              const taskPr: PullRequestInfo =
+                task.branch === worktree.branch
+                  ? pr
+                  : { kind: "not-applicable" };
+              return (
+                <li
+                  key={`${task.domain}/${task.taskId}`}
+                  className="flex flex-col gap-1.5"
+                >
+                  <p className="flex items-baseline gap-2">
+                    <span>{task.title}</span>
+                    <span className="font-mono text-[12px] text-muted">
+                      {task.domain}/{task.taskId}
+                      {task.branch && ` · ${task.branch}`}
+                    </span>
+                    {pageIndex ? (
+                      <button
+                        type="button"
+                        onClick={() => open(pageIndex)}
+                        className="ml-auto shrink-0 underline decoration-faint underline-offset-[3px] hover:decoration-current"
+                      >
+                        열기
+                      </button>
+                    ) : (
+                      <span className="ml-auto shrink-0 text-muted">
+                        빌드 필요
+                      </span>
+                    )}
+                  </p>
+                  <Stepper
+                    steps={buildSteps(mode, task, taskPr)}
+                    size="compact"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
+
+    </>
   );
 }
 
