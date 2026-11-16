@@ -43,6 +43,8 @@ export type ToolStatus = "running" | "ok" | "error" | "stopped";
 export type ActivityStep =
   | { kind: "prompt"; id: string; at: number | null; text: string }
   | { kind: "text"; id: string; at: number | null; text: string }
+  /** Output Claude Code printed itself — a local slash command or a `!` shell command — not the model. */
+  | { kind: "output"; id: string; at: number | null; text: string; error: boolean }
   | { kind: "tool"; id: string; at: number | null; name: string; summary: string | null; detail: string | null; status: ToolStatus };
 
 export type ActivityResponse =
