@@ -62,6 +62,8 @@ export async function POST(request: Request) {
       await runner.input(body.terminalHandle, { text: "\x1b", raw: true });
     } else if (body.type === "set-model") {
       await runner.input(body.terminalHandle, { text: `/model ${body.model}`, submit: true });
+    } else if (body.type === "set-effort") {
+      await runner.input(body.terminalHandle, { text: `/effort ${body.effort}`, submit: true });
     } else if (body.type === "send-prompt") {
       await runner.input(body.terminalHandle, { text: body.text, submit: true });
     } else if (body.type === "launch-agent") {

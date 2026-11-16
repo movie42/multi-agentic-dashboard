@@ -12,6 +12,7 @@ import { MessageView } from "./MessageView";
 import { SubagentRuns } from "./SubagentRuns";
 import { PermissionPrompt } from "@/client/features/answer-permission";
 import { OrchestrationPanel } from "@/client/features/conduct-sessions";
+import { EffortPicker } from "@/client/features/choose-effort";
 import { ModelPicker } from "@/client/features/choose-model";
 import { AttachToTodo } from "@/client/features/attach-to-todo";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
@@ -354,7 +355,10 @@ export function AgentCardView({
             currentSessionId={agent.session?.id ?? null}
           />
           <div className="flex flex-wrap items-center gap-2 px-1">
-            <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
+            <span className="inline-flex items-center">
+              <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
+              <EffortPicker terminalHandle={terminalHandle} effort={agent.effort} />
+            </span>
             {agent.contextPercent !== null && (
               <span
                 data-context-percent

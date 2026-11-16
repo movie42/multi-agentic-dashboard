@@ -6,6 +6,8 @@ export const MAX_PROMPT = 8000;
 export const MAX_CLOSE_TERMINALS = 50;
 export const MODEL_CHOICES = ["default", "opus", "sonnet", "haiku"] as const;
 export type ModelChoice = (typeof MODEL_CHOICES)[number];
+export const EFFORT_CHOICES = ["auto", "low", "medium", "high", "xhigh", "max"] as const;
+export type EffortChoice = (typeof EFFORT_CHOICES)[number];
 
 const absolutePath = z.string().refine((value) => value.startsWith("/"), "absolute path required");
 const sessionId = z.string().regex(SESSION_ID);
@@ -45,6 +47,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("interrupt-session"), terminalHandle: z.string() }),
   z.object({ type: z.literal("set-model"), terminalHandle: z.string(), model: z.enum(MODEL_CHOICES) }),
+  z.object({ type: z.literal("set-effort"), terminalHandle: z.string(), effort: z.enum(EFFORT_CHOICES) }),
   z.object({ type: z.literal("toggle-voice"), terminalHandle: z.string(), intent: z.enum(["toggle", "stop"]).default("toggle") }),
   z.object({ type: z.literal("read-voice"), terminalHandle: z.string() }),
   z.object({

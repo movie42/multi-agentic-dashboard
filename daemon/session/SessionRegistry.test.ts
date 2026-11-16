@@ -217,16 +217,20 @@ describe("SessionRegistry", () => {
     });
     withUsage.launch({ cwd: "/repo" });
     const usage = { session: { percent: 10, resetsAt: null }, weekly: null };
-    withUsage.report("u1", { model: "Opus 5.5", contextPercent: 30, usage });
-    expect(withUsage.get("u1")).toMatchObject({ model: "Opus 5.5", contextPercent: 30 });
+    withUsage.report("u1", { model: "Opus 5.5", contextPercent: 30, effort: "high", usage });
+    expect(withUsage.get("u1")).toMatchObject({ model: "Opus 5.5", contextPercent: 30, effort: "high" });
     expect(onUsage).toHaveBeenCalledWith({ ...usage, receivedAt: 5000 });
+    withUsage.report("u1", { model: null, contextPercent: 31, effort: null, usage: null });
+    expect(withUsage.get("u1")?.effort).toBe("high");
+    withUsage.report("u1", { model: "Haiku", contextPercent: 31, effort: null, usage: null });
+    expect(withUsage.get("u1")?.effort).toBeNull();
 
     registry.launch({ cwd: "/repo" });
     onChange.mockClear();
-    registry.report("s1", { model: "Sonnet", contextPercent: null, usage: null });
-    registry.report("s1", { model: "Sonnet", contextPercent: null, usage: null });
+    registry.report("s1", { model: "Sonnet", contextPercent: null, effort: null, usage: null });
+    registry.report("s1", { model: "Sonnet", contextPercent: null, effort: null, usage: null });
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(registry.report("none", { model: null, contextPercent: null, usage: null })).toBe(false);
+    expect(registry.report("none", { model: null, contextPercent: null, effort: null, usage: null })).toBe(false);
   });
 
   it("reopens saved sessions with their original start time, skipping one that fails to spawn", () => {
