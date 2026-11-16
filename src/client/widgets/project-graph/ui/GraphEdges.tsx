@@ -1,7 +1,7 @@
 "use client";
 
 import type { EdgeKind, GraphEdge } from "../model/graph";
-import { edgeGeometry, type Rect } from "../model/layout";
+import { edgeGeometry, type EdgeEnds, type Point, type Rect } from "../model/layout";
 
 export const EDGE_STYLE: Record<EdgeKind, { label: string; stroke: string; dash?: string; marker: boolean; pill: string }> = {
   delegate: { label: "맡김", stroke: "stroke-fg", marker: true, pill: "text-fg" },
@@ -40,6 +40,10 @@ function edgeLabel(edge: GraphEdge): string {
 interface GraphEdgesProps {
   edges: GraphEdge[];
   rectOf: (id: string) => Rect | null;
+  /** Sides a person pinned, by link id. */
+  ends: Record<string, EdgeEnds>;
+  /** The line end being dragged, drawn to the pointer until it lands. */
+  endDrag: { edgeId: string; end: "from" | "to"; point: Point } | null;
   selectedId: string | null;
   /** Clusters of the selected boxes; same-file lines touching them are drawn in full, the rest faint and unlabeled. */
   focusClusters: ReadonlySet<string>;
@@ -47,12 +51,21 @@ interface GraphEdgesProps {
 }
 
 /** Lines first, then their labels, so a label is never covered by another line. */
-export function GraphEdges({ edges, rectOf, selectedId, focusClusters, onSelect }: GraphEdgesProps) {
+export function GraphEdges({ edges, rectOf, ends, endDrag, selectedId, focusClusters, onSelect }: GraphEdgesProps) {
   const drawn = edges.flatMap((edge) => {
     const from = rectOf(edge.from);
     const to = rectOf(edge.to);
     const faint = edge.kind === "overlap" && !focusClusters.has(edge.from) && !focusClusters.has(edge.to);
-    return from && to ? [{ edge, geometry: edgeGeometry(from, to), faint }] : [];
+    if (!from || !to) return [];
+    const pinned = (edge.linkId && ends[edge.linkId]) || {};
+    const dragged = endDrag?.edgeId === edge.id ? endDrag : null;
+    const geometry =
+      dragged?.end === "from"
+        ? edgeGeometry(dragged.point, to, { to: pinned.to })
+        : dragged?.end === "to"
+          ? edgeGeometry(from, dragged.point, { from: pinned.from })
+          : edgeGeometry(from, to, pinned);
+    return [{ edge, geometry, faint }];
   });
   return (
     <g>
@@ -100,6 +113,27 @@ export function GraphEdges({ edges, rectOf, selectedId, focusClusters, onSelect 
           </div>
         </foreignObject>
       ))}
+      {drawn
+        .filter(({ edge }) => edge.id === selectedId && edge.linkId)
+        .flatMap(({ edge, geometry }) =>
+          (["from", "to"] as const).map((end) => {
+            const at = end === "from" ? geometry.start : geometry.end;
+            return (
+              <circle
+                key={`${edge.id}-${end}`}
+                cx={at.x}
+                cy={at.y}
+                r={6}
+                strokeWidth={2}
+                data-end={end}
+                data-edge-id={edge.id}
+                className="cursor-move fill-bg stroke-focus"
+              >
+                <title>끌어서 다른 면이나 다른 상자로 옮기기</title>
+              </circle>
+            );
+          }),
+        )}
     </g>
   );
 }

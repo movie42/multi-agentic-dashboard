@@ -8,12 +8,15 @@ import type { GraphEdge, ProjectGraph } from "../model/graph";
 import {
   clusterRect,
   groupRect,
+  type EdgeEnds,
   intersects,
+  nearestSide,
   NODE_H,
   NODE_W,
   nodeRect,
   type Point,
   type Rect,
+  type Side,
   unionRect,
 } from "../model/layout";
 import { EdgeMarkers, GraphEdges } from "./GraphEdges";
@@ -43,7 +46,10 @@ type Gesture =
       additive: boolean;
     }
   | { kind: "marquee"; start: Point; rect: Rect | null; additive: boolean }
-  | { kind: "connect"; from: string };
+  | { kind: "connect"; from: string }
+  | { kind: "end"; edge: GraphEdge; end: LineEnd };
+
+type LineEnd = "from" | "to";
 
 /** `select` edits (drag boxes, drag empty space to select several); `hand` only moves the canvas. */
 type PointerTool = "select" | "hand";
@@ -66,6 +72,7 @@ interface CanvasStageProps {
   groups: UserGroup[];
   selectedIds: ReadonlySet<string>;
   selectedEdgeId: string | null;
+  ends: Record<string, EdgeEnds>;
   connecting: boolean;
   viewport: Viewport | null;
   now: number;
@@ -78,6 +85,13 @@ interface CanvasStageProps {
   onSelectEdge: (edge: GraphEdge) => void;
   onMove: (moved: Map<string, Point>) => void;
   onConnect: (from: string, to: string, at: Point) => void;
+  /** A line end dropped on a box: the same box moves it to another side, another box reconnects it. */
+  onMoveEnd: (
+    edge: GraphEdge,
+    end: LineEnd,
+    nodeId: string,
+    side: Side,
+  ) => void;
   onContextMenu: (target: MenuTarget, at: Point) => void;
   onViewportChange: (viewport: Viewport) => void;
   onOpenWorktree: (worktreeId: string) => void;
@@ -144,6 +158,7 @@ export function CanvasStage(props: CanvasStageProps) {
     groups,
     selectedIds,
     selectedEdgeId,
+    ends,
     connecting,
     viewport,
     now,
@@ -161,6 +176,11 @@ export function CanvasStage(props: CanvasStageProps) {
   const [connectLine, setConnectLine] = useState<{
     from: Point;
     to: Point;
+  } | null>(null);
+  const [endDrag, setEndDrag] = useState<{
+    edgeId: string;
+    end: LineEnd;
+    point: Point;
   } | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [panning, setPanning] = useState(false);
@@ -309,6 +329,21 @@ export function CanvasStage(props: CanvasStageProps) {
 
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     const target = event.target instanceof Element ? event.target : null;
+    const endHandle = event.button === 0 ? target?.closest("[data-end]") : null;
+    const endEdge = endHandle
+      ? graph.edges.find(
+          (edge) => edge.id === endHandle.getAttribute("data-edge-id"),
+        )
+      : null;
+    if (endHandle && endEdge) {
+      gesture.current = {
+        kind: "end",
+        edge: endEdge,
+        end: endHandle.getAttribute("data-end") === "from" ? "from" : "to",
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
     const startPan =
       event.button === 1 ||
       (event.button === 0 && (spaceHeld || (tool === "hand" && !connecting)));
@@ -395,7 +430,9 @@ export function CanvasStage(props: CanvasStageProps) {
       return;
     }
     const world = toWorld(event.clientX, event.clientY);
-    if (current.kind === "move") {
+    if (current.kind === "end") {
+      setEndDrag({ edgeId: current.edge.id, end: current.end, point: world });
+    } else if (current.kind === "move") {
       const dx = world.x - current.start.x;
       const dy = world.y - current.start.y;
       if (!current.moved && Math.hypot(dx, dy) * view.zoom <= DRAG_THRESHOLD)
@@ -462,6 +499,22 @@ export function CanvasStage(props: CanvasStageProps) {
         props.onSelect([], false);
       }
       setMarquee(null);
+    } else if (current.kind === "end") {
+      setEndDrag(null);
+      const hit = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest("[data-node]")
+        ?.getAttribute("data-node");
+      const other =
+        current.end === "from" ? current.edge.to : current.edge.from;
+      const rect = hit ? rectOf(hit) : null;
+      if (hit && rect && hit !== other)
+        props.onMoveEnd(
+          current.edge,
+          current.end,
+          hit,
+          nearestSide(rect, toWorld(event.clientX, event.clientY)),
+        );
     } else {
       const hit = document
         .elementFromPoint(event.clientX, event.clientY)
@@ -566,6 +619,8 @@ export function CanvasStage(props: CanvasStageProps) {
           <GraphEdges
             edges={graph.edges}
             rectOf={rectOf}
+            ends={ends}
+            endDrag={endDrag}
             selectedId={selectedEdgeId}
             focusClusters={
               new Set(

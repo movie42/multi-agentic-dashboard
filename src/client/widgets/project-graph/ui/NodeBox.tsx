@@ -63,6 +63,13 @@ export function NodeBox({ node, now, selected, delegatedTo, reports }: NodeBoxPr
       ) : (
         <p className="truncate text-[12px] text-muted">{plainMessage(agent.lastMessage) || agent.worktreeName}</p>
       )}
+      {agent.subagents.length > 0 && (
+        <p className="mt-auto flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-now" title={agent.subagents.map((run) => `${run.description} — ${run.activity ?? "시작하는 중"}`).join("\n")}>
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-current" />
+          <span className="shrink-0 font-semibold">서브 에이전트 {agent.subagents.length}</span>
+          <span className="truncate text-muted">{agent.subagents[0]?.activity ?? agent.subagents[0]?.description}</span>
+        </p>
+      )}
     </div>
   );
 }

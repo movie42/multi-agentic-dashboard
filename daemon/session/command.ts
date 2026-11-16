@@ -42,6 +42,7 @@ export function commandFor(request: CommandRequest, environment: CommandEnvironm
       ...identity,
       ...conductorArgs(request, environment.baseUrl),
       ...(environment.attachmentDir ? ["--add-dir", environment.attachmentDir] : []),
+      ...(request.askPermissions ? [] : ["--permission-mode", "bypassPermissions"]),
       "--settings",
       hookSettings(environment.baseUrl, request.id, environment.statusLine),
       ...prompt,

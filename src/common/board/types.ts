@@ -40,6 +40,18 @@ export interface AgentCard {
   permission: RunnerPermission | null;
   /** Conductor settings, outgoing lines and parent from the runner daemon; null for sessions it does not know. */
   orchestration: SessionOrchestration | null;
+  /** Subagents (Task tool) this session has running right now. */
+  subagents: SubagentRun[];
+}
+
+export interface SubagentRun {
+  id: string;
+  /** What the parent asked for, e.g. "Code review profile API diff". */
+  description: string;
+  agentType: string;
+  /** The subagent's latest step: a tool call ("Bash · git diff …") or the start of its latest text. */
+  activity: string | null;
+  updatedAt: number;
 }
 
 export interface WorktreeSummary {

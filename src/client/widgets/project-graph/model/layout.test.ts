@@ -3,8 +3,8 @@ import type { WorktreeSummary } from "@/common/board/types";
 import type { OrchestrationLink, SessionOrchestration } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
 import { buildGraph, clusterId } from "./graph";
-import { autoLayout, chainColumns, clusterRect, NODE_H, NODE_W } from "./layout";
-import { EMPTY_CANVAS, groupNodes, parseCanvasState, pruneCanvas, resolvePositions, ungroup } from "./canvasState";
+import { autoLayout, chainColumns, clusterRect, edgeGeometry, NODE_H, NODE_W, nearestSide } from "./layout";
+import { EMPTY_CANVAS, groupNodes, parseCanvasState, pruneCanvas, resetPositions, resolvePositions, setEdgeEnd, ungroup } from "./canvasState";
 
 function worktree(path: string, overrides: Partial<WorktreeSummary> = {}): WorktreeSummary {
   return {
@@ -156,6 +156,29 @@ describe("canvas state", () => {
       positions: { a: { x: 1, y: 2 } },
       groups: [],
       viewport: { x: 0, y: 0, zoom: 2 },
+      ends: {},
     });
+  });
+});
+
+describe("line ends", () => {
+  const left = { x: 0, y: 0, w: 100, h: 50 };
+  const right = { x: 300, y: 0, w: 100, h: 50 };
+
+  it("leaves from the facing sides unless a side is pinned", () => {
+    expect(edgeGeometry(left, right).start).toEqual({ x: 100, y: 25 });
+    expect(edgeGeometry(left, right, { from: "bottom", to: "top" })).toMatchObject({ start: { x: 50, y: 50 }, end: { x: 350, y: 0 } });
+  });
+
+  it("picks the side nearest to where an end was dropped", () => {
+    expect(nearestSide(left, { x: 50, y: 48 })).toBe("bottom");
+    expect(nearestSide(left, { x: 2, y: 20 })).toBe("left");
+  });
+
+  it("keeps pinned sides across a reload and drops them on tidy", () => {
+    const pinned = setEdgeEnd(EMPTY_CANVAS, "l1", "to", "top");
+    const reloaded = parseCanvasState(JSON.stringify({ ...pinned, ends: { ...pinned.ends, bad: { from: "middle" } } }));
+    expect(reloaded.ends).toEqual({ l1: { to: "top" } });
+    expect(resetPositions(reloaded).ends).toEqual({});
   });
 });

@@ -147,7 +147,7 @@ export async function callConductorTool(conductorId: string, name: string, args:
         return fail(`${cwd || "(empty)"} is outside your scope. Allowed folders: ${conductor.scope.paths.join(", ")}. Use request_worktree for a new one.`);
       }
       if (!(await deps.isDirectory(cwd))) return fail(`${cwd} does not exist.`);
-      const worker = deps.launch({ cwd, prompt });
+      const worker = deps.launch({ cwd, prompt, askPermissions: true });
       orchestration.connect(conductorId, worker.id, "delegate");
       orchestration.connect(worker.id, conductorId, "report");
       return ok(`Started worker ${worker.id} in ${cwd}. It will report back when it finishes a turn.`);

@@ -62,6 +62,11 @@ export interface RunnerLaunchRequest {
   kind?: RunnerSessionKind;
   /** Launches the session as a conductor: it gets the daemon's orchestration tools. */
   conductor?: ConductorLaunch;
+  /**
+   * Keeps Claude's own permission prompts. Sessions a person opens run with permissions bypassed; a
+   * conductor's workers keep the prompts so delegated grants and the git push block still apply.
+   */
+  askPermissions?: boolean;
 }
 
 export interface RunnerInputRequest {

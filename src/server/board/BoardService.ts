@@ -1,5 +1,5 @@
 import "server-only";
-import type { AgentCard, Artifact, BoardSnapshot, ProjectSummary, WorktreeSummary } from "@/common/board/types";
+import type { AgentCard, Artifact, SubagentRun, BoardSnapshot, ProjectSummary, WorktreeSummary } from "@/common/board/types";
 import type { RunnerSession } from "@/common/runner/types";
 import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
 import type { WorkflowMode } from "@/common/workflow/types";
@@ -21,6 +21,7 @@ export interface BoardSessionPort {
   transcriptOf(cwd: string, sessionId: string): Promise<TranscriptFacts | null>;
   sessionRefOf(file: string, size: number): Promise<SessionRef>;
   readBookmarks(): Promise<Map<string, SessionBookmark>>;
+  subagentsOf(transcriptFile: string): Promise<SubagentRun[]>;
 }
 
 export interface BoardServiceOptions {
@@ -180,7 +181,14 @@ export class BoardService {
         })
       : null;
     const lastMessage = facts?.lastAssistant ?? null;
+    const subagents = facts
+      ? await sessions.subagentsOf(facts.file).catch((error: unknown) => {
+          warn("board", error, { step: "subagents", file: facts.file });
+          return [];
+        })
+      : [];
     return buildAgentCard({
+      subagents,
       session,
       worktree,
       prompt: facts?.firstPrompt ?? null,

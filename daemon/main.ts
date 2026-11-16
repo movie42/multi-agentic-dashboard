@@ -147,7 +147,16 @@ runner.server.listen(port, "127.0.0.1", () => {
   const requests = restoreRequestsOf(saved).map((request) => {
     const id = request.launch.resumeSessionId;
     const conductor = id ? orchestration.conductor(id) : null;
-    return conductor ? { ...request, launch: { ...request.launch, conductor: { scope: conductor.scope, grants: conductor.grants } } } : request;
+    const parent = id ? orchestration.parentOf(id) : null;
+    const askPermissions = parent !== null && orchestration.isConductor(parent);
+    return {
+      ...request,
+      launch: {
+        ...request.launch,
+        ...(conductor ? { conductor: { scope: conductor.scope, grants: conductor.grants } } : {}),
+        ...(askPermissions ? { askPermissions } : {}),
+      },
+    };
   });
   const restored = registry.restore(requests);
   savers.stopped = false;

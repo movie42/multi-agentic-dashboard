@@ -50,6 +50,7 @@ export interface CommandRequest {
   prompt?: string;
   resumeSessionId?: string;
   conductor?: boolean;
+  askPermissions?: boolean;
 }
 
 export interface Command {
@@ -151,7 +152,8 @@ export class SessionRegistry {
     const id = resumeSessionId ?? this.#options.newId();
     const now = this.#options.now();
     const conductor = kind === "claude" && request.conductor !== undefined;
-    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId, ...(conductor ? { conductor } : {}) });
+    const askPermissions = kind === "claude" && request.askPermissions === true;
+    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId, ...(conductor ? { conductor } : {}), ...(askPermissions ? { askPermissions } : {}) });
     const pty = this.#options.spawn(command.file, command.args, {
       cwd,
       cols: INITIAL_COLS,

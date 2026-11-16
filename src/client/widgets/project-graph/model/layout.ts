@@ -163,35 +163,59 @@ export function intersects(a: Rect, b: Rect): boolean {
 export interface EdgeGeometry {
   d: string;
   mid: Point;
+  start: Point;
   end: Point;
 }
 
-/**
- * A curve between two boxes: top/bottom edges when one sits clearly above the other, left/right
- * edges otherwise.
- */
-export function edgeGeometry(from: Rect, to: Rect): EdgeGeometry {
-  const fromCenter = { x: from.x + from.w / 2, y: from.y + from.h / 2 };
-  const toCenter = { x: to.x + to.w / 2, y: to.y + to.h / 2 };
+export type Side = "top" | "right" | "bottom" | "left";
+
+/** Which side of each box a line leaves and enters, where a person pinned it. */
+export interface EdgeEnds {
+  from?: Side;
+  to?: Side;
+}
+
+const NORMAL: Record<Side, Point> = { top: { x: 0, y: -1 }, right: { x: 1, y: 0 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 } };
+
+export function sidePoint(rect: Rect, side: Side): Point {
+  if (side === "top") return { x: rect.x + rect.w / 2, y: rect.y };
+  if (side === "bottom") return { x: rect.x + rect.w / 2, y: rect.y + rect.h };
+  if (side === "left") return { x: rect.x, y: rect.y + rect.h / 2 };
+  return { x: rect.x + rect.w, y: rect.y + rect.h / 2 };
+}
+
+/** The side of a box closest to a point, for dropping a line end on it. */
+export function nearestSide(rect: Rect, point: Point): Side {
+  const sides: Side[] = ["top", "right", "bottom", "left"];
+  const distance = (side: Side) => Math.hypot(sidePoint(rect, side).x - point.x, sidePoint(rect, side).y - point.y);
+  return sides.reduce((best, side) => (distance(side) < distance(best) ? side : best));
+}
+
+/** Top/bottom when one box sits clearly above the other, left/right otherwise. */
+function autoSides(from: Rect, to: Rect): { from: Side; to: Side } {
   const vertical = to.y >= from.y + from.h || from.y >= to.y + to.h;
-  const [start, end, c1, c2] = vertical
-    ? (() => {
-        const down = toCenter.y > fromCenter.y;
-        const s = { x: fromCenter.x, y: down ? from.y + from.h : from.y };
-        const e = { x: toCenter.x, y: down ? to.y : to.y + to.h };
-        const bend = Math.max(40, Math.abs(e.y - s.y) / 2);
-        return [s, e, { x: s.x, y: s.y + (down ? bend : -bend) }, { x: e.x, y: e.y - (down ? bend : -bend) }];
-      })()
-    : (() => {
-        const right = toCenter.x > fromCenter.x;
-        const s = { x: right ? from.x + from.w : from.x, y: fromCenter.y };
-        const e = { x: right ? to.x : to.x + to.w, y: toCenter.y };
-        const bend = Math.max(40, Math.abs(e.x - s.x) / 2);
-        return [s, e, { x: s.x + (right ? bend : -bend), y: s.y }, { x: e.x - (right ? bend : -bend), y: e.y }];
-      })();
+  if (vertical) return to.y + to.h / 2 > from.y + from.h / 2 ? { from: "bottom", to: "top" } : { from: "top", to: "bottom" };
+  return to.x + to.w / 2 > from.x + from.w / 2 ? { from: "right", to: "left" } : { from: "left", to: "right" };
+}
+
+/** A curve between two boxes, or from a box to a loose point while a line end is being dragged. */
+export function edgeGeometry(from: Rect | Point, to: Rect | Point, ends: EdgeEnds = {}): EdgeGeometry {
+  const asRect = (value: Rect | Point): Rect => ("w" in value ? value : { x: value.x, y: value.y, w: 0, h: 0 });
+  const fromRect = asRect(from);
+  const toRect = asRect(to);
+  const auto = autoSides(fromRect, toRect);
+  const fromSide = ends.from ?? auto.from;
+  const toSide = ends.to ?? auto.to;
+  const start = sidePoint(fromRect, fromSide);
+  const end = sidePoint(toRect, toSide);
+  const bend = Math.max(40, Math.hypot(end.x - start.x, end.y - start.y) / 2);
+  const outFrom = "w" in from ? NORMAL[fromSide] : { x: 0, y: 0 };
+  const outTo = "w" in to ? NORMAL[toSide] : { x: 0, y: 0 };
+  const c1 = { x: start.x + outFrom.x * bend, y: start.y + outFrom.y * bend };
+  const c2 = { x: end.x + outTo.x * bend, y: end.y + outTo.y * bend };
   const mid = {
     x: 0.125 * start.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * end.x,
     y: 0.125 * start.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * end.y,
   };
-  return { d: `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`, mid, end };
+  return { d: `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`, mid, start, end };
 }

@@ -27,6 +27,7 @@ function setup(overrides: Partial<BoardServiceOptions> = {}) {
     ),
     sessionRefOf: vi.fn(async () => ({ id: "s1", title: "Title", titleSource: "ai" as const, bookmark: null })),
     readBookmarks: vi.fn(async () => new Map()),
+    subagentsOf: vi.fn(async () => []),
   };
   const runnerSessions = vi.fn(async () => [
     runnerSession({ id: "s2", cwd: "/w/src", status: "waiting", startedAt: 30, updatedAt: 50 }),

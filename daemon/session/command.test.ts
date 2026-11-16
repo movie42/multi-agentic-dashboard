@@ -7,9 +7,14 @@ describe("commandFor", () => {
   it("starts a new Claude session under the daemon's id, with the hooks that report its status", () => {
     const command = commandFor({ id: "s1", kind: "claude" }, environment);
     expect(command.file).toBe("claude");
-    expect(command.args.slice(0, 3)).toEqual(["--session-id", "s1", "--settings"]);
-    expect(command.args[3]).toContain("http://127.0.0.1:3198/hooks/s1/Stop");
-    expect(command.args).toHaveLength(4);
+    expect(command.args.slice(0, 5)).toEqual(["--session-id", "s1", "--permission-mode", "bypassPermissions", "--settings"]);
+    expect(command.args[5]).toContain("http://127.0.0.1:3198/hooks/s1/Stop");
+    expect(command.args).toHaveLength(6);
+  });
+
+  it("keeps permission prompts for a conductor's worker", () => {
+    const command = commandFor({ id: "s1", kind: "claude", askPermissions: true }, environment);
+    expect(command.args).not.toContain("--permission-mode");
   });
 
   it("passes the first prompt after --, so a prompt starting with a dash is not read as a flag", () => {

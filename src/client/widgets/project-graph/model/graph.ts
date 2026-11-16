@@ -27,6 +27,8 @@ export interface GraphEdge {
   /** The daemon link behind a delegate / report / next edge, for unlinking and resuming. */
   linkId: string | null;
   paused: boolean;
+  /** What a next line sends, kept so the line can be moved to another box without losing it. */
+  prompt: string | null;
   /** Files both worktrees changed, for an overlap edge. */
   files: string[];
 }
@@ -62,20 +64,20 @@ export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], ov
   for (const agent of agents) {
     for (const link of agent.orchestration?.links ?? []) {
       if (!nodes.has(link.from) || !nodes.has(link.to)) continue;
-      edges.push({ id: link.id, kind: link.kind, from: link.from, to: link.to, linkId: link.id, paused: link.paused, files: [] });
+      edges.push({ id: link.id, kind: link.kind, from: link.from, to: link.to, linkId: link.id, paused: link.paused, prompt: link.prompt, files: [] });
     }
   }
   for (const worktree of worktrees) {
     if (!worktree.parentWorktreeId) continue;
     const parent = clusterId(worktree.parentWorktreeId);
     if (!clusterIds.has(parent)) continue;
-    edges.push({ id: `fork:${worktree.worktreeId}`, kind: "fork", from: parent, to: clusterId(worktree.worktreeId), linkId: null, paused: false, files: [] });
+    edges.push({ id: `fork:${worktree.worktreeId}`, kind: "fork", from: parent, to: clusterId(worktree.worktreeId), linkId: null, paused: false, prompt: null, files: [] });
   }
   for (const overlap of overlaps) {
     const from = clusterId(overlap.a);
     const to = clusterId(overlap.b);
     if (!clusterIds.has(from) || !clusterIds.has(to)) continue;
-    edges.push({ id: `overlap:${overlap.a}:${overlap.b}`, kind: "overlap", from, to, linkId: null, paused: false, files: overlap.files });
+    edges.push({ id: `overlap:${overlap.a}:${overlap.b}`, kind: "overlap", from, to, linkId: null, paused: false, prompt: null, files: overlap.files });
   }
   return { conductors, clusters, nodes, edges };
 }

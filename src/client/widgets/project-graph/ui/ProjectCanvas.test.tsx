@@ -164,4 +164,28 @@ describe("ProjectCanvas", () => {
     fireEvent.keyDown(window, { code: "KeyV", key: "v" });
     expect(screen.getByRole("radio", { name: "편집" }).getAttribute("aria-checked")).toBe("true");
   });
+  it("moves a selected line's end onto another box", async () => {
+    const onAction = renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", title: "앞", orchestration: { conductor: null, parentId: null, links: [link("next", "a", "b")] } }),
+      agentCard({ id: "b", worktreeId: "/p/shop-a", title: "뒤" }),
+      agentCard({ id: "c", worktreeId: "/p/shop-a", title: "다른" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "끝나면" }));
+    const handle = document.querySelector("[data-end='to']");
+    expect(handle).toBeTruthy();
+    const target = screen.getByText("다른");
+    document.elementFromPoint = () => target;
+    fireEvent.pointerDown(handle!, { button: 0, pointerId: 1 });
+    fireEvent.pointerMove(handle!, { button: 0, pointerId: 1, clientX: 40, clientY: 40 });
+    fireEvent.pointerUp(handle!, { button: 0, pointerId: 1, clientX: 40, clientY: 40 });
+    await vi.waitFor(() => expect(onAction).toHaveBeenCalledWith({ type: "unlink-sessions", linkId: "next-a-b" }));
+    expect(onAction).toHaveBeenCalledWith({ type: "connect-sessions", from: "a", to: "c", kind: "next", prompt: null });
+  });
+  it("shows running subagents on the box", () => {
+    renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", title: "리뷰", subagents: [{ id: "x", description: "Review the diff", agentType: "fork", activity: "Bash · git diff", updatedAt: 0 }] }),
+    ]);
+    expect(screen.getByText("서브 에이전트 1")).toBeTruthy();
+    expect(screen.getByText("Bash · git diff")).toBeTruthy();
+  });
 });

@@ -1,4 +1,5 @@
 import "server-only";
+import { readRunningSubagents } from "@/server/sessions/subagents";
 import { readFile } from "node:fs/promises";
 import type { AskRunner } from "./intentDiff/AskRunner";
 import type { AskStore } from "./intentDiff/AskStore";
@@ -159,6 +160,7 @@ function createServices(): Services {
       transcriptOf: (cwd, sessionId) => sessionTranscripts.read(cwd, sessionId),
       sessionRefOf: (file, size) => sessionTitles.refOf(file, size),
       readBookmarks: () => bookmarks.read(),
+      subagentsOf: (file) => readRunningSubagents(file, Date.now()),
     },
     fs: nodeFileSystem,
     warn,

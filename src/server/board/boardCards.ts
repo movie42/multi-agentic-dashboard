@@ -1,6 +1,6 @@
 import "server-only";
 import path from "node:path";
-import type { AgentCard, AgentState, Artifact, WorktreeSummary } from "@/common/board/types";
+import type { AgentCard, AgentState, Artifact, SubagentRun, WorktreeSummary } from "@/common/board/types";
 import type { RunnerSession } from "@/common/runner/types";
 import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
 import type { FeatureSummary, JiraIssueInfo, PullRequestInfo } from "@/common/workflow/types";
@@ -70,9 +70,10 @@ export interface AgentCardInput {
   sessionRef: SessionRef | null;
   bookmarks: ReadonlyMap<string, SessionBookmark>;
   artifacts: Artifact[];
+  subagents: SubagentRun[];
 }
 
-export function buildAgentCard({ session, worktree, prompt, lastMessage, sessionRef, bookmarks, artifacts }: AgentCardInput): AgentCard {
+export function buildAgentCard({ session, worktree, prompt, lastMessage, sessionRef, bookmarks, artifacts, subagents }: AgentCardInput): AgentCard {
   return {
     id: session.id,
     worktreeId: worktree.path,
@@ -99,6 +100,7 @@ export function buildAgentCard({ session, worktree, prompt, lastMessage, session
     contextPercent: session.contextPercent,
     permission: session.permission,
     orchestration: session.orchestration,
+    subagents,
   };
 }
 

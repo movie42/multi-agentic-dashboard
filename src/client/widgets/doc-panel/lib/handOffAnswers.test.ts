@@ -9,7 +9,7 @@ function agent(id: string, overrides: Partial<AgentCard>): AgentCard {
     id, worktreeId: "wt", repo: "repo", worktreeName: "wt", branch: null, worktreePath: "/w/repo", agentType: "claude",
     state: "done", prompt: null, title: null, session: null, lastMessage: null, toolName: null, backgroundRunning: false,
     interrupted: false, stateSince: null, updatedAt: 0, unread: false, terminalHandle: `t-${id}`, artifacts: [],
-    parentId: null, model: null, contextPercent: null, permission: null, orchestration: null, ...overrides,
+    parentId: null, model: null, contextPercent: null, permission: null, orchestration: null, subagents: [], ...overrides,
   };
 }
 

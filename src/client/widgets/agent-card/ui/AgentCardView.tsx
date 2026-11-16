@@ -9,6 +9,7 @@ import { useCardView, type CardView } from "../model/cardViewStore";
 import { TurnList } from "./ConversationHistory";
 import { ChatView, type ChatLayout } from "./ChatView";
 import { MessageView } from "./MessageView";
+import { SubagentRuns } from "./SubagentRuns";
 import { PermissionPrompt } from "@/client/features/answer-permission";
 import { OrchestrationPanel } from "@/client/features/conduct-sessions";
 import { ModelPicker } from "@/client/features/choose-model";
@@ -266,6 +267,8 @@ export function AgentCardView({
           )}
         </div>
       </header>
+
+      <SubagentRuns runs={agent.subagents} />
 
       {bookmark && chatLayout === "page" && <BookmarkMemo target={bookmark} />}
 

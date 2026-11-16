@@ -8,9 +8,9 @@ import type { LinkKind } from "@/common/orchestration/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { WorkflowMode } from "@/common/workflow/types";
 import { fileOverlapsQueryOptions } from "../api/fileOverlapsQuery";
-import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resolvePositions, ungroup } from "../model/canvasState";
+import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resolvePositions, setEdgeEnd, ungroup } from "../model/canvasState";
 import { buildGraph, type GraphEdge } from "../model/graph";
-import { autoLayout, clusterRect, groupRect, type Point, unionRect, nodeRect } from "../model/layout";
+import { autoLayout, clusterRect, groupRect, type Point, type Side, unionRect, nodeRect } from "../model/layout";
 import { useCanvasState } from "../model/useCanvasState";
 import { CanvasStage, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
@@ -129,6 +129,22 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  /** Same box: pin the end to the side it was dropped on. Another box: the line now runs there instead. */
+  const moveEnd = async (edge: GraphEdge, end: "from" | "to", nodeId: string, side: Side) => {
+    const linkId = edge.linkId;
+    if (!linkId || (edge.kind !== "delegate" && edge.kind !== "report" && edge.kind !== "next")) return;
+    if (nodeId === edge[end]) {
+      save((current) => setEdgeEnd(current, linkId, end, side));
+      return;
+    }
+    const from = end === "from" ? nodeId : edge.from;
+    const to = end === "to" ? nodeId : edge.to;
+    // A delegate prompt is not resent: moving the line should not hand the same work out twice.
+    await onAction({ type: "connect-sessions", from, to, kind: edge.kind, prompt: edge.kind === "next" ? edge.prompt : null });
+    await onAction({ type: "unlink-sessions", linkId });
+    setEdgeId(null);
+  };
+
   const connect = (from: string, to: string, at: Point) => {
     if (from === GHOST_ID) return;
     if (to === GHOST_ID) {
@@ -168,6 +184,11 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         onAction,
         onOpenWorktree,
         onConnectFrom: () => setConnecting(true),
+        onEditLink: (edgeId: string) => {
+          setSelected([]);
+          setShowAllLinks(false);
+          setEdgeId(edgeId);
+        },
         onTidy: tidy,
       })
     : null;
@@ -199,6 +220,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           groups={canvas.groups}
           selectedIds={new Set(liveSelected)}
           selectedEdgeId={edgeId}
+          ends={canvas.ends}
           connecting={connecting}
           viewport={canvas.viewport}
           now={now}
@@ -242,6 +264,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           }}
           onMove={(moved) => save((current) => movePositions(current, moved))}
           onConnect={connect}
+          onMoveEnd={(edge, end, nodeId, side) => void moveEnd(edge, end, nodeId, side)}
           onContextMenu={(target, at) => {
             setPending(null);
             // Right-clicking a box outside the selection makes it the selection, like Figma.

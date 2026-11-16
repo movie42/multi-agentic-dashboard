@@ -66,6 +66,7 @@ describe("buildAgentCard", () => {
       sessionRef: { id: "abc", title: "Title", titleSource: "ai", bookmark: null },
       bookmarks: new Map([["abc", bookmark]]),
       artifacts: [],
+      subagents: [],
     });
     expect(card).toMatchObject({
       id: "abc",

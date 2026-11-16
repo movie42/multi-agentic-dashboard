@@ -1,4 +1,4 @@
-import type { Point } from "./layout";
+import type { EdgeEnds, Point, Side } from "./layout";
 
 export interface UserGroup {
   id: string;
@@ -18,9 +18,14 @@ export interface CanvasState {
   positions: Record<string, Point>;
   groups: UserGroup[];
   viewport: Viewport | null;
+  /** Line ends a person moved to another side of a box, by daemon link id. */
+  ends: Record<string, EdgeEnds>;
 }
 
-export const EMPTY_CANVAS: CanvasState = { positions: {}, groups: [], viewport: null };
+export const EMPTY_CANVAS: CanvasState = { positions: {}, groups: [], viewport: null, ends: {} };
+
+const SIDES: readonly Side[] = ["top", "right", "bottom", "left"];
+const asSide = (value: unknown): Side | undefined => SIDES.find((side) => side === value);
 
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 2;
@@ -54,7 +59,17 @@ export function parseCanvasState(raw: string | null): CanvasState {
       isPoint(parsed.viewport) && isRecord(parsed.viewport) && typeof parsed.viewport.zoom === "number"
         ? { x: parsed.viewport.x, y: parsed.viewport.y, zoom: clampZoom(parsed.viewport.zoom) }
         : null;
-    return { positions, groups, viewport };
+    const ends = isRecord(parsed.ends)
+      ? Object.fromEntries(
+          Object.entries(parsed.ends).flatMap(([id, value]): Array<[string, EdgeEnds]> => {
+            if (!isRecord(value)) return [];
+            const from = asSide(value.from);
+            const to = asSide(value.to);
+            return from || to ? [[id, { ...(from ? { from } : {}), ...(to ? { to } : {}) }]] : [];
+          }),
+        )
+      : {};
+    return { positions, groups, viewport, ends };
   } catch {
     return EMPTY_CANVAS;
   }
@@ -104,7 +119,11 @@ export function pruneCanvas(state: CanvasState, liveIds: ReadonlySet<string>): C
   return unchanged ? state : { ...state, positions, groups };
 }
 
-/** '자동 정리': every box back to its auto spot, groups kept. */
+/** '자동 정리': every box and line end back to its auto spot, groups kept. */
 export function resetPositions(state: CanvasState): CanvasState {
-  return { ...state, positions: {} };
+  return { ...state, positions: {}, ends: {} };
+}
+
+export function setEdgeEnd(state: CanvasState, linkId: string, end: "from" | "to", side: Side): CanvasState {
+  return { ...state, ends: { ...state.ends, [linkId]: { ...state.ends[linkId], [end]: side } } };
 }
