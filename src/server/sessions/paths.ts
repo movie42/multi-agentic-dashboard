@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 export const PROJECTS_DIR = process.env.CLAUDE_PROJECTS_DIR ?? path.join(homedir(), ".claude", "projects");
+export const CLAUDE_SESSIONS_DIR = path.join(homedir(), ".claude", "sessions");
 export const SESSION_CACHE_FILE = path.join(
   process.env.AGENT_CONTROL_CACHE_DIR ?? path.join(process.cwd(), ".next", "cache", "agent-control"),
   "claude-sessions.json",

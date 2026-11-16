@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { execError, fakeExecFile } from "@/server/shared/fakes";
 import { WorktreeActions, worktreePathFor } from "./WorktreeActions";
 
-const session = (id: string, cwd: string) => ({ id, cwd, kind: "claude" as const, status: "idle" as const, prompted: false, startedAt: 1, updatedAt: 1, exitCode: null, model: null, contextPercent: null, permission: null });
+const session = (id: string, cwd: string) => ({ id, cwd, kind: "claude" as const, status: "idle" as const, prompted: false, startedAt: 1, updatedAt: 1, exitCode: null, model: null, contextPercent: null, conversationId: null, permission: null });
 
 function setup(handler: Parameters<typeof fakeExecFile>[0] = () => "") {
   const execFile = fakeExecFile(handler);

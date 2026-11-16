@@ -15,6 +15,11 @@ export interface RunnerSession {
   exitCode: number | null;
   model: string | null;
   contextPercent: number | null;
+  /**
+   * The Claude Code session the terminal is on now, from hook payloads. It moves away from `id`
+   * when `/resume` or `/clear` is run inside the terminal; null until the first hook arrives.
+   */
+  conversationId: string | null;
   permission: RunnerPermission | null;
 }
 

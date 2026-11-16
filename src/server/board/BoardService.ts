@@ -168,7 +168,7 @@ export class BoardService {
     const { sessions, warn } = this.options;
     const facts =
       session.kind === "claude"
-        ? await sessions.transcriptOf(session.cwd, session.id).catch((error: unknown) => {
+        ? await sessions.transcriptOf(session.cwd, session.conversationId ?? session.id).catch((error: unknown) => {
             warn("board", error, { step: "transcript", sessionId: session.id });
             return null;
           })

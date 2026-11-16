@@ -22,7 +22,8 @@ function record(value: unknown): Record<string, unknown> | null {
 export function savedSessionsOf(sessions: RunnerSession[]): SavedSession[] {
   return sessions
     .filter((session) => session.status !== "exited")
-    .map(({ id, cwd, kind, prompted, startedAt }) => ({ id, cwd, kind, prompted, startedAt }))
+    // Resume the conversation the terminal ended on, which differs from `id` after `/resume`.
+    .map(({ id, conversationId, cwd, kind, prompted, startedAt }) => ({ id: conversationId ?? id, cwd, kind, prompted, startedAt }))
     .sort((a, b) => a.startedAt - b.startedAt);
 }
 

@@ -185,9 +185,11 @@ export function createRunnerServer({ registry, port, allowedOrigins }: RunnerSer
         const [, id = "", event = ""] = hook;
         if (isHookEvent(event)) {
           const notificationType = field(body, "notification_type");
+          const conversationId = field(body, "session_id");
           registry.signal(decodeURIComponent(id), {
             event,
             notificationType: typeof notificationType === "string" ? notificationType : null,
+            conversationId: typeof conversationId === "string" && conversationId ? conversationId : null,
           });
         }
         respond(response, undefined, 200, {});
