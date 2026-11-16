@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
+import type { LinkKind, OrchestrationState } from "@/common/orchestration/types";
 import type { WorktreeOverlap } from "@/common/projectOverview/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { StepStatus, WorkflowMode } from "@/common/workflow/types";
@@ -11,10 +12,16 @@ import { groupAgents } from "@/client/entities/agent";
 import { overlapsQueryOptions } from "@/client/entities/project-overview";
 import { LaunchAgent } from "@/client/features/launch-agent";
 import { formatElapsed } from "@/client/shared/lib/format";
+import { postAction } from "@/client/shared/api/actions";
+import { toastError } from "@/client/shared/model/toastStore";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { edgeGeometry, type EdgeKind, type GraphEdge } from "../model/edges";
 import { layoutGraph, type Box, type GraphLayout, type LaneLayout, type NodeLayout } from "../model/layout";
+import { LINK_LABEL, projectOrchestration } from "../model/orchestration";
 import { useViewport } from "../model/useViewport";
+import { ConductorForm } from "./ConductorForm";
+import { Connections } from "./Connections";
+import { Proposals } from "./Proposals";
 
 export interface ProjectGraphProps {
   worktrees: WorktreeSummary[];
@@ -24,16 +31,18 @@ export interface ProjectGraphProps {
   isDismissed: (agent: AgentCard) => boolean;
   /** Session to select on arrival, e.g. after a jump from an alert. */
   focusId: string | null;
-  /** Sessions drawn above the lanes. */
-  top?: AgentCard[];
-  /** Edges between sessions, from session id to session id, added to the worktree edges. */
-  links?: { id: string; kind: EdgeKind; from: string; to: string; label: string | null }[];
+  /** Lines, conductors and proposals from the session runner; filtered to this project's sessions here. */
+  orchestration: OrchestrationState;
   renderCard: (agent: AgentCard) => React.ReactNode;
   onOpenWorktree: (worktree: WorktreeSummary) => void;
   onAction: (action: ActionRequest) => Promise<void>;
-  /** Extra toolbar buttons, drawn before the built-in ones. */
-  tools?: React.ReactNode;
 }
+
+type Overlay = "launch" | "conductor" | null;
+
+type Linking = { step: "from" } | { step: "to"; from: string } | { step: "kind"; from: string; to: string } | null;
+
+const LINK_CHOICES: LinkKind[] = ["report", "next", "delegate"];
 
 type Tone = "input" | "ask" | "now" | "rest";
 
@@ -128,7 +137,7 @@ function worktreeEdges(layout: GraphLayout, overlaps: WorktreeOverlap[], focusPa
   return [...branches, ...shared];
 }
 
-function linkEdges(layout: GraphLayout, links: NonNullable<ProjectGraphProps["links"]>): GraphEdge[] {
+function linkEdges(layout: GraphLayout, links: { id: string; kind: EdgeKind; from: string; to: string; label: string | null }[]): GraphEdge[] {
   const nodeById = new Map<string, Box>(layout.nodes.map((node) => [node.agent.id, node]));
   return links.flatMap((link): GraphEdge[] => {
     const from = nodeById.get(link.from);
@@ -299,16 +308,17 @@ export function ProjectGraph({
   now,
   isDismissed,
   focusId,
-  top = [],
-  links = [],
+  orchestration,
   renderCard,
   onOpenWorktree,
   onAction,
-  tools,
 }: ProjectGraphProps) {
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
-  const [launching, setLaunching] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [linking, setLinking] = useState<Linking>(null);
   const [laneFocus, setLaneFocus] = useState<string | null>(null);
+  const orch = projectOrchestration(orchestration, agents);
+  const top = orch.top;
   const projectPath = worktrees[0]?.projectPath ?? "";
   const overlaps = useQuery({ ...overlapsQueryOptions(projectPath), enabled: projectPath !== "" });
   const topIds = new Set(top.map((agent) => agent.id));
@@ -326,7 +336,28 @@ export function ProjectGraph({
   const focusPath = selected?.worktreePath ?? laneFocus;
   const overlapList = overlaps.data ?? [];
   const overlapCountOf = (worktreePath: string) => overlapList.filter((overlap) => overlap.a === worktreePath || overlap.b === worktreePath).length;
-  const edges = [...worktreeEdges(layout, overlapList, focusPath), ...linkEdges(layout, links)];
+  const edges = [...worktreeEdges(layout, overlapList, focusPath), ...linkEdges(layout, orch.links)];
+  const nameOf = (sessionId: string) => {
+    const agent = agents.find((candidate) => candidate.id === sessionId);
+    if (!agent) return sessionId.slice(0, 8);
+    const title = agent.title ?? agent.prompt ?? "새 세션";
+    return `${title.length > 28 ? `${title.slice(0, 28)}…` : title} (${agent.worktreeName})`;
+  };
+  const pick = (sessionId: string) => {
+    if (!linking) {
+      setSelectedId(sessionId);
+      return;
+    }
+    if (linking.step === "from") setLinking({ step: "to", from: sessionId });
+    else if (linking.step === "to" && sessionId !== linking.from) setLinking({ step: "kind", from: linking.from, to: sessionId });
+  };
+  const connect = (kind: LinkKind) => {
+    if (linking?.step !== "kind") return;
+    const { from, to } = linking;
+    setLinking(null);
+    void postAction({ type: "connect-sessions", from, to, kind }).catch((error: unknown) => toastError("connect-sessions", error));
+  };
+  const linkSource = linking && linking.step !== "from" ? linking.from : null;
   const { attach, transform, patternTransform, dragging, fit, zoomBy, onPointerDown, onPointerMove, onPointerUp } = useViewport(layout.width, layout.height);
   const selectedWorktree = selected ? worktrees.find((worktree) => worktree.worktreeId === selected.worktreeId) ?? null : null;
   const panelRef = useRef<HTMLElement | null>(null);
@@ -338,15 +369,16 @@ export function ProjectGraph({
   }
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId && !linking) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (event.target instanceof Node && panelRef.current?.contains(event.target)) return;
+      setLinking(null);
       setSelectedId(null);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectedId]);
+  }, [selectedId, linking]);
 
   const counts = groupAgents(agents, isDismissed);
 
@@ -399,34 +431,75 @@ export function ProjectGraph({
                 key={node.agent.id}
                 node={node}
                 now={now}
-                selected={node.agent.id === selectedId}
-                conductor={node.laneId === null}
-                onSelect={() => setSelectedId(node.agent.id)}
+                selected={node.agent.id === selectedId || node.agent.id === linkSource}
+                conductor={orch.conductorIds.has(node.agent.id)}
+                onSelect={() => pick(node.agent.id)}
               />
             ))}
           </g>
         </svg>
 
         <div className="pointer-events-none absolute inset-x-5 top-4 flex items-start gap-3">
-          <p className="pointer-events-auto flex gap-3 rounded-lg bg-tint/85 px-3 py-1.5 font-mono text-[11px] font-medium text-muted backdrop-blur">
-            <span>
-              세션 <b className="text-fg">{agents.length}</b>
-            </span>
-            <span className="text-ask">
-              내 차례 <b>{counts.needsMe.length}</b>
-            </span>
-            <span className="text-now">
-              작업 중 <b>{counts.working.length}</b>
-            </span>
-          </p>
-          <div className="pointer-events-auto ml-auto flex gap-0.5 rounded-[10px] bg-tint/85 p-1 shadow-[inset_0_0_0_1px_var(--hair)] backdrop-blur">
-            {tools}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="pointer-events-auto flex gap-3 self-start rounded-lg bg-tint/85 px-3 py-1.5 font-mono text-[11px] font-medium text-muted backdrop-blur">
+              <span>
+                세션 <b className="text-fg">{agents.length}</b>
+              </span>
+              <span className="text-ask">
+                내 차례 <b>{counts.needsMe.length}</b>
+              </span>
+              <span className="text-now">
+                작업 중 <b>{counts.working.length}</b>
+              </span>
+            </p>
+            <div className="pointer-events-auto">
+              <Proposals proposals={orch.proposals} />
+            </div>
+            {linking && (
+              <div className="pointer-events-auto flex flex-wrap items-center gap-2 self-start rounded-xl bg-bg px-3.5 py-2 text-[12.5px] shadow-lg ring-1 ring-fg/20">
+                {linking.step === "kind" ? (
+                  <>
+                    <span className="font-semibold">
+                      {nameOf(linking.from)} → {nameOf(linking.to)}
+                    </span>
+                    {LINK_CHOICES.map((kind) => (
+                      <button key={kind} type="button" onClick={() => connect(kind)} className="rounded-full bg-tint-2 px-3 py-1 font-semibold hover:bg-fg hover:text-bg">
+                        {kind === "report" ? "끝나면 보고" : kind === "next" ? "끝나면 다음 시작" : LINK_LABEL[kind]}
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <span>{linking.step === "from" ? "먼저 끝나는 세션(보내는 쪽)을 누르세요" : "받을 세션을 누르세요"}</span>
+                )}
+                <button type="button" onClick={() => setLinking(null)} className="font-semibold text-muted hover:text-fg">
+                  취소
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="pointer-events-auto ml-auto flex shrink-0 gap-0.5 rounded-[10px] bg-tint/85 p-1 whitespace-nowrap shadow-[inset_0_0_0_1px_var(--hair)] backdrop-blur">
             <button
               type="button"
-              aria-pressed={launching}
-              onClick={() => setLaunching((open) => !open)}
+              aria-pressed={overlay === "conductor"}
+              onClick={() => setOverlay((open) => (open === "conductor" ? null : "conductor"))}
+              className={`rounded-md px-2.5 py-1.5 font-mono text-[11px] font-semibold ${overlay === "conductor" ? "bg-focus text-bg" : "text-focus hover:bg-focus/10"}`}
+            >
+              지휘자
+            </button>
+            <button
+              type="button"
+              aria-pressed={linking !== null}
+              onClick={() => setLinking((current) => (current ? null : { step: "from" }))}
+              className={`rounded-md px-2.5 py-1.5 font-mono text-[11px] font-semibold ${linking ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
+            >
+              잇기
+            </button>
+            <button
+              type="button"
+              aria-pressed={overlay === "launch"}
+              onClick={() => setOverlay((open) => (open === "launch" ? null : "launch"))}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-mono text-[11px] font-semibold ${
-                launching ? "bg-fg text-bg" : "text-muted hover:text-fg"
+                overlay === "launch" ? "bg-fg text-bg" : "text-muted hover:text-fg"
               }`}
             >
               {ACTION_ICONS.session}새 세션
@@ -436,9 +509,13 @@ export function ProjectGraph({
             </button>
           </div>
         </div>
-        {launching && (
+        {overlay && (
           <div className="absolute top-16 right-5 z-10 w-[min(560px,calc(100%-2.5rem))] rounded-xl bg-bg p-3 shadow-lg ring-1 ring-hair">
-            <LaunchAgent worktrees={worktrees} showRepo={false} draftKey={`project:${projectPath}`} />
+            {overlay === "launch" ? (
+              <LaunchAgent worktrees={worktrees} showRepo={false} draftKey={`project:${projectPath}`} />
+            ) : (
+              <ConductorForm worktrees={worktrees} onDone={() => setOverlay(null)} />
+            )}
           </div>
         )}
 
@@ -476,6 +553,7 @@ export function ProjectGraph({
               )}
             </div>
             {renderCard(selected)}
+            <Connections sessionId={selected.id} links={orch.linksOf(selected.id)} nameOf={nameOf} />
           </>
         ) : (
           <p className="m-auto max-w-[220px] text-center text-[13px] leading-relaxed text-muted">상자를 누르면 여기서 그 세션에 바로 답할 수 있어요.</p>

@@ -9,6 +9,9 @@ import { commandFor } from "./session/command.ts";
 import { SessionRegistry } from "./session/SessionRegistry.ts";
 import { parseSavedSessions, restoreRequestsOf, savedSessionsOf, SESSIONS_FILE } from "./session/restore.ts";
 import { readShellEnv } from "./session/shellEnv.ts";
+import { ORCHESTRATION_FILE, type OrchestrationState } from "../src/common/orchestration/types.ts";
+import { Orchestration } from "./orchestration/Orchestration.ts";
+import { parseOrchestration, persistedOf } from "./orchestration/OrchestrationStore.ts";
 
 const port = Number(process.env.RUNNER_PORT ?? RUNNER_PORT);
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -24,6 +27,8 @@ const usageFile = process.env.RUNNER_USAGE_FILE ?? path.join(dataDir, RUNNER_USA
 const statusLine = { node: process.execPath, script: path.join(import.meta.dirname, "statusline.mjs") };
 
 const sessionsFile = process.env.RUNNER_SESSIONS_FILE ?? path.join(dataDir, SESSIONS_FILE);
+const orchestrationFile = process.env.RUNNER_ORCHESTRATION_FILE ?? path.join(dataDir, ORCHESTRATION_FILE);
+const worktreeMetaFile = process.env.WORKTREE_META_FILE ?? path.join(dataDir, "worktrees.json");
 
 async function writeAtomic(file: string, body: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
@@ -36,11 +41,11 @@ async function saveUsage(usage: RunnerUsage): Promise<void> {
   await writeAtomic(usageFile, JSON.stringify(usage));
 }
 
-async function readSavedSessions(): Promise<unknown> {
+async function readJsonFile(file: string): Promise<unknown> {
   try {
-    return JSON.parse(await readFile(sessionsFile, "utf8"));
+    return JSON.parse(await readFile(file, "utf8"));
   } catch (error) {
-    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error("[runner] saved sessions unreadable", error);
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error("[runner] saved file unreadable", file, error);
     return null;
   }
 }
@@ -75,7 +80,10 @@ function sessionEnv(): Record<string, string> {
   return { ...Object.fromEntries(entries), TERM: "xterm-256color", COLORTERM: "truecolor" };
 }
 
-const relay: { onChange: (sessions: RunnerSession[]) => void } = { onChange: () => {} };
+const relay: { onChange: (sessions: RunnerSession[]) => void; onOrchestration: (state: OrchestrationState) => void } = {
+  onChange: () => {},
+  onOrchestration: () => {},
+};
 
 const registry = new SessionRegistry({
   spawn: (file, args, options) => pty.spawn(file, args, { name: "xterm-256color", ...options }),
@@ -87,33 +95,69 @@ const registry = new SessionRegistry({
   },
 });
 
-const runner = createRunnerServer({ registry, port, allowedOrigins });
+const orchestration = new Orchestration({ registry, worktreeMetaFile, onChange: (state) => relay.onOrchestration(state) });
+const orchestrationSaver = { stopped: false, last: "", queue: Promise.resolve() };
+
+/** A restored session reopens under the conversation it was on, so saved lines name that id. */
+function restoredIdOf(sessionId: string): string | null {
+  const session = registry.get(sessionId);
+  if (!session || session.status === "exited" || session.kind !== "claude" || !session.prompted) return null;
+  return session.conversationId ?? session.id;
+}
+
+function saveOrchestration(): void {
+  if (orchestrationSaver.stopped) return;
+  const body = JSON.stringify(persistedOf(orchestration.store.state(), restoredIdOf));
+  if (body === orchestrationSaver.last) return;
+  orchestrationSaver.last = body;
+  orchestrationSaver.queue = orchestrationSaver.queue
+    .then(() => writeAtomic(orchestrationFile, body))
+    .catch((error: unknown) => {
+      if (orchestrationSaver.last === body) orchestrationSaver.last = "";
+      console.error("[runner] orchestration save failed", error);
+    });
+}
+
+const runner = createRunnerServer({ registry, port, allowedOrigins, orchestration });
 relay.onChange = (sessions) => {
   runner.broadcast({ type: "sessions", sessions });
   saveSessions(sessions);
+  orchestration.rules.sessionsChanged(sessions);
+  saveOrchestration();
 };
+relay.onOrchestration = () => saveOrchestration();
 
 runner.server.on("error", (error) => {
   console.error("[runner] server error", error);
   process.exit(1);
 });
 
-const saved = parseSavedSessions(await readSavedSessions());
+const saved = parseSavedSessions(await readJsonFile(sessionsFile));
+orchestration.store.load(parseOrchestration(await readJsonFile(orchestrationFile)));
 
 runner.server.listen(port, "127.0.0.1", () => {
   console.log(`[runner] listening on ${baseUrl} (claude: ${command})`);
   if (saved.length === 0) return;
   sessionSaver.stopped = true;
-  const restored = registry.restore(restoreRequestsOf(saved));
+  orchestrationSaver.stopped = true;
+  const requests = restoreRequestsOf(saved).map((request) =>
+    request.launch.resumeSessionId && orchestration.store.conductor(request.launch.resumeSessionId)
+      ? { ...request, launch: { ...request.launch, conductor: true } }
+      : request,
+  );
+  const restored = registry.restore(requests);
   sessionSaver.stopped = false;
+  orchestrationSaver.stopped = false;
   saveSessions(registry.list());
+  saveOrchestration();
   console.log(`[runner] restored ${restored.length}/${saved.length} sessions from ${sessionsFile}`);
 });
 
 async function shutdown(signal: string) {
   console.log(`[runner] ${signal} — closing sessions`);
   sessionSaver.stopped = true;
-  await flushSessions();
+  orchestrationSaver.stopped = true;
+  await Promise.race([Promise.all([sessionSaver.queue, orchestrationSaver.queue]), flushSessions()]);
   registry.closeAll();
   runner.server.close();
   process.exit(0);

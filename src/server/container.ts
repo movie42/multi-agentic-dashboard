@@ -94,6 +94,8 @@ export interface Services {
   };
   /** Pairs of the project's worktrees (main checkout excluded) that change the same files. */
   projectOverlaps: (projectPath: string) => Promise<WorktreeOverlap[]>;
+  /** Creates the worktree a conductor proposed, then lets the runner open its worker there. */
+  acceptProposal: (proposalId: string) => Promise<void>;
 }
 
 function graphReader(merged: MergedReader) {
@@ -142,6 +144,7 @@ function createServices(): Services {
     projects: () => projects.list(),
     worktreesOf,
     meta: () => worktreeMeta.read(),
+    orchestration: () => runner.orchestration(),
     runnerSessions: async () => {
       const [sessions, live] = await Promise.all([
         runner.list(),
@@ -192,6 +195,29 @@ function createServices(): Services {
     docs,
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
     gitGraph: { readGraph: graphReader(new MergedReader()), readCommit, readCommitDiff, switchBranch, readWorkingTree, readWorkingDiff },
+    acceptProposal: async (proposalId) => {
+      const state = await runner.orchestration();
+      const proposal = state.proposals.find((entry) => entry.id === proposalId);
+      if (!proposal) throw new Error("이미 처리한 제안이에요");
+      const conductor = state.conductors.find((entry) => entry.sessionId === proposal.conductorId);
+      if (!conductor) throw new Error("제안한 지휘자가 없어요");
+      const registered = await projects.list();
+      const owners = await Promise.all(
+        registered.map(async (project) => ((await worktreesOf(project)).some((worktree) => worktree.path === conductor.scope.root) ? project : null)),
+      );
+      const project = owners.find((owner) => owner !== null);
+      if (!project) throw new Error("지휘자 범위의 프로젝트를 찾지 못했어요");
+      const created = await worktrees.create({
+        projectPath: project.path,
+        name: proposal.name,
+        branch: proposal.branch,
+        baseBranch: proposal.baseBranch,
+        parentPath: conductor.scope.kind === "worktree" ? conductor.scope.root : null,
+        reference: /^[A-Z][A-Z0-9]+-\d+$/.test(proposal.name) ? proposal.name : null,
+        prompt: "",
+      });
+      await runner.acceptProposal(proposalId, created.path);
+    },
     projectOverlaps: async (projectPath) => {
       const project = (await projects.list()).find((candidate) => candidate.path === projectPath);
       if (!project) throw new Error("프로젝트를 찾지 못했어요");

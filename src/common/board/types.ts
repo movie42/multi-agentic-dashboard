@@ -1,3 +1,4 @@
+import type { OrchestrationState } from "@/common/orchestration/types";
 import type { RunnerPermission } from "@/common/runner/types";
 import type { SessionRef } from "@/common/sessions/types";
 import type { FeatureSummary, FlowTaskSummary, JiraIssueInfo, PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
@@ -68,6 +69,8 @@ export interface BoardSnapshot {
   worktrees: WorktreeSummary[];
   agents: AgentCard[];
   features: FeatureSummary[];
+  /** Lines between sessions, conductors and pending worktree proposals, from the session runner. */
+  orchestration: OrchestrationState;
 }
 
 export type BoardResponse =

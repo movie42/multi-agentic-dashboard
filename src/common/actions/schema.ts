@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits";
+import { GRANT_BUNDLES } from "../orchestration/types";
 
 export const MAX_PROMPT = 8000;
 export const MAX_CLOSE_TERMINALS = 50;
@@ -8,6 +9,7 @@ export type ModelChoice = (typeof MODEL_CHOICES)[number];
 
 const absolutePath = z.string().refine((value) => value.startsWith("/"), "absolute path required");
 const sessionId = z.string().regex(SESSION_ID);
+const runnerId = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
 const title = z
   .string()
   .max(TITLE_LIMIT)
@@ -51,6 +53,19 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
   z.object({ type: z.literal("rename-worktree"), worktreePath: absolutePath, name: title }),
   z.object({ type: z.literal("import-project"), path: absolutePath }),
+  z.object({ type: z.literal("connect-sessions"), from: runnerId, to: runnerId, kind: z.enum(["delegate", "report", "next"]) }),
+  z.object({ type: z.literal("disconnect-sessions"), linkId: runnerId }),
+  z.object({ type: z.literal("resume-link"), linkId: runnerId }),
+  z.object({
+    type: z.literal("launch-conductor"),
+    cwd: absolutePath,
+    scope: z.object({ kind: z.enum(["project", "worktree"]), root: absolutePath }),
+    grants: z.array(z.enum(GRANT_BUNDLES)).max(GRANT_BUNDLES.length),
+    prompt: z.string().max(MAX_PROMPT),
+  }),
+  z.object({ type: z.literal("grant-conductor"), conductorId: runnerId, workerId: runnerId }),
+  z.object({ type: z.literal("accept-proposal"), proposalId: runnerId }),
+  z.object({ type: z.literal("reject-proposal"), proposalId: runnerId }),
 ]);
 
 export type ActionRequest = z.infer<typeof actionRequestSchema>;

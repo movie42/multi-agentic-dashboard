@@ -31,6 +31,8 @@ export interface RunnerPermission {
   toolName: string;
   toolInput: Record<string, unknown>;
   suggestions: RunnerPermissionSuggestion[];
+  /** Conductor session asked to decide first, because a person delegated this kind of request to it. */
+  delegatedTo?: string | null;
 }
 
 export type RunnerPermissionAnswer =
@@ -56,6 +58,8 @@ export interface RunnerLaunchRequest {
   prompt?: string;
   resumeSessionId?: string;
   kind?: RunnerSessionKind;
+  /** Launch with the conductor tools (MCP) and the conductor role prompt. */
+  conductor?: boolean;
 }
 
 export interface RunnerInputRequest {

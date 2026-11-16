@@ -12,6 +12,7 @@ import type {
 } from "@/common/board/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
+import type { OrchestrationState } from "@/common/orchestration/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
@@ -567,6 +568,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             renderCard={projectViewCard}
             renderPanelCard={graphPanelCard}
             allAgents={board.agents.filter((agent) => agent.repo === selectedRepo)}
+            orchestration={board.orchestration}
             onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
             expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
@@ -603,6 +605,7 @@ interface ProjectViewProps {
   renderPanelCard: (agent: AgentCard) => React.ReactNode;
   /** Every session of the project, orchestrated workers included, for the graph. */
   allAgents: AgentCard[];
+  orchestration: OrchestrationState;
   onOpenWorktree: (worktreeId: string) => void;
   expandedId: string | null;
   onAction: (action: ActionRequest) => Promise<void>;
@@ -622,6 +625,7 @@ function ProjectView({
   renderCard,
   renderPanelCard,
   allAgents,
+  orchestration,
   onOpenWorktree,
   expandedId,
   onAction,
@@ -689,6 +693,7 @@ function ProjectView({
           now={now}
           isDismissed={isDismissed}
           focusId={expandedId}
+          orchestration={orchestration}
           renderCard={renderPanelCard}
           onOpenWorktree={(target) => onOpenWorktree(target.worktreeId)}
           onAction={onAction}

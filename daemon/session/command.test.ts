@@ -23,6 +23,15 @@ describe("commandFor", () => {
     expect(command.args).not.toContain("--session-id");
   });
 
+  it("gives a conductor the dashboard's MCP tools and role prompt, before the first prompt", () => {
+    const command = commandFor({ id: "c1", kind: "claude", prompt: "plan it", conductor: true }, environment);
+    const config = command.args[command.args.indexOf("--mcp-config") + 1] ?? "";
+    expect(JSON.parse(config).mcpServers["agent-control"].url).toBe("http://127.0.0.1:3198/mcp/c1");
+    expect(command.args).toContain("--append-system-prompt");
+    expect(command.args[command.args.indexOf("--allowedTools") + 1]).toBe("mcp__agent-control");
+    expect(command.args.slice(-2)).toEqual(["--", "plan it"]);
+  });
+
   it("opens a login shell with no hooks", () => {
     expect(commandFor({ id: "s1", kind: "shell" }, environment)).toEqual({ file: "/bin/zsh", args: ["-l"] });
   });

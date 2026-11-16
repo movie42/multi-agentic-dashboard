@@ -2,7 +2,7 @@
   "id": "session-orchestration",
   "title": "세션 오케스트레이션",
   "type": "기능 개발",
-  "branch": "main",
+  "branch": "feat/session-orchestration",
   "links": [],
   "stages": {
     "grill": {
@@ -303,11 +303,15 @@
       ]
     },
     "tasks": {
-      "status": "ask",
-      "summary": "계획 승인 대기 · Phase 6개",
+      "status": "done",
+      "summary": "구현 완료 · Phase 6개",
       "conclusion": [
-        "데몬에 '선' 기록과 규칙 실행기를 더하고, 지휘자 세션이 쓰는 MCP 도구를 데몬이 직접 제공해요. 화면 쪽(P6)은 project-overview의 그래프 화면이 생긴 뒤에 붙여요.",
-        "P1–P5는 화면 없이 데몬 테스트와 HTTP 호출로 확인해요."
+        "그래프 도구 막대의 '지휘자'로 프로젝트 또는 워크트리 범위의 지휘자 세션을 띄워요. 지휘자는 데몬이 주는 MCP 도구로 범위 안 워크트리에 일꾼을 열고, 일꾼은 멈출 때마다 마지막 답을 지휘자에게 자동으로 보고해요.",
+        "'잇기'로 두 세션을 직접 이어 '끝나면 보고', '끝나면 다음 시작', '맡김' 선을 만들어요. 선은 데몬이 저장하고 실행해서, 앱을 닫아도 지켜지고 데몬을 다시 띄워도 복원돼요.",
+        "같은 선으로 세 번 오가면 그 선이 멈추고, 패널의 연결 목록에서 '다시 시작'을 눌러야 이어져요.",
+        "지휘자가 새 워크트리를 원하면 그래프에 제안이 뜨고, 사람이 '만들기'를 눌러야 생겨요. 만든 곳에 일꾼이 열려 지휘자에게 보고해요.",
+        "위임 묶음에 드는 일꾼의 권한 요청은 지휘자 대화에 먼저 들어가고, 권한 카드에는 '지휘자가 먼저 판단하는 중'이 보여요. git push · 강제 리셋 · 연결된 명령은 묶음과 상관없이 사람에게 와요.",
+        "임시 저장소에서 실제 Claude로 확인했어요: 지휘자 → start_session → 일꾼 답 → 지휘자에 보고 → 요약, 제안 '만들기' → 워크트리 생성 + 일꾼 연결, 잇기 → '끝나면' 선."
       ],
       "blocks": [
         {
@@ -317,12 +321,12 @@
           "items": [
             {
               "id": "P1-1",
-              "title": "선(맡김 · 보고 · 끝나면 다음)과 지휘자(범위 · 위임 묶음) 타입",
-              "done": false,
+              "title": "선 · 지휘자 · 제안 타입과 응답 스키마",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/common/orchestration/types.ts</code> · <code>src/common/runner/types.ts</code>(RunnerSession에 role · parentId)"
+                  "<code>src/common/orchestration/types.ts</code> · <code>src/common/orchestration/schema.ts</code> · <code>src/common/runner/types.ts</code> · <code>src/common/runner/schema.ts</code>"
                 ],
                 [
                   "결정",
@@ -332,65 +336,57 @@
             },
             {
               "id": "P1-2",
-              "title": "데이터 폴더에 orchestration.json으로 저장 · 데몬 재시작 때 복원",
-              "done": false,
+              "title": "데이터 폴더 orchestration.json 저장 · 복원 (복원 후 세션 id로 바꿔 저장)",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>daemon/orchestration/OrchestrationStore.ts</code> · <code>daemon/main.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>daemon/session/restore.ts</code>의 sessions.json 저장 · 복원"
+                  "<code>daemon/orchestration/OrchestrationStore.ts</code> · <code>daemon/main.ts</code> · <code>daemon/orchestration/RuleRunner.test.ts</code>"
                 ],
                 [
                   "결정",
-                  "[[R1-Q4]]"
+                  "[[R1-Q4]] 처음 프롬프트 없이 연 세션은 다시 띄우면 새 id라 그 세션의 선은 저장하지 않음"
                 ]
               ]
             },
             {
               "id": "P1-V",
-              "title": "검증: <code>bun test daemon/orchestration</code>",
-              "done": false
+              "title": "검증: <code>vitest daemon</code>",
+              "done": true
             }
           ]
         },
         {
           "type": "checklist",
           "id": "P2",
-          "title": "Phase 2 · 규칙 실행기 (데몬)",
+          "title": "Phase 2 · 규칙 실행기",
           "items": [
             {
               "id": "P2-1",
-              "title": "세션이 끝나면(Stop 훅) 그 세션에서 나가는 선을 실행: 보고 → 마지막 답을 대상 세션에 넣기, 끝나면 다음 → 대상 세션 시작",
-              "done": false,
+              "title": "Stop 훅이 오면 보고 · 끝나면 다음 실행, 마지막 답은 훅의 last_assistant_message, 없으면 대화 기록 끝부분에서",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>daemon/orchestration/RuleRunner.ts</code> · <code>daemon/server.ts</code>(훅 처리에서 호출)"
-                ],
-                [
-                  "재사용",
-                  "<code>SessionRegistry.signal · write · launch</code> · 훅 본문의 <code>transcript_path</code>로 마지막 답 읽기(<code>parseTranscript</code> 참고)"
+                  "<code>daemon/orchestration/RuleRunner.ts</code> · <code>daemon/orchestration/lastAnswer.ts</code> · <code>daemon/server.ts</code>"
                 ]
               ]
             },
             {
               "id": "P2-2",
-              "title": "바쁜 세션에는 바로 넣지 않고 줄 세웠다가 쉬는 상태가 되면 넣기",
-              "done": false,
+              "title": "바쁜 세션은 줄 세웠다가 쉬는 상태에서 하나씩 입력",
+              "done": true,
               "rows": [
                 [
                   "결정",
-                  "보고가 지휘자의 답과 섞이지 않게"
+                  "입력한 뒤 다음 훅이 올 때까지(최대 15초) 다음 메시지를 넣지 않음"
                 ]
               ]
             },
             {
               "id": "P2-3",
-              "title": "같은 선으로 세 번 오가면 선을 멈추고 '사람 확인 필요'로 표시",
-              "done": false,
+              "title": "선이 되돌아오는 경우 세 번 오가면 멈춤",
+              "done": true,
               "rows": [
                 [
                   "결정",
@@ -400,46 +396,42 @@
             },
             {
               "id": "P2-V",
-              "title": "검증: 가짜 세션 실행기로 보고 · 다음 · 줄 세우기 · 세 번 멈춤 테스트",
-              "done": false
+              "title": "검증: <code>daemon/orchestration/RuleRunner.test.ts</code> 7개",
+              "done": true
             }
           ]
         },
         {
           "type": "checklist",
           "id": "P3",
-          "title": "Phase 3 · 선과 지휘자 API",
+          "title": "Phase 3 · API",
           "items": [
             {
               "id": "P3-1",
-              "title": "데몬 경로: 선 목록 · 잇기 · 끊기, 지휘자 띄우기(범위 · 위임 묶음 · 첫 요청)",
-              "done": false,
+              "title": "데몬 경로 /orchestration (선 · 지휘자 · 위임 추가 · 제안 수락/거절)",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>daemon/server.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "기존 <code>POST /sessions</code> 처리"
+                  "<code>daemon/orchestration/Orchestration.ts</code> · <code>daemon/server.ts</code> · <code>daemon/orchestration/Orchestration.test.ts</code>"
                 ]
               ]
             },
             {
               "id": "P3-2",
-              "title": "앱 쪽: 보드 응답에 선을 싣고 <code>AgentCard.parentId</code>를 맡김 선으로 채우기, 액션 <code>connect-sessions</code> · <code>launch-conductor</code>",
-              "done": false,
+              "title": "보드에 orchestration을 싣고 맡김 선으로 AgentCard.parentId 채우기, 액션 7개",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/board/boardCards.ts</code> · <code>src/common/actions/schema.ts</code> · <code>app/api/actions/route.ts</code>"
+                  "<code>src/server/board/BoardService.ts</code> · <code>src/common/board/types.ts</code> · <code>src/server/runner/RunnerClient.ts</code> · <code>src/common/actions/schema.ts</code> · <code>app/api/actions/route.ts</code> · <code>src/server/container.ts</code> · <code>src/client/views/dashboard/model/useBoard.test.tsx</code> · <code>src/server/todos/TodoLaunchAttacher.test.ts</code>"
                 ]
               ]
             },
             {
               "id": "P3-V",
-              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun test</code>",
-              "done": false
+              "title": "검증: <code>daemon/orchestration/Orchestration.test.ts</code> (실제 HTTP) · tsc",
+              "done": true
             }
           ]
         },
@@ -450,23 +442,23 @@
           "items": [
             {
               "id": "P4-1",
-              "title": "데몬이 지휘자 세션마다 MCP 도구 제공: list_sessions · start_session · send_to_session · read_result",
-              "done": false,
+              "title": "데몬이 /mcp/<지휘자 id>로 MCP 도구 7개 제공 (Streamable HTTP, JSON 응답)",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>daemon/orchestration/conductorMcp.ts</code> · <code>daemon/session/command.ts</code>(지휘자일 때 <code>--mcp-config</code> · 역할 지시 추가)"
+                  "<code>daemon/orchestration/conductorMcp.ts</code> · <code>daemon/orchestration/conductorPrompt.ts</code> · <code>daemon/session/command.ts</code> · <code>daemon/session/SessionRegistry.ts</code> · <code>daemon/orchestration/conductorMcp.test.ts</code> · <code>daemon/session/command.test.ts</code>"
                 ],
                 [
                   "결정",
-                  "MCP SDK가 저장소에 없음 — 추가 여부는 구현 때 HTTP 방식 크기를 보고 결정"
+                  "MCP SDK 없이 JSON-RPC 몇 개만 직접 처리. 지휘자 자신의 대시보드 도구는 --allowedTools로 미리 허용"
                 ]
               ]
             },
             {
               "id": "P4-2",
-              "title": "범위 검사: 프로젝트 지휘자는 그 프로젝트 워크트리, 워크트리 지휘자는 그 워크트리와 하위 워크트리만",
-              "done": false,
+              "title": "범위 검사: 프로젝트 지휘자는 프로젝트 모든 워크트리, 워크트리 지휘자는 worktrees.json의 parentPath를 따라 하위까지",
+              "done": true,
               "rows": [
                 [
                   "결정",
@@ -476,13 +468,9 @@
             },
             {
               "id": "P4-3",
-              "title": "새 워크트리 요청은 만들기 전에 화면 확인 대기로 올리기",
-              "done": false,
+              "title": "propose_worktree는 제안만 올리고, 사람이 그래프에서 만들기를 눌러야 생성",
+              "done": true,
               "rows": [
-                [
-                  "재사용",
-                  "워크트리 마법사 구성안 확인 흐름 (<code>src/server/worktreeWizard/create.ts</code>)"
-                ],
                 [
                   "결정",
                   "[[R1-Q3]]"
@@ -491,19 +479,19 @@
             },
             {
               "id": "P4-4",
-              "title": "start_session으로 연 일꾼은 자동으로 '맡김' + '끝나면 보고' 선을 단다",
-              "done": false,
+              "title": "start_session으로 연 일꾼에 맡김 + 보고 선 자동 연결",
+              "done": true,
               "rows": [
                 [
                   "결정",
-                  "[[project-overview#R1-Q2]] 메모의 '대화가 끝나면 무조건 보고'"
+                  "대화가 끝나면 무조건 보고"
                 ]
               ]
             },
             {
               "id": "P4-V",
-              "title": "검증: 실제 지휘자 세션을 띄워 일꾼 하나 열기 → 끝나면 보고가 지휘자에게 들어오는지 확인",
-              "done": false
+              "title": "검증: 임시 저장소 + 시험용 데몬(3298)에서 실제 Claude 지휘자가 일꾼을 열고 보고를 받아 요약",
+              "done": true
             }
           ]
         },
@@ -514,12 +502,12 @@
           "items": [
             {
               "id": "P5-1",
-              "title": "위임 묶음(파일 편집 / 테스트 · 빌드 / git 커밋)과 권한 요청 맞춰 보기, git push 제외",
-              "done": false,
+              "title": "위임 묶음 판정 (편집은 일꾼 폴더 안만, git push · reset --hard · rm -rf · 연결된 명령 제외)",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>daemon/orchestration/grants.ts</code>"
+                  "<code>daemon/orchestration/grants.ts</code> · <code>daemon/orchestration/grants.test.ts</code>"
                 ],
                 [
                   "결정",
@@ -529,51 +517,47 @@
             },
             {
               "id": "P5-2",
-              "title": "맞는 요청은 지휘자에게 물어 MCP 도구 answer_permission으로 받기 · 거절 · 모름 · 시간 초과면 사람 카드로",
-              "done": false,
+              "title": "위임된 요청은 지휘자 대화에 넣고 answer_permission으로 답받기, 권한 카드는 그대로 보여 사람도 답할 수 있음",
+              "done": true,
               "rows": [
                 [
-                  "재사용",
-                  "<code>SessionRegistry.holdPermission · answerPermission</code>"
-                ],
-                [
                   "결정",
-                  "[[R2-Q2]]"
+                  "[[R2-Q2]] 지휘자가 ask_human이면 카드가 남아 있음"
                 ]
               ]
             },
             {
               "id": "P5-3",
-              "title": "권한 카드에 '앞으로 지휘자에게 맡기기' 버튼",
-              "done": false,
+              "title": "권한 카드의 '앞으로 이런 요청은 지휘자에게 맡기기' · '지휘자가 먼저 판단하는 중'",
+              "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/features/answer-permission/</code>"
-                ],
-                [
-                  "결정",
-                  "[[R2-Q1]]"
+                  "<code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code> · <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
                 ]
               ]
             },
             {
               "id": "P5-V",
-              "title": "검증: 위임 안 된 요청은 사람에게, 위임된 요청은 지휘자에게 가는지 테스트",
-              "done": false
+              "title": "검증: <code>daemon/orchestration/grants.test.ts</code> · 위임 요청이 대시보드 없이도 지휘자에게 가는 HTTP 테스트",
+              "done": true
             }
           ]
         },
         {
           "type": "checklist",
           "id": "P6",
-          "title": "Phase 6 · 그래프 화면에 붙이기 (project-overview 이후)",
+          "title": "Phase 6 · 그래프 화면",
           "items": [
             {
               "id": "P6-1",
-              "title": "그래프에 맡김 · 보고 · 끝나면 다음 선과 멈춘 선 표시",
-              "done": false,
+              "title": "맡김 · 보고 · 끝나면 선과 멈춘 선 표시, 프로젝트 지휘자는 맨 위 줄",
+              "done": true,
               "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/model/orchestration.ts</code> · <code>src/client/widgets/project-graph/model/edges.ts</code> · <code>src/client/widgets/project-graph/model/edges.test.ts</code> · <code>src/client/widgets/project-graph/ui/ProjectGraph.tsx</code> · <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
                 [
                   "SOT",
                   "[[S20]] [[S23]]"
@@ -582,20 +566,24 @@
             },
             {
               "id": "P6-2",
-              "title": "잇기 도구로 선 만들기 · 지우기",
-              "done": false,
+              "title": "잇기: 보내는 세션 → 받는 세션 → 선 종류",
+              "done": true,
               "rows": [
                 [
                   "SOT",
-                  "[[S17]] [[S22]]"
+                  "[[S17]]"
                 ]
               ]
             },
             {
               "id": "P6-3",
-              "title": "+ 세션에서 지휘자 만들기: 범위 · 위임 묶음 · 첫 요청",
-              "done": false,
+              "title": "지휘자 만들기: 범위 · 위임 묶음 · 목표",
+              "done": true,
               "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/ConductorForm.tsx</code>"
+                ],
                 [
                   "SOT",
                   "[[S18]]"
@@ -604,9 +592,13 @@
             },
             {
               "id": "P6-4",
-              "title": "오른쪽 패널의 연결 · 규칙 목록",
-              "done": false,
+              "title": "패널 연결 목록 (끊기 · 다시 시작), 워크트리 제안 배너",
+              "done": true,
               "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/Connections.tsx</code> · <code>src/client/widgets/project-graph/ui/Proposals.tsx</code>"
+                ],
                 [
                   "SOT",
                   "[[S25]]"
@@ -615,8 +607,8 @@
             },
             {
               "id": "P6-V",
-              "title": "검증: browse로 잇기 → 보고가 그래프에 나타나는지, <code>bun run desktop</code> 재빌드",
-              "done": false
+              "title": "검증: 시험용 개발 서버(3112)에서 제안 만들기 → 워크트리 생성 + 일꾼, 잇기 → 끝나면 선, 라이트 · 다크",
+              "done": true
             }
           ]
         }
@@ -645,5 +637,6 @@
       "basis": "[[R1-Q5]] [[R2-Q1]] [[R2-Q2]]"
     }
   ],
-  "pulledAt": 1794792270118
+  "pulledAt": 1794792270118,
+  "base": "70edcd4"
 }
