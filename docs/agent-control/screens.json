@@ -362,8 +362,9 @@
           "kind": "action",
           "title": "새 세션 끌어 잇기",
           "field": "—",
-          "rule": "빈 자리에서 새 세션을 만들어 기존 상자와 바로 이어요.",
-          "note": "[[project-overview#R4]]"
+          "rule": "없앴어요. 새 세션은 워크트리 영역 우클릭의 '여기서 새 세션'으로 열어요.",
+          "note": "[[project-overview#R4]] · 2026-11-16 사용자 요청으로 삭제",
+          "gone": true
         },
         {
           "id": "S23",

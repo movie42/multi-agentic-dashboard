@@ -1,4 +1,7 @@
 import { MAX_CLOSE_TERMINALS, type ActionRequest } from "@/common/actions/schema";
+import { gitGraphHref } from "@/client/entities/git-graph";
+import { intentDiffHref } from "@/client/entities/intent-diff";
+import { requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
 import type { AgentCard } from "@/common/board/types";
 import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
 import type { ProjectGraph } from "../model/graph";
@@ -117,15 +120,25 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     if (!cluster) return null;
     const { worktree } = cluster;
     const sessions = agentsOf(graph, cluster.nodeIds);
+    // These forms live in the worktree panel: switch to it and let it open the form.
+    const inPanel = (action: PanelWorktreeAction) => {
+      context.onOpenWorktree(worktree.worktreeId);
+      requestWorktreeAction(worktree.worktreeId, action);
+    };
     return {
       title: `워크트리 · ${worktree.name}`,
       rename: worktree.isMain ? null : { label: "이름 바꾸기", value: worktree.name, onSave: (name) => void onAction({ type: "rename-worktree", worktreePath: worktree.path, name }) },
-      items: [
+      items: compact([
+        { label: "새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
+        { label: "지휘자", run: () => inPanel("conductor") },
+        { label: "터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
+        { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },
+        { label: "깃 그래프", run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener") },
+        { label: "여기서 워크트리 만들기", run: () => inPanel("worktree") },
+        !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") },
         { label: "워크트리 열기", run: () => context.onOpenWorktree(worktree.worktreeId) },
-        { label: "여기서 새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
-        { label: "터미널 열기", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
         ...(sessions.length > 0 ? sessionsItems(sessions, context, `이 워크트리 세션 ${sessions.length}개`) : []),
-      ],
+      ]),
     };
   }
 

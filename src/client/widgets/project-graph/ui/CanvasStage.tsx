@@ -353,6 +353,8 @@ export function CanvasStage(props: CanvasStageProps) {
     const nodeId =
       target?.closest("[data-node]")?.getAttribute("data-node") ?? null;
     const handle = target?.closest("[data-drag]");
+    // The empty inside of a worktree frame counts as the worktree, not the canvas.
+    const frame = target?.closest("[data-cluster]")?.getAttribute("data-cluster");
     if (startPan) {
       gesture.current = {
         kind: "pan",
@@ -534,6 +536,8 @@ export function CanvasStage(props: CanvasStageProps) {
     const target = event.target instanceof Element ? event.target : null;
     const node = target?.closest("[data-node]")?.getAttribute("data-node");
     const handle = target?.closest("[data-drag]");
+    // The empty inside of a worktree frame counts as the worktree, not the canvas.
+    const frame = target?.closest("[data-cluster]")?.getAttribute("data-cluster");
     const edge = target?.closest("[data-edge]")?.getAttribute("data-edge");
     const hit: MenuTarget = node
       ? { kind: "node", id: node }
@@ -547,7 +551,9 @@ export function CanvasStage(props: CanvasStageProps) {
                   : "cluster",
               id: handle.getAttribute("data-id") ?? "",
             }
-          : { kind: "canvas", id: "" };
+          : frame
+            ? { kind: "cluster", id: frame }
+            : { kind: "canvas", id: "" };
     if (target?.closest("[role='menu']")) return;
     event.preventDefault();
     props.onContextMenu(hit, toWorld(event.clientX, event.clientY));

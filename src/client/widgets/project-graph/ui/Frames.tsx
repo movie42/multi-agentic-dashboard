@@ -29,7 +29,7 @@ export function ClusterFrame({ id, rect, worktree, steps, sessions, onOpen }: Cl
   const pr = worktree.pullRequest.kind === "found" ? worktree.pullRequest : null;
   return (
     <g>
-      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={14} strokeDasharray="6 5" strokeWidth={1.3} className="fill-tint/40 stroke-faint" />
+      <rect data-cluster={id} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={14} strokeDasharray="6 5" strokeWidth={1.3} className="fill-tint/40 stroke-faint" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={CLUSTER_HEAD}>
         <div data-drag="cluster" data-id={id} className="flex h-full cursor-grab items-center gap-2 px-4 text-[12px] leading-none select-none active:cursor-grabbing">
           <span className="text-[10px] font-semibold tracking-[0.08em] text-muted">{worktree.isMain ? "MAIN" : "WORKTREE"}</span>

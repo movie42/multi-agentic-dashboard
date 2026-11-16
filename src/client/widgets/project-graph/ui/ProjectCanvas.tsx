@@ -10,19 +10,18 @@ import type { WorkflowMode } from "@/common/workflow/types";
 import { fileOverlapsQueryOptions } from "../api/fileOverlapsQuery";
 import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resolvePositions, setEdgeEnd, ungroup } from "../model/canvasState";
 import { buildGraph, type GraphEdge } from "../model/graph";
-import { autoLayout, clusterRect, groupRect, type Point, type Side, unionRect, nodeRect } from "../model/layout";
+import { autoLayout, type Point, type Side } from "../model/layout";
 import { useCanvasState } from "../model/useCanvasState";
 import { CanvasStage, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
-import { ConnectPicker, GHOST_ID, GhostNode } from "./CanvasOverlays";
+import { ConnectPicker } from "./CanvasOverlays";
 import { GraphToolbar } from "./GraphToolbar";
 import { Legend } from "./Legend";
 import { nodeTitle } from "./NodeBox";
 import { SidePanel, type PanelView } from "./SidePanel";
 
-const GHOST_GAP = 56;
 
 interface PendingConnect {
   from: string;
@@ -70,8 +69,6 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [connecting, setConnecting] = useState(false);
   const [showAllLinks, setShowAllLinks] = useState(false);
   const [pending, setPending] = useState<PendingConnect | null>(null);
-  const [ghostOpen, setGhostOpen] = useState(false);
-  const [ghostFrom, setGhostFrom] = useState<string | null>(null);
   const [stageKey, setStageKey] = useState(0);
   const [menu, setMenu] = useState<{ target: MenuTarget; at: Point } | null>(null);
   const [panelPref, writePanelPref] = useStoredList("agent-control:canvas-panel");
@@ -83,16 +80,15 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const selectedEdge = graph.edges.find((edge) => edge.id === edgeId) ?? null;
 
   const select = (ids: string[], additive: boolean) => {
-    const picked = ids.filter((id) => id !== GHOST_ID);
     setMenu(null);
     setEdgeId(null);
     setShowAllLinks(false);
     setPending(null);
     if (!additive) {
-      setSelected(picked);
+      setSelected(ids);
       return;
     }
-    const toggled = picked.length === 1 && liveSelected.includes(picked[0]!) ? liveSelected.filter((id) => id !== picked[0]) : [...new Set([...liveSelected, ...picked])];
+    const toggled = ids.length === 1 && liveSelected.includes(ids[0]!) ? liveSelected.filter((id) => id !== ids[0]) : [...new Set([...liveSelected, ...ids])];
     setSelected(toggled);
   };
 
@@ -146,12 +142,6 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   };
 
   const connect = (from: string, to: string, at: Point) => {
-    if (from === GHOST_ID) return;
-    if (to === GHOST_ID) {
-      setGhostFrom(from);
-      setGhostOpen(true);
-      return;
-    }
     setPending({ from, to, at });
   };
   const pick = (kind: LinkKind, prompt: string | null) => {
@@ -160,14 +150,6 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
     setPending(null);
   };
 
-  const content = unionRect([
-    ...[...positions.values()].map(nodeRect),
-    ...graph.clusters.map((cluster) => clusterRect(cluster.nodeIds, positions, anchors.get(cluster.id) ?? { x: 0, y: 0 })),
-    ...canvas.groups.flatMap((group) => groupRect(group.memberIds, positions) ?? []),
-  ]);
-  const ghostAt = { x: content ? content.x : 0, y: content ? content.y + content.h + GHOST_GAP : 0 };
-  const linkFromId = ghostFrom ?? (liveSelected.length === 1 ? liveSelected[0]! : null);
-  const linkFromAgent = linkFromId ? graph.nodes.get(linkFromId)?.agent : undefined;
 
   const titleOf = (id: string) => {
     const agent = graph.nodes.get(id)?.agent;
@@ -230,19 +212,6 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           }}
           overlay={(zoom) => (
             <>
-              <GhostNode
-                at={ghostAt}
-                zoom={zoom}
-                worktrees={worktrees}
-                linkFrom={linkFromAgent && linkFromId ? { id: linkFromId, title: nodeTitle(linkFromAgent) } : null}
-                open={ghostOpen}
-                onOpen={() => setGhostOpen(true)}
-                onClose={() => {
-                  setGhostOpen(false);
-                  setGhostFrom(null);
-                }}
-                onAction={onAction}
-              />
               {menuContent && menu && <CanvasMenu at={menu.at} zoom={zoom} {...menuContent} onClose={() => setMenu(null)} />}
               {pending && (
                 <ConnectPicker

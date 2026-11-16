@@ -95,7 +95,6 @@ export function WorktreePanel({
   const [menu, setMenu] = useState<{ at: MenuPoint; confirmingCloseAll: boolean } | null>(null);
   const closeMenu = () => setMenu(null);
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
-  useWorktreeMenuRequest(worktree.worktreeId, openMenu);
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
@@ -166,6 +165,7 @@ export function WorktreePanel({
           },
         ]),
   ];
+  useWorktreeMenuRequest(worktree.worktreeId, openMenu, (key) => actions.find((action) => action.key === key && !action.disabled)?.run());
   const open = (target: string) =>
     onAction({ type: "open-artifact", target });
   const showFiles = useFileExplorerStore((state) => state.show);
