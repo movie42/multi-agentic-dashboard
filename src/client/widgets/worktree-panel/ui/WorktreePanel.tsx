@@ -17,6 +17,7 @@ import type {
 import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
+import { useWorktreeMenuRequest } from "@/client/entities/workspace";
 import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
@@ -94,6 +95,7 @@ export function WorktreePanel({
   const closeMenu = () => setMenu(null);
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
   const pr = worktree.pullRequest;
+  useWorktreeMenuRequest(worktree.worktreeId, openMenu);
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const [launchingConductor, setLaunchingConductor] = useState(false);

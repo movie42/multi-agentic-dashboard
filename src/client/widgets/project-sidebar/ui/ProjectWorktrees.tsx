@@ -14,7 +14,7 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS as DndCSS } from "@dnd-kit/utilities";
 import type { WorktreeSummary } from "@/common/board/types";
-import { useWorktreeOrder } from "@/client/entities/workspace";
+import { requestWorktreeMenu, useWorktreeOrder } from "@/client/entities/workspace";
 
 export interface WorktreeCounts {
   needsInput: number;
@@ -86,8 +86,13 @@ function WorktreeRow({ row, counts, selected, onSelect }: WorktreeRowProps) {
         type="button"
         data-sidebar-worktree={worktree.worktreeId}
         aria-current={selected ? "page" : undefined}
-        title={`${worktree.name}${worktree.branch && worktree.branch !== worktree.name ? `\n${worktree.branch}` : ""}\n끌어서 순서를 바꿔요`}
+        title={`${worktree.name}${worktree.branch && worktree.branch !== worktree.name ? `\n${worktree.branch}` : ""}\n끌어서 순서를 바꿔요 · 우클릭으로 메뉴`}
         onClick={onSelect}
+        onContextMenu={(event: React.MouseEvent<HTMLButtonElement>) => {
+          event.preventDefault();
+          onSelect();
+          requestWorktreeMenu(worktree.worktreeId, { x: event.clientX, y: event.clientY });
+        }}
         {...attributes}
         {...listeners}
         className={`-mx-2 grid w-[calc(100%+1rem)] touch-none grid-cols-[8px_1fr_auto] items-center gap-x-2 rounded-md py-1 pr-2 text-left text-[13px] leading-[1.4] ${indentOf(
