@@ -1,6 +1,6 @@
 "use client";
 
-import { docWindowUrl, type DocTab } from "@/client/features/view-doc";
+import { docWindowUrl, fileWindowUrl, type DocTab } from "@/client/features/view-doc";
 import { useToastStore } from "@/client/shared/model/toastStore";
 
 // A custom type only: Finder turns text or URL drag data dropped on the desktop into a file.
@@ -10,6 +10,7 @@ interface DocTabButtonProps {
   tab: DocTab;
   active: boolean;
   onActivate: () => void;
+  onPin: () => void;
   onClose: () => void;
 }
 
@@ -24,7 +25,7 @@ function droppedOutsideWindow(event: React.DragEvent<HTMLElement>): boolean {
   );
 }
 
-export function DocTabButton({ tab, active, onActivate, onClose }: DocTabButtonProps) {
+export function DocTabButton({ tab, active, onActivate, onPin, onClose }: DocTabButtonProps) {
   const showToast = useToastStore((state) => state.show);
 
   const detach = (event: React.DragEvent<HTMLElement>) => {
@@ -32,7 +33,8 @@ export function DocTabButton({ tab, active, onActivate, onClose }: DocTabButtonP
     const width = Math.min(1200, window.screen.availWidth);
     const height = Math.min(960, window.screen.availHeight);
     const features = `popup,width=${width},height=${height},left=${event.screenX - 120},top=${event.screenY - 16}`;
-    if (!window.open(docWindowUrl(tab.current), "_blank", features)) {
+    const url = tab.kind === "file" ? fileWindowUrl(tab.current) : docWindowUrl(tab.current);
+    if (!window.open(url, "_blank", features)) {
       showToast("새 창을 열지 못했어요. 팝업 차단을 확인해 주세요.", "error");
       return;
     }
@@ -50,15 +52,16 @@ export function DocTabButton({ tab, active, onActivate, onClose }: DocTabButtonP
       }}
       onDragEnd={detach}
       onClick={onActivate}
+      onDoubleClick={onPin}
       onAuxClick={(event: React.MouseEvent<HTMLDivElement>) => {
         if (event.button === 1) onClose();
       }}
-      title={`${tab.current}\n창 밖으로 끌면 별도 창으로 열려요`}
+      title={`${tab.current}\n${tab.preview ? "미리보기 탭 · 두 번 누르면 고정돼요\n" : ""}창 밖으로 끌면 별도 창으로 열려요`}
       className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-t-md border-x border-t px-3 py-1.5 text-[13px] select-none ${
         active ? "border-hair bg-bg font-semibold" : "border-transparent text-muted hover:text-fg"
       }`}
     >
-      <span className="truncate">{tab.title}</span>
+      <span className={`truncate ${tab.preview ? "italic" : ""}`}>{tab.title}</span>
       <button
         type="button"
         aria-label={`${tab.title} 닫기`}

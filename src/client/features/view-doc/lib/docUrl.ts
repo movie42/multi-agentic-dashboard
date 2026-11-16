@@ -19,6 +19,14 @@ export function docWindowUrl(target: string): string {
   return `/doc?path=${encodeURIComponent(target)}`;
 }
 
+export function fileWindowUrl(file: string): string {
+  return `/doc?file=${encodeURIComponent(file)}`;
+}
+
+export function fileLabel(file: string): string {
+  return file.split("/").pop() || file;
+}
+
 /** `docs/gift/APP-1/03-tasks.html` → `APP-1 · 03-tasks`; an index page drops its file name. */
 export function docLabel(target: string): string {
   const parts = target.split("/");

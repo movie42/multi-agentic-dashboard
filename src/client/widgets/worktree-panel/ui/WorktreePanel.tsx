@@ -22,6 +22,7 @@ import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { WorktreeNameForm } from "@/client/features/rename-worktree";
+import { useFileExplorerStore } from "@/client/features/browse-files";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { useScrolledPast } from "../model/useScrolledPast";
@@ -94,8 +95,8 @@ export function WorktreePanel({
   const [menu, setMenu] = useState<{ at: MenuPoint; confirmingCloseAll: boolean } | null>(null);
   const closeMenu = () => setMenu(null);
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
-  const pr = worktree.pullRequest;
   useWorktreeMenuRequest(worktree.worktreeId, openMenu);
+  const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const [launchingConductor, setLaunchingConductor] = useState(false);
@@ -167,6 +168,23 @@ export function WorktreePanel({
   ];
   const open = (target: string) =>
     onAction({ type: "open-artifact", target });
+  const showFiles = useFileExplorerStore((state) => state.show);
+  const filesButton = (size: "strip" | "header") => (
+    <button
+      type="button"
+      onClick={() => showFiles(worktree.path)}
+      aria-label="파일 탐색"
+      title="파일 탐색 (⌘P로 이름 찾기)"
+      className={`shrink-0 cursor-pointer rounded-md text-muted hover:bg-tint-2 hover:text-fg ${size === "strip" ? "ml-2 p-0.5" : "p-1"}`}
+    >
+      {ACTION_ICONS.files}
+    </button>
+  );
+
+  useEffect(() => {
+    const explorer = useFileExplorerStore.getState();
+    if (explorer.treeOpen && explorer.root !== worktree.path) explorer.show(worktree.path);
+  }, [worktree.path]);
   const [markOverviewEnd, overviewHidden] = useScrolledPast<HTMLDivElement>(STRIP_PX);
   const [peekOpen, setPeekOpen] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -229,6 +247,7 @@ export function WorktreePanel({
               ▾
             </span>
           </button>
+          {filesButton("strip")}
           {leadTask?.pageIndex && (
             <button
               type="button"
@@ -290,19 +309,22 @@ export function WorktreePanel({
           ) : (
             <h2 className="min-w-0 text-[22px] leading-[1.3] font-bold tracking-[-0.015em] break-all">{shownName}</h2>
           )}
-          <button
-            type="button"
-            aria-label={`${worktree.name} 워크트리 메뉴`}
-            aria-expanded={menu !== null}
-            title="워크트리 메뉴 · 우클릭으로도 열려요"
-            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              openMenu({ x: rect.right - MENU_WIDTH, y: rect.bottom + 4 });
-            }}
-            className="ml-auto shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
-          >
-            {ACTION_ICONS.menu}
-          </button>
+          <span className="ml-auto flex shrink-0 items-center gap-0.5">
+            {filesButton("header")}
+            <button
+              type="button"
+              aria-label={`${worktree.name} 워크트리 메뉴`}
+              aria-expanded={menu !== null}
+              title="워크트리 메뉴 · 우클릭으로도 열려요"
+              onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                openMenu({ x: rect.right - MENU_WIDTH, y: rect.bottom + 4 });
+              }}
+              className="shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-tint-2 hover:text-fg"
+            >
+              {ACTION_ICONS.menu}
+            </button>
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] empty:hidden">
           {worktree.branch && worktree.branch !== worktree.name && (

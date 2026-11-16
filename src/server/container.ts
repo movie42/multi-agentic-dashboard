@@ -33,6 +33,7 @@ import { BOOKMARK_FILE, CLAUDE_SESSIONS_DIR, projectDirOf, PROJECTS_DIR, SESSION
 import { SessionIndex } from "./sessions/SessionIndex";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { DocServer } from "./docs/DocServer";
+import { FileBrowser } from "./files/FileBrowser";
 import { FlowAnswerStore } from "./docs/FlowAnswerStore";
 import { ErrorLog } from "./shared/errorLog";
 import { TODO_FILE } from "./todos/paths";
@@ -85,6 +86,7 @@ export interface Services {
   todoAgent: TodoAgent;
   usage: UsageReader;
   docs: DocServer;
+  files: FileBrowser;
   flowAnswers: FlowAnswerStore;
   gitGraph: {
     readGraph: (worktreePath: string, skip: number) => ReturnType<typeof readGraph>;
@@ -197,6 +199,10 @@ function createServices(): Services {
     }),
     usage: new UsageReader(),
     docs,
+    files: new FileBrowser({
+      worktreePaths: (options) => board.worktreePaths(options),
+      highlight: (code, file) => intentDiff.highlighter.lines(code, file),
+    }),
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
     gitGraph: { readGraph: graphReader(new MergedReader()), readCommit, readCommitDiff, switchBranch, readWorkingTree, readWorkingDiff },
     fileOverlaps: (worktreePaths) => readFileOverlaps(worktreePaths, warn),

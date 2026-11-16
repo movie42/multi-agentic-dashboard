@@ -1,5 +1,6 @@
 import { isViewableDoc } from "@/client/features/view-doc";
 import { DocWindow } from "./DocWindow";
+import { FileWindow } from "./FileWindow";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -8,7 +9,9 @@ interface DocContentProps {
 }
 
 export async function DocContent({ searchParams }: DocContentProps) {
-  const { path } = await searchParams;
+  const { path, file } = await searchParams;
+  const fileTarget = Array.isArray(file) ? file[0] : file;
+  if (fileTarget?.startsWith("/")) return <FileWindow file={fileTarget} />;
   const target = Array.isArray(path) ? path[0] : path;
   if (!target || !isViewableDoc(target)) {
     return (

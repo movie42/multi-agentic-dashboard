@@ -41,4 +41,27 @@ describe("docViewerStore", () => {
     close(A);
     expect(useDocViewerStore.getState()).toMatchObject({ tabs: [], active: null });
   });
+
+  it("reuses the preview tab for the next single-clicked file and keeps pinned ones", () => {
+    const { openFile, pin } = useDocViewerStore.getState();
+    openFile("/w/src/a.ts", { preview: true });
+    openFile("/w/src/b.ts", { preview: true });
+    expect(useDocViewerStore.getState().tabs.map((tab) => tab.target)).toEqual(["/w/src/b.ts"]);
+    pin("/w/src/b.ts");
+    openFile("/w/src/c.ts", { preview: true });
+    const state = useDocViewerStore.getState();
+    expect(state.tabs.map((tab) => [tab.target, tab.preview])).toEqual([
+      ["/w/src/b.ts", false],
+      ["/w/src/c.ts", true],
+    ]);
+    expect(state.tabs[1]).toMatchObject({ kind: "file", title: "c.ts" });
+    expect(state.active).toBe("/w/src/c.ts");
+  });
+
+  it("pins a preview tab when the same file is opened for keeps", () => {
+    const { openFile } = useDocViewerStore.getState();
+    openFile("/w/src/a.ts", { preview: true });
+    openFile("/w/src/a.ts", { preview: false });
+    expect(useDocViewerStore.getState().tabs).toMatchObject([{ target: "/w/src/a.ts", preview: false }]);
+  });
 });

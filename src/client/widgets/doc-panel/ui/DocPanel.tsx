@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useFileExplorerStore } from "@/client/features/browse-files";
 import { targetOfDocUrl, useDocViewerStore } from "@/client/features/view-doc";
+import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
+import { FileTree } from "./files/FileTree";
+import { FileView } from "./files/FileView";
 import { paneWidth } from "@/client/shared/lib/paneWidth";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { DocFrame } from "./DocFrame";
@@ -13,6 +17,7 @@ import { toastError, useToastStore } from "@/client/shared/model/toastStore";
 import { handOffAnswers } from "../lib/handOffAnswers";
 
 const MIN_WIDTH = 360;
+const TREE_MIN = 180;
 const MIN_MAIN = 400;
 
 const sidebarWidth = () =>
@@ -32,16 +37,24 @@ function isSendRequest(data: unknown): data is { type: "flow-answers-send"; page
 }
 
 export function DocPanel({ agents }: DocPanelProps) {
-  const { tabs, active, activate, navigated, close, closeAll } = useDocViewerStore();
+  const { tabs, active, activate, navigated, pin, close, closeAll: closeTabs } = useDocViewerStore();
+  const { root, treeOpen, show, hide } = useFileExplorerStore();
   const showToast = useToastStore((state) => state.show);
   const activeTab = tabs.find((tab) => tab.target === active) ?? null;
-  const isOpen = tabs.length > 0;
+  const activeFile = activeTab?.kind === "file" ? activeTab.target : null;
+  const showTree = treeOpen && root !== null;
+  const isOpen = tabs.length > 0 || showTree;
+  const closeAll = () => {
+    closeTabs();
+    hide();
+  };
   const framesRef = useRef<HTMLDivElement>(null);
   const reloadActive = () =>
     framesRef.current?.querySelector<HTMLIFrameElement>("iframe[data-active]")?.contentWindow?.location.reload();
 
   useEffect(() => {
     void useDocViewerStore.persist.rehydrate();
+    void useFileExplorerStore.persist.rehydrate();
   }, []);
 
   useEffect(() => {
@@ -57,11 +70,13 @@ export function DocPanel({ agents }: DocPanelProps) {
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeAll();
+      if (event.key !== "Escape") return;
+      useDocViewerStore.getState().closeAll();
+      useFileExplorerStore.getState().hide();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, closeAll]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -93,7 +108,7 @@ export function DocPanel({ agents }: DocPanelProps) {
   return (
     <aside
       aria-label="문서"
-      className="fixed inset-y-0 right-0 z-40 flex w-[var(--doc-panel-w,50vw)] flex-col border-l border-hair bg-bg"
+      className="fixed inset-y-0 right-0 z-40 flex w-[var(--doc-panel-w,50vw)] border-l border-hair bg-bg"
     >
       <ResizeHandle
         cssVar="--doc-panel-w"
@@ -105,59 +120,100 @@ export function DocPanel({ agents }: DocPanelProps) {
         label="문서 패널 크기 조절"
         className="absolute inset-y-0 -left-1"
       />
-      <header className="flex items-end gap-2 border-b border-hair bg-tint px-3 pt-2">
-        <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
-          {tabs.map((tab) => (
-            <DocTabButton
-              key={tab.target}
-              tab={tab}
-              active={tab.target === active}
-              onActivate={() => activate(tab.target)}
-              onClose={() => close(tab.target)}
-            />
-          ))}
-        </div>
-        <div className="flex shrink-0 items-center gap-3 pb-2 text-[13px]">
-          {activeTab && (
-            <button
-              type="button"
-              title="새로고침 (⌘R)"
-              onClick={reloadActive}
-              className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
-            >
-              새로고침
-            </button>
-          )}
-          {activeTab && (
-            <button
-              type="button"
-              onClick={() => openInBrowser(activeTab.current)}
-              className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
-            >
-              브라우저로 열기
-            </button>
-          )}
-          <button
-            type="button"
-            aria-label="문서 패널 닫기"
-            title="닫기 (Esc)"
-            onClick={closeAll}
-            className="rounded px-1.5 text-[16px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
-          >
-            ×
-          </button>
-        </div>
-      </header>
-      <div ref={framesRef} className="relative min-h-0 flex-1">
-        {tabs.map((tab) => (
-          <DocFrame
-            key={tab.target}
-            target={tab.target}
-            active={tab.target === active}
-            onNavigate={(current, label) => navigated(tab.target, current, label)}
-            className={`absolute inset-0 ${tab.target === active ? "" : "invisible"}`}
+      {showTree && (
+        <div className="relative w-[var(--file-tree-w,260px)] shrink-0 border-r border-hair bg-bg">
+          <FileTree root={root} activeFile={activeFile} agents={agents} />
+          <ResizeHandle
+            cssVar="--file-tree-w"
+            storageKey="agent-control:file-tree-width"
+            edge="right"
+            defaultWidth={() => 260}
+            min={TREE_MIN}
+            max={() => Math.max(TREE_MIN, paneWidth("--doc-panel-w", window.innerWidth / 2) - MIN_WIDTH / 2)}
+            label="파일 트리 크기 조절"
+            className="absolute inset-y-0 -right-1"
           />
-        ))}
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-end gap-2 border-b border-hair bg-tint px-3 pt-2">
+          {root && (
+            <button
+              type="button"
+              aria-label={showTree ? "파일 트리 닫기" : "파일 트리 열기"}
+              aria-pressed={showTree}
+              title={showTree ? "파일 트리 닫기" : "파일 트리 열기"}
+              onClick={() => (showTree ? hide() : show(root))}
+              className={`mb-1.5 shrink-0 rounded-md p-0.5 hover:bg-tint-2 hover:text-fg ${showTree ? "text-fg" : "text-muted"}`}
+            >
+              {ACTION_ICONS.files}
+            </button>
+          )}
+          <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
+            {tabs.map((tab) => (
+              <DocTabButton
+                key={tab.target}
+                tab={tab}
+                active={tab.target === active}
+                onActivate={() => activate(tab.target)}
+                onPin={() => pin(tab.target)}
+                onClose={() => close(tab.target)}
+              />
+            ))}
+          </div>
+          <div className="flex shrink-0 items-center gap-3 pb-2 text-[13px]">
+            {activeTab?.kind === "doc" && (
+              <button
+                type="button"
+                title="새로고침 (⌘R)"
+                onClick={reloadActive}
+                className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
+              >
+                새로고침
+              </button>
+            )}
+            {activeTab?.kind === "doc" && (
+              <button
+                type="button"
+                onClick={() => openInBrowser(activeTab.current)}
+                className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
+              >
+                브라우저로 열기
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="문서 패널 닫기"
+              title="닫기 (Esc)"
+              onClick={closeAll}
+              className="rounded px-1.5 text-[16px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
+            >
+              ×
+            </button>
+          </div>
+        </header>
+        <div ref={framesRef} className="relative min-h-0 flex-1">
+          {tabs.length === 0 && <p className="px-5 py-8 text-[13px] text-muted">트리에서 파일을 고르면 여기에 열려요.</p>}
+          {tabs.map((tab) =>
+            tab.kind === "file" ? (
+              <FileView
+                key={tab.target}
+                file={tab.target}
+                active={tab.target === active}
+                root={root}
+                className={`absolute inset-0 ${tab.target === active ? "" : "invisible"}`}
+              />
+            ) : (
+              <DocFrame
+                key={tab.target}
+                target={tab.target}
+                active={tab.target === active}
+                onNavigate={(current, label) => navigated(tab.target, current, label)}
+                className={`absolute inset-0 ${tab.target === active ? "" : "invisible"}`}
+              />
+            ),
+          )}
+        </div>
       </div>
     </aside>
   );

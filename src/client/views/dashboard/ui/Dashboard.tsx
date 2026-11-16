@@ -39,7 +39,8 @@ import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
 import { ProjectCanvas } from "@/client/widgets/project-graph";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
-import { DocPanel } from "@/client/widgets/doc-panel";
+import { DocPanel, QuickOpen } from "@/client/widgets/doc-panel";
+import { useFileExplorerStore } from "@/client/features/browse-files";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { paneWidth } from "@/client/shared/lib/paneWidth";
 
@@ -149,7 +150,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const prefs = useWorkspacePrefs();
   const dismissed = useDismissed();
   const openDoc = useDocViewerStore((state) => state.open);
-  const docOpen = useDocViewerStore((state) => state.tabs.length > 0);
+  const hasDocTabs = useDocViewerStore((state) => state.tabs.length > 0);
+  const treeShown = useFileExplorerStore((state) => state.treeOpen && state.root !== null);
+  const docOpen = hasDocTabs || treeShown;
   const [query, setQuery] = useState("");
   const [viewKeys, writeView] = useStoredList("agent-control:overview-view");
   const view: OverviewView = viewKeys[0] === "stage" ? "stage" : "turn";
@@ -368,6 +371,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         </button>
       ) : null}
       <DocPanel agents={board.agents} />
+      <QuickOpen fallbackRoot={board.worktrees.find((worktree) => worktree.worktreeId === prefs.selectedWorktreeId)?.path ?? null} />
       <InputAlerts agents={inputAgents} now={now} docOpen={docOpen} onOpen={jumpToAgent} />
       <CommandPalette
         board={board}

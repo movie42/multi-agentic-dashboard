@@ -22,6 +22,19 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
+/** Adds `text` to the end of a stored draft, so a draft box mounted anywhere shows it. */
+export function appendDraft(key: string, text: string): void {
+  const current = read(key);
+  const next = current.trim() ? `${current.trimEnd()} ${text}` : text;
+  try {
+    window.localStorage.setItem(key, next);
+  } catch (error) {
+    console.warn("[draft] append failed", key, error);
+    throw error;
+  }
+  changes.dispatchEvent(new Event("change"));
+}
+
 export function useDraft(key: string): [string, (next: string) => void] {
   // The server has no localStorage, so it renders an empty box and the draft fills in after hydration.
   const text = useSyncExternalStore(subscribe, () => read(key), () => "");
