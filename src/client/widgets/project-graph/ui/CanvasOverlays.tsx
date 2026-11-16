@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { expandTemplate, templatesQueryOptions } from "@/client/entities/runner";
+import { draftTemplateFromText, expandTemplate, templatesQueryOptions } from "@/client/entities/runner";
 import { toastError } from "@/client/shared/model/toastStore";
 import type { WorkflowTemplate } from "@/common/templates/types";
 import type { LinkKind } from "@/common/orchestration/types";
 import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import type { Point } from "../model/layout";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 const CHOICE =
   "rounded-full px-3 py-1 text-[12px] leading-none font-semibold shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint aria-pressed:bg-fg aria-pressed:text-bg";
@@ -162,16 +163,32 @@ interface TemplatePopoverProps {
   worktreeName: string;
   branch: string | null;
   onEdit: (template: WorkflowTemplate | null) => void;
+  onDraft: (template: WorkflowTemplate) => void;
   onClose: () => void;
 }
 
-export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, onEdit, onClose }: TemplatePopoverProps) {
+export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, onEdit, onDraft, onClose }: TemplatePopoverProps) {
   const templates = useQuery(templatesQueryOptions());
   const list = templates.data ?? [];
   const [picked, setPicked] = useState<string | null>(null);
   const [intent, setIntent] = useState("");
   const [busy, setBusy] = useState(false);
+  const [description, setDescription] = useState("");
+  const [drafting, setDrafting] = useState(false);
   const chosen = list.find((template) => template.id === picked) ?? list[0] ?? null;
+
+  const draft = async () => {
+    if (!description.trim()) return;
+    setDrafting(true);
+    try {
+      onDraft(await draftTemplateFromText(description.trim(), list));
+      onClose();
+    } catch (error) {
+      toastError("template-draft", error);
+    } finally {
+      setDrafting(false);
+    }
+  };
 
   const expand = async (start: boolean) => {
     if (!chosen) return;
@@ -188,7 +205,7 @@ export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, 
 
   return (
     <ScreenSized at={at} zoom={zoom}>
-      <foreignObject width={360} height={320} className="overflow-visible">
+      <foreignObject width={360} height={440} className="overflow-visible">
         <div className="flex flex-col gap-2.5 rounded-[12px] bg-bg p-3 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]">
           <p className="truncate text-[12px] text-muted">템플릿 펼치기 · {worktreeName}</p>
           {templates.isPending && <p className="text-[12px] text-muted">템플릿을 읽는 중…</p>}
@@ -204,13 +221,16 @@ export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, 
             </div>
           )}
           {chosen && <p className="truncate text-[12px] text-muted">{chosen.cards.map((card) => card.title).join(" → ")}</p>}
-          <textarea
-            rows={3}
-            value={intent}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setIntent(event.target.value)}
-            placeholder={`이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요. 비우면 '${branch ?? worktreeName}'`}
-            className="resize-none rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
-          />
+          <div className="flex items-end gap-1.5">
+            <textarea
+              rows={3}
+              value={intent}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setIntent(event.target.value)}
+              placeholder={`이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요. 비우면 '${branch ?? worktreeName}'`}
+              className="min-w-0 flex-1 resize-none rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
+            />
+            <DictationButton onText={(text) => setIntent(appendDictation(intent, text))} />
+          </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" disabled={!chosen || busy} onClick={() => void expand(true)} className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30">
               펼치고 시작
@@ -229,6 +249,26 @@ export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, 
             <button type="button" onClick={onClose} className="ml-auto text-[12px] text-muted hover:text-fg">
               닫기
             </button>
+          </div>
+          <div className="flex flex-col gap-1.5 border-t border-hair pt-2.5">
+            <p className="text-[12px] text-muted">말로 만들기 · 흐름을 한 줄로 적으면 카드와 길을 채운 초안을 편집 창에 띄워요</p>
+            <div className="flex items-end gap-1.5">
+              <textarea
+                rows={2}
+                value={description}
+                disabled={drafting}
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(event.target.value)}
+                onKeyDown={(event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void draft();
+                }}
+                placeholder="예: flow대로 계획하고 구현한 뒤, 리뷰에서 고칠 게 있으면 구현으로 돌려"
+                className="min-w-0 flex-1 resize-none rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
+              />
+              <DictationButton disabled={drafting} onText={(text) => setDescription(appendDictation(description, text))} />
+              <button type="button" disabled={!description.trim() || drafting} onClick={() => void draft()} className={CHOICE}>
+                {drafting ? "만드는 중…" : "만들기"}
+              </button>
+            </div>
           </div>
         </div>
       </foreignObject>

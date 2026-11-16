@@ -266,6 +266,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
                   worktreeName={templateCluster.worktree.name}
                   branch={templateCluster.worktree.branch}
                   onEdit={(template) => setEditing(template ? { template, isNew: false } : { template: blankTemplate(crypto.randomUUID()), isNew: true })}
+                  onDraft={(template) => setEditing({ template, isNew: true })}
                   onClose={() => setTemplateFor(null)}
                 />
               )}

@@ -9,6 +9,7 @@ import { formatClock } from "@/client/shared/lib/format";
 import { AnswerMarkdown } from "./AnswerMarkdown";
 import { ConclusionBox } from "./ConclusionBox";
 import { AskBoardContext } from "../model/useAskBoard";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 /** The plan item whose flow is on screen, for the question's context. */
 export const AskPlanItem = createContext<{ id: string; title: string } | null>(null);
@@ -79,6 +80,7 @@ function QuestionBox({ placeholder, submitLabel, scope, notice = null, onSubmit,
         placeholder={placeholder}
         className="w-full resize-y rounded-md border border-hair bg-bg px-2.5 py-2 font-sans text-[13px] leading-[1.5] outline-none focus:border-focus"
       />
+      <DictationButton onText={(spoken) => setText(appendDictation(text, spoken))} className="-mt-1 self-end" />
       {error && <p className="text-[12px] text-accent">{error}</p>}
       <div className="flex flex-wrap items-center gap-3 font-sans text-[12px]">
         {children}

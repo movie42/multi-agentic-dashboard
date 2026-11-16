@@ -11,6 +11,7 @@ import { runsOf } from "../src/common/templates/types.ts";
 import { RUNS_FILE, TemplateRuns } from "./templates/TemplateRuns.ts";
 import { TEMPLATES_FILE, TemplateStore } from "./templates/TemplateStore.ts";
 import { commandFor } from "./session/command.ts";
+import { Dictation } from "./session/Dictation.ts";
 import { SessionRegistry } from "./session/SessionRegistry.ts";
 import { parseSavedSessions, restoreRequestsOf, savedSessionsOf, SESSIONS_FILE } from "./session/restore.ts";
 import { readShellEnv } from "./session/shellEnv.ts";
@@ -141,7 +142,15 @@ const runs = new TemplateRuns({
 runs.load(runsOf(await readSaved(runsFile, "runs")));
 const templates = new TemplateStore({ file: templatesFile, write: writeAtomic });
 
-const runner = createRunnerServer({ registry, orchestration, runs, templates, port, allowedOrigins });
+const dictationDir = path.join(dataDir, "dictation");
+mkdir(dictationDir, { recursive: true }).catch((error: unknown) => console.warn("[daemon] dictation folder", error));
+const dictation = new Dictation({
+  spawn: (file, args, options) => pty.spawn(file, args, { name: "xterm-256color", ...options }),
+  claude: command,
+  cwd: dictationDir,
+  env: sessionEnv(),
+});
+const runner = createRunnerServer({ registry, orchestration, runs, templates, dictation, port, allowedOrigins });
 const lifecycle = { restored: false };
 
 function persist(sessions: RunnerSession[]): void {
@@ -204,6 +213,7 @@ async function shutdown(signal: string) {
   savers.stopped = true;
   await flushSaves();
   registry.closeAll();
+  dictation.close();
   runner.server.close();
   process.exit(0);
 }

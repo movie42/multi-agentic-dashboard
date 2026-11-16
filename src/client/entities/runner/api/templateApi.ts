@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { templatesOf, type WorkflowTemplate } from "@/common/templates/types";
+import { templateOf, templatesOf, type WorkflowTemplate } from "@/common/templates/types";
 import { errorField } from "@/client/shared/api/json";
 import { RUNNER_HTTP } from "./runnerApi";
 
@@ -48,4 +48,16 @@ export async function controlRun(runId: string, request: RunAction): Promise<voi
 
 export async function removeRun(runId: string): Promise<void> {
   await call(`/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
+}
+
+export async function draftTemplateFromText(description: string, examples: WorkflowTemplate[]): Promise<WorkflowTemplate> {
+  const response = await fetch("/api/template-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ description, examples }) }).catch((error: unknown) => {
+    console.error("[templates] draft request failed", error);
+    throw new Error("대시보드 서버에 연결하지 못했어요.");
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(errorField(body) ?? `대시보드 서버가 ${response.status}로 응답했어요.`);
+  const template = templateOf(typeof body === "object" && body !== null && "template" in body ? body.template : null);
+  if (!template) throw new Error("초안을 읽지 못했어요.");
+  return template;
 }

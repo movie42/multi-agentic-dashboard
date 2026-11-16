@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { removeTemplate, saveTemplate, templateKeys } from "@/client/entities/runner";
 import { toastError } from "@/client/shared/model/toastStore";
 import { EFFORT_CHOICES, MODEL_CHOICES } from "@/common/actions/schema";
-import type { TemplateCard, WorkflowTemplate } from "@/common/templates/types";
+import { BUILTIN_TEMPLATE_PREFIX, type TemplateCard, type WorkflowTemplate } from "@/common/templates/types";
 import {
   addCard,
   addRoute,
@@ -18,6 +18,7 @@ import {
   updateCard,
   updateRoute,
 } from "../model/editTemplate";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 const INPUT = "rounded-[8px] bg-tint px-2.5 py-1.5 text-[13px] text-fg outline-none placeholder:text-muted";
 const PILL =
@@ -66,13 +67,16 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
           빼기
         </button>
       </div>
-      <textarea
-        rows={3}
-        value={card.prompt}
-        onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => patch({ prompt: event.target.value })}
-        placeholder={card.kind === "judge" ? "무엇을 보고 판단할지 · 예: /code-review로 리뷰하고 길을 골라" : "이 카드가 할 일 · 이번 작업 내용은 맨 위에 자동으로 붙어요"}
-        className={`${INPUT} resize-y leading-relaxed`}
-      />
+      <div className="flex items-end gap-1.5">
+        <textarea
+          rows={3}
+          value={card.prompt}
+          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => patch({ prompt: event.target.value })}
+          placeholder={card.kind === "judge" ? "무엇을 보고 판단할지 · 예: /code-review로 리뷰하고 길을 골라" : "이 카드가 할 일 · 이번 작업 내용은 맨 위에 자동으로 붙어요"}
+          className={`${INPUT} min-w-0 flex-1 resize-y leading-relaxed`}
+        />
+        <DictationButton onText={(text) => patch({ prompt: appendDictation(card.prompt, text) })} />
+      </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-muted">
         <label className="flex items-center gap-1.5">
           모델
@@ -164,6 +168,7 @@ export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps)
   const [template, setTemplate] = useState(initial);
   const [busy, setBusy] = useState(false);
   const problems = templateProblems(template);
+  const builtin = template.id.startsWith(BUILTIN_TEMPLATE_PREFIX);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -230,9 +235,9 @@ export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps)
           <button type="button" onClick={onClose} className={PILL}>
             취소
           </button>
-          {!isNew && (
+          {!isNew && !(builtin && template.updatedAt === 0) && (
             <button type="button" disabled={busy} onClick={() => void run(() => removeTemplate(template.id))} className={`${PILL} ml-auto text-accent`}>
-              템플릿 지우기
+              {builtin ? "기본으로 되돌리기" : "템플릿 지우기"}
             </button>
           )}
         </div>

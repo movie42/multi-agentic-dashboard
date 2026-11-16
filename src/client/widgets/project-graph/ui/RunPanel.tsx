@@ -5,6 +5,7 @@ import { controlRun, removeRun, type RunAction } from "@/client/entities/runner"
 import { toastError } from "@/client/shared/model/toastStore";
 import { routesFrom, type RunState, type TemplateRun } from "@/common/templates/types";
 import { cardFlags } from "./ReservedBox";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 const STATE_LABEL: Record<RunState, string> = {
   expanded: "펼침 · 시작 전",
@@ -110,13 +111,16 @@ export function RunPanel({ run, focusKey }: RunPanelProps) {
       </div>
       {active && current && run.hold?.reason !== "exited" && (
         <div className="flex flex-col gap-2">
-          <textarea
-            rows={2}
-            value={draft}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value)}
-            placeholder={`고쳐서 다시 · '${current.title}' 카드 세션에 보낼 말`}
-            className="resize-y rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
-          />
+          <div className="flex items-end gap-1.5">
+            <textarea
+              rows={2}
+              value={draft}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value)}
+              placeholder={`고쳐서 다시 · '${current.title}' 카드 세션에 보낼 말`}
+              className="min-w-0 flex-1 resize-y rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
+            />
+            <DictationButton onText={(text) => setDraft(appendDictation(draft, text))} />
+          </div>
           <button type="button" disabled={busy || !draft.trim()} onClick={() => void act({ action: "retry", text: draft })} className={`${PILL} self-start`}>
             고쳐서 다시
           </button>

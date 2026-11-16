@@ -58,6 +58,10 @@ export interface TemplateRun {
 
 export const MAX_TEMPLATE_PROMPT = 8000;
 
+export const BUILTIN_TEMPLATE_PREFIX = "builtin:";
+
+export const MAX_TEMPLATE_DRAFT = 4000;
+
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }

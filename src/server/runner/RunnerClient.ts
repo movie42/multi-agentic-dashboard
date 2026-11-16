@@ -93,6 +93,10 @@ export class RunnerClient {
     return (await this.call(`/sessions/${encodeURIComponent(id)}/screen`)).lines ?? [];
   }
 
+  async ensureDictation(): Promise<void> {
+    await this.call("/dictation", { method: "POST" });
+  }
+
   async close(id: string): Promise<void> {
     await this.call(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
   }

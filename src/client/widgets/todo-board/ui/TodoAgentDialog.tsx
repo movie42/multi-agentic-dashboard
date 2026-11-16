@@ -6,6 +6,7 @@ import type { AgentFailure, TodoAgentTurn } from "@/common/todos/agentTurn";
 import { sendTodoAgentMessage, todoKeys } from "@/client/entities/todo";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { Modal } from "./Modal";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 interface TodoAgentDialogProps {
   sessionCount: number;
@@ -149,6 +150,7 @@ export function TodoAgentDialog({ sessionCount, onClose }: TodoAgentDialogProps)
           }}
           className="flex-1 resize-none rounded-[10px] bg-tint px-3 py-2 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
         />
+        <DictationButton onText={(text) => setInput(appendDictation(input, text))} className="mb-1" />
         <button type="button" onClick={() => send(input)} disabled={turn.isPending || !input.trim()} className={`${BUTTON} bg-fg text-bg`}>
           보내기
         </button>

@@ -5,6 +5,7 @@ export { RunnerTerminal } from "./ui/RunnerTerminal";
 export { TerminalTail } from "./ui/TerminalTail";
 export {
   controlRun,
+  draftTemplateFromText,
   expandTemplate,
   fetchTemplates,
   removeRun,

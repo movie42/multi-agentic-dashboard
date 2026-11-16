@@ -8,6 +8,7 @@ import { toastError } from "@/client/shared/model/toastStore";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import type { WorktreeSummary } from "@/common/board/types";
 import type { WizardOrigin, WizardRequest, WizardResponse, WizardTemplate, WorktreePlan } from "@/common/worktreeWizard/types";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 type Step =
   | { kind: "closed" }
@@ -132,6 +133,7 @@ function ReplyBox({ placeholder, onSend }: ReplyBoxProps) {
         placeholder={placeholder}
         className="min-w-0 flex-1 rounded-[8px] bg-bg px-3 py-1.5 text-[13px] outline-none placeholder:text-muted"
       />
+      <DictationButton onText={(spoken) => setText((current) => appendDictation(current, spoken))} />
       <button
         type="button"
         onClick={send}
@@ -193,13 +195,16 @@ function TemplatePick({ wizard, branch }: TemplatePickProps) {
       {template && (
         <label className="flex flex-col gap-1 text-[12px] text-muted">
           이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요
-          <textarea
-            rows={1}
-            value={template.intent}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.setTemplate({ ...template, intent: event.target.value })}
-            placeholder={`비워 두면 브랜치 이름 '${branch}'으로 시작해요`}
-            className="field-sizing-content max-h-40 min-h-8 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
-          />
+          <span className="flex items-end gap-1.5">
+            <textarea
+              rows={1}
+              value={template.intent}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.setTemplate({ ...template, intent: event.target.value })}
+              placeholder={`비워 두면 브랜치 이름 '${branch}'으로 시작해요`}
+              className="field-sizing-content max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
+            />
+            <DictationButton onText={(text) => wizard.setTemplate({ ...template, intent: appendDictation(template.intent, text) })} />
+          </span>
         </label>
       )}
     </div>
@@ -241,13 +246,16 @@ function PlanCard({ wizard, plan }: PlanCardProps) {
       {!wizard.template && (
         <label className="flex flex-col gap-1 text-[12px] text-muted">
           첫 요청 · 채우면 새 워크트리에서 Claude 세션이 이 요청으로 시작해요
-          <textarea
-            rows={1}
-            value={plan.firstPrompt}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.editPlan({ firstPrompt: event.target.value })}
-            placeholder="비워 두면 워크트리와 터미널만 만들어요"
-            className="field-sizing-content max-h-40 min-h-8 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
-          />
+          <span className="flex items-end gap-1.5">
+            <textarea
+              rows={1}
+              value={plan.firstPrompt}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.editPlan({ firstPrompt: event.target.value })}
+              placeholder="비워 두면 워크트리와 터미널만 만들어요"
+              className="field-sizing-content max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
+            />
+            <DictationButton onText={(text) => wizard.editPlan({ firstPrompt: appendDictation(plan.firstPrompt, text) })} />
+          </span>
         </label>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

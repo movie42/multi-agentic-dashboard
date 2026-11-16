@@ -10,6 +10,7 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 import type { GraphCommit } from "@/common/gitGraph/types";
 import type { AgentCard } from "@/common/board/types";
 import { SessionConversation } from "./SessionConversation";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 const NEW_SESSION = "new";
 
@@ -159,6 +160,7 @@ export function AgentComposer({ worktreePath, sessions, attached, onDetach, onCl
           }
           className="field-sizing-content max-h-40 min-h-6 flex-1 resize-none bg-transparent text-[14px] leading-relaxed outline-none placeholder:text-muted"
         />
+        <DictationButton onText={(spoken) => setText(appendDictation(text, spoken))} />
         <button
           type="button"
           onClick={send}

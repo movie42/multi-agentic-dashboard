@@ -5,10 +5,11 @@ interface VoiceButtonProps {
   pending: boolean;
   disabled: boolean;
   onToggle: () => void;
+  recordingLabel?: string;
 }
 
-export function VoiceButton({ recording, pending, disabled, onToggle }: VoiceButtonProps) {
-  const label = recording ? "듣는 중 · 보내기를 누르면 바로 보내요, 다시 누르면 입력창에 채워요" : "음성으로 말하기 · Claude Code /voice";
+export function VoiceButton({ recording, pending, disabled, onToggle, recordingLabel = "듣는 중 · 보내기를 누르면 바로 보내요, 다시 누르면 입력창에 채워요" }: VoiceButtonProps) {
+  const label = recording ? recordingLabel : "음성으로 말하기 · Claude Code /voice";
 
   return (
     <button

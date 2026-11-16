@@ -3,6 +3,8 @@ import type { TemplateRun } from "../templates/types";
 
 export const RUNNER_PORT = 3198;
 
+export const DICTATION_HANDLE = "dictation";
+
 export type RunnerStatus = "idle" | "working" | "waiting" | "exited";
 
 export type RunnerSessionKind = "claude" | "shell";

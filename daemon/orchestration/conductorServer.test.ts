@@ -6,6 +6,7 @@ import type { RunnerSession } from "../../src/common/runner/types.ts";
 import { createRunnerServer, type RunnerServer } from "../server.ts";
 import { SessionRegistry, type PtyProcess } from "../session/SessionRegistry.ts";
 import { Orchestration } from "./Orchestration.ts";
+import { Dictation } from "../session/Dictation.ts";
 
 let PORT = 39_930;
 let current: RunnerServer | null = null;
@@ -28,7 +29,7 @@ function setup() {
   });
   const sent: Array<{ id: string; text: string }> = [];
   const orchestration = new Orchestration({ get: (id) => registry.get(id), send: (id, text) => sent.push({ id, text }), onChange: () => {} });
-  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), port: PORT, allowedOrigins: [] });
+  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), dictation: new Dictation({ spawn: () => { throw new Error("no dictation in tests"); }, claude: "claude", cwd: "/", env: {} }), port: PORT, allowedOrigins: [] });
   current = runner;
   const post = async (path: string, body: unknown) =>
     fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

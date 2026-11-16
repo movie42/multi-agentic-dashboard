@@ -11,6 +11,7 @@ import { runOfNode, type GraphEdge, type ProjectGraph } from "../model/graph";
 import { EDGE_STYLE } from "./GraphEdges";
 import { nodeTitle } from "./NodeBox";
 import { RunPanel } from "./RunPanel";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 const MIN_PANEL = 320;
 /** Room the canvas keeps when the panel is dragged wide. */
@@ -67,14 +68,17 @@ function LinkPrompt({ edge, startOpen, onAction }: LinkPromptProps) {
   }
   return (
     <div className="flex flex-col gap-2 pl-1">
-      <textarea
-        rows={4}
-        autoFocus={!startOpen}
-        value={draft}
-        onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value)}
-        placeholder={delegate ? "무엇을 맡길까요?" : "뒤 세션에 보낼 말 · 비우면 앞 세션의 마지막 답을 넣어요"}
-        className="resize-y rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
-      />
+      <div className="flex items-end gap-1.5">
+        <textarea
+          rows={4}
+          autoFocus={!startOpen}
+          value={draft}
+          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value)}
+          placeholder={delegate ? "무엇을 맡길까요?" : "뒤 세션에 보낼 말 · 비우면 앞 세션의 마지막 답을 넣어요"}
+          className="min-w-0 flex-1 resize-y rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
+        />
+        <DictationButton onText={(text) => setDraft(appendDictation(draft, text))} />
+      </div>
       <p className="text-[11px] text-muted">
         {delegate ? "아직 전달 전이면 고친 내용으로 바꾸고, 이미 전달됐으면 고친 내용을 이어서 보내요. 맡은 세션이 일하는 중이면 그 턴이 끝난 뒤 들어가요." : "다음에 앞 세션이 턴을 마칠 때부터 고친 말을 보내요."}
       </p>

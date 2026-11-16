@@ -6,6 +6,7 @@ import type { RunnerPermission, RunnerPermissionAnswer, RunnerPermissionSuggesti
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { Markdown } from "@/client/shared/ui/Markdown";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 type SendResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
 
@@ -175,6 +176,7 @@ function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) 
             placeholder="거부 사유 (Claude에게 전달돼요)"
             className="field-sizing-content max-h-32 min-h-6 flex-1 resize-none bg-transparent text-[13px] leading-relaxed outline-none placeholder:text-muted"
           />
+          <DictationButton disabled={locked} onText={(text) => setReason(appendDictation(reason, text))} />
           <button type="button" disabled={locked} onClick={() => setDenying(false)} className={SECONDARY}>
             취소
           </button>
@@ -304,16 +306,22 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
                   </button>
                 );
               })}
-              <input
-                type="text"
-                disabled={locked}
-                value={typed[question.question] ?? ""}
-                onChange={onType(question)}
-                onKeyDown={onTypeKeyDown(question)}
-                placeholder="직접 입력"
-                aria-label={`${question.question} 직접 입력`}
-                className="rounded-lg bg-bg px-3 py-2 text-[13px] shadow-[inset_0_0_0_1px_var(--hair)] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
-              />
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  disabled={locked}
+                  value={typed[question.question] ?? ""}
+                  onChange={onType(question)}
+                  onKeyDown={onTypeKeyDown(question)}
+                  placeholder="직접 입력"
+                  aria-label={`${question.question} 직접 입력`}
+                  className="min-w-0 flex-1 rounded-lg bg-bg px-3 py-2 text-[13px] shadow-[inset_0_0_0_1px_var(--hair)] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
+                />
+                <DictationButton
+                  disabled={locked}
+                  onText={(text) => setTyped((previous) => ({ ...previous, [question.question]: appendDictation(previous[question.question] ?? "", text) }))}
+                />
+              </div>
             </div>
           </div>
         );

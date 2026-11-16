@@ -16,7 +16,7 @@ import { WorktreeMeta } from "./projects/WorktreeMeta";
 import { liveConversations } from "./runner/liveConversations";
 import { RunnerClient } from "./runner/RunnerClient";
 import { RUNNER_BASE_URL, spawnDaemon } from "./runner/spawnDaemon";
-import { createVoice, type VoiceIntent, type VoiceTerminal, type VoiceToggleResult } from "./runner/voice";
+import { createVoice, withDictation, type VoiceIntent, type VoiceTerminal, type VoiceToggleResult } from "./runner/voice";
 import { CLAUDE_SETTINGS_FILE, readVoiceMode } from "./runner/voiceMode";
 import { SessionTranscripts } from "./sessions/SessionTranscripts";
 import { nodeExecFile, nodeFileSystem } from "./shared/ports";
@@ -50,6 +50,7 @@ import { readFileOverlaps } from "./projects/fileOverlaps";
 import { ConductorActions } from "./orchestration/conductorActions";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
+import { draftTemplate } from "./templates/draftTemplate";
 
 export interface Services {
   conductors: ConductorActions;
@@ -81,6 +82,7 @@ export interface Services {
   worktreeMeta: WorktreeMeta;
   worktrees: WorktreeActions;
   worktreeWizard: WorktreeWizardServices;
+  draftTemplate: typeof draftTemplate;
   todos: TodoStore;
   todoLaunches: TodoLaunchAttacher;
   todoAgent: TodoAgent;
@@ -185,11 +187,12 @@ function createServices(): Services {
     workflow,
     board,
     runner,
-    voice: createVoice(voiceTerminal, { mode: () => readVoiceMode(CLAUDE_SETTINGS_FILE) }),
+    voice: withDictation(createVoice(voiceTerminal, { mode: () => readVoiceMode(CLAUDE_SETTINGS_FILE) }), () => runner.ensureDictation()),
     projects,
     worktreeMeta,
     worktrees,
     worktreeWizard: createWorktreeWizardServices(),
+    draftTemplate,
     todos,
     todoLaunches: new TodoLaunchAttacher(todos),
     todoAgent: new TodoAgent({

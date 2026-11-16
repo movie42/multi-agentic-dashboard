@@ -19,6 +19,7 @@ import type { Orchestration } from "./orchestration/Orchestration.ts";
 import { handleJudgeMessage } from "./templates/judgeMcp.ts";
 import type { TemplateRuns } from "./templates/TemplateRuns.ts";
 import type { TemplateStore } from "./templates/TemplateStore.ts";
+import { DICTATION_HANDLE, type Dictation } from "./session/Dictation.ts";
 import { answerOf, permissionInputOf, type PermissionRequestInput } from "./session/permissions.ts";
 import { parseStatusLine } from "./session/statusLine.ts";
 import type { SessionRegistry } from "./session/SessionRegistry.ts";
@@ -28,6 +29,7 @@ export interface RunnerServerOptions {
   orchestration: Orchestration;
   runs: TemplateRuns;
   templates: TemplateStore;
+  dictation: Dictation;
   port: number;
   allowedOrigins: readonly string[];
   readAnswer?: (body: unknown) => Promise<string | null>;
@@ -153,7 +155,7 @@ function send(socket: WebSocket, message: TerminalServerMessage | SessionsMessag
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
 
-export function createRunnerServer({ registry, orchestration, runs, templates, port, allowedOrigins, readAnswer = lastAnswerOf }: RunnerServerOptions): RunnerServer {
+export function createRunnerServer({ registry, orchestration, runs, templates, dictation, port, allowedOrigins, readAnswer = lastAnswerOf }: RunnerServerOptions): RunnerServer {
   const sockets = new WebSocketServer({ noServer: true });
   const watchers = new Set<WebSocket>();
   const view = () => orchestration.decorate(registry.list());
@@ -452,11 +454,27 @@ export function createRunnerServer({ registry, orchestration, runs, templates, p
         return;
       }
 
+      if (url.pathname === "/dictation" && request.method === "POST") {
+        try {
+          await dictation.ensure();
+          respond(response, origin, 200, { ok: true, handle: DICTATION_HANDLE });
+        } catch (error) {
+          console.error("[dictation] start failed", error);
+          respond(response, origin, 503, { ok: false, error: error instanceof Error ? error.message : String(error) });
+        }
+        return;
+      }
+
       const input = INPUT_PATH.exec(url.pathname);
       if (input && request.method === "POST") {
         const id = decodeURIComponent(input[1] ?? "");
         const body = await readBody(request);
         const text = field(body, "text");
+        if (id === DICTATION_HANDLE) {
+          const written = typeof text === "string" && dictation.write(text);
+          respond(response, origin, written ? 200 : 404, written ? { ok: true } : { ok: false, error: "받아쓰기 세션이 없어요." });
+          return;
+        }
         const target = registry.get(id);
         if (!target || target.status === "exited") {
           respond(response, origin, 404, { ok: false, error: "세션이 없거나 이미 끝났어요." });
@@ -477,7 +495,8 @@ export function createRunnerServer({ registry, orchestration, runs, templates, p
 
       const screen = SCREEN_PATH.exec(url.pathname);
       if (screen && request.method === "GET") {
-        const lines = await registry.screen(decodeURIComponent(screen[1] ?? ""));
+        const screenId = decodeURIComponent(screen[1] ?? "");
+        const lines = screenId === DICTATION_HANDLE ? await dictation.screen() : await registry.screen(screenId);
         respond(response, origin, lines ? 200 : 404, lines ? { ok: true, lines } : { ok: false, error: "세션이 없어요." });
         return;
       }

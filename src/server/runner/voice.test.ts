@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createVoice, readPrompt, VOICE_DRAFT_ERROR, VOICE_OFF_ERROR, type VoiceTerminal } from "./voice";
+import { DICTATION_HANDLE } from "@/common/runner/types";
+import { createVoice, readPrompt, VOICE_DRAFT_ERROR, VOICE_OFF_ERROR, withDictation, type VoiceTerminal } from "./voice";
 
 function fakeTerminal(screens: { lines: string[] }[]) {
   const typed: string[] = [];
@@ -184,5 +185,21 @@ describe("read", () => {
   it("returns no transcript when not recording", async () => {
     const { terminal } = fakeTerminal([box("", "typed")]);
     await expect(createVoice(terminal).read("t")).resolves.toEqual({ recording: false, transcript: "" });
+  });
+});
+
+describe("withDictation", () => {
+  it("starts the dictation session before a toggle on its handle and leaves other handles alone", async () => {
+    const calls: string[] = [];
+    const voice = withDictation(
+      { toggle: async (handle: string, _intent?: string) => (calls.push(`toggle:${handle}`), { recording: true as const }), read: async () => ({ recording: false, transcript: "" }) },
+      async () => {
+        calls.push("ensure");
+      },
+    );
+    await voice.toggle(DICTATION_HANDLE);
+    await voice.toggle("abc");
+    await voice.toggle(DICTATION_HANDLE, "stop");
+    expect(calls).toEqual(["ensure", `toggle:${DICTATION_HANDLE}`, "toggle:abc", `toggle:${DICTATION_HANDLE}`]);
   });
 });
