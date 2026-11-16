@@ -59,6 +59,8 @@ export type MenuTarget = {
   id: string;
 };
 
+const DOUBLE_CLICK_MS = 400;
+
 interface Drag {
   ids: ReadonlySet<string>;
   dx: number;
@@ -82,6 +84,8 @@ interface CanvasStageProps {
   /** Screen-space extras over the canvas (legend). */
   children?: React.ReactNode;
   onSelect: (ids: string[], additive: boolean) => void;
+  /** A box clicked twice in a row without moving. */
+  onOpenNode?: (id: string) => void;
   onSelectEdge: (edge: GraphEdge) => void;
   onMove: (moved: Map<string, Point>) => void;
   onConnect: (from: string, to: string, at: Point) => void;
@@ -327,6 +331,8 @@ export function CanvasStage(props: CanvasStageProps) {
     };
   }, []);
 
+  const lastClick = useRef<{ id: string; at: number } | null>(null);
+
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     const target = event.target instanceof Element ? event.target : null;
     const endHandle = event.button === 0 ? target?.closest("[data-end]") : null;
@@ -486,6 +492,15 @@ export function CanvasStage(props: CanvasStageProps) {
         );
       } else if (current.clickId) {
         props.onSelect([current.clickId], current.additive);
+        // Pointer capture retargets the browser's dblclick to the svg, so a second click is timed here.
+        const last = lastClick.current;
+        const now = event.timeStamp;
+        if (last && last.id === current.clickId && now - last.at <= DOUBLE_CLICK_MS) {
+          lastClick.current = null;
+          props.onOpenNode?.(current.clickId);
+        } else {
+          lastClick.current = { id: current.clickId, at: now };
+        }
       }
       setDrag(null);
     } else if (current.kind === "marquee") {

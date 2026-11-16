@@ -16,7 +16,7 @@ import { CanvasStage, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
-import { ConnectPicker } from "./CanvasOverlays";
+import { ConductorPopover, ConnectPicker } from "./CanvasOverlays";
 import { GraphToolbar } from "./GraphToolbar";
 import { Legend } from "./Legend";
 import { nodeTitle } from "./NodeBox";
@@ -71,6 +71,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [pending, setPending] = useState<PendingConnect | null>(null);
   const [stageKey, setStageKey] = useState(0);
   const [menu, setMenu] = useState<{ target: MenuTarget; at: Point } | null>(null);
+  const [conductorFor, setConductorFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [panelPref, writePanelPref] = useStoredList("agent-control:canvas-panel");
   const panelCollapsed = panelPref.includes("collapsed");
 
@@ -118,6 +119,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         setEdgeId(null);
         setPending(null);
         setMenu(null);
+        setConductorFor(null);
         setConnecting(false);
       }
     };
@@ -172,6 +174,9 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           setEdgeId(edgeId);
         },
         onTidy: tidy,
+        onLaunchConductor: () => {
+          if (menu.target.kind === "cluster") setConductorFor({ clusterId: menu.target.id, at: menu.at });
+        },
       })
     : null;
 
@@ -184,6 +189,14 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         : liveSelected.length > 1
           ? { kind: "many", count: liveSelected.length }
           : { kind: "empty" };
+
+  const conductorCluster = conductorFor ? graph.clusters.find((cluster) => cluster.id === conductorFor.clusterId) ?? null : null;
+
+  /** Double-clicking a box answers it in the side panel, opening the panel if it was folded away. */
+  const openNode = (id: string) => {
+    select([id], false);
+    if (panelCollapsed) writePanelPref([]);
+  };
 
   const counts = {
     sessions: agents.length,
@@ -213,6 +226,16 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           overlay={(zoom) => (
             <>
               {menuContent && menu && <CanvasMenu at={menu.at} zoom={zoom} {...menuContent} onClose={() => setMenu(null)} />}
+              {conductorFor && conductorCluster && (
+                <ConductorPopover
+                  key={conductorFor.clusterId}
+                  at={conductorFor.at}
+                  zoom={zoom}
+                  worktreePath={conductorCluster.worktree.path}
+                  worktreeName={conductorCluster.worktree.name}
+                  onClose={() => setConductorFor(null)}
+                />
+              )}
               {pending && (
                 <ConnectPicker
                   at={pending.at}
@@ -226,6 +249,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
             </>
           )}
           onSelect={select}
+          onOpenNode={openNode}
           onSelectEdge={(edge: GraphEdge) => {
             setSelected([]);
             setShowAllLinks(false);

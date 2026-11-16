@@ -86,6 +86,33 @@ describe("ProjectCanvas", () => {
     expect(screen.getByTestId("card").textContent).toBe("일꾼");
   });
 
+  it("opens a folded side panel when a box is double-clicked", () => {
+    localStorage.setItem("agent-control:canvas-panel", JSON.stringify(["collapsed"]));
+    renderCanvas([agentCard({ id: "s1", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "결제 API" })]);
+    expect(screen.queryByTestId("card")).toBeNull();
+    const box = screen.getByText("결제 API");
+    for (let i = 0; i < 2; i += 1) {
+      fireEvent.pointerDown(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    }
+    expect(screen.getByTestId("card").textContent).toBe("결제 API");
+    localStorage.removeItem("agent-control:canvas-panel");
+  });
+
+  it("starts a worktree conductor on the canvas without leaving it", () => {
+    const onOpenWorktree = vi.fn();
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} />
+      </QueryClientProvider>,
+    );
+    fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "지휘자" }));
+    expect(screen.getByText(/이 워크트리와 하위 워크트리/)).toBeTruthy();
+    expect(onOpenWorktree).not.toHaveBeenCalled();
+  });
+
   it("unlinks a line from the side panel", () => {
     const onAction = renderCanvas([
       agentCard({ id: "a", worktreeId: "/p/shop-a", title: "앞", orchestration: { conductor: null, parentId: null, links: [link("next", "a", "b")] } }),

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { LinkKind } from "@/common/orchestration/types";
+import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import type { Point } from "../model/layout";
 
 const CHOICE =
@@ -127,3 +128,24 @@ export function ConnectPicker({
   );
 }
 
+
+interface ConductorPopoverProps {
+  at: Point;
+  zoom: number;
+  worktreePath: string;
+  worktreeName: string;
+  onClose: () => void;
+}
+
+/** Starts a conductor for one worktree right where its frame was right-clicked. */
+export function ConductorPopover({ at, zoom, worktreePath, worktreeName, onClose }: ConductorPopoverProps) {
+  return (
+    <ScreenSized at={at} zoom={zoom}>
+      <foreignObject width={380} height={260} className="overflow-visible">
+        <div className="rounded-[12px] bg-bg shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]">
+          <ConductorLauncher worktreePath={worktreePath} scope="worktree" scopeName={worktreeName} onClose={onClose} />
+        </div>
+      </foreignObject>
+    </ScreenSized>
+  );
+}

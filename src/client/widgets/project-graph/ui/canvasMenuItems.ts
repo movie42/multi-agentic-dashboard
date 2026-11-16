@@ -21,6 +21,8 @@ export interface MenuContext {
   /** Open one line in the side panel with its text editor showing. */
   onEditLink: (edgeId: string) => void;
   onTidy: () => void;
+  /** Open the conductor form on the canvas for this worktree. */
+  onLaunchConductor: (worktreeId: string) => void;
 }
 
 export interface MenuContent {
@@ -130,7 +132,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       rename: worktree.isMain ? null : { label: "이름 바꾸기", value: worktree.name, onSave: (name) => void onAction({ type: "rename-worktree", worktreePath: worktree.path, name }) },
       items: compact([
         { label: "새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
-        { label: "지휘자", run: () => inPanel("conductor") },
+        { label: "지휘자", run: () => context.onLaunchConductor(worktree.worktreeId) },
         { label: "터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
         { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },
         { label: "깃 그래프", run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener") },
