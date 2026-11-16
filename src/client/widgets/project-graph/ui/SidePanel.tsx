@@ -3,9 +3,15 @@
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/board/types";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
+import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
+import { paneWidth } from "@/client/shared/lib/paneWidth";
 import type { GraphEdge, ProjectGraph } from "../model/graph";
 import { EDGE_STYLE } from "./GraphEdges";
 import { nodeTitle } from "./NodeBox";
+
+const MIN_PANEL = 320;
+/** Room the canvas keeps when the panel is dragged wide. */
+const MIN_CANVAS = 400;
 
 const LINK_TEXT = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음" } as const;
 
@@ -85,7 +91,17 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
   const links = graph.edges.filter((edge) => edge.linkId !== null);
   const agent = view.kind === "agent" ? view.agent : null;
   return (
-    <aside data-scroll className="relative flex h-full w-[min(440px,40vw)] shrink-0 flex-col border-l border-hair bg-bg">
+    <aside data-scroll className="relative flex h-full w-[var(--canvas-panel-w,440px)] shrink-0 flex-col border-l border-hair bg-bg">
+      <ResizeHandle
+        cssVar="--canvas-panel-w"
+        storageKey="agent-control:canvas-panel-width"
+        edge="left"
+        defaultWidth={() => Math.min(440, window.innerWidth * 0.4)}
+        min={MIN_PANEL}
+        max={() => window.innerWidth - paneWidth("--sidebar-w", 0) - MIN_CANVAS}
+        label="오른쪽 패널 크기 조절"
+        className="absolute inset-y-0 -left-1 z-20"
+      />
       <button
         type="button"
         onClick={onCollapse}

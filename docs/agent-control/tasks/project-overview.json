@@ -1248,8 +1248,38 @@
               ]
             },
             {
+              "id": "P6-6",
+              "title": "우클릭 메뉴를 고른 세션 전체 기준으로: 여러 개 골랐으면 묶기 · 그룹에서 빼기 · 연결 끊기 · 한 번에 닫기, 워크트리 · 그룹 · 빈 캔버스에서도 안의 세션 모두 닫기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/canvasMenuItems.ts</code>"
+                ],
+                [
+                  "결정",
+                  "고른 상자를 우클릭하면 고른 것 전체, 고르지 않은 상자를 우클릭하면 그 상자만 골라 그것만(Figma 방식). 닫기는 <code>close-terminals</code>로 50개씩"
+                ]
+              ]
+            },
+            {
+              "id": "P6-7",
+              "title": "오른쪽 패널 폭을 끌어서 조절 (폭 기억)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/SidePanel.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>ResizeHandle</code>(<code>--canvas-panel-w</code>) · <code>paneWidth</code>"
+                ]
+              ]
+            },
+            {
               "id": "P6-V",
-              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code>(581개) 통과 · 우클릭 두 번 눌러 닫기 · 패널 접기 위젯 테스트 · <code>bun run desktop</code> 후 앱 재시작",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code>(583개) 통과 · 여러 개 골라 한 번에 닫기 · 패널 접기 위젯 테스트 · <code>bun run desktop</code> 후 앱 재시작",
               "done": true
             }
           ]

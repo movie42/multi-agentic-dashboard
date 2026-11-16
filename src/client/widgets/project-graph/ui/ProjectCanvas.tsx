@@ -167,6 +167,8 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         select: (ids) => select(ids, false),
         onAction,
         onOpenWorktree,
+        onConnectFrom: () => setConnecting(true),
+        onTidy: tidy,
       })
     : null;
 
@@ -242,6 +244,12 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           onConnect={connect}
           onContextMenu={(target, at) => {
             setPending(null);
+            // Right-clicking a box outside the selection makes it the selection, like Figma.
+            if (target.kind === "node" && !liveSelected.includes(target.id)) {
+              setSelected([target.id]);
+              setEdgeId(null);
+              setShowAllLinks(false);
+            }
             setMenu({ target, at });
           }}
           onViewportChange={(viewport) => updateCanvas((current) => ({ ...current, viewport }))}

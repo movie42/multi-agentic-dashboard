@@ -20,7 +20,7 @@ type Gesture =
   | { kind: "marquee"; start: Point; rect: Rect | null; additive: boolean }
   | { kind: "connect"; from: string };
 
-export type MenuTarget = { kind: "node" | "cluster" | "group" | "edge"; id: string };
+export type MenuTarget = { kind: "node" | "cluster" | "group" | "edge" | "canvas"; id: string };
 
 interface Drag {
   ids: ReadonlySet<string>;
@@ -268,14 +268,14 @@ export function CanvasStage(props: CanvasStageProps) {
     const node = target?.closest("[data-node]")?.getAttribute("data-node");
     const handle = target?.closest("[data-drag]");
     const edge = target?.closest("[data-edge]")?.getAttribute("data-edge");
-    const hit: MenuTarget | null = node
+    const hit: MenuTarget = node
       ? { kind: "node", id: node }
       : edge
         ? { kind: "edge", id: edge }
         : handle
           ? { kind: handle.getAttribute("data-drag") === "group" ? "group" : "cluster", id: handle.getAttribute("data-id") ?? "" }
-          : null;
-    if (!hit || target?.closest("[role='menu']")) return;
+          : { kind: "canvas", id: "" };
+    if (target?.closest("[role='menu']")) return;
     event.preventDefault();
     props.onContextMenu(hit, toWorld(event.clientX, event.clientY));
   };

@@ -102,7 +102,7 @@ describe("ProjectCanvas", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "세션 닫기" }));
     expect(onAction).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("menuitem", { name: "한 번 더 누르면 닫아요" }));
-    expect(onAction).toHaveBeenCalledWith({ type: "close-terminal", terminalHandle: "t1" });
+    expect(onAction).toHaveBeenCalledWith({ type: "close-terminals", terminalHandles: ["t1"] });
   });
 
   it("folds the side panel away and back", () => {
@@ -111,5 +111,37 @@ describe("ProjectCanvas", () => {
     expect(screen.queryByText("상자를 누르면 여기서 답할 수 있어요.")).toBeNull();
     fireEvent.click(screen.getByTitle("오른쪽 패널 펼치기"));
     expect(screen.getByText("상자를 누르면 여기서 답할 수 있어요.")).toBeTruthy();
+  });
+
+  it("closes every selected session at once from the right-click menu", () => {
+    const onAction = renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", title: "첫째", terminalHandle: "ta" }),
+      agentCard({ id: "b", worktreeId: "/p/shop-a", title: "둘째", terminalHandle: "tb" }),
+      agentCard({ id: "c", worktreeId: "/p/shop-a", title: "셋째", terminalHandle: "tc" }),
+    ]);
+    const click = (text: string, shiftKey: boolean) => {
+      const box = screen.getByText(text);
+      fireEvent.pointerDown(box, { button: 0, pointerId: 1, shiftKey });
+      fireEvent.pointerUp(box, { button: 0, pointerId: 1, shiftKey });
+    };
+    click("첫째", false);
+    click("둘째", true);
+    fireEvent.contextMenu(screen.getByText("둘째"));
+    expect(screen.getByText("고른 세션 2개")).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: "세션 2개 닫기 (2개)" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "한 번 더 누르면 2개를 닫아요" }));
+    expect(onAction).toHaveBeenCalledWith({ type: "close-terminals", terminalHandles: ["ta", "tb"] });
+  });
+
+  it("acts on a box outside the selection by itself", () => {
+    renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", title: "첫째", terminalHandle: "ta" }),
+      agentCard({ id: "b", worktreeId: "/p/shop-a", title: "둘째", terminalHandle: "tb" }),
+    ]);
+    const box = screen.getByText("첫째");
+    fireEvent.pointerDown(box, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(box, { button: 0, pointerId: 1 });
+    fireEvent.contextMenu(screen.getByText("둘째"));
+    expect(screen.getByRole("menuitem", { name: "세션 닫기" })).toBeTruthy();
   });
 });
