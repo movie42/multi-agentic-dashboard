@@ -60,7 +60,9 @@ describe("chatItemsOf local commands", () => {
       line({ uuid: "e", type: "user", message: { content: "<bash-stdout>clean</bash-stdout><bash-stderr>warn</bash-stderr>" } }),
     ]);
     const shown = steps.map((step) =>
-      step.kind === "tool" ? { kind: step.kind } : { kind: step.kind, text: step.text, error: step.kind === "output" ? step.error : undefined },
+      step.kind === "prompt" || step.kind === "text" || step.kind === "output"
+        ? { kind: step.kind, text: step.text, error: step.kind === "output" ? step.error : undefined }
+        : { kind: step.kind },
     );
     expect(shown).toEqual([
       { kind: "prompt", text: "/context", error: undefined },
@@ -73,5 +75,65 @@ describe("chatItemsOf local commands", () => {
 
   it("keeps the activity timeline free of them", () => {
     expect(stepsOf([line({ type: "user", message: { content: "<command-name>/context</command-name>" } })])).toEqual([]);
+  });
+});
+
+describe("chatItemsOf questions and plans", () => {
+  const question = {
+    question: "어디에 둘까요?",
+    header: "위치",
+    multiSelect: false,
+    options: [
+      { label: "위 (Recommended)", description: "맨 위에 둬요" },
+      { label: "아래", description: "맨 아래에 둬요" },
+    ],
+  };
+  const ask = JSON.stringify({
+    type: "assistant",
+    uuid: "a1",
+    message: { content: [{ type: "tool_use", id: "q1", name: "AskUserQuestion", input: { questions: [question] } }] },
+  });
+
+  it("shows the whole question with the answer the user picked", () => {
+    const steps = chatItemsOf([
+      ask,
+      JSON.stringify({
+        type: "user",
+        uuid: "u1",
+        toolUseResult: { questions: [question], answers: { "어디에 둘까요?": "아래" } },
+        message: { content: [{ type: "tool_result", tool_use_id: "q1", content: 'Your questions have been answered: "어디에 둘까요?"="아래".' }] },
+      }),
+    ]);
+    expect(steps).toEqual([
+      { kind: "question", id: "q1", at: null, questions: [question], answers: { "어디에 둘까요?": "아래" }, status: "ok" },
+    ]);
+  });
+
+  it("keeps an unanswered question waiting", () => {
+    expect(chatItemsOf([ask])).toMatchObject([{ kind: "question", answers: null, status: "running" }]);
+  });
+
+  it("shows a plan in full with whether it was approved or rejected", () => {
+    const plan = (id: string) =>
+      JSON.stringify({
+        type: "assistant",
+        uuid: `a-${id}`,
+        message: { content: [{ type: "tool_use", id, name: "ExitPlanMode", input: { plan: "# 계획\n\n1. 고친다" } }] },
+      });
+    const result = (id: string, error: boolean, content: string) =>
+      JSON.stringify({
+        type: "user",
+        uuid: `u-${id}`,
+        message: { content: [{ type: "tool_result", tool_use_id: id, is_error: error, content }] },
+      });
+    const steps = chatItemsOf([plan("p1"), result("p1", false, "User has approved your plan."), plan("p2"), result("p2", true, "범위를 줄여 주세요")]);
+    expect(steps).toEqual([
+      { kind: "plan", id: "p1", at: null, plan: "# 계획\n\n1. 고친다", status: "ok", feedback: null },
+      { kind: "plan", id: "p2", at: null, plan: "# 계획\n\n1. 고친다", status: "error", feedback: "범위를 줄여 주세요" },
+    ]);
+  });
+
+  it("leaves the activity timeline's one-line tool rows as they are", () => {
+    expect(stepsOf([ask])).toMatchObject([{ kind: "tool", name: "AskUserQuestion" }]);
   });
 });
