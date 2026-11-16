@@ -49,6 +49,7 @@ function StepRow({ step }: StepRowProps) {
       </li>
     );
   }
+  if (step.kind !== "text" && step.kind !== "output") return null;
   return <li className="line-clamp-3 shrink-0 text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{step.text}</li>;
 }
 

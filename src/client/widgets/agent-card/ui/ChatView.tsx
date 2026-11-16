@@ -26,6 +26,130 @@ const STATUS_LABEL: Record<ToolStatus, string> = {
 };
 
 type ToolStep = Extract<ActivityStep, { kind: "tool" }>;
+type QuestionStep = Extract<ActivityStep, { kind: "question" }>;
+type PlanStep = Extract<ActivityStep, { kind: "plan" }>;
+type AskedQuestion = QuestionStep["questions"][number];
+
+const UNANSWERED_LABEL: Record<ToolStatus, string> = {
+  running: "답을 기다리는 중",
+  ok: "답 없음",
+  error: "답하지 않고 넘어감",
+  stopped: "답하지 않고 중단됨",
+};
+
+const PLAN_LABEL: Record<ToolStatus, string> = {
+  running: "승인 대기",
+  ok: "승인함",
+  error: "거절함",
+  stopped: "중단됨",
+};
+
+function pickedLabels(question: AskedQuestion, answer: string): Set<string> {
+  const labels = question.options.map((option) => option.label);
+  if (labels.includes(answer)) return new Set([answer]);
+  return new Set(answer.split(", ").filter((part) => labels.includes(part)));
+}
+
+interface AskedQuestionViewProps {
+  question: AskedQuestion;
+  answer: string | null;
+  status: ToolStatus;
+}
+
+function AskedQuestionView({ question, answer, status }: AskedQuestionViewProps) {
+  const picked = answer === null ? new Set<string>() : pickedLabels(question, answer);
+  const chosen = question.options.filter((option) => picked.has(option.label));
+  const others = question.options.filter((option) => !picked.has(option.label));
+  const typed = answer !== null && chosen.length === 0;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[14px] leading-relaxed whitespace-pre-wrap">
+        {question.header && <span className="mr-1.5 rounded-full bg-tint-2 px-2 py-0.5 text-[11px] font-semibold text-muted">{question.header}</span>}
+        {question.question}
+      </p>
+      {answer === null ? (
+        <p className={`text-[13px] ${status === "running" ? "text-now" : "text-muted"}`}>{UNANSWERED_LABEL[status]}</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {typed ? (
+            <li className="rounded-lg bg-tint-2 px-3 py-1.5 text-[14px] font-semibold whitespace-pre-wrap">
+              <span className="mr-1.5 text-done">✓</span>
+              {answer}
+              <span className="ml-1.5 text-[12px] font-normal text-muted">직접 입력</span>
+            </li>
+          ) : (
+            chosen.map((option) => (
+              <li key={option.label} className="rounded-lg bg-tint-2 px-3 py-1.5">
+                <p className="text-[14px] font-semibold">
+                  <span className="mr-1.5 text-done">✓</span>
+                  {option.label}
+                </p>
+                {option.description && <p className="text-[12px] leading-snug text-muted">{option.description}</p>}
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+      {others.length > 0 && (
+        <details className="text-[12px] text-muted">
+          <summary className="cursor-pointer list-none hover:text-fg">{answer === null ? `선택지 ${others.length}개` : `다른 선택지 ${others.length}개`}</summary>
+          <ul className="mt-1 flex flex-col gap-1 pl-3">
+            {others.map((option) => (
+              <li key={option.label}>
+                <span className="text-fg">{option.label}</span>
+                {option.description && <span> — {option.description}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+interface QuestionRowProps {
+  step: QuestionStep;
+}
+
+function QuestionRow({ step }: QuestionRowProps) {
+  return (
+    <li className="my-1 flex flex-col gap-3 rounded-xl px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--hair)]">
+      <p className="flex items-baseline gap-2 font-mono text-[12px] text-muted">
+        <span className="font-semibold text-fg">질문</span>
+        {step.at && <span className="ml-auto text-faint tabular-nums">{formatClock(step.at)}</span>}
+      </p>
+      {step.questions.map((question) => (
+        <AskedQuestionView
+          key={question.question}
+          question={question}
+          answer={step.answers?.[question.question] ?? null}
+          status={step.status}
+        />
+      ))}
+    </li>
+  );
+}
+
+interface PlanRowProps {
+  step: PlanStep;
+}
+
+function PlanRow({ step }: PlanRowProps) {
+  return (
+    <li className="my-1 flex flex-col gap-2 rounded-xl px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--hair)]">
+      <p className="flex items-baseline gap-2 font-mono text-[12px]">
+        <span className="font-semibold">계획</span>
+        <span className={STATUS_DOT[step.status]}>●</span>
+        <span className="text-muted">{PLAN_LABEL[step.status]}</span>
+        {step.at && <span className="ml-auto text-faint tabular-nums">{formatClock(step.at)}</span>}
+      </p>
+      <Markdown text={step.plan} />
+      {step.feedback && (
+        <p className="rounded-lg bg-tint-2 px-3 py-1.5 text-[13px] leading-relaxed whitespace-pre-wrap">{step.feedback}</p>
+      )}
+    </li>
+  );
+}
 
 interface ToolRowProps {
   step: ToolStep;
@@ -81,6 +205,8 @@ interface ChatRowProps {
 
 function ChatRow({ step, copyable }: ChatRowProps) {
   if (step.kind === "tool") return <ToolRow step={step} />;
+  if (step.kind === "question") return <QuestionRow step={step} />;
+  if (step.kind === "plan") return <PlanRow step={step} />;
   if (step.kind === "output") {
     return (
       <li className="py-1">

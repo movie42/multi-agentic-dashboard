@@ -42,3 +42,11 @@ export function terminalSocketUrl(id: string): string {
 }
 
 export const EVENTS_SOCKET_URL = `${RUNNER_WS}/events`;
+
+export async function fetchScreen(id: string): Promise<string[]> {
+  const body = await call(`/sessions/${encodeURIComponent(id)}/screen`);
+  if (typeof body === "object" && body !== null && "lines" in body && Array.isArray(body.lines)) {
+    return body.lines.filter((line: unknown): line is string => typeof line === "string");
+  }
+  return [];
+}
