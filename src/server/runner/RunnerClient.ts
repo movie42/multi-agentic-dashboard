@@ -85,8 +85,16 @@ export class RunnerClient {
     });
   }
 
+  async startRun(request: { templateId: string; cwd: string; intent: string; start: boolean }): Promise<void> {
+    await this.call("/runs", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(request) });
+  }
+
   async screen(id: string): Promise<string[]> {
     return (await this.call(`/sessions/${encodeURIComponent(id)}/screen`)).lines ?? [];
+  }
+
+  async ensureDictation(): Promise<void> {
+    await this.call("/dictation", { method: "POST" });
   }
 
   async close(id: string): Promise<void> {

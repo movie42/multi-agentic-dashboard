@@ -40,6 +40,10 @@ function isPlan(value: unknown): value is WorktreePlan {
   );
 }
 
+function isTemplate(value: unknown): boolean {
+  return isRecord(value) && typeof value.id === "string" && value.id.length > 0 && typeof value.intent === "string" && value.intent.length <= MAX_ANSWER * 4;
+}
+
 function isRequest(value: unknown): value is WizardRequest {
   if (!isRecord(value) || !isOrigin(value.origin)) return false;
   if (value.action === "start") return true;
@@ -52,7 +56,7 @@ function isRequest(value: unknown): value is WizardRequest {
       value.answer.length <= MAX_ANSWER
     );
   }
-  return value.action === "create" && isPlan(value.plan);
+  return value.action === "create" && isPlan(value.plan) && (value.template === undefined || value.template === null || isTemplate(value.template));
 }
 
 export async function POST(request: Request) {
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
       const next = await services().worktreeWizard.answer(body.origin.anchorPath, body.sessionId, body.answer.trim());
       return Response.json({ ok: true, ...next } satisfies WizardResponse);
     }
-    return Response.json({ ok: true, created: await services().worktreeWizard.create(body.origin, body.plan) } satisfies WizardResponse);
+    return Response.json({ ok: true, created: await services().worktreeWizard.create(body.origin, body.plan, body.template ?? null) } satisfies WizardResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[worktree-wizard]", body.action, message);

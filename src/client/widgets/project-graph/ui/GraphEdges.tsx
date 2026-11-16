@@ -9,13 +9,15 @@ export const EDGE_STYLE: Record<EdgeKind, { label: string; stroke: string; dash?
   next: { label: "끝나면", stroke: "stroke-muted", marker: true, pill: "text-muted" },
   fork: { label: "갈라짐", stroke: "stroke-faint", dash: "2 5", marker: false, pill: "text-muted" },
   overlap: { label: "같은 파일", stroke: "stroke-ask", dash: "6 5", marker: false, pill: "text-ask" },
+  route: { label: "다음 카드", stroke: "stroke-now", dash: "3 4", marker: true, pill: "text-now" },
 };
 
-const MARKER_KINDS = ["delegate", "report", "next", "paused"] as const;
+const MARKER_KINDS = ["delegate", "report", "next", "route", "paused"] as const;
 const MARKER_FILL: Record<(typeof MARKER_KINDS)[number], string> = {
   delegate: "fill-fg",
   report: "fill-now",
   next: "fill-muted",
+  route: "fill-now",
   paused: "fill-accent",
 };
 
@@ -34,6 +36,7 @@ export function EdgeMarkers() {
 function edgeLabel(edge: GraphEdge): string {
   if (edge.paused) return `${EDGE_STYLE[edge.kind].label} · 멈춤`;
   if (edge.kind === "overlap") return `같은 파일 ${edge.files.length}`;
+  if (edge.kind === "route" && edge.prompt) return edge.prompt;
   return EDGE_STYLE[edge.kind].label;
 }
 

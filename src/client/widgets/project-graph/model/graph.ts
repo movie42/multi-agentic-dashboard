@@ -1,6 +1,7 @@
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { FileOverlap } from "@/common/projects/overlaps";
 import type { LinkKind } from "@/common/orchestration/types";
+import type { TemplateCard, TemplateRun } from "@/common/templates/types";
 
 export type NodeKind = "conductor" | "session";
 
@@ -17,7 +18,13 @@ export interface GraphCluster {
   nodeIds: string[];
 }
 
-export type EdgeKind = LinkKind | "fork" | "overlap";
+export type EdgeKind = LinkKind | "fork" | "overlap" | "route";
+
+export interface ReservedCard {
+  id: string;
+  run: TemplateRun;
+  card: TemplateCard;
+}
 
 export interface GraphEdge {
   id: string;
@@ -37,17 +44,30 @@ export interface ProjectGraph {
   conductors: GraphNode[];
   clusters: GraphCluster[];
   nodes: Map<string, GraphNode>;
+  reserved: Map<string, ReservedCard>;
+  runs: TemplateRun[];
   edges: GraphEdge[];
 }
 
 export const clusterId = (worktreeId: string) => `wt:${worktreeId}`;
+
+export const reservedId = (runId: string, cardKey: string) => `run:${runId}:${cardKey}`;
+
+export function runCardNode(run: TemplateRun, cardKey: string, nodes: ReadonlyMap<string, GraphNode>): string {
+  const session = run.sessions[cardKey];
+  return session && nodes.has(session) ? session : reservedId(run.id, cardKey);
+}
+
+export function runOfNode(runs: TemplateRun[], nodeId: string): TemplateRun | null {
+  return runs.find((run) => nodeId.startsWith(`run:${run.id}:`) || Object.values(run.sessions).includes(nodeId)) ?? null;
+}
 
 /**
  * Turns one project's board data into boxes and lines. Conductors leave their worktree and sit on
  * top; every other session stays in its worktree's cluster. Lines whose other end is not on this
  * project's board are dropped.
  */
-export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], overlaps: FileOverlap[]): ProjectGraph {
+export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], overlaps: FileOverlap[], runs: TemplateRun[] = []): ProjectGraph {
   const nodes = new Map<string, GraphNode>();
   for (const agent of agents) {
     nodes.set(agent.id, { id: agent.id, kind: agent.orchestration?.conductor ? "conductor" : "session", agent });
@@ -79,7 +99,25 @@ export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], ov
     if (!clusterIds.has(from) || !clusterIds.has(to)) continue;
     edges.push({ id: `overlap:${overlap.a}:${overlap.b}`, kind: "overlap", from, to, linkId: null, paused: false, prompt: null, files: overlap.files });
   }
-  return { conductors, clusters, nodes, edges };
+  const reserved = new Map<string, ReservedCard>();
+  const shownRuns = runs.filter((run) => clusters.some((cluster) => cluster.worktree.path === run.cwd));
+  for (const run of shownRuns) {
+    const cluster = clusters.find((entry) => entry.worktree.path === run.cwd);
+    if (!cluster) continue;
+    for (const card of run.cards) {
+      const id = runCardNode(run, card.key, nodes);
+      if (nodes.has(id) || reserved.has(id)) continue;
+      reserved.set(id, { id, run, card });
+      cluster.nodeIds.push(id);
+    }
+    for (const route of run.routes) {
+      const from = runCardNode(run, route.from, nodes);
+      const to = runCardNode(run, route.to, nodes);
+      if (from === to) continue;
+      edges.push({ id: `route:${run.id}:${route.id}`, kind: "route", from, to, linkId: null, paused: false, prompt: route.label, files: [] });
+    }
+  }
+  return { conductors, clusters, nodes, reserved, runs: shownRuns, edges };
 }
 
 /** Lines touching one session, for the side panel. */

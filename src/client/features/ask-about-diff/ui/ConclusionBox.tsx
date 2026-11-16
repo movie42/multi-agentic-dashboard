@@ -6,6 +6,7 @@ import type { ConclusionRequest } from "@/common/intentDiff/conclusion";
 import type { AskThread } from "@/common/intentDiff/types";
 import { formatClock } from "@/client/shared/lib/format";
 import { toastError } from "@/client/shared/model/toastStore";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 interface ConclusionBoxProps {
   thread: AskThread;
@@ -76,13 +77,16 @@ export function ConclusionBox({ thread, waiting, conclude }: ConclusionBoxProps)
         {isSent(conclusion) && conclusion.sentAt !== null && <span className="text-muted">수정 보냄 · {formatClock(conclusion.sentAt)}</span>}
       </div>
       {isEditing ? (
-        <textarea
-          value={text}
-          onChange={(event) => setEditing(event.target.value)}
-          rows={3}
-          aria-label="결론"
-          className="w-full resize-y rounded-md border border-hair bg-bg px-2.5 py-2 text-[13px] leading-[1.5] outline-none focus:border-focus"
-        />
+        <div className="flex items-end gap-1.5">
+          <textarea
+            value={text}
+            onChange={(event) => setEditing(event.target.value)}
+            rows={3}
+            aria-label="결론"
+            className="min-w-0 flex-1 resize-y rounded-md border border-hair bg-bg px-2.5 py-2 text-[13px] leading-[1.5] outline-none focus:border-focus"
+          />
+          <DictationButton onText={(spoken) => setEditing(appendDictation(text, spoken))} />
+        </div>
       ) : (
         <button type="button" onClick={() => setEditing(conclusion.text)} className="text-left text-[13px] leading-[1.5] whitespace-pre-wrap text-fg">
           {conclusion.text}

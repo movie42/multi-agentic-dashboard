@@ -1,5 +1,6 @@
 import path from "node:path";
 import { z } from "zod";
+import { ASK_USER_QUESTION, questionsOf } from "@/common/runner/questions";
 import type { ActivityStep } from "@/common/sessions/types";
 import { parseJson } from "@/server/shared/fallback";
 
@@ -16,7 +17,13 @@ interface StepOptions {
   detailOf: (input: Record<string, unknown> | undefined) => string | null;
   /** Keep slash commands, `!` shell commands and the output Claude Code printed for them. */
   localCommands: boolean;
+  /** Draw AskUserQuestion and ExitPlanMode as their own rows instead of one-line tool rows. */
+  richTools: boolean;
 }
+
+const EXIT_PLAN_MODE = "ExitPlanMode";
+
+type PendingStep = Extract<ActivityStep, { kind: "tool" | "question" | "plan" }>;
 
 const text = z.string().optional().catch(undefined);
 const flag = z.boolean().optional().catch(undefined);
@@ -29,6 +36,7 @@ const contentBlockSchema = z.looseObject({
   input: z.record(z.string(), z.unknown()).optional().catch(undefined),
   tool_use_id: text,
   is_error: flag,
+  content: z.unknown().optional(),
 });
 
 const transcriptLineSchema = z.looseObject({
@@ -40,6 +48,7 @@ const transcriptLineSchema = z.looseObject({
   timestamp: text,
   isSidechain: flag,
   isMeta: flag,
+  toolUseResult: z.unknown().optional(),
   message: z.looseObject({ content: z.unknown().optional() }).optional().catch(undefined),
 });
 
@@ -125,6 +134,32 @@ function localItemsOf(text: string): LocalItem[] {
   return items;
 }
 
+function resultText(content: unknown): string {
+  if (typeof content === "string") return content.trim();
+  return blocksOf(content)
+    .flatMap((block) => (block.type === "text" && block.text ? [block.text] : []))
+    .join("\n")
+    .trim();
+}
+
+function answersOf(toolUseResult: unknown): Record<string, string> | null {
+  if (typeof toolUseResult !== "object" || toolUseResult === null || !("answers" in toolUseResult)) return null;
+  const { answers } = toolUseResult;
+  if (typeof answers !== "object" || answers === null) return null;
+  const entries = Object.entries(answers).flatMap(([key, value]: [string, unknown]) => (typeof value === "string" ? [[key, value]] : []));
+  return Object.fromEntries(entries);
+}
+
+function richStepOf(block: ContentBlock & { id: string; name: string }, at: number | null, textChars: number): PendingStep | null {
+  const input = block.input ?? {};
+  if (block.name === ASK_USER_QUESTION) {
+    const questions = questionsOf({ toolName: block.name, toolInput: input });
+    return questions.length > 0 ? { kind: "question", id: block.id, at, questions, answers: null, status: "running" } : null;
+  }
+  const plan = block.name === EXIT_PLAN_MODE ? stringField(input, "plan") : null;
+  return plan ? { kind: "plan", id: block.id, at, plan: clip(plan, textChars), status: "running", feedback: null } : null;
+}
+
 function timeOf(line: TranscriptLine): number | null {
   const at = line.timestamp ? Date.parse(line.timestamp) : NaN;
   return Number.isNaN(at) ? null : at;
@@ -142,16 +177,16 @@ export function inputDetail(input: Record<string, unknown> | undefined): string 
 }
 
 export function stepsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false });
+  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false, richTools: false });
 }
 
 export function chatItemsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true });
+  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true, richTools: true });
 }
 
 function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
   const steps: ActivityStep[] = [];
-  const tools = new Map<string, Extract<ActivityStep, { kind: "tool" }>>();
+  const tools = new Map<string, PendingStep>();
 
   for (const raw of lines) {
     const line = parseLine(raw);
@@ -180,6 +215,12 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
         if (block.type === "text" && block.text?.trim()) {
           steps.push({ kind: "text", id: `${line.uuid}:${index}`, at, text: clip(block.text, options.textChars) });
         } else if (block.type === "tool_use" && block.id && block.name) {
+          const rich = options.richTools ? richStepOf({ ...block, id: block.id, name: block.name }, at, options.textChars) : null;
+          if (rich) {
+            tools.set(block.id, rich);
+            steps.push(rich);
+            return;
+          }
           const step: Extract<ActivityStep, { kind: "tool" }> = {
             kind: "tool",
             id: block.id,
@@ -197,7 +238,10 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
       for (const block of blocks) {
         if (block.type === "tool_result" && block.tool_use_id) {
           const tool = tools.get(block.tool_use_id);
-          if (tool) tool.status = block.is_error ? "error" : "ok";
+          if (!tool) continue;
+          tool.status = block.is_error ? "error" : "ok";
+          if (tool.kind === "question") tool.answers = answersOf(line.toolUseResult);
+          if (tool.kind === "plan" && block.is_error) tool.feedback = clip(resultText(block.content), options.textChars) || null;
         }
       }
       const typed = blocks

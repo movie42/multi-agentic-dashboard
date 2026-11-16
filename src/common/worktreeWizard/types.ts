@@ -25,7 +25,12 @@ export type WizardTurn =
 export type WizardRequest =
   | { action: "start"; origin: WizardOrigin }
   | { action: "answer"; origin: WizardOrigin; sessionId: string; answer: string }
-  | { action: "create"; origin: WizardOrigin; plan: WorktreePlan };
+  | { action: "create"; origin: WizardOrigin; plan: WorktreePlan; template?: WizardTemplate | null };
+
+export interface WizardTemplate {
+  id: string;
+  intent: string;
+}
 
 export type WizardResponse =
   | { ok: true; sessionId: string; turn: WizardTurn }

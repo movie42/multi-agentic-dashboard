@@ -1,0 +1,323 @@
+{
+  "id": "question-card-followups",
+  "title": "질문 카드 후속 — 알림 클릭 위치 · 고른 답 표시 · 터미널 대기 안내",
+  "type": "버그 수정",
+  "branch": "feat/workflow-templates",
+  "links": [],
+  "stages": {
+    "grill": {
+      "status": "done",
+      "summary": "R1 모두 결정됨",
+      "conclusion": [],
+      "rounds": [
+        {
+          "id": "R1",
+          "askedAt": "11/16",
+          "from": "사용자 요청 — 질문 카드 쓸 때 불편한 점 세 가지",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "채팅에 지난 질문과 고른 답을 어떻게 보여 줄까요?",
+              "intent": "답한 뒤 채팅을 다시 읽을 때 무엇을 물었고 무엇을 골랐는지가 한눈에 보여야 해요. 표시 방식에 따라 긴 질문이 여러 개일 때 채팅 길이가 크게 달라져요.",
+              "decision": "채팅에서 질문 전체 문장과 고른 답은 항상 보이고, 고르지 않은 선택지는 접어 둔다. 질문이 여러 개여도 채팅이 길어지지 않게 하려는 것이다.",
+              "reason": {
+                "text": "a를 추천해요. 질문과 답은 항상 다 보이고, 다른 선택지가 궁금할 때만 펼치면 돼서 질문이 4개여도 채팅이 길어지지 않아요.",
+                "by": "recommended"
+              },
+              "appliedTo": [
+                "tasks"
+              ]
+            },
+            {
+              "id": "Q2",
+              "title": "Claude의 계획 승인 요청(ExitPlanMode)도 채팅에 계획 전문을 펼쳐 둘까요?",
+              "intent": "Claude가 '이렇게 할게요'라고 제안한 내용이 지나간 뒤에도 채팅에서 읽히는지를 정해요.",
+              "decision": "계획 승인 요청(ExitPlanMode)은 채팅에 계획 전체를 마크다운으로 펼쳐 두고, 아래에 승인했는지 거절했는지를 적는다.",
+              "reason": {
+                "text": "펼쳐 두는 걸 추천해요. 승인 카드와 같은 마크다운으로 그리고, 승인했는지 거절했는지를 아래에 적어요.",
+                "by": "recommended"
+              },
+              "appliedTo": [
+                "tasks"
+              ]
+            },
+            {
+              "id": "Q3",
+              "title": "'터미널 화면에서 입력을 기다리고 있어요' 안내에 터미널 마지막 몇 줄을 같이 보여 줄까요?",
+              "intent": "앱이 내용을 모르는 입력 대기(질문을 10분 넘게 두었을 때, Claude Code 자체 메뉴 등)에서 터미널 탭을 열지 않고도 무엇을 묻는지 알 수 있게 할지 정해요.",
+              "decision": "'터미널 화면에서 입력을 기다리고 있어요' 안내에 터미널 화면의 마지막 몇 줄을 해석하지 않고 그대로 보여 준다. 선택은 여전히 터미널에서 한다.",
+              "reason": {
+                "text": "보여 주는 걸 추천해요. 화면 글자를 그대로 보여 주기만 하므로 Claude Code 화면이 바뀌어도 깨질 곳이 없어요.",
+                "by": "recommended"
+              },
+              "appliedTo": [
+                "tasks"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료 · 실제 화면 확인 전",
+      "conclusion": [
+        "채팅에서 질문은 질문 전문과 고른 답이 항상 보이고, 고르지 않은 선택지는 접혀요.",
+        "계획 승인 요청은 채팅에 계획 전문과 승인 · 거절 여부가 남아요.",
+        "입력 대기 알림을 누르면 질문 카드가 화면 가운데에 오고, 질문 카드가 없으면 카드 끝(입력창)이 보여요.",
+        "터미널에서만 입력을 기다릴 때 안내 칸에 터미널 마지막 줄이 함께 보여요.",
+        "실제 앱 화면에서는 아직 확인하지 않았어요. 이 워크트리에서 띄운 앱이 없었어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 재현 테스트",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "질문 · 계획 도구가 채팅에서 전용 행(질문 + 고른 답, 계획 + 승인 여부)으로 나오는지 확인하는 테스트",
+              "done": true,
+              "rows": [
+                [
+                  "테스트",
+                  "<code>src/server/sessions/activitySteps.test.ts</code>"
+                ],
+                [
+                  "실패 커밋",
+                  "<code>29d8185</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "알림으로 이동하면 카드 맨 위가 아니라 질문 카드나 카드 끝으로 스크롤하는지 확인하는 테스트",
+              "done": true,
+              "rows": [
+                [
+                  "테스트",
+                  "<code>src/client/widgets/agent-card/lib/jumpTarget.test.tsx</code>"
+                ],
+                [
+                  "실패 커밋",
+                  "<code>29d8185</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 새 테스트가 실패하는 것을 보고 테스트만 커밋",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "질문 · 계획 테스트 3개는 지금 코드가 한 줄 도구 행을 돌려줘서 실패했고, 이동 테스트는 이동 함수가 없어서 실패했다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 채팅 질문 · 계획 행",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "채팅 항목에 question · plan 종류 추가, 기록의 <code>toolUseResult.answers</code>로 고른 답 채우기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/sessions/types.ts</code> · <code>src/server/sessions/activitySteps.ts</code>"
+                ],
+                [
+                  "결정",
+                  "전용 행은 채팅에만 쓴다. 활동 타임라인(<code>stepsOf</code>)은 지금처럼 한 줄 도구 행으로 둔다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "ChatView에 질문 행(질문 전문 + 고른 답, 선택지 접기)과 계획 행(마크다운 + 승인/거절) 그리기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/ui/ChatView.tsx</code> · <code>src/client/widgets/agent-card/ui/ActivityTimeline.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "고른 답이 선택지 이름과 맞지 않으면 직접 입력한 답으로 보고 '직접 입력'을 붙인다. 복수 선택 답은 질문 카드와 같은 ', ' 구분자로 나눈다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 테스트 · 타입 검사",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "실제 Claude Code 대화 기록 하나로 파싱해 질문 4개와 고른 답 4개가 그대로 나오는 것을 확인했다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 알림 클릭 위치",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "이동 요청 저장소와 카드 쪽 스크롤(질문 카드 → 가운데, 없으면 카드 끝), 대화가 늦게 불러와져도 따라가기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/model/jumpRequestStore.ts</code> · <code>src/client/widgets/agent-card/lib/jumpTarget.ts</code> · <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code> · <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "세션 탭이 바뀐 뒤에야 카드가 그려져서, 스크롤은 대시보드가 아니라 카드가 그려질 때 카드가 직접 한다. 대화를 늦게 불러와 카드가 커지는 동안 2초까지 따라가고, 사용자가 스크롤하면 멈춘다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: 테스트 · 타입 검사 · lint",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 터미널 대기 안내에 화면 줄",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "데몬 화면 API(<code>/sessions/:id/screen</code>)를 클라이언트에서 읽어 안내 칸에 마지막 줄 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/runner/api/runnerApi.ts</code> · <code>src/client/entities/runner/lib/screenTail.ts</code> · <code>src/client/entities/runner/ui/TerminalTail.tsx</code> · <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "안내가 떠 있는 동안 2초마다 화면을 다시 읽고, 글자가 있는 마지막 14줄을 그대로 보여 준다. 안내 문구는 바꾸지 않았다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 테스트 · 타입 검사 · lint",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<code>NODE_ENV=test bun run test</code> 656개 · <code>bunx tsc --noEmit</code> 통과, <code>bun run lint</code> 오류 0건(경고 8건은 이번에 손대지 않은 파일)."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료 · PR 없음",
+      "conclusion": [
+        "PR 없음 — 같은 브랜치(feat/workflow-templates)의 PR에 함께 들어가요.",
+        "실제 앱 화면 확인은 남아 있어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "D",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 SOT 맵 행을 쓰거나 바꾸지 않아 옮길 근거가 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 계산 행 · 서버 · 기획 요청 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행도, 넘길 요청도 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "크리티컬한 지적은 없었다. 기록에 <code>toolUseResult</code>가 없으면 답한 질문도 '답 없음'으로 보인다는 지적은 고치지 않는다. 지금 Claude Code는 질문 결과마다 이 값을 남긴다."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<code>NODE_ENV=test bun run test</code> 656개 · <code>bunx tsc --noEmit</code> 통과, <code>bun run lint</code> 오류 0건."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음. 브랜치를 바꾸지 말라는 지시로 feat/workflow-templates에서 작업해 그 브랜치의 PR에 함께 들어간다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "Claude가 묻고 내가 답한 내용을 터미널을 열지 않고 채팅에서 끝까지 따라갈 수 있게 한다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 2026-11-16, [[R1-Q1]] [[R1-Q2]]"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 다른 세션을 통해 추가 질문 없이 끝까지 구현하라고 지시함"
+    }
+  ],
+  "pruned": "2026-11-16"
+}

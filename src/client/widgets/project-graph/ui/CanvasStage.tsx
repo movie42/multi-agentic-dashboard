@@ -22,6 +22,7 @@ import {
 import { EdgeMarkers, GraphEdges } from "./GraphEdges";
 import { ClusterFrame, GroupFrame } from "./Frames";
 import { NodeBox } from "./NodeBox";
+import { ReservedBox } from "./ReservedBox";
 
 const DRAG_THRESHOLD = 3;
 const FIT_MARGIN = 64;
@@ -624,7 +625,8 @@ export function CanvasStage(props: CanvasStageProps) {
               rect={clusterRects.get(cluster.id)!}
               worktree={cluster.worktree}
               steps={stepsOf(cluster.worktree)}
-              sessions={cluster.nodeIds.length}
+              sessions={cluster.nodeIds.filter((id) => graph.nodes.has(id)).length}
+              empty={cluster.nodeIds.length === 0}
               onOpen={() => props.onOpenWorktree(cluster.worktree.worktreeId)}
             />
           ))}
@@ -674,6 +676,23 @@ export function CanvasStage(props: CanvasStageProps) {
                   delegatedTo={delegatedTo(node.id)}
                   reports={reportsTo(node.id)}
                 />
+              </foreignObject>
+            );
+          })}
+          {[...graph.reserved.values()].map((reserved) => {
+            const point = shown.get(reserved.id);
+            if (!point) return null;
+            return (
+              <foreignObject
+                key={reserved.id}
+                x={point.x}
+                y={point.y}
+                width={NODE_W}
+                height={NODE_H}
+                data-node={reserved.id}
+                className="overflow-visible"
+              >
+                <ReservedBox reserved={reserved} selected={selectedIds.has(reserved.id)} />
               </foreignObject>
             );
           })}

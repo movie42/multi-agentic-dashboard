@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { RunnerSession, SessionsMessage } from "@/common/runner/types";
+import { runsOf, type TemplateRun } from "@/common/templates/types";
 import { EVENTS_SOCKET_URL } from "../api/runnerApi";
 
 const RETRY_MS = 2000;
 
 export type RunnerConnection =
   | { state: "connecting" }
-  | { state: "online"; sessions: RunnerSession[] }
+  | { state: "online"; sessions: RunnerSession[]; runs: TemplateRun[] }
   | { state: "offline" };
 
 function isSessionsMessage(value: unknown): value is SessionsMessage {
@@ -31,7 +32,7 @@ export function useRunnerSessions(): RunnerConnection {
       socket.onmessage = (event: MessageEvent<string>) => {
         try {
           const message: unknown = JSON.parse(event.data);
-          if (isSessionsMessage(message)) setConnection({ state: "online", sessions: message.sessions });
+          if (isSessionsMessage(message)) setConnection({ state: "online", sessions: message.sessions, runs: runsOf(message.runs) });
         } catch (error) {
           console.error("[runner] bad events message", error);
         }

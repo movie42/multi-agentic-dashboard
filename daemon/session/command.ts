@@ -1,4 +1,5 @@
 import { conductorInstructions, MCP_SERVER_NAME } from "../orchestration/conductorMcp.ts";
+import { judgeInstructions } from "../templates/judgeMcp.ts";
 import { hookSettings, type StatusLineScript } from "./hookSettings.ts";
 import type { Command, CommandRequest } from "./SessionRegistry.ts";
 
@@ -32,6 +33,16 @@ function conductorArgs(request: CommandRequest, baseUrl: string): string[] {
   ];
 }
 
+function judgeArgs(request: CommandRequest, baseUrl: string): string[] {
+  if (!request.judge || request.conductor) return [];
+  const config = { mcpServers: { [MCP_SERVER_NAME]: { type: "http", url: mcpUrl(baseUrl, request.id) } } };
+  return ["--mcp-config", JSON.stringify(config), "--allowedTools", `mcp__${MCP_SERVER_NAME}`, "--append-system-prompt", judgeInstructions()];
+}
+
+function modelArgs(request: CommandRequest): string[] {
+  return [...(request.model ? ["--model", request.model] : []), ...(request.effort ? ["--effort", request.effort] : [])];
+}
+
 export function commandFor(request: CommandRequest, environment: CommandEnvironment): Command {
   if (request.kind === "shell") return { file: environment.shell, args: ["-l"] };
   const identity = request.resumeSessionId ? ["--resume", request.resumeSessionId] : ["--session-id", request.id];
@@ -41,6 +52,8 @@ export function commandFor(request: CommandRequest, environment: CommandEnvironm
     args: [
       ...identity,
       ...conductorArgs(request, environment.baseUrl),
+      ...judgeArgs(request, environment.baseUrl),
+      ...modelArgs(request),
       ...(environment.attachmentDir ? ["--add-dir", environment.attachmentDir] : []),
       ...(request.askPermissions ? [] : ["--permission-mode", "bypassPermissions"]),
       "--settings",

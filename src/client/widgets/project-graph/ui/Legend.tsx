@@ -1,9 +1,9 @@
 import type { EdgeKind } from "../model/graph";
 import { EDGE_STYLE } from "./GraphEdges";
 
-const AGENT_LINES: EdgeKind[] = ["delegate", "report", "next"];
+const AGENT_LINES: EdgeKind[] = ["delegate", "report", "next", "route"];
 const WORKTREE_LINES: EdgeKind[] = ["fork", "overlap"];
-const LEGEND_LABEL: Record<EdgeKind, string> = { delegate: "맡김", report: "보고", next: "끝나면 다음", fork: "갈라짐", overlap: "같은 파일 (상자를 고르면 진하게)" };
+const LEGEND_LABEL: Record<EdgeKind, string> = { delegate: "맡김", report: "보고", next: "끝나면 다음", fork: "갈라짐", overlap: "같은 파일 (상자를 고르면 진하게)", route: "템플릿 다음 카드" };
 
 /** What each line means, pinned to the bottom-left of the canvas. */
 interface LegendProps {

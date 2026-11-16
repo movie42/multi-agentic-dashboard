@@ -8,9 +8,9 @@ import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentContr
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 import { useDraft } from "@/client/shared/lib/useDraft";
 import { isResumePicker, opensTerminalDialog } from "../lib/terminalDialog";
-import { useVoice } from "../model/useVoice";
+import { useVoice } from "@/client/shared/lib/useVoice";
 import { ResumePicker } from "./ResumePicker";
-import { VoiceButton } from "./VoiceButton";
+import { VoiceButton } from "@/client/shared/ui/VoiceButton";
 
 type SendResult = { kind: "idle"; id: number } | { kind: "sent"; id: number } | { kind: "error"; id: number; message: string };
 type SendStatus = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string };

@@ -16,6 +16,10 @@ import { handleMcpMessage, type ConductorToolDeps } from "./orchestration/conduc
 import { describePermission, isDelegated, ruleFor } from "./orchestration/grants.ts";
 import { lastAnswerOf } from "./orchestration/lastAnswer.ts";
 import type { Orchestration } from "./orchestration/Orchestration.ts";
+import { handleJudgeMessage } from "./templates/judgeMcp.ts";
+import type { TemplateRuns } from "./templates/TemplateRuns.ts";
+import type { TemplateStore } from "./templates/TemplateStore.ts";
+import { DICTATION_HANDLE, type Dictation } from "./session/Dictation.ts";
 import { answerOf, permissionInputOf, type PermissionRequestInput } from "./session/permissions.ts";
 import { parseStatusLine } from "./session/statusLine.ts";
 import type { SessionRegistry } from "./session/SessionRegistry.ts";
@@ -23,6 +27,9 @@ import type { SessionRegistry } from "./session/SessionRegistry.ts";
 export interface RunnerServerOptions {
   registry: SessionRegistry;
   orchestration: Orchestration;
+  runs: TemplateRuns;
+  templates: TemplateStore;
+  dictation: Dictation;
   port: number;
   allowedOrigins: readonly string[];
   readAnswer?: (body: unknown) => Promise<string | null>;
@@ -48,6 +55,9 @@ const MCP_PATH = /^\/mcp\/([^/]+)$/;
 const LINK_PATH = /^\/links\/([^/]+)$/;
 const LINK_RESUME_PATH = /^\/links\/([^/]+)\/resume$/;
 const WORKTREE_REQUEST_PATH = /^\/conductors\/([^/]+)\/worktree$/;
+const TEMPLATE_PATH = /^\/templates\/([^/]+)$/;
+const RUN_PATH = /^\/runs\/([^/]+)$/;
+const RUN_ACTION_PATH = /^\/runs\/([^/]+)\/(start|continue|retry|stop)$/;
 
 function isHookEvent(value: string): value is RunnerHookEvent {
   return RUNNER_HOOK_EVENTS.some((event) => event === value);
@@ -145,7 +155,7 @@ function send(socket: WebSocket, message: TerminalServerMessage | SessionsMessag
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
 
-export function createRunnerServer({ registry, orchestration, port, allowedOrigins, readAnswer = lastAnswerOf }: RunnerServerOptions): RunnerServer {
+export function createRunnerServer({ registry, orchestration, runs, templates, dictation, port, allowedOrigins, readAnswer = lastAnswerOf }: RunnerServerOptions): RunnerServer {
   const sockets = new WebSocketServer({ noServer: true });
   const watchers = new Set<WebSocket>();
   const view = () => orchestration.decorate(registry.list());
@@ -254,7 +264,9 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
         // Lines fire before the hook returns, so a prompt the next turn submits cannot reach onPrompt ahead of onStop.
         if (event === "Stop") {
           try {
-            orchestration.onStop(id, await readAnswer(body));
+            const answer = await readAnswer(body);
+            orchestration.onStop(id, answer);
+            runs.onStop(id, answer).catch((error: unknown) => console.warn("[runner] template run stop failed", id, error));
           } catch (error) {
             console.warn("[runner] stop lines failed", id, error);
           }
@@ -268,6 +280,12 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
         const id = decodeURIComponent(mcp[1] ?? "");
         if (request.method !== "POST") {
           response.writeHead(405, { Allow: "POST" }).end();
+          return;
+        }
+        if (!orchestration.isConductor(id) && runs.isJudge(id)) {
+          const reply = handleJudgeMessage(id, await readBody(request), runs);
+          if (reply) respond(response, undefined, 200, reply);
+          else response.writeHead(202).end();
           return;
         }
         if (!orchestration.isConductor(id)) {
@@ -371,11 +389,92 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
         return;
       }
 
+      if (url.pathname === "/templates" && request.method === "GET") {
+        respond(response, origin, 200, { ok: true, templates: await templates.list() });
+        return;
+      }
+
+      if (url.pathname === "/templates" && request.method === "POST") {
+        const template = await templates.save(await readBody(request));
+        respond(response, origin, template ? 200 : 400, template ? { ok: true, template } : { ok: false, error: "카드가 하나 이상 있는 템플릿만 저장할 수 있어요." });
+        return;
+      }
+
+      const template = TEMPLATE_PATH.exec(url.pathname);
+      if (template && request.method === "DELETE") {
+        const removed = await templates.remove(decodeURIComponent(template[1] ?? ""));
+        respond(response, origin, removed ? 200 : 404, removed ? { ok: true } : { ok: false, error: "템플릿이 없어요." });
+        return;
+      }
+
+      if (url.pathname === "/runs" && request.method === "GET") {
+        respond(response, origin, 200, { ok: true, runs: runs.list() });
+        return;
+      }
+
+      if (url.pathname === "/runs" && request.method === "POST") {
+        const body = await readBody(request);
+        const templateId = field(body, "templateId");
+        const cwd = field(body, "cwd");
+        const intent = field(body, "intent");
+        const found = typeof templateId === "string" ? await templates.get(templateId) : null;
+        if (!found || typeof cwd !== "string" || !cwd.startsWith("/") || !(await isDirectory(cwd))) {
+          respond(response, origin, 400, { ok: false, error: "템플릿이나 워크트리 폴더를 찾지 못했어요." });
+          return;
+        }
+        const expanded = runs.expand(found, cwd, typeof intent === "string" ? intent : "");
+        const result = expanded.ok && field(body, "start") === true ? runs.start(expanded.run.id) : expanded;
+        respond(response, origin, result.ok ? 200 : 409, result.ok ? { ok: true, run: result.run } : { ok: false, error: result.error });
+        return;
+      }
+
+      const runAction = RUN_ACTION_PATH.exec(url.pathname);
+      if (runAction && request.method === "POST") {
+        const runId = decodeURIComponent(runAction[1] ?? "");
+        const body = await readBody(request);
+        const routeId = field(body, "routeId");
+        const text = field(body, "text");
+        const action = runAction[2];
+        const result =
+          action === "start"
+            ? runs.start(runId)
+            : action === "continue"
+              ? runs.continue(runId, typeof routeId === "string" ? routeId : null)
+              : action === "retry"
+                ? runs.retry(runId, typeof text === "string" ? text : "")
+                : runs.stop(runId);
+        respond(response, origin, result.ok ? 200 : 409, result.ok ? { ok: true, run: result.run } : { ok: false, error: result.error });
+        return;
+      }
+
+      const run = RUN_PATH.exec(url.pathname);
+      if (run && request.method === "DELETE") {
+        const removed = runs.remove(decodeURIComponent(run[1] ?? ""));
+        respond(response, origin, removed ? 200 : 404, removed ? { ok: true } : { ok: false, error: "펼친 템플릿이 없어요." });
+        return;
+      }
+
+      if (url.pathname === "/dictation" && request.method === "POST") {
+        try {
+          await dictation.ensure();
+          respond(response, origin, 200, { ok: true, handle: DICTATION_HANDLE });
+        } catch (error) {
+          console.error("[dictation] start failed", error);
+          respond(response, origin, 503, { ok: false, error: error instanceof Error ? error.message : String(error) });
+        }
+        return;
+      }
+
       const input = INPUT_PATH.exec(url.pathname);
       if (input && request.method === "POST") {
         const id = decodeURIComponent(input[1] ?? "");
         const body = await readBody(request);
         const text = field(body, "text");
+        if (id === DICTATION_HANDLE) {
+          const written = typeof text === "string" && dictation.write(text);
+          respond(response, origin, written ? 200 : 404, written ? { ok: true } : { ok: false, error: "받아쓰기 세션이 없어요." });
+          return;
+        }
         const target = registry.get(id);
         if (!target || target.status === "exited") {
           respond(response, origin, 404, { ok: false, error: "세션이 없거나 이미 끝났어요." });
@@ -396,7 +495,8 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
 
       const screen = SCREEN_PATH.exec(url.pathname);
       if (screen && request.method === "GET") {
-        const lines = await registry.screen(decodeURIComponent(screen[1] ?? ""));
+        const screenId = decodeURIComponent(screen[1] ?? "");
+        const lines = screenId === DICTATION_HANDLE ? await dictation.screen() : await registry.screen(screenId);
         respond(response, origin, lines ? 200 : 404, lines ? { ok: true, lines } : { ok: false, error: "세션이 없어요." });
         return;
       }
@@ -428,7 +528,7 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
       sockets.handleUpgrade(request, socket, head, (ws) => {
         ws.on("error", (error) => console.error("[runner] events socket error", error));
         watchers.add(ws);
-        send(ws, { type: "sessions", sessions: view() });
+        send(ws, { type: "sessions", sessions: view(), runs: runs.list() });
         ws.on("close", () => watchers.delete(ws));
       });
       return;

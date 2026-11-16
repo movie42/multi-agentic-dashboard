@@ -5,6 +5,7 @@ import { GRANT_BUNDLES, type ConductorScopeKind, type GrantBundle } from "@/comm
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { Spinner } from "@/client/shared/ui/Spinner";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 export const GRANT_LABEL: Record<GrantBundle, string> = { edit: "파일 편집", build: "테스트 · 빌드 명령", commit: "git 커밋" };
 export const SCOPE_LABEL: Record<ConductorScopeKind, string> = { project: "프로젝트 전체", worktree: "이 워크트리와 하위 워크트리" };
@@ -46,14 +47,17 @@ export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onL
       <p className="text-[14px] font-bold">
         지휘자 시작 <span className="font-normal text-muted">· {SCOPE_LABEL[scope]} ({scopeName})</span>
       </p>
+      <div className="flex items-end gap-1.5">
       <textarea
         rows={2}
         autoFocus
         value={prompt}
         onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setPrompt(event.target.value)}
         placeholder="지휘자에게 맡길 일 · 지휘자가 일을 나눠 워크트리 세션들에 맡기고 보고를 받아요"
-        className="field-sizing-content max-h-40 min-h-12 resize-none rounded-[8px] bg-bg px-3 py-2 text-[14px] leading-relaxed outline-none placeholder:text-muted"
+        className="field-sizing-content max-h-40 min-h-12 min-w-0 flex-1 resize-none rounded-[8px] bg-bg px-3 py-2 text-[14px] leading-relaxed outline-none placeholder:text-muted"
       />
+        <DictationButton onText={(text) => setPrompt((current) => appendDictation(current, text))} className="mb-1" />
+      </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
         <span className="text-muted">맡길 권한</span>
         {GRANT_BUNDLES.map((grant) => (

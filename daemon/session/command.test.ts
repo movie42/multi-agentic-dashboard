@@ -52,4 +52,10 @@ describe("commandFor a conductor", () => {
   it("leaves ordinary sessions without orchestration tools", () => {
     expect(commandFor({ id: "s1", kind: "claude" }, environment).args).not.toContain("--mcp-config");
   });
+
+  it("opens a template card with its model, effort and, for a judge card, the route tool", () => {
+    const command = commandFor({ id: "j1", kind: "claude", model: "sonnet", effort: "low", judge: true }, environment);
+    expect(command.args).toEqual(expect.arrayContaining(["--model", "sonnet", "--effort", "low", "--allowedTools", "mcp__agent-control"]));
+    expect(command.args[command.args.indexOf("--mcp-config") + 1]).toContain("http://127.0.0.1:3198/mcp/j1");
+  });
 });

@@ -192,6 +192,13 @@ function AgentRow({
             </span>
           )}
           {files > 0 && <span className="text-[12px] text-muted">산출물 {files}</span>}
+          {(agent.model || agent.effort || agent.contextPercent !== null) && (
+            <span data-row-meta className="shrink-0 text-[12px] text-muted tabular-nums" title="모델 · effort · 컨텍스트 사용률">
+              {[agent.model, agent.effort, agent.contextPercent !== null ? `컨텍스트 ${agent.contextPercent}%` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          )}
           {agent.session && (
             <BookmarkMark
               target={bookmarkTarget(agent.session.id, agent.session.title ?? "", agent.worktreePath, agent.session.bookmark)}

@@ -6,6 +6,8 @@ import type { AgentCard, Artifact } from "@/common/board/types";
 import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { useCardView, type CardView } from "../model/cardViewStore";
+import { consumeJump, useJumpRequest } from "../model/jumpRequestStore";
+import { followJumpTarget } from "../lib/jumpTarget";
 import { TurnList } from "./ConversationHistory";
 import { ChatView, type ChatLayout } from "./ChatView";
 import { MessageView } from "./MessageView";
@@ -20,7 +22,7 @@ import { QuickReply } from "@/client/features/quick-reply";
 import { SessionTitle } from "@/client/features/rename-session";
 import { Stepper } from "@/client/entities/workflow";
 import { StateBadge } from "@/client/entities/agent";
-import { RunnerTerminal, useTerminalRequest } from "@/client/entities/runner";
+import { RunnerTerminal, TerminalTail, useTerminalRequest } from "@/client/entities/runner";
 
 export interface CardProgress {
   taskId: string;
@@ -113,6 +115,17 @@ export function AgentCardView({
   useEffect(() => {
     if (terminalRequest > 0) cardRef.current?.scrollIntoView({ block: "nearest" });
   }, [terminalRequest]);
+  const jumpRequest = useJumpRequest(agent.id);
+  const stopFollowing = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const card = cardRef.current;
+    if (jumpRequest === 0 || !card) return;
+    consumeJump(agent.id);
+    stopFollowing.current?.();
+    stopFollowing.current = followJumpTarget(card);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- follow a jump only when a new one arrives
+  }, [jumpRequest]);
+  useEffect(() => () => stopFollowing.current?.(), []);
   const openUrl = (target: string) => onAction({ type: "open-artifact", target });
   const pullRequests = collectPullRequests(agent, worktreePr);
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr");
@@ -322,27 +335,32 @@ export function AgentCardView({
       )}
 
       {view !== "terminal" && agent.state === "blocked" && !agent.permission && terminalHandle && !isShell && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-tint-2 px-3 py-2 text-[13px]">
-          <p className="min-w-0 flex-1">터미널 화면에서 입력을 기다리고 있어요. 채팅에서는 보이지 않아요.</p>
-          <button
-            type="button"
-            onClick={() => pick("terminal")}
-            className="shrink-0 font-semibold underline decoration-faint underline-offset-[3px] hover:decoration-current"
-          >
-            터미널 열기
-          </button>
+        <div data-jump-focus className="flex flex-col gap-2 rounded-[10px] bg-tint-2 px-3 py-2 text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="min-w-0 flex-1">터미널 화면에서 입력을 기다리고 있어요. 채팅에서는 보이지 않아요.</p>
+            <button
+              type="button"
+              onClick={() => pick("terminal")}
+              className="shrink-0 font-semibold underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              터미널 열기
+            </button>
+          </div>
+          <TerminalTail sessionId={terminalHandle} />
         </div>
       )}
 
       {agent.orchestration && terminalHandle && <OrchestrationPanel terminalHandle={terminalHandle} orchestration={agent.orchestration} />}
 
       {agent.permission && terminalHandle && (
-        <PermissionPrompt
-          key={agent.permission.id}
-          terminalHandle={terminalHandle}
-          permission={agent.permission}
-          delegable={agent.parentId !== null}
-        />
+        <div data-jump-focus>
+          <PermissionPrompt
+            key={agent.permission.id}
+            terminalHandle={terminalHandle}
+            permission={agent.permission}
+            delegable={agent.parentId !== null}
+          />
+        </div>
       )}
 
       {chatLayout === "page" && filesFooter}

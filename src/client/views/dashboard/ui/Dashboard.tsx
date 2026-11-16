@@ -15,7 +15,7 @@ import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
-import { AgentCardView, type CardProgress, type ChatLayout } from "@/client/widgets/agent-card";
+import { AgentCardView, requestJump, type CardProgress, type ChatLayout } from "@/client/widgets/agent-card";
 import { foldWorkers, groupAgents, needsInput, type FoldedAgents } from "@/client/entities/agent";
 import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
@@ -182,6 +182,13 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     )
       return;
     handledJump.current = jump;
+    const card = jump.targets
+      .map((target) => document.querySelector(`[data-card-id="${CSS.escape(target)}"]`))
+      .find((found): found is HTMLElement => found instanceof HTMLElement);
+    if (card) {
+      card.focus({ preventScroll: true });
+      return;
+    }
     const element = jump.targets
       .map((target) =>
         document.querySelector<HTMLElement>(
@@ -216,8 +223,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const folded = foldWorkers(board?.agents ?? []);
   const needsMeCount = groupAgents(folded.top, dismissed.isDismissed).needsMe
     .length;
-  const jumpToAgent = (agent: AgentCard) =>
+  const jumpToAgent = (agent: AgentCard) => {
+    requestJump(agent.id);
     jumpTo(agent.repo, [agent.id, agent.worktreeId], agent.worktreeId);
+  };
   useAttention(board?.agents ?? null, needsMeCount, folded.foldedIds, jumpToAgent);
   useKeyboardNav();
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { DICTATION_HANDLE } from "@/common/runner/types";
 
 export interface VoiceTerminal {
   screen(handle: string): Promise<string[]>;
@@ -198,6 +199,16 @@ export function createVoice(terminal: VoiceTerminal, options: VoiceOptions = {})
       const lines = await terminal.screen(handle);
       const recording = isRecording(lines) || Boolean(hold);
       return { recording, transcript: recording ? readPrompt(lines) : "" };
+    },
+  };
+}
+
+export function withDictation<T extends { toggle(handle: string, intent?: VoiceIntent): Promise<VoiceToggleResult> }>(voice: T, ensure: () => Promise<void>): T {
+  return {
+    ...voice,
+    async toggle(handle: string, intent: VoiceIntent = "toggle") {
+      if (handle === DICTATION_HANDLE && intent === "toggle") await ensure();
+      return voice.toggle(handle, intent);
     },
   };
 }

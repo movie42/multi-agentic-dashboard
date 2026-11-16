@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { templatesQueryOptions } from "@/client/entities/runner";
 import { readJson } from "@/client/shared/api/json";
 import { toastError } from "@/client/shared/model/toastStore";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import type { WorktreeSummary } from "@/common/board/types";
-import type { WizardOrigin, WizardRequest, WizardResponse, WorktreePlan } from "@/common/worktreeWizard/types";
+import type { WizardOrigin, WizardRequest, WizardResponse, WizardTemplate, WorktreePlan } from "@/common/worktreeWizard/types";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 type Step =
   | { kind: "closed" }
@@ -41,6 +44,7 @@ export function wizardOrigin(worktree: WorktreeSummary, from: boolean): WizardOr
 export function useWorktreeWizard(origin: WizardOrigin) {
   const [step, setStep] = useState<Step>({ kind: "closed" });
   const [error, setError] = useState<string | null>(null);
+  const [template, setTemplate] = useState<WizardTemplate | null>(null);
 
   const showTurn = (payload: WizardResponse) => {
     if (!payload.ok || !("sessionId" in payload)) return;
@@ -80,7 +84,7 @@ export function useWorktreeWizard(origin: WizardOrigin) {
     setError(null);
     setStep({ kind: "creating", plan: step.plan });
     try {
-      const payload = await post({ action: "create", origin, plan: step.plan });
+      const payload = await post({ action: "create", origin, plan: step.plan, template });
       setStep({ kind: "created", name: "created" in payload ? payload.created.name : step.plan.name });
       if ("created" in payload && payload.created.launchError) toastError("worktree-wizard", new Error(payload.created.launchError));
     } catch (createError) {
@@ -93,11 +97,12 @@ export function useWorktreeWizard(origin: WizardOrigin) {
   const close = () => {
     setStep({ kind: "closed" });
     setError(null);
+    setTemplate(null);
   };
 
   const busy = step.kind === "thinking" || step.kind === "creating";
 
-  return { origin, step, busy, error, open, answer, editPlan, create, close };
+  return { origin, step, busy, error, template, setTemplate, open, answer, editPlan, create, close };
 }
 
 export type WorktreeWizard = ReturnType<typeof useWorktreeWizard>;
@@ -128,6 +133,7 @@ function ReplyBox({ placeholder, onSend }: ReplyBoxProps) {
         placeholder={placeholder}
         className="min-w-0 flex-1 rounded-[8px] bg-bg px-3 py-1.5 text-[13px] outline-none placeholder:text-muted"
       />
+      <DictationButton onText={(spoken) => setText((current) => appendDictation(current, spoken))} />
       <button
         type="button"
         onClick={send}
@@ -157,6 +163,51 @@ function Field({ label, value, onChange, mono = false }: FieldProps) {
         className={`rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] text-fg outline-none ${mono ? "font-mono" : ""}`}
       />
     </label>
+  );
+}
+
+interface TemplatePickProps {
+  wizard: WorktreeWizard;
+  branch: string;
+}
+
+function TemplatePick({ wizard, branch }: TemplatePickProps) {
+  const templates = useQuery(templatesQueryOptions()).data ?? [];
+  const { template } = wizard;
+  if (templates.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex flex-col gap-1 text-[12px] text-muted">
+        템플릿 · 고르면 워크트리가 생기는 대로 카드를 펼치고 바로 시작해요
+        <select
+          value={template?.id ?? ""}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => wizard.setTemplate(event.target.value ? { id: event.target.value, intent: template?.intent ?? "" } : null)}
+          className="rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] text-fg outline-none"
+        >
+          <option value="">템플릿 없이 만들기</option>
+          {templates.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} · 카드 {item.cards.length}개
+            </option>
+          ))}
+        </select>
+      </label>
+      {template && (
+        <label className="flex flex-col gap-1 text-[12px] text-muted">
+          이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요
+          <span className="flex items-end gap-1.5">
+            <textarea
+              rows={1}
+              value={template.intent}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.setTemplate({ ...template, intent: event.target.value })}
+              placeholder={`비워 두면 브랜치 이름 '${branch}'으로 시작해요`}
+              className="field-sizing-content max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
+            />
+            <DictationButton onText={(text) => wizard.setTemplate({ ...template, intent: appendDictation(template.intent, text) })} />
+          </span>
+        </label>
+      )}
+    </div>
   );
 }
 
@@ -191,16 +242,22 @@ function PlanCard({ wizard, plan }: PlanCardProps) {
           이 워크트리의 하위로 연결
         </label>
       )}
-      <label className="flex flex-col gap-1 text-[12px] text-muted">
-        첫 요청 · 채우면 새 워크트리에서 Claude 세션이 이 요청으로 시작해요
-        <textarea
-          rows={1}
-          value={plan.firstPrompt}
-          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.editPlan({ firstPrompt: event.target.value })}
-          placeholder="비워 두면 워크트리와 터미널만 만들어요"
-          className="field-sizing-content max-h-40 min-h-8 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
-        />
-      </label>
+      <TemplatePick wizard={wizard} branch={plan.branch} />
+      {!wizard.template && (
+        <label className="flex flex-col gap-1 text-[12px] text-muted">
+          첫 요청 · 채우면 새 워크트리에서 Claude 세션이 이 요청으로 시작해요
+          <span className="flex items-end gap-1.5">
+            <textarea
+              rows={1}
+              value={plan.firstPrompt}
+              onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => wizard.editPlan({ firstPrompt: event.target.value })}
+              placeholder="비워 두면 워크트리와 터미널만 만들어요"
+              className="field-sizing-content max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-[8px] bg-bg px-2.5 py-1.5 text-[13px] leading-relaxed text-fg outline-none placeholder:text-muted"
+            />
+            <DictationButton onText={(text) => wizard.editPlan({ firstPrompt: appendDictation(plan.firstPrompt, text) })} />
+          </span>
+        </label>
+      )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <button
           type="button"

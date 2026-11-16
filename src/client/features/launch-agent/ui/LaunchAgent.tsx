@@ -8,6 +8,7 @@ import { Spinner } from "@/client/shared/ui/Spinner";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 import { useDraft } from "@/client/shared/lib/useDraft";
+import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 type LaunchResult = { kind: "idle" } | { kind: "sent"; where: string } | { kind: "error"; message: string };
 type LaunchStatus = LaunchResult | { kind: "sending" };
@@ -102,6 +103,7 @@ export function LaunchAgent({ worktrees, showRepo, draftKey }: LaunchAgentProps)
               }
               className="field-sizing-content max-h-40 min-h-8 flex-1 resize-none rounded-[8px] bg-bg px-3 py-1.5 text-[14px] leading-relaxed outline-none placeholder:text-muted"
             />
+            <DictationButton onText={(text) => setPrompt(appendDictation(prompt, text))} className="mb-0.5" />
           </div>
           <button
             type="button"
