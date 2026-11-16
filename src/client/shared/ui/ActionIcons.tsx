@@ -38,6 +38,12 @@ export const ACTION_ICONS = {
       <path d="M7 7h6M10 4.8v4.4M7 13.5h6" />
     </Icon>
   ),
+  doc: (
+    <Icon>
+      <path d="M5.5 2.5h6l3.5 3.5v10a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4 16V4a1.5 1.5 0 0 1 1.5-1.5z" />
+      <path d="M11.5 2.5V6H15M7 10h6M7 13.5h4" />
+    </Icon>
+  ),
   worktree: (
     <Icon>
       <path d="M2.5 6.5a2 2 0 0 1 2-2h3l1.6 1.8h6.4a2 2 0 0 1 2 2v6.7a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z" />

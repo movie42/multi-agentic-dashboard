@@ -177,7 +177,7 @@ export function WorktreePanel({
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             title={leadTask ? `${leadTask.title} · 맨 위로` : "맨 위로"}
-            className="flex min-w-0 items-center gap-2 text-left text-[12px] leading-none"
+            className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-left text-[12px] leading-none"
           >
             <span className="shrink-0 font-bold">{shownName}</span>
             {leadStep && (
@@ -193,6 +193,30 @@ export function WorktreePanel({
                 <span className="truncate text-muted">{leadTask?.title}</span>
               </>
             )}
+          </button>
+          {leadTask?.pageIndex && (
+            <button
+              type="button"
+              onClick={() => leadTask.pageIndex && open(leadTask.pageIndex)}
+              aria-label="문서 열기"
+              title="문서 열기"
+              className="ml-2 shrink-0 cursor-pointer rounded-md p-0.5 text-muted hover:bg-tint-2 hover:text-fg"
+            >
+              {ACTION_ICONS.doc}
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={`${worktree.name} 워크트리 메뉴`}
+            aria-expanded={menu !== null}
+            title="워크트리 메뉴"
+            onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              openMenu({ x: rect.right - MENU_WIDTH, y: rect.bottom + 4 });
+            }}
+            className="ml-1 shrink-0 cursor-pointer rounded-md p-0.5 text-muted hover:bg-tint-2 hover:text-fg"
+          >
+            {ACTION_ICONS.menu}
           </button>
         </div>
       </div>
