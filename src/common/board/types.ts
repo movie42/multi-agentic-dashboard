@@ -37,6 +37,7 @@ export interface AgentCard {
   parentId: string | null;
   model: string | null;
   contextPercent: number | null;
+  effort: string | null;
   permission: RunnerPermission | null;
   /** Conductor settings, outgoing lines and parent from the runner daemon; null for sessions it does not know. */
   orchestration: SessionOrchestration | null;

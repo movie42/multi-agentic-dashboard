@@ -192,11 +192,12 @@
               "recommended": "new-worktree",
               "recommendation": "new-worktree. 무엇을 하는 스킬인지(새 워크트리 만들기)가 이름에 드러나고, 짧은 worktree는 Claude Code의 워크트리 기능이나 다른 스킬과 이름이 겹치기 쉽다.",
               "answer": {
-                "choice": "unsure",
+                "choice": "",
                 "why": "",
                 "note": "ac-worktree",
                 "followUp": "",
-                "copy": ""
+                "copy": "",
+                "by": "user"
               },
               "decision": "이 라운드에서는 이름을 정하지 않았다. 메모로 적어 준 ac-worktree를 [[R3-Q1]]에서 다시 물어 그 이름으로 정했다.",
               "reason": {
@@ -1042,5 +1043,5 @@
       "why": "사용자가 계획 정리 후 새 세션(Fable 5.2)에서 바로 진행하라고 함"
     }
   ],
-  "pulledAt": 1794569888144
+  "pulledAt": 1794569907156
 }

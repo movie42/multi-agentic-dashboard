@@ -17,6 +17,8 @@ export interface RunnerSession {
   exitCode: number | null;
   model: string | null;
   contextPercent: number | null;
+  /** Effort level from Claude Code's status line input; null before the first report or on a model without effort. */
+  effort: string | null;
   /**
    * The Claude Code session the terminal is on now, from hook payloads. It moves away from `id`
    * when `/resume` or `/clear` is run inside the terminal; null until the first hook arrives.

@@ -38,6 +38,7 @@ export const runnerSessionSchema = z.object({
   exitCode: z.number().nullable(),
   model: z.string().nullable().catch(null),
   contextPercent: z.number().nullable().catch(null),
+  effort: z.string().nullable().catch(null),
   conversationId: z.string().nullable().catch(null),
   permission: z
     .object({

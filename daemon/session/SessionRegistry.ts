@@ -172,6 +172,7 @@ export class SessionRegistry {
         exitCode: null,
         model: running?.session.model ?? null,
         contextPercent: null,
+        effort: running?.session.effort ?? null,
         conversationId: null,
         permission: null,
         orchestration: null,
@@ -262,8 +263,9 @@ export class SessionRegistry {
     if (report.usage) this.#options.onUsage?.({ ...report.usage, receivedAt: this.#options.now() });
     const model = report.model ?? entry.session.model;
     const contextPercent = report.contextPercent ?? entry.session.contextPercent;
-    if (model === entry.session.model && contextPercent === entry.session.contextPercent) return true;
-    entry.session = { ...entry.session, model, contextPercent };
+    const effort = report.model !== null ? report.effort : entry.session.effort;
+    if (model === entry.session.model && contextPercent === entry.session.contextPercent && effort === entry.session.effort) return true;
+    entry.session = { ...entry.session, model, contextPercent, effort };
     this.#changed();
     return true;
   }

@@ -6,6 +6,7 @@ describe("parseStatusLine", () => {
     const report = parseStatusLine({
       model: { id: "claude-opus-5-5", display_name: "Opus 5.5" },
       context_window: { used_percentage: 41.6, context_window_size: 200000 },
+      effort: { level: "high" },
       rate_limits: {
         five_hour: { used_percentage: 12.4, resets_at: 1_800_000_000 },
         seven_day: { used_percentage: 63, resets_at: "2027-01-01T00:00:00Z" },
@@ -14,6 +15,7 @@ describe("parseStatusLine", () => {
     expect(report).toEqual({
       model: "Opus 5.5",
       contextPercent: 42,
+      effort: "high",
       usage: {
         session: { percent: 12, resetsAt: new Date(1_800_000_000_000).toISOString() },
         weekly: { percent: 63, resetsAt: "2027-01-01T00:00:00Z" },
@@ -31,6 +33,7 @@ describe("parseStatusLine", () => {
     expect(report?.contextPercent).toBe(25);
     expect(report?.usage).toBeNull();
     expect(report?.model).toBeNull();
+    expect(report?.effort).toBeNull();
   });
 
   it("ignores a body that is not an object", () => {

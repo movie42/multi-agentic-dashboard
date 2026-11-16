@@ -3,6 +3,7 @@ import type { RunnerUsage, RunnerUsageWindow } from "../../src/common/runner/typ
 export interface StatusLineReport {
   model: string | null;
   contextPercent: number | null;
+  effort: string | null;
   usage: Omit<RunnerUsage, "receivedAt"> | null;
 }
 
@@ -35,6 +36,11 @@ function modelOf(value: unknown): string | null {
   return typeof name === "string" && name.trim() ? name : null;
 }
 
+function effortOf(value: unknown): string | null {
+  const level = record(value)?.level;
+  return typeof level === "string" && level.trim() ? level : null;
+}
+
 function contextOf(value: unknown): number | null {
   const raw = record(value);
   if (!raw) return null;
@@ -58,6 +64,7 @@ export function parseStatusLine(body: unknown): StatusLineReport | null {
   return {
     model: modelOf(raw.model),
     contextPercent: contextOf(raw.context_window),
+    effort: effortOf(raw.effort),
     usage: session || weekly ? { session, weekly } : null,
   };
 }
