@@ -12,7 +12,10 @@ import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPosi
 import { buildGraph, type GraphEdge } from "../model/graph";
 import { autoLayout, clusterRect, groupRect, type Point, unionRect, nodeRect } from "../model/layout";
 import { useCanvasState } from "../model/useCanvasState";
-import { CanvasStage } from "./CanvasStage";
+import { CanvasStage, type MenuTarget } from "./CanvasStage";
+import { CanvasMenu } from "./CanvasMenu";
+import { menuFor } from "./canvasMenuItems";
+import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { ConnectPicker, GHOST_ID, GhostNode } from "./CanvasOverlays";
 import { GraphToolbar } from "./GraphToolbar";
 import { Legend } from "./Legend";
@@ -70,6 +73,9 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [ghostOpen, setGhostOpen] = useState(false);
   const [ghostFrom, setGhostFrom] = useState<string | null>(null);
   const [stageKey, setStageKey] = useState(0);
+  const [menu, setMenu] = useState<{ target: MenuTarget; at: Point } | null>(null);
+  const [panelPref, writePanelPref] = useStoredList("agent-control:canvas-panel");
+  const panelCollapsed = panelPref.includes("collapsed");
 
   const liveIds = new Set([...graph.nodes.keys(), ...graph.clusters.map((cluster) => cluster.id)]);
   const save = (change: (current: typeof canvas) => typeof canvas) => updateCanvas((current) => pruneCanvas(change(current), liveIds));
@@ -78,6 +84,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
 
   const select = (ids: string[], additive: boolean) => {
     const picked = ids.filter((id) => id !== GHOST_ID);
+    setMenu(null);
     setEdgeId(null);
     setShowAllLinks(false);
     setPending(null);
@@ -114,6 +121,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         setSelected([]);
         setEdgeId(null);
         setPending(null);
+        setMenu(null);
         setConnecting(false);
       }
     };
@@ -144,6 +152,18 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const ghostAt = { x: content ? content.x : 0, y: content ? content.y + content.h + GHOST_GAP : 0 };
   const linkFromId = ghostFrom ?? (liveSelected.length === 1 ? liveSelected[0]! : null);
   const linkFromAgent = linkFromId ? graph.nodes.get(linkFromId)?.agent : undefined;
+
+  const menuContent = menu
+    ? menuFor(menu.target, {
+        graph,
+        canvas,
+        selected: liveSelected,
+        save,
+        select: (ids) => select(ids, false),
+        onAction,
+        onOpenWorktree,
+      })
+    : null;
 
   const view: PanelView = showAllLinks
     ? { kind: "all" }
@@ -194,6 +214,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
                 }}
                 onAction={onAction}
               />
+              {menuContent && menu && <CanvasMenu at={menu.at} zoom={zoom} {...menuContent} onClose={() => setMenu(null)} />}
               {pending && (
                 <ConnectPicker
                   at={pending.at}
@@ -214,6 +235,10 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           }}
           onMove={(moved) => save((current) => movePositions(current, moved))}
           onConnect={connect}
+          onContextMenu={(target, at) => {
+            setPending(null);
+            setMenu({ target, at });
+          }}
           onViewportChange={(viewport) => updateCanvas((current) => ({ ...current, viewport }))}
           onOpenWorktree={onOpenWorktree}
           onRenameGroup={(groupId, name) => save((current) => renameGroup(current, groupId, name))}
@@ -242,7 +267,19 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           />
         </CanvasStage>
       </div>
-      <SidePanel graph={graph} view={view} renderCard={renderCard} onAction={onAction} onOpenWorktree={onOpenWorktree} />
+      {panelCollapsed ? (
+        <button
+          type="button"
+          onClick={() => writePanelPref([])}
+          title="오른쪽 패널 펼치기"
+          className="flex h-full w-9 shrink-0 flex-col items-center gap-2 border-l border-hair bg-bg pt-4 text-[12px] font-semibold text-muted hover:bg-tint hover:text-fg"
+        >
+          <span aria-hidden>«</span>
+          {view.kind === "agent" && <span className="size-2 rounded-full bg-ask" />}
+        </button>
+      ) : (
+        <SidePanel graph={graph} view={view} renderCard={renderCard} onAction={onAction} onOpenWorktree={onOpenWorktree} onCollapse={() => writePanelPref(["collapsed"])} />
+      )}
     </div>
   );
 }

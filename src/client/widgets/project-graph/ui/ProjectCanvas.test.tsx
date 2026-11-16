@@ -95,4 +95,21 @@ describe("ProjectCanvas", () => {
     fireEvent.click(screen.getByRole("button", { name: "끊기" }));
     expect(onAction).toHaveBeenCalledWith({ type: "unlink-sessions", linkId: "next-a-b" });
   });
+
+  it("closes a session from the right-click menu only after a second press", () => {
+    const onAction = renderCanvas([agentCard({ id: "s1", worktreeId: "/p/shop-a", title: "결제 API", terminalHandle: "t1" })]);
+    fireEvent.contextMenu(screen.getByText("결제 API"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "세션 닫기" }));
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("menuitem", { name: "한 번 더 누르면 닫아요" }));
+    expect(onAction).toHaveBeenCalledWith({ type: "close-terminal", terminalHandle: "t1" });
+  });
+
+  it("folds the side panel away and back", () => {
+    renderCanvas([agentCard({ id: "s1", worktreeId: "/p/shop-a", title: "결제 API" })]);
+    fireEvent.click(screen.getByRole("button", { name: "오른쪽 패널 접기" }));
+    expect(screen.queryByText("상자를 누르면 여기서 답할 수 있어요.")).toBeNull();
+    fireEvent.click(screen.getByTitle("오른쪽 패널 펼치기"));
+    expect(screen.getByText("상자를 누르면 여기서 답할 수 있어요.")).toBeTruthy();
+  });
 });

@@ -20,6 +20,8 @@ type Gesture =
   | { kind: "marquee"; start: Point; rect: Rect | null; additive: boolean }
   | { kind: "connect"; from: string };
 
+export type MenuTarget = { kind: "node" | "cluster" | "group" | "edge"; id: string };
+
 interface Drag {
   ids: ReadonlySet<string>;
   dx: number;
@@ -45,6 +47,7 @@ interface CanvasStageProps {
   onSelectEdge: (edge: GraphEdge) => void;
   onMove: (moved: Map<string, Point>) => void;
   onConnect: (from: string, to: string, at: Point) => void;
+  onContextMenu: (target: MenuTarget, at: Point) => void;
   onViewportChange: (viewport: Viewport) => void;
   onOpenWorktree: (worktreeId: string) => void;
   onRenameGroup: (groupId: string, name: string) => void;
@@ -260,6 +263,23 @@ export function CanvasStage(props: CanvasStageProps) {
     }
   };
 
+  const onContextMenu = (event: React.MouseEvent<SVGSVGElement>) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const node = target?.closest("[data-node]")?.getAttribute("data-node");
+    const handle = target?.closest("[data-drag]");
+    const edge = target?.closest("[data-edge]")?.getAttribute("data-edge");
+    const hit: MenuTarget | null = node
+      ? { kind: "node", id: node }
+      : edge
+        ? { kind: "edge", id: edge }
+        : handle
+          ? { kind: handle.getAttribute("data-drag") === "group" ? "group" : "cluster", id: handle.getAttribute("data-id") ?? "" }
+          : null;
+    if (!hit || target?.closest("[role='menu']")) return;
+    event.preventDefault();
+    props.onContextMenu(hit, toWorld(event.clientX, event.clientY));
+  };
+
   const delegatedTo = (id: string) => [
     ...new Set(
       graph.edges
@@ -279,6 +299,7 @@ export function CanvasStage(props: CanvasStageProps) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onContextMenu={onContextMenu}
       >
         <defs>
           <pattern id="canvas-dots" width={24} height={24} patternUnits="userSpaceOnUse" patternTransform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>

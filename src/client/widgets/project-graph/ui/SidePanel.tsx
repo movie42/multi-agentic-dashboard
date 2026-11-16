@@ -73,6 +73,7 @@ interface SidePanelProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
+  onCollapse: () => void;
 }
 
 const HEADING = "text-[11px] font-semibold tracking-[0.08em] text-muted";
@@ -80,12 +81,21 @@ const FOOT_BUTTON =
   "inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-[13px] font-semibold shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint";
 
 /** Answer the selected session in place, see its lines, one line, or every line of the project. */
-export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree }: SidePanelProps) {
+export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onCollapse }: SidePanelProps) {
   const links = graph.edges.filter((edge) => edge.linkId !== null);
   const agent = view.kind === "agent" ? view.agent : null;
   return (
-    <aside data-scroll className="flex h-full w-[min(440px,40vw)] shrink-0 flex-col border-l border-hair bg-bg">
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-4">
+    <aside data-scroll className="relative flex h-full w-[min(440px,40vw)] shrink-0 flex-col border-l border-hair bg-bg">
+      <button
+        type="button"
+        onClick={onCollapse}
+        title="오른쪽 패널 접기"
+        aria-label="오른쪽 패널 접기"
+        className="absolute top-3 left-2 z-10 flex size-7 items-center justify-center rounded-md text-[15px] text-muted hover:bg-tint hover:text-fg"
+      >
+        »
+      </button>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-11 pb-4">
         {view.kind === "all" && (
           <section className="flex flex-col gap-3">
             <p className={HEADING}>이 프로젝트의 연결 · 규칙</p>
