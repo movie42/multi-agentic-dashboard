@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { targetOfDocUrl, useDocViewerStore } from "@/client/features/view-doc";
 import { paneWidth } from "@/client/shared/lib/paneWidth";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -36,6 +36,23 @@ export function DocPanel({ agents }: DocPanelProps) {
   const showToast = useToastStore((state) => state.show);
   const activeTab = tabs.find((tab) => tab.target === active) ?? null;
   const isOpen = tabs.length > 0;
+  const framesRef = useRef<HTMLDivElement>(null);
+  const reloadActive = () =>
+    framesRef.current?.querySelector<HTMLIFrameElement>("iframe[data-active]")?.contentWindow?.location.reload();
+
+  useEffect(() => {
+    void useDocViewerStore.persist.rehydrate();
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onReload = (event: Event) => {
+      event.preventDefault();
+      reloadActive();
+    };
+    window.addEventListener("agent-control:reload", onReload);
+    return () => window.removeEventListener("agent-control:reload", onReload);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -104,6 +121,16 @@ export function DocPanel({ agents }: DocPanelProps) {
           {activeTab && (
             <button
               type="button"
+              title="새로고침 (⌘R)"
+              onClick={reloadActive}
+              className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              새로고침
+            </button>
+          )}
+          {activeTab && (
+            <button
+              type="button"
               onClick={() => openInBrowser(activeTab.current)}
               className="underline decoration-faint underline-offset-[3px] hover:decoration-current"
             >
@@ -121,11 +148,12 @@ export function DocPanel({ agents }: DocPanelProps) {
           </button>
         </div>
       </header>
-      <div className="relative min-h-0 flex-1">
+      <div ref={framesRef} className="relative min-h-0 flex-1">
         {tabs.map((tab) => (
           <DocFrame
             key={tab.target}
             target={tab.target}
+            active={tab.target === active}
             onNavigate={(current, label) => navigated(tab.target, current, label)}
             className={`absolute inset-0 ${tab.target === active ? "" : "invisible"}`}
           />

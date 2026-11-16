@@ -5,6 +5,7 @@ import { docLabel, docUrl, targetOfDocUrl } from "@/client/features/view-doc";
 
 interface DocFrameProps {
   target: string;
+  active?: boolean;
   className?: string;
   /** Called on every page load inside the frame, including links followed in the document. */
   onNavigate?: (current: string, label: string, pageTitle: string | null) => void;
@@ -17,7 +18,7 @@ function readPage(frame: HTMLIFrameElement) {
   return { current, label: docLabel(current), title: view.document.title || null };
 }
 
-export function DocFrame({ target, className = "", onNavigate }: DocFrameProps) {
+export function DocFrame({ target, active = false, className = "", onNavigate }: DocFrameProps) {
   const ref = useRef<HTMLIFrameElement>(null);
 
   // A server-rendered frame can finish loading before hydration attaches onLoad.
@@ -35,6 +36,7 @@ export function DocFrame({ target, className = "", onNavigate }: DocFrameProps) 
       ref={ref}
       src={docUrl(target)}
       title={target}
+      data-active={active ? "" : undefined}
       onLoad={(event: React.SyntheticEvent<HTMLIFrameElement>) => {
         const page = readPage(event.currentTarget);
         if (page) onNavigate?.(page.current, page.label, page.title);
