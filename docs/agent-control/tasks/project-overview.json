@@ -3,7 +3,12 @@
   "title": "프로젝트 전체 보기 · 세션 오케스트레이션",
   "type": "기능 개발",
   "branch": "main",
-  "links": [],
+  "links": [
+    {
+      "label": "PR #14",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/14"
+    }
+  ],
   "stages": {
     "screen": {
       "status": "done",
