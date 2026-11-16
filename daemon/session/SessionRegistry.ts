@@ -166,6 +166,7 @@ export class SessionRegistry {
         exitCode: null,
         model: running?.session.model ?? null,
         contextPercent: null,
+        conversationId: null,
         permission: null,
       },
       hooked: false,
@@ -240,6 +241,10 @@ export class SessionRegistry {
     if (!entry) return false;
     entry.hooked = true;
     if (SETTLING_EVENTS.has(signal.event)) this.#releasePermission(entry, {});
+    if (signal.conversationId && signal.conversationId !== entry.session.conversationId) {
+      entry.session = { ...entry.session, conversationId: signal.conversationId };
+      this.#changed();
+    }
     this.#apply(entry, signal);
     return true;
   }

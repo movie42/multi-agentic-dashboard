@@ -123,6 +123,17 @@ function createWindow() {
     show: false,
   });
   guardContents(mainWindow.webContents);
+  // The default menu's Reload (Cmd+R) would reload the whole board; let the page reload an open
+  // document instead and fall back to a full reload when nothing claims the event.
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || !input.meta || input.shift || input.alt || input.key.toLowerCase() !== "r") return;
+    event.preventDefault();
+    mainWindow.webContents
+      .executeJavaScript(
+        'if (window.dispatchEvent(new Event("agent-control:reload", { cancelable: true }))) location.reload();',
+      )
+      .catch((error) => console.warn("[agent-control] reload", error));
+  });
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("page-title-updated", (_event, title) => {
     const count = title.match(/^\((\d+)\)/)?.[1];

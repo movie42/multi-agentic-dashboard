@@ -1,0 +1,16 @@
+<frame id="project-overview" name="프로젝트 전체 보기 (그래프 초안)" x="0" y="0" width="1440" height="940">
+  <node id="sidebar-project" name="sidebar-project" x="8" y="99" width="215" height="34"/>
+  <node id="canvas" name="canvas" x="232" y="0" width="864" height="940"/>
+  <node id="header" name="header" x="260" y="22" width="213" height="50"/>
+  <node id="toolbar" name="toolbar" x="827" y="22" width="245" height="31"/>
+  <node id="connect-tool" name="connect-tool" x="901" y="26" width="54" height="23"/>
+  <node id="cluster" name="cluster" x="268" y="246" width="430" height="282"/>
+  <node id="coordinator" name="coordinator" x="522" y="92" width="220" height="109"/>
+  <node id="session-node" name="session-node" x="288" y="290" width="176" height="77"/>
+  <node id="selected-node" name="selected-node" x="294" y="612" width="176" height="77"/>
+  <node id="ghost-node" name="ghost-node" x="804" y="620" width="176" height="62"/>
+  <node id="legend" name="legend" x="256" y="892" width="410" height="29"/>
+  <node id="panel" name="panel" x="1096" y="0" width="344" height="940"/>
+  <node id="panel-links" name="panel-links" x="1119" y="349" width="299" height="144"/>
+  <node id="panel-rule" name="panel-rule" x="1119" y="435" width="299" height="58"/>
+</frame>

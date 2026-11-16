@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { docLabel } from "../lib/docUrl";
 
 export interface DocTab {
@@ -19,7 +20,9 @@ interface DocViewerState {
   closeAll: () => void;
 }
 
-export const useDocViewerStore = create<DocViewerState>()((set) => ({
+export const useDocViewerStore = create<DocViewerState>()(
+  persist(
+    (set) => ({
   tabs: [],
   active: null,
   open: (target) =>
@@ -42,4 +45,13 @@ export const useDocViewerStore = create<DocViewerState>()((set) => ({
       return { tabs, active: next?.target ?? null };
     }),
   closeAll: () => set({ tabs: [], active: null }),
-}));
+    }),
+    {
+      name: "agent-control:doc-tabs",
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({ tabs: state.tabs, active: state.active }),
+      // Rehydrated after mount so the server render and the first client render agree.
+      skipHydration: true,
+    },
+  ),
+);

@@ -102,6 +102,15 @@ describe("SessionRegistry", () => {
     expect(registry.get("s1")).toMatchObject({ status: "idle", prompted: true });
   });
 
+  it("follows the conversation the terminal moves to with /resume or /clear", () => {
+    const { registry } = setup();
+    registry.launch({ cwd: "/repo" });
+    expect(registry.get("s1")?.conversationId).toBeNull();
+    registry.signal("s1", { event: "SessionStart", conversationId: "s1" });
+    registry.signal("s1", { event: "SessionStart", conversationId: "picked" });
+    expect(registry.get("s1")?.conversationId).toBe("picked");
+  });
+
   it("waits on the user while Claude asks whether to trust the folder, then goes on once hooks start", () => {
     const { registry, ptys } = setup();
     registry.launch({ cwd: "/new", prompt: "go" });

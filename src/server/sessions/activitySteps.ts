@@ -14,6 +14,8 @@ interface StepOptions {
   limit: number;
   textChars: number;
   detailOf: (input: Record<string, unknown> | undefined) => string | null;
+  /** Keep slash commands, `!` shell commands and the output Claude Code printed for them. */
+  localCommands: boolean;
 }
 
 const text = z.string().optional().catch(undefined);
@@ -31,6 +33,8 @@ const contentBlockSchema = z.looseObject({
 
 const transcriptLineSchema = z.looseObject({
   type: text,
+  subtype: text,
+  content: z.unknown().optional(),
   uuid: text,
   cwd: text,
   timestamp: text,
@@ -89,6 +93,38 @@ function isTypedPrompt(text: string): boolean {
   return trimmed.length > 0 && !trimmed.startsWith("<") && !trimmed.startsWith("[Request interrupted");
 }
 
+// Terminal colour and cursor sequences that local command output carries.
+const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
+
+function tagged(text: string, tag: string): string | null {
+  const match = text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
+  return match ? (match[1] ?? "") : null;
+}
+
+type LocalItem = { kind: "prompt"; text: string } | { kind: "output"; text: string; error: boolean };
+
+/** Reads the tag-wrapped lines Claude Code writes for commands it runs itself. */
+function localItemsOf(text: string): LocalItem[] {
+  const name = tagged(text, "command-name")?.trim();
+  if (name) {
+    const args = tagged(text, "command-args")?.trim();
+    return [{ kind: "prompt", text: args ? `${name} ${args}` : name }];
+  }
+  const shell = tagged(text, "bash-input");
+  if (shell !== null) return [{ kind: "prompt", text: `! ${shell.trim()}` }];
+  const items: LocalItem[] = [];
+  for (const [tag, error] of [
+    ["local-command-stdout", false],
+    ["local-command-stderr", true],
+    ["bash-stdout", false],
+    ["bash-stderr", true],
+  ] as const) {
+    const body = tagged(text, tag)?.replace(ANSI, "").trim();
+    if (body) items.push({ kind: "output", text: body, error });
+  }
+  return items;
+}
+
 function timeOf(line: TranscriptLine): number | null {
   const at = line.timestamp ? Date.parse(line.timestamp) : NaN;
   return Number.isNaN(at) ? null : at;
@@ -106,11 +142,11 @@ export function inputDetail(input: Record<string, unknown> | undefined): string 
 }
 
 export function stepsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf });
+  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false });
 }
 
 export function chatItemsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail });
+  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true });
 }
 
 function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
@@ -121,7 +157,23 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
     const line = parseLine(raw);
     if (!line || line.isSidechain || line.isMeta) continue;
     const at = timeOf(line);
-    const blocks = blocksOf(line.message?.content);
+    const blocks = blocksOf(line.message?.content ?? (line.type === "system" ? line.content : undefined));
+
+    if (options.localCommands && (line.type === "user" || (line.type === "system" && line.subtype === "local_command"))) {
+      const local = blocks.flatMap((block) => (block.type === "text" && block.text ? localItemsOf(block.text) : []));
+      local.forEach((item, index) => {
+        const id = `${line.uuid}:local:${index}`;
+        steps.push(
+          item.kind === "prompt"
+            ? { kind: "prompt", id, at, text: clip(item.text, options.textChars) }
+            : { kind: "output", id, at, text: clip(item.text, options.textChars), error: item.error },
+        );
+      });
+      if (local.some((item) => item.kind === "prompt")) {
+        for (const tool of tools.values()) if (tool.status === "running") tool.status = "stopped";
+      }
+      if (local.length > 0) continue;
+    }
 
     if (line.type === "assistant") {
       blocks.forEach((block, index) => {

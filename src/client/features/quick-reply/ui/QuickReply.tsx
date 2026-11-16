@@ -1,12 +1,15 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { requestTerminal } from "@/client/entities/runner";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { AttachButton, AttachmentList } from "@/client/shared/ui/AttachmentControls";
 import { appendPaths, useAttachments } from "@/client/shared/lib/useAttachments";
 import { useDraft } from "@/client/shared/lib/useDraft";
+import { isResumePicker, opensTerminalDialog } from "../lib/terminalDialog";
 import { useVoice } from "../model/useVoice";
+import { ResumePicker } from "./ResumePicker";
 import { VoiceButton } from "./VoiceButton";
 
 type SendResult = { kind: "idle"; id: number } | { kind: "sent"; id: number } | { kind: "error"; id: number; message: string };
@@ -16,9 +19,14 @@ interface QuickReplyProps {
   terminalHandle: string;
   working: boolean;
   autoFocus?: boolean;
+  /** Folder of the session; enables the in-chat `/resume` picker. */
+  cwd?: string;
+  /** Conversation shown now, left out of the `/resume` picker. */
+  currentSessionId?: string | null;
 }
 
-export function QuickReply({ terminalHandle, working, autoFocus = false }: QuickReplyProps) {
+export function QuickReply({ terminalHandle, working, autoFocus = false, cwd, currentSessionId = null }: QuickReplyProps) {
+  const [picking, setPicking] = useState(false);
   const [text, setText] = useDraft(`quick-reply-draft:${terminalHandle}`);
   const [dismissedId, setDismissedId] = useState(0);
   const [stopping, setStopping] = useState(false);
@@ -31,6 +39,7 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
       await postAction({ type: "send-prompt", terminalHandle, text: message });
       setText("");
       attachments.clear();
+      if (opensTerminalDialog(message)) requestTerminal(terminalHandle);
       return { kind: "sent", id };
     } catch (error) {
       toastError("quick-reply", error);
@@ -68,6 +77,10 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
       return;
     }
     if (!canSend) return;
+    if (cwd && isResumePicker(text) && attachments.readyPaths.length === 0) {
+      setPicking(true);
+      return;
+    }
     const message = appendPaths(text, attachments.readyPaths);
     startTransition(() => dispatch(message));
   };
@@ -111,8 +124,16 @@ export function QuickReply({ terminalHandle, working, autoFocus = false }: Quick
       ? "작업 중이에요 · 보내면 다음 차례로 줄 서요 · Esc 멈추기"
       : "빠른 답장 · Enter 보내기, Shift+Enter 줄바꿈";
 
+  const resume = (sessionId: string) => {
+    setPicking(false);
+    startTransition(() => dispatch(`/resume ${sessionId}`));
+  };
+
   return (
     <div className="flex flex-col gap-1">
+      {picking && cwd && (
+        <ResumePicker cwd={cwd} currentSessionId={currentSessionId} onPick={resume} onClose={() => setPicking(false)} />
+      )}
       <div
         {...attachments.dropzone}
         className={`flex flex-col gap-2 rounded-[10px] bg-bg px-3 py-2 ${

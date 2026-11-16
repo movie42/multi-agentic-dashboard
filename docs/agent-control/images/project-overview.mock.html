@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>프로젝트 전체 보기 초안</title>
+<style>
+  /* App dark-mode tokens (app/globals.css). */
+  :root {
+    --bg: #0e0e0e; --fg: #f2f2f2; --accent: #ff6a26; --accent-ink: #0e0e0e;
+    --st-done: #1f9d55; --st-now: #3b82f6; --st-ask: #f08c00; --st-pr: #a371f7;
+    --focus: #2bb5ae; --muted: #9aa6b8; --faint: #4b5666; --hair: #232c38; --tint: #12161c; --tint-2: #1a212b;
+    --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-sans); width: 1440px; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: var(--font-mono); }
+  .app { display: grid; grid-template-columns: 232px 1fr 344px; height: 940px; }
+
+  /* Sidebar */
+  aside { background: var(--tint); border-right: 1px solid var(--hair); padding: 28px 18px; }
+  .brand { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .label { font: 600 10px/1 var(--font-mono); letter-spacing: .12em; color: var(--faint); margin: 28px 0 10px; text-transform: uppercase; }
+  .nav { display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center; padding: 7px 10px; margin: 0 -10px; border-radius: 8px; font-size: 13px; color: var(--muted); }
+  .nav.active { background: var(--tint-2); color: var(--fg); font-weight: 600; box-shadow: inset 0 0 0 1px var(--hair); }
+  .nav .n { font: 600 11px/1 var(--font-mono); }
+  .sub { padding-left: 26px; } .sub.d1 { padding-left: 42px; }
+  .dot { width: 7px; height: 7px; border-radius: 99px; display: inline-block; flex: none; }
+  .dot.ask { background: var(--st-ask); } .dot.now { background: var(--st-now); }
+  .dot.wait { box-shadow: inset 0 0 0 1.5px var(--faint); } .dot.input { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .t-ask { color: var(--st-ask); } .t-now { color: var(--st-now); }
+
+  /* Canvas */
+  main { position: relative; overflow: hidden;
+    background-color: #0a0c10;
+    background-image: radial-gradient(color-mix(in srgb, var(--muted) 18%, transparent) 1px, transparent 1px);
+    background-size: 20px 20px; }
+  .head { position: absolute; top: 22px; left: 28px; }
+  .head h1 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; display: flex; align-items: baseline; gap: 10px; }
+  .head h1 .mono { font-size: 11px; font-weight: 500; color: var(--faint); letter-spacing: .04em; }
+  .stats { margin-top: 6px; display: flex; gap: 14px; font: 500 11px/1 var(--font-mono); color: var(--muted); }
+  .stats b { font-weight: 700; }
+
+  .toolbar { position: absolute; top: 22px; right: 24px; display: flex; gap: 2px; padding: 4px; border-radius: 10px;
+    background: color-mix(in srgb, var(--tint) 85%, transparent); box-shadow: inset 0 0 0 1px var(--hair), 0 8px 24px rgba(0,0,0,.35); backdrop-filter: blur(8px); }
+  .tool { padding: 6px 11px; border-radius: 7px; font: 600 11px/1 var(--font-mono); color: var(--muted); letter-spacing: .02em; }
+  .tool.on { background: var(--fg); color: var(--bg); }
+  .tool kbd { margin-left: 6px; font: inherit; opacity: .5; }
+
+  svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .e-delegate { stroke: var(--fg); stroke-width: 1.5; fill: none; }
+  .e-report { stroke: var(--focus); stroke-width: 1.5; fill: none; stroke-dasharray: 5 5; }
+  .e-chain { stroke: var(--muted); stroke-width: 1.25; fill: none; }
+  .e-branch { stroke: var(--faint); stroke-width: 1.25; fill: none; stroke-dasharray: 2 4; }
+  .e-overlap { stroke: var(--accent); stroke-width: 1.25; fill: none; stroke-dasharray: 6 5; }
+  .pill { position: absolute; transform: translate(-50%, -50%); padding: 3px 8px; border-radius: 99px; white-space: nowrap;
+    font: 600 10px/1.2 var(--font-mono); letter-spacing: .03em; background: #0a0c10; box-shadow: inset 0 0 0 1px var(--hair); color: var(--muted); }
+  .pill.delegate { color: var(--fg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 35%, transparent); }
+  .pill.report { color: var(--focus); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 45%, transparent); }
+  .pill.overlap { color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+  .lane { position: absolute; border-radius: 16px; border: 1px dashed color-mix(in srgb, var(--muted) 35%, transparent);
+    background: color-mix(in srgb, var(--tint-2) 45%, transparent); }
+  .lane .tag { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; align-items: center; gap: 8px;
+    font: 600 10px/1 var(--font-mono); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+  .lane .tag .name { color: var(--fg); letter-spacing: .02em; text-transform: none; font-size: 11px; }
+  .lane .tag .right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .steps { display: inline-flex; gap: 3px; }
+  .steps i { width: 5px; height: 5px; border-radius: 99px; background: var(--faint); }
+  .steps i.done { background: var(--st-done); } .steps i.now { background: var(--st-now); } .steps i.ask { background: var(--st-ask); }
+  .pr { color: var(--st-pr); }
+
+  .node { --c: var(--muted); position: absolute; width: 176px; padding: 10px 12px 11px; border-radius: 10px;
+    background: color-mix(in srgb, var(--c) 10%, #0f1217); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+  .node.now { --c: var(--st-now); } .node.ask { --c: var(--st-ask); } .node.input { --c: var(--accent); } .node.rest { --c: var(--faint); }
+  .node .k { display: flex; align-items: center; gap: 6px; font: 600 9.5px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--c); }
+  .node .k .t { margin-left: auto; color: var(--faint); letter-spacing: .02em; }
+  .node .ttl { margin-top: 7px; font-size: 13px; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node .msg { margin-top: 3px; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node.rest .ttl { color: var(--muted); }
+  .node.sel { box-shadow: inset 0 0 0 1.5px var(--c), 0 0 0 4px color-mix(in srgb, var(--c) 22%, transparent), 0 12px 32px rgba(0,0,0,.5); }
+  .node .ring { position: absolute; inset: -5px; border-radius: 14px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); }
+
+  .node.coord { --c: var(--focus); width: 220px; padding: 12px 14px 13px; background: color-mix(in srgb, var(--focus) 14%, #0f1217); }
+  .node.coord .ttl { font-size: 14.5px; }
+  .node.coord .route { margin-top: 9px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .node.coord .route span { font: 600 10px/1 var(--font-mono); padding: 3px 6px; border-radius: 5px; background: color-mix(in srgb, var(--focus) 16%, transparent); color: var(--focus); }
+
+  .ghost { position: absolute; width: 176px; height: 62px; border-radius: 10px; border: 1px dashed var(--faint);
+    display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 11px/1 var(--font-mono); color: var(--faint); }
+  .ghost b { font-size: 16px; font-weight: 400; }
+
+  .legend { position: absolute; left: 24px; bottom: 20px; display: flex; gap: 16px; padding: 9px 14px; border-radius: 10px;
+    background: color-mix(in srgb, var(--tint) 85%, transparent); box-shadow: inset 0 0 0 1px var(--hair);
+    font: 500 10.5px/1 var(--font-mono); color: var(--muted); align-items: center; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .zoom { position: absolute; right: 24px; bottom: 20px; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;
+    background: color-mix(in srgb, var(--tint) 85%, transparent); box-shadow: inset 0 0 0 1px var(--hair); font: 600 13px/1 var(--font-mono); color: var(--muted); }
+  .zoom span { width: 32px; height: 30px; display: flex; align-items: center; justify-content: center; }
+  .zoom span + span { border-top: 1px solid var(--hair); }
+
+  /* Right panel */
+  .panel { background: var(--tint); border-left: 1px solid var(--hair); padding: 24px 22px; display: flex; flex-direction: column; gap: 16px; }
+  .crumb { font: 500 11px/1 var(--font-mono); color: var(--faint); letter-spacing: .02em; }
+  .crumb b { color: var(--muted); font-weight: 600; }
+  .status { display: flex; align-items: center; gap: 8px; font: 600 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .status .t { color: var(--faint); letter-spacing: .02em; text-transform: none; }
+  .panel h2 { font-size: 18px; font-weight: 700; line-height: 1.35; letter-spacing: -.015em; margin-top: -6px; }
+  .panel p { font-size: 13px; line-height: 1.65; color: color-mix(in srgb, var(--fg) 82%, transparent); }
+  .opts { display: flex; flex-direction: column; gap: 6px; }
+  .opt { display: flex; align-items: center; gap: 10px; border-radius: 9px; padding: 10px 12px; font-size: 13px; font-weight: 600; background: var(--tint-2); box-shadow: inset 0 0 0 1px var(--hair); }
+  .opt .n { font: 600 10px/1 var(--font-mono); color: var(--faint); width: 14px; }
+  .opt.rec { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent); }
+  .opt .src { margin-left: auto; font: 500 10px/1 var(--font-mono); color: var(--faint); }
+  .reply { border-radius: 9px; padding: 10px 12px; font-size: 13px; color: var(--faint); background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair); display: flex; }
+  .reply .send { margin-left: auto; font: 600 10px/1.6 var(--font-mono); color: var(--muted); }
+  .sec { border-top: 1px solid var(--hair); padding-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .sec h3 { font: 600 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .link { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+  .link .arrow { font: 600 11px/1 var(--font-mono); width: 18px; color: var(--fg); }
+  .link .arrow.rep { color: var(--focus); }
+  .rule { border-radius: 9px; padding: 10px 12px; background: color-mix(in srgb, var(--focus) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 35%, transparent); font-size: 12.5px; }
+  .rule .mono { display: block; font-size: 10px; letter-spacing: .1em; color: var(--focus); margin-bottom: 4px; text-transform: uppercase; }
+  .foot { margin-top: auto; display: flex; gap: 8px; }
+  .btn { flex: 1; text-align: center; padding: 9px; border-radius: 9px; font: 600 11px/1 var(--font-mono); color: var(--muted); box-shadow: inset 0 0 0 1px var(--hair); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <p class="brand">Agent Control</p>
+    <p class="label">Projects</p>
+    <div class="nav active" data-node="sidebar-project"><span class="dot ask"></span><span>shop</span><span class="n"><span class="t-ask">2</span> <span class="t-now">3</span></span></div>
+    <div class="nav sub"><span class="dot now"></span><span>main</span><span></span></div>
+    <div class="nav sub"><span class="dot ask"></span><span>COMP-600</span><span class="n t-ask">1</span></div>
+    <div class="nav sub d1"><span class="dot input"></span><span>COMP-611</span><span class="n t-ask">1</span></div>
+    <div class="nav sub"><span class="dot now"></span><span>login-redirect</span><span class="n t-now">1</span></div>
+    <div class="nav"><span class="dot wait"></span><span>agent-dashboard</span><span></span></div>
+  </aside>
+
+  <main id="canvas" data-node="canvas">
+    <div class="head" data-node="header">
+      <h1>shop <span class="mono">~/code/shop</span></h1>
+      <div class="stats"><span>sessions <b>7</b></span><span class="t-ask">my turn <b>2</b></span><span class="t-now">working <b>3</b></span></div>
+    </div>
+    <div class="toolbar" data-node="toolbar">
+      <span class="tool">+ 세션<kbd>N</kbd></span>
+      <span class="tool on" data-node="connect-tool">잇기<kbd>C</kbd></span>
+      <span class="tool">규칙<kbd>R</kbd></span>
+      <span class="tool">정렬<kbd>L</kbd></span>
+    </div>
+
+    <svg class="edges" id="edges">
+      <defs>
+        <marker id="m-fg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="#f2f2f2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="m-focus" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="#2bb5ae" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="m-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1L9 5L1 9" fill="none" stroke="#9aa6b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+      </defs>
+    </svg>
+
+    <div class="lane" id="l600" data-node="cluster" style="left:36px;top:246px;width:430px;height:282px">
+      <div class="tag"><span>worktree</span><span class="name">COMP-600</span><span class="right"><span class="steps"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i><i></i></span>3/6 구현 <span class="pr">PR#128</span></span></div>
+    </div>
+    <div class="lane" id="lfix" style="left:496px;top:246px;width:252px;height:282px">
+      <div class="tag"><span>worktree</span><span class="name">login-redirect</span><span class="right">2/4</span></div>
+    </div>
+    <div class="lane" id="l611" style="left:36px;top:566px;width:228px;height:128px">
+      <div class="tag"><span>worktree</span><span class="name">COMP-611</span><span class="right">2/6 질문</span></div>
+    </div>
+
+    <div class="node coord" id="n-coord" data-node="coordinator" style="left:290px;top:92px">
+      <div class="k"><span class="dot now"></span>coordinator · main<span class="t">working</span></div>
+      <div class="ttl">결제 개편 코디네이터</div>
+      <div class="route"><span>→ COMP-600</span><span>→ login-redirect</span><span>↩ 보고 1</span></div>
+    </div>
+
+    <div class="node ask" id="n-a" data-node="session-node" style="left:56px;top:290px">
+      <div class="k"><span class="dot ask"></span>new result<span class="t">6m</span></div>
+      <div class="ttl">결제 수단 목록 API</div>
+      <div class="msg">P2 끝 · 빈 목록 문구 확인 필요</div>
+    </div>
+    <div class="node now" id="n-b" style="left:268px;top:290px">
+      <div class="k"><span class="dot now"></span>working<span class="t">2m</span></div>
+      <div class="ttl">테스트 보강</div>
+      <div class="msg mono">bun test src/payment</div>
+    </div>
+    <div class="node rest" id="n-c" style="left:268px;top:430px">
+      <div class="k"><span class="dot wait"></span>idle<span class="t">48m</span></div>
+      <div class="ttl">리뷰 반영</div>
+      <div class="msg">코멘트 3건 반영 완료</div>
+    </div>
+    <div class="node now" id="n-e" style="left:534px;top:290px">
+      <div class="k"><span class="dot now"></span>working<span class="t">1m</span></div>
+      <div class="ttl">로그인 후 원래 페이지로</div>
+      <div class="msg mono">edit middleware.ts</div>
+    </div>
+    <div class="node rest" id="n-f" style="left:534px;top:430px">
+      <div class="k"><span class="dot wait"></span>queued</div>
+      <div class="ttl">리다이렉트 테스트</div>
+      <div class="msg">위 세션 보고 후 시작</div>
+    </div>
+    <div class="node input sel" id="n-d" data-node="selected-node" style="left:62px;top:612px">
+      <div class="k"><span class="dot input"></span>needs input<span class="t">11m</span></div>
+      <div class="ttl">간편결제 버튼 위치</div>
+      <div class="msg">위에 둘까요, 아래에 둘까요?</div>
+    </div>
+    <div class="ghost" data-node="ghost-node" style="left:572px;top:620px"><b>+</b>새 세션 끌어 잇기</div>
+
+    <div class="legend" data-node="legend">
+      <span><svg width="26" height="10"><path d="M1 5H23" class="e-delegate" marker-end="url(#m-fg)"/></svg>맡김</span>
+      <span><svg width="26" height="10"><path d="M1 5H23" class="e-report" marker-end="url(#m-focus)"/></svg>보고</span>
+      <span><svg width="26" height="10"><path d="M1 5H23" class="e-chain" marker-end="url(#m-muted)"/></svg>끝나면 다음</span>
+      <span><svg width="26" height="10"><path d="M1 5H25" class="e-branch"/></svg>갈라짐</span>
+      <span><svg width="26" height="10"><path d="M1 5H25" class="e-overlap"/></svg>같은 파일</span>
+    </div>
+    <div class="zoom"><span>+</span><span>−</span><span>⤢</span></div>
+  </main>
+
+  <section class="panel" data-node="panel">
+    <span class="crumb">shop / <b>COMP-611</b> / session</span>
+    <span class="status"><span class="dot input"></span>needs input <span class="t">· 11분 전</span></span>
+    <h2>간편결제 버튼 위치</h2>
+    <p>버튼을 결제 수단 목록 위에 둘까요, 아래에 둘까요? Figma에는 위에 있는데 기획서 3.2는 "목록 하단"이라고 적혀 있어요.</p>
+    <div class="opts">
+      <span class="opt rec"><span class="n">1</span>위에 두기<span class="src">figma</span></span>
+      <span class="opt"><span class="n">2</span>아래에 두기<span class="src">기획서 3.2</span></span>
+    </div>
+    <div class="reply">직접 답하기…<span class="send">⏎</span></div>
+    <div class="sec" data-node="panel-links">
+      <h3>Connections</h3>
+      <div class="link"><span class="arrow">←</span>맡긴 세션 · 결제 수단 목록 API</div>
+      <div class="link"><span class="arrow rep">↩</span>끝나면 보고 · 결제 수단 목록 API</div>
+      <div class="rule" data-node="panel-rule"><span class="mono">rule</span>대화가 끝나면 맡긴 세션에 결과를 보고</div>
+    </div>
+    <div class="foot"><span class="btn">워크트리 열기</span><span class="btn">터미널</span></div>
+  </section>
+</div>
+<script>
+  const canvas = document.getElementById("canvas");
+  const svg = document.getElementById("edges");
+  const ns = "http://www.w3.org/2000/svg";
+  const box = (id) => {
+    const c = canvas.getBoundingClientRect(), r = document.getElementById(id).getBoundingClientRect();
+    return { l: r.left - c.left, t: r.top - c.top, r: r.right - c.left, b: r.bottom - c.top, cx: (r.left + r.right) / 2 - c.left, cy: (r.top + r.bottom) / 2 - c.top };
+  };
+  const path = (d, cls, marker) => {
+    const el = document.createElementNS(ns, "path");
+    el.setAttribute("d", d); el.setAttribute("class", cls);
+    if (marker) el.setAttribute("marker-end", `url(#${marker})`);
+    svg.appendChild(el);
+  };
+  const pill = (text, x, y, cls = "") => {
+    const el = document.createElement("span");
+    el.className = `pill ${cls}`; el.textContent = text;
+    el.style.left = `${x}px`; el.style.top = `${y}px`;
+    canvas.appendChild(el);
+  };
+  const vcurve = (x1, y1, x2, y2) => { const k = (y2 - y1) * 0.55; return `M${x1} ${y1} C${x1} ${y1 + k}, ${x2} ${y2 - k}, ${x2} ${y2}`; };
+
+  const co = box("n-coord"), a = box("n-a"), b = box("n-b"), c = box("n-c"), d = box("n-d"), e = box("n-e"), f = box("n-f");
+  // Delegation fan-out from the coordinator.
+  path(vcurve(co.cx - 50, co.b, a.cx, a.t - 2), "e-delegate", "m-fg");
+  pill("맡김", (co.cx - 50 + a.cx) / 2 - 4, (co.b + a.t) / 2 - 2, "delegate");
+  path(vcurve(co.cx + 40, co.b, e.cx - 20, e.t - 2), "e-delegate", "m-fg");
+  pill("맡김", (co.cx + 40 + e.cx - 20) / 2 - 18, (co.b + e.t) / 2 - 2, "delegate");
+  // Report back.
+  path(vcurve(e.cx + 30, e.t, co.r - 20, co.b + 2).replace(/^M([\d.]+) ([\d.]+) C([\d.]+) ([\d.]+), ([\d.]+) ([\d.]+), ([\d.]+) ([\d.]+)$/,
+    (_, x1, y1, c1x, c1y, c2x, c2y, x2, y2) => `M${x1} ${y1} C${x1} ${+y1 - 40}, ${x2} ${+y2 + 40}, ${x2} ${y2}`), "e-report", "m-focus");
+  pill("↩ 보고", (e.cx + 30 + co.r - 20) / 2 + 26, (co.b + e.t) / 2 - 2, "report");
+  // Chains inside a worktree.
+  path(`M${a.r} ${a.cy} H${b.l - 3}`, "e-chain", "m-muted");
+  path(`M${b.cx} ${b.b} V${c.t - 3}`, "e-chain", "m-muted");
+  pill("끝나면", b.cx, (b.b + c.t) / 2);
+  path(`M${e.cx} ${e.b} V${f.t - 3}`, "e-chain", "m-muted");
+  pill("보고 후", e.cx, (e.b + f.t) / 2);
+  // COMP-611 branched from COMP-600.
+  path(`M${a.cx - 30} ${a.b} V${d.t}`, "e-branch");
+  pill("갈라짐", a.cx - 30, (a.b + 566) / 2 + 20);
+  // Same files touched by COMP-611 and login-redirect.
+  path(`M${d.r} ${d.cy} C${d.r + 160} ${d.cy}, ${f.cx} ${f.b + 120}, ${f.cx} ${f.b}`, "e-overlap");
+  pill("같은 파일 2", d.r + 150, d.cy + 2, "overlap");
+</script>
+</body>
+</html>

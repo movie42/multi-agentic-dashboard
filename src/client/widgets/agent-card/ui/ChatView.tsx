@@ -81,6 +81,19 @@ interface ChatRowProps {
 
 function ChatRow({ step, copyable }: ChatRowProps) {
   if (step.kind === "tool") return <ToolRow step={step} />;
+  if (step.kind === "output") {
+    return (
+      <li className="py-1">
+        <pre
+          className={`max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap ${
+            step.error ? "text-accent" : "text-muted"
+          }`}
+        >
+          {step.text}
+        </pre>
+      </li>
+    );
+  }
   if (step.kind === "prompt") {
     return (
       <li className="flex justify-end py-1">

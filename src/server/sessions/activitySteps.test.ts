@@ -46,3 +46,32 @@ describe("chatItemsOf", () => {
     expect(inputDetail({})).toBeNull();
   });
 });
+
+describe("chatItemsOf local commands", () => {
+  const line = (entry: Record<string, unknown>) => JSON.stringify({ uuid: "u", timestamp: "2026-11-16T00:00:00Z", ...entry });
+
+  it("shows typed slash commands, their output and shell commands", () => {
+    const steps = chatItemsOf([
+      line({ type: "user", isMeta: true, message: { content: "<local-command-caveat>x</local-command-caveat>" } }),
+      line({ uuid: "a", type: "user", message: { content: "<command-name>/context</command-name>\n<command-message>context</command-message>\n<command-args></command-args>" } }),
+      line({ uuid: "b", type: "system", subtype: "local_command", content: "<local-command-stdout>\u001b[2mContext 12%\u001b[0m</local-command-stdout>" }),
+      line({ uuid: "c", type: "system", subtype: "local_command", content: "<local-command-stdout></local-command-stdout>" }),
+      line({ uuid: "d", type: "user", message: { content: "<bash-input>git status</bash-input>" } }),
+      line({ uuid: "e", type: "user", message: { content: "<bash-stdout>clean</bash-stdout><bash-stderr>warn</bash-stderr>" } }),
+    ]);
+    const shown = steps.map((step) =>
+      step.kind === "tool" ? { kind: step.kind } : { kind: step.kind, text: step.text, error: step.kind === "output" ? step.error : undefined },
+    );
+    expect(shown).toEqual([
+      { kind: "prompt", text: "/context", error: undefined },
+      { kind: "output", text: "Context 12%", error: false },
+      { kind: "prompt", text: "! git status", error: undefined },
+      { kind: "output", text: "clean", error: false },
+      { kind: "output", text: "warn", error: true },
+    ]);
+  });
+
+  it("keeps the activity timeline free of them", () => {
+    expect(stepsOf([line({ type: "user", message: { content: "<command-name>/context</command-name>" } })])).toEqual([]);
+  });
+});

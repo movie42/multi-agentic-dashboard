@@ -5,6 +5,7 @@ import { questionsOf, type RunnerQuestion } from "@/common/runner/questions";
 import type { RunnerPermission, RunnerPermissionAnswer, RunnerPermissionSuggestion } from "@/common/runner/types";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
+import { Markdown } from "@/client/shared/ui/Markdown";
 
 type SendResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
 
@@ -80,6 +81,15 @@ interface ToolInputViewProps {
 }
 
 function ToolInputView({ toolInput }: ToolInputViewProps) {
+  // ExitPlanMode carries the whole plan as markdown; JSON would show it as one escaped line.
+  const plan = text(toolInput.plan);
+  if (plan) {
+    return (
+      <div className="max-h-96 overflow-auto rounded-lg bg-tint-2 px-3 py-2">
+        <Markdown text={plan} />
+      </div>
+    );
+  }
   const command = text(toolInput.command);
   const filePath = text(toolInput.file_path);
   const description = text(toolInput.description);

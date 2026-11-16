@@ -14,6 +14,7 @@ function session(overrides: Partial<RunnerSession>): RunnerSession {
     exitCode: null,
     model: null,
     contextPercent: null,
+    conversationId: null,
     permission: null,
     ...overrides,
   };
@@ -61,5 +62,11 @@ describe("restore", () => {
       { startedAt: 20, launch: { cwd: "/a" } },
       { startedAt: 30, launch: { cwd: "/b", kind: "shell" } },
     ]);
+  });
+});
+
+describe("savedSessionsOf conversation", () => {
+  it("saves the conversation the terminal moved to with /resume", () => {
+    expect(savedSessionsOf([session({ id: "runner", conversationId: "picked" })])[0]?.id).toBe("picked");
   });
 });

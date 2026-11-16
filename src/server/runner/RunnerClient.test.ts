@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { RunnerClient } from "./RunnerClient";
 
-const session = { id: "s1", cwd: "/w", kind: "claude", status: "idle", prompted: false, startedAt: 1, updatedAt: 1, exitCode: null, model: null, contextPercent: null, permission: null };
+const session = { id: "s1", cwd: "/w", kind: "claude", status: "idle", prompted: false, startedAt: 1, updatedAt: 1, exitCode: null, model: null, contextPercent: null, conversationId: null, permission: null };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });

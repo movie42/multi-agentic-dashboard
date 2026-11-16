@@ -1,4 +1,5 @@
 import "server-only";
+import { readFile } from "node:fs/promises";
 import type { AskRunner } from "./intentDiff/AskRunner";
 import type { AskStore } from "./intentDiff/AskStore";
 import { createIntentDiffServices } from "./intentDiff/createServices";
@@ -11,6 +12,7 @@ import { ORCA_BIN, PROJECTS_FILE, WORKTREE_META_FILE } from "./projects/paths";
 import { ProjectRegistry, type Project } from "./projects/ProjectRegistry";
 import { WorktreeActions } from "./projects/WorktreeActions";
 import { WorktreeMeta } from "./projects/WorktreeMeta";
+import { liveConversations } from "./runner/liveConversations";
 import { RunnerClient } from "./runner/RunnerClient";
 import { RUNNER_BASE_URL, spawnDaemon } from "./runner/spawnDaemon";
 import { createVoice, type VoiceIntent, type VoiceTerminal, type VoiceToggleResult } from "./runner/voice";
@@ -26,7 +28,7 @@ import { CHAT_LIMIT, chatItemsOf, STEP_LIMIT, stepsOf } from "./sessions/activit
 import { TURN_LIMIT, turnsOf } from "./sessions/conversationTurns";
 import { TranscriptTailReader } from "./sessions/TranscriptTailReader";
 import { BookmarkStore } from "./sessions/BookmarkStore";
-import { BOOKMARK_FILE, projectDirOf, PROJECTS_DIR, SESSION_CACHE_FILE } from "./sessions/paths";
+import { BOOKMARK_FILE, CLAUDE_SESSIONS_DIR, projectDirOf, PROJECTS_DIR, SESSION_CACHE_FILE } from "./sessions/paths";
 import { SessionIndex } from "./sessions/SessionIndex";
 import { SessionTitles } from "./sessions/SessionTitles";
 import { DocServer } from "./docs/DocServer";
@@ -136,7 +138,18 @@ function createServices(): Services {
     projects: () => projects.list(),
     worktreesOf,
     meta: () => worktreeMeta.read(),
-    runnerSessions: () => runner.list(),
+    runnerSessions: async () => {
+      const [sessions, live] = await Promise.all([
+        runner.list(),
+        liveConversations({ execFile: nodeExecFile, readFile: (file) => readFile(file, "utf8"), sessionsDir: CLAUDE_SESSIONS_DIR }).catch(
+          (error: unknown) => {
+            warn("board", error, { step: "live conversations" });
+            return new Map<string, string>();
+          },
+        ),
+      ]);
+      return sessions.map((session) => ({ ...session, conversationId: live.get(session.id) ?? session.conversationId ?? null }));
+    },
     workflow,
     sessions: {
       transcriptOf: (cwd, sessionId) => sessionTranscripts.read(cwd, sessionId),
