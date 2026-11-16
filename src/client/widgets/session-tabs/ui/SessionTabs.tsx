@@ -10,6 +10,7 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 const SESSION_DRAG_TYPE = "application/x-agent-control-session";
 
 const selectedKey = (worktreeId: string) => `agent-control:session-tab:${worktreeId}`;
+const selectedWorkerKey = (worktreeId: string) => `agent-control:session-subtab:${worktreeId}`;
 
 type DropEdge = "before" | "after";
 
@@ -33,9 +34,11 @@ interface SessionTabProps {
   onSelect: () => void;
   onClose: (() => void) | null;
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
+  workerCount?: number;
+  label?: string;
 }
 
-function SessionTab({ agent, selected, needsMe, onSelect, onClose, onReorder }: SessionTabProps) {
+function SessionTab({ agent, selected, needsMe, onSelect, onClose, onReorder, workerCount = 0, label }: SessionTabProps) {
   const terminalRequest = useTerminalRequest(agent.terminalHandle);
   const [dropEdge, setDropEdge] = useState<DropEdge | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -50,7 +53,7 @@ function SessionTab({ agent, selected, needsMe, onSelect, onClose, onReorder }: 
     const rect = event.currentTarget.getBoundingClientRect();
     return event.clientX < rect.left + rect.width / 2 ? "before" : "after";
   };
-  const title = tabTitle(agent);
+  const title = label ?? tabTitle(agent);
 
   return (
     <li
@@ -100,6 +103,15 @@ function SessionTab({ agent, selected, needsMe, onSelect, onClose, onReorder }: 
         <span className={`size-2 shrink-0 rounded-full ${dotTone(agent, needsMe)}`} />
         {agent.agentType === "shell" && <span className="shrink-0 font-mono text-[11px] text-faint">$</span>}
         <span className="truncate">{title}</span>
+        {workerCount > 0 && (
+          <span
+            data-worker-count={workerCount}
+            title={`하위 세션 ${workerCount}개`}
+            className="shrink-0 rounded-full bg-tint-2 px-1.5 py-0.5 text-[11px] leading-none font-medium text-muted"
+          >
+            +{workerCount}
+          </span>
+        )}
       </button>
       {onClose && (
         <button
@@ -125,7 +137,7 @@ interface SessionTabsProps {
   needsMeIds: ReadonlySet<string>;
   focusId: string | null;
   renderCard: (agent: AgentCard) => React.ReactNode;
-  renderWorkers?: (agent: AgentCard) => React.ReactNode;
+  workersOf?: (agent: AgentCard) => AgentCard[];
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
   onNewSession: () => void;
   onAction: (action: ActionRequest) => Promise<void>;
@@ -137,54 +149,99 @@ export function SessionTabs({
   needsMeIds,
   focusId,
   renderCard,
-  renderWorkers,
+  workersOf = () => [],
   onReorder,
   onNewSession,
   onAction,
 }: SessionTabsProps) {
   const [stored, write] = useStoredList(selectedKey(worktreeId));
+  const [storedWorker, writeWorker] = useStoredList(selectedWorkerKey(worktreeId));
   const storedId = stored[0] ?? null;
   const selected = agents.find((agent) => agent.id === storedId) ?? agents[0] ?? null;
+  const workers = selected ? workersOf(selected) : [];
+  const selectedWorker = workers.find((worker) => worker.id === storedWorker[0]) ?? null;
+  const shown = selectedWorker ?? selected;
+  const hasWorkers = selected !== null && workers.length > 0;
   const select = (id: string) => write([id]);
+  const selectWorker = (id: string | null) => writeWorker(id ? [id] : []);
   useEffect(() => {
-    if (focusId && agents.some((agent) => agent.id === focusId)) write([focusId]);
+    if (!focusId) return;
+    if (agents.some((agent) => agent.id === focusId)) {
+      write([focusId]);
+      writeWorker([]);
+      return;
+    }
+    const coordinator = agents.find((agent) => workersOf(agent).some((worker) => worker.id === focusId));
+    if (coordinator) {
+      write([coordinator.id]);
+      writeWorker([focusId]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- follow a jump target only when it changes
   }, [focusId]);
 
   return (
-    <div data-session-tabs className="flex flex-col">
-      <div className="sticky top-[var(--strip-h,0px)] z-20 flex h-[var(--tabs-h,auto)] items-end border-b border-hair bg-bg">
-        <ul role="tablist" aria-label="세션" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
-          {agents.map((agent) => {
-            const terminalHandle = agent.terminalHandle;
-            return (
+    <div data-session-tabs className={`flex flex-col ${hasWorkers ? "[--tabs-h:4.75rem]" : ""}`}>
+      <div className="sticky top-[var(--strip-h,0px)] z-20 flex h-[var(--tabs-h,auto)] flex-col bg-bg">
+        <div className="flex min-h-10 flex-1 items-end border-b border-hair">
+          <ul role="tablist" aria-label="세션" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
+            {agents.map((agent) => {
+              const terminalHandle = agent.terminalHandle;
+              return (
+                <SessionTab
+                  key={agent.id}
+                  agent={agent}
+                  selected={agent.id === selected?.id}
+                  needsMe={needsMeIds.has(agent.id)}
+                  onSelect={() => select(agent.id)}
+                  onClose={terminalHandle ? () => void onAction({ type: "close-terminal", terminalHandle }) : null}
+                  onReorder={onReorder}
+                  workerCount={workersOf(agent).length}
+                />
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            data-new-session
+            aria-label="새 세션"
+            title="이 워크트리에 새 세션을 띄워요"
+            onClick={onNewSession}
+            className="mb-1 ml-1 flex size-7 shrink-0 items-center justify-center rounded-md text-[18px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
+          >
+            +
+          </button>
+        </div>
+        {selected && hasWorkers && (
+          <div data-worker-tabs className="flex h-9 shrink-0 items-end border-b border-hair pl-6">
+            <ul role="tablist" aria-label="하위 세션" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
               <SessionTab
-                key={agent.id}
-                agent={agent}
-                selected={agent.id === selected?.id}
-                needsMe={needsMeIds.has(agent.id)}
-                onSelect={() => select(agent.id)}
-                onClose={terminalHandle ? () => void onAction({ type: "close-terminal", terminalHandle }) : null}
-                onReorder={onReorder}
+                agent={selected}
+                label="지휘자"
+                selected={selectedWorker === null}
+                needsMe={needsMeIds.has(selected.id)}
+                onSelect={() => selectWorker(null)}
+                onClose={null}
               />
-            );
-          })}
-        </ul>
-        <button
-          type="button"
-          data-new-session
-          aria-label="새 세션"
-          title="이 워크트리에 새 세션을 띄워요"
-          onClick={onNewSession}
-          className="mb-1 ml-1 flex size-7 shrink-0 items-center justify-center rounded-md text-[18px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
-        >
-          +
-        </button>
+              {workers.map((worker) => {
+                const terminalHandle = worker.terminalHandle;
+                return (
+                  <SessionTab
+                    key={worker.id}
+                    agent={worker}
+                    selected={worker.id === selectedWorker?.id}
+                    needsMe={needsMeIds.has(worker.id)}
+                    onSelect={() => selectWorker(worker.id)}
+                    onClose={terminalHandle ? () => void onAction({ type: "close-terminal", terminalHandle }) : null}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
-      {selected && (
+      {shown && (
         <div role="tabpanel" className="flex flex-col gap-4 pt-0">
-          {renderCard(selected)}
-          {renderWorkers?.(selected)}
+          {renderCard(shown)}
         </div>
       )}
     </div>

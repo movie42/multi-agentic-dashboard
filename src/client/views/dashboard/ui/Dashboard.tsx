@@ -649,19 +649,17 @@ function ProjectView({
         <SessionTabs
           worktreeId={worktree.worktreeId}
           agents={listed}
-          needsMeIds={needsMeIds}
+          needsMeIds={
+            new Set([
+              ...needsMeIds,
+              ...groupAgents(listed.flatMap(agents.workersOf), isDismissed).needsMe.map((agent) => agent.id),
+            ])
+          }
           focusId={expandedId}
           onReorder={onReorder}
           onNewSession={() => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" })}
           renderCard={renderCard}
-          renderWorkers={(agent) => {
-            const workers = agents.workersOf(agent);
-            return workers.length > 0 ? (
-              <div className="ml-6">
-                <AgentList agents={workers} now={now} showRepo={false} renderCard={renderCard} onAction={onAction} />
-              </div>
-            ) : null;
-          }}
+          workersOf={agents.workersOf}
           onAction={onAction}
         />
       )}
