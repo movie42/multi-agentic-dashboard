@@ -430,6 +430,28 @@
           "field": "—",
           "rule": "고른 상자들을 ⌘G로 그룹으로 묶고 이름을 붙여요. 그룹을 끌면 안의 상자가 함께 움직이고, ⌘⇧G로 풀어요. 워크트리 묶음은 자동으로 생기는 그룹이라 풀 수 없고, 직접 만든 그룹은 워크트리를 넘나들 수 있어요.",
           "note": "[[project-overview#R6-Q1]]"
+        },
+        {
+          "id": "S29",
+          "section": "캔버스",
+          "node": "session-node",
+          "side": "left",
+          "kind": "action",
+          "title": "우클릭 메뉴",
+          "field": "—",
+          "rule": "상자 · 워크트리 프레임 · 그룹 · 선을 오른쪽 버튼으로 누르면 그 자리에 메뉴가 떠요. 세션 닫기 · 연결 모두 끊기는 한 번 더 눌러야 실행돼요.",
+          "note": "[[project-overview#P6-2]]"
+        },
+        {
+          "id": "S30",
+          "section": "오른쪽 패널",
+          "node": "panel",
+          "side": "left",
+          "kind": "action",
+          "title": "패널 접기",
+          "field": "—",
+          "rule": "패널 왼쪽 위 »로 접고, 남은 얇은 막대(«)로 펼쳐요. 접은 상태를 기억해요.",
+          "note": "[[project-overview#P6-1]]"
         }
       ],
       "offscreen": [

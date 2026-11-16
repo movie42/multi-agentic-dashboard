@@ -668,12 +668,13 @@
     },
     "tasks": {
       "status": "ask",
-      "summary": "구현 끝 · 앱에서 사용자 확인 대기",
+      "summary": "구현 · 추가 요청 끝 · PR #14 · 사용자 확인 대기",
       "conclusion": [
         "프로젝트 이름을 누르면 화면 전체가 캔버스인 전체 보기가 열려요. 지휘자 상자는 맨 위, 세션은 워크트리별 점선 프레임 안에 놓여요 [[P3]].",
         "캔버스는 끌어 이동 · ⌘/핀치 확대, 상자 끌어 옮기기(자리 기억), ⇧ 사각형 선택과 ⌘G 그룹을 지원해요 [[P3-1]] [[P3-2]] [[P3-3]].",
         "잇기 모드에서 상자를 상자로 끌면 맡김 · 끝나면 보고 · 끝나면 다음 중 골라 데몬에 선을 만들고, 패널에서 끊거나 다시 켜요 [[P4]].",
         "목록형 임시 화면(ProjectOverview · ConductorMap)은 지웠어요 [[P5-2]].",
+        "앱을 보고 요청한 패널 접기 · 우클릭 메뉴 · 입력창 배치 · 첨부 권한 · 워크트리 선 끄기를 이 작업에 더했어요 [[P6]].",
         "남은 것: 실제 지휘자를 띄운 모습은 앱에서 직접 확인이 필요해요 [[P5-V]]."
       ],
       "blocks": [
@@ -1152,6 +1153,174 @@
               ]
             }
           ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 11/16 추가 요청",
+          "sub": "계획 승인 뒤 앱을 보고 요청한 것. 같은 화면이라 이 작업에 합쳤어요.",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "오른쪽 패널 접기 · 펼치기 (접은 상태 기억)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/SidePanel.tsx</code> · <code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S30]]"
+                ],
+                [
+                  "재사용",
+                  "<code>useStoredList</code>(<code>agent-control:canvas-panel</code>)"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "우클릭 메뉴: 세션 · 워크트리 프레임 · 그룹 · 선마다 이름 바꾸기 · 그룹 · 끊기 · 세션 닫기 등",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/CanvasMenu.tsx</code> · <code>src/client/widgets/project-graph/ui/canvasMenuItems.ts</code> · <code>src/client/widgets/project-graph/ui/CanvasStage.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S29]]"
+                ],
+                [
+                  "결정",
+                  "세션 닫기 · 연결 모두 끊기는 메뉴 안에서 한 번 더 눌러야 실행. 워크트리 삭제는 기존 확인 창을 거치도록 메뉴에 넣지 않음"
+                ]
+              ]
+            },
+            {
+              "id": "P6-3",
+              "title": "'+ 세션' 입력창이 좁은 팝오버에서 찌그러지던 것 — 창 폭 기준으로 세로 배치",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/launch-agent/ui/LaunchAgent.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "화면 폭(sm:) 대신 컨테이너 폭(@xl:)으로 줄바꿈 — 넓은 곳의 기존 모습은 그대로"
+                ]
+              ]
+            },
+            {
+              "id": "P6-4",
+              "title": "첨부 이미지를 읽을 때마다 권한을 묻던 것 — 데몬 세션에 첨부 폴더를 --add-dir로 넘김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/command.ts</code> · <code>daemon/main.ts</code>"
+                ],
+                [
+                  "원인",
+                  "첨부마다 새 폴더에 저장돼서 '다시 묻지 않기'가 그 폴더 하나만 허용"
+                ],
+                [
+                  "남음",
+                  "데몬 재시작 후 적용 — 재시작하면 세션이 모두 끊겼다 다시 열려서 아직 안 함"
+                ]
+              ]
+            },
+            {
+              "id": "P6-5",
+              "title": "워크트리 관계 선(갈라짐 · 같은 파일)을 기본으로 끄고 도구 막대 토글로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code> · <code>src/client/widgets/project-graph/ui/GraphToolbar.tsx</code> · <code>src/client/widgets/project-graph/ui/Legend.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R3-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code>(581개) 통과 · 우클릭 두 번 눌러 닫기 · 패널 접기 위젯 테스트 · <code>bun run desktop</code> 후 앱 재시작",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "now",
+      "summary": "D3–D5 끝 · D1 · D2 남음",
+      "conclusion": [
+        "리뷰 · 테스트 · PR(#14)까지 했어요. SOT 근거를 실제 파일:줄로 바꾸는 D1과 남은 요청 정리 D2가 남았어요.",
+        "실제 지휘자를 띄운 화면 확인([[P5-V]])은 사용자 확인을 기다려요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": false
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": false
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review low 3건 중 2건 수정(세션 종료 시 선을 먼저 처리한 뒤 응답, 선 종류 창 제목 대체값). 권한이 영원히 붙잡힌다는 1건은 해당 없음 — 시간이 지나면 풀림(SessionRegistry.ts:272)"
+                ],
+                [
+                  "커밋",
+                  "<code>f01bf93</code>"
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "tsc 통과 · test 581개 통과 · lint는 기존 오류 2건(SessionRegistry.ts:105-106)만"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "rows": [
+                [
+                  "PR",
+                  "https://github.com/movie42/multi-agentic-dashboard/pull/14"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
         }
       ]
     }

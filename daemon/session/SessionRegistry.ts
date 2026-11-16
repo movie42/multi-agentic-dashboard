@@ -102,7 +102,9 @@ export function asksForTrust(output: string): boolean {
 }
 
 export function trimChunks(chunks: string[], limit: number): string[] {
+  // eslint-disable-next-line no-restricted-syntax -- position loop walking back from the newest chunk
   let start = chunks.length;
+  // eslint-disable-next-line no-restricted-syntax -- running size for the same loop
   let size = 0;
   while (start > 0 && size < limit) {
     start -= 1;
