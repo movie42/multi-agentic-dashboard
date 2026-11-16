@@ -296,7 +296,7 @@
           "kind": "format",
           "title": "프로젝트 집계 · 도구",
           "field": "<code>agents[].state</code>",
-          "rule": "세션 수, 내 차례, 작업 중 수와 함께 + 세션 · 잇기 · 규칙 · 정렬 도구가 있어요.",
+          "rule": "세션 수, 내 차례, 작업 중 수와 함께 + 세션 · 잇기 · 규칙 · 자동 정리 도구가 캔버스 위에 떠 있어요.",
           "note": "사용자 스케치 11/16"
         },
         {
@@ -308,18 +308,18 @@
           "title": "잇기",
           "field": "—",
           "rule": "켜면 상자에서 상자로 끌어 선을 이어요. 선 종류는 맡김 · 이어서 중에서 골라요.",
-          "note": "[[session-orchestration]]에서 실제 동작 설계"
+          "note": "[[project-overview#R4]]"
         },
         {
           "id": "S18",
           "section": "그래프",
           "node": "coordinator",
           "side": "right",
-          "kind": "pending",
-          "title": "프로젝트 세션 (코디네이터)",
-          "field": "—",
-          "rule": "워크트리가 아니라 프로젝트(main 폴더)에 붙은 세션이에요. 맨 위에 두고 워크트리 세션들에 일을 맡겨요.",
-          "note": "프로젝트 레벨 세션을 따로 표시할 필드가 아직 없어요 — main 체크아웃 세션으로 볼지 정해야 해요"
+          "kind": "format",
+          "title": "지휘자 세션 (프로젝트 레벨)",
+          "field": "<code>agents[].orchestration.conductor</code>",
+          "rule": "지휘자로 만든 세션만 맨 위에 놓여요(어느 폴더에서 띄웠는지와 무관). 맡긴 워크트리 칩과 받은 보고 수를 보여 주고, 맡긴 세션으로 맡김 선이 나가요.",
+          "note": "[[project-overview#R4-Q2]]"
         },
         {
           "id": "S19",
@@ -363,7 +363,7 @@
           "title": "새 세션 끌어 잇기",
           "field": "—",
           "rule": "빈 자리에서 새 세션을 만들어 기존 상자와 바로 이어요.",
-          "note": "[[session-orchestration]]"
+          "note": "[[project-overview#R4]]"
         },
         {
           "id": "S23",
@@ -392,11 +392,44 @@
           "section": "오른쪽 패널",
           "node": "panel-rule",
           "side": "right",
-          "kind": "pending",
+          "kind": "action",
           "title": "연결 · 규칙",
+          "field": "<code>agents[].orchestration.links · conductor.grants · rules</code>",
+          "rule": "이 세션에 걸린 선(맡김 · 보고 · 끝나면 다음)과 지휘자에게 맡긴 권한을 보여요. 멈춘 선은 다시 켜기 · 끊기를 할 수 있어요.",
+          "note": "데몬이 orchestration.json에 저장하고 실행해요 [[project-overview#R4-Q4]] [[project-overview#R4-Q6]]"
+        },
+        {
+          "id": "S26",
+          "section": "캔버스",
+          "node": "canvas",
+          "side": "left",
+          "kind": "action",
+          "title": "캔버스 탐색",
           "field": "—",
-          "rule": "이 세션에 걸린 선과 규칙(예: 대화가 끝나면 맡긴 세션에 보고)을 보여요.",
-          "note": "규칙 저장 위치와 실행 주체는 [[session-orchestration]]에서 정해요"
+          "rule": "전체 보기 화면 전체가 끝없는 캔버스예요. 빈 곳을 끌거나 스페이스를 누른 채 끌면 이동하고, ⌘+휠 · 핀치로 확대/축소해요. 배율 버튼은 모든 상자가 보이게 맞춰요.",
+          "note": "[[project-overview#R6-Q1]]"
+        },
+        {
+          "id": "S27",
+          "section": "캔버스",
+          "node": "session-node",
+          "side": "right",
+          "kind": "action",
+          "title": "상자 옮기기 · 여러 개 고르기",
+          "field": "—",
+          "rule": "상자를 끌어 자리를 옮기면 그 자리를 기억해요. ⇧클릭이나 ⇧를 누른 채 빈 곳을 사각형으로 끌어 여러 상자를 함께 골라요. 새로 생긴 상자는 자동 배치 자리에 놓여요.",
+          "note": "[[project-overview#R6-Q1]]"
+        },
+        {
+          "id": "S28",
+          "section": "캔버스",
+          "node": "cluster",
+          "side": "right",
+          "kind": "action",
+          "title": "그룹",
+          "field": "—",
+          "rule": "고른 상자들을 ⌘G로 그룹으로 묶고 이름을 붙여요. 그룹을 끌면 안의 상자가 함께 움직이고, ⌘⇧G로 풀어요. 워크트리 묶음은 자동으로 생기는 그룹이라 풀 수 없고, 직접 만든 그룹은 워크트리를 넘나들 수 있어요.",
+          "note": "[[project-overview#R6-Q1]]"
         }
       ],
       "offscreen": [
@@ -428,7 +461,7 @@
           "id": "X15",
           "state": "세션이 많을 때",
           "when": "상자가 화면을 넘칠 때",
-          "shows": "끌어서 이동 · 확대/축소, 정렬로 다시 배치"
+          "shows": "끌어서 이동 · 확대/축소 · 맞춤, '자동 정리'로 처음 배치로 되돌리기"
         }
       ],
       "offscreenIntro": "초안 이미지에 없는 상태들"

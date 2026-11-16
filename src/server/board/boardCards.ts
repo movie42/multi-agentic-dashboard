@@ -94,10 +94,11 @@ export function buildAgentCard({ session, worktree, prompt, lastMessage, session
     unread: false,
     terminalHandle: session.id,
     artifacts,
-    parentId: null,
+    parentId: session.orchestration?.parentId ?? null,
     model: session.model,
     contextPercent: session.contextPercent,
     permission: session.permission,
+    orchestration: session.orchestration,
   };
 }
 

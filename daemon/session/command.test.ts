@@ -23,7 +23,28 @@ describe("commandFor", () => {
     expect(command.args).not.toContain("--session-id");
   });
 
+  it("lets Claude read pasted attachments without asking for each one", () => {
+    const command = commandFor({ id: "s1", kind: "claude" }, { ...environment, attachmentDir: "/tmp/agent-control/attachments" });
+    expect(command.args.slice(2, 4)).toEqual(["--add-dir", "/tmp/agent-control/attachments"]);
+  });
+
   it("opens a login shell with no hooks", () => {
     expect(commandFor({ id: "s1", kind: "shell" }, environment)).toEqual({ file: "/bin/zsh", args: ["-l"] });
+  });
+});
+
+describe("commandFor a conductor", () => {
+  it("adds the daemon's MCP server, allows its tools, and appends the conductor role before --settings", () => {
+    const command = commandFor({ id: "c1", kind: "claude", prompt: "plan it", conductor: true }, environment);
+    const config = command.args[command.args.indexOf("--mcp-config") + 1];
+    expect(JSON.parse(config ?? "")).toEqual({ mcpServers: { "agent-control": { type: "http", url: "http://127.0.0.1:3198/mcp/c1" } } });
+    expect(command.args[command.args.indexOf("--allowedTools") + 1]).toBe("mcp__agent-control");
+    expect(command.args).toContain("--append-system-prompt");
+    expect(command.args.indexOf("--append-system-prompt")).toBeLessThan(command.args.indexOf("--settings"));
+    expect(command.args.slice(-2)).toEqual(["--", "plan it"]);
+  });
+
+  it("leaves ordinary sessions without orchestration tools", () => {
+    expect(commandFor({ id: "s1", kind: "claude" }, environment).args).not.toContain("--mcp-config");
   });
 });

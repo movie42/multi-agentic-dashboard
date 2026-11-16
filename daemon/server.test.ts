@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { Orchestration } from "./orchestration/Orchestration.ts";
 import { createRunnerServer, type RunnerServer } from "./server.ts";
 import { SessionRegistry, type PtyProcess } from "./session/SessionRegistry.ts";
 
@@ -28,7 +29,8 @@ function setup() {
     newId: () => "s1",
   });
   registry.launch({ cwd: "/repo" });
-  const runner = createRunnerServer({ registry, port: PORT, allowedOrigins: [] });
+  const orchestration = new Orchestration({ get: (id) => registry.get(id), send: () => {}, onChange: () => {} });
+  const runner = createRunnerServer({ registry, orchestration, port: PORT, allowedOrigins: [] });
   return { runner, registry, written, emit: (data: string) => emit(data) };
 }
 

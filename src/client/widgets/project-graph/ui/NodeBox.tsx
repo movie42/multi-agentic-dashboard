@@ -1,0 +1,67 @@
+"use client";
+
+import type { AgentCard, AgentState } from "@/common/board/types";
+import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
+import type { GraphNode } from "../model/graph";
+
+const NODE_STATE: Record<AgentState, { label: string; tone: string; dot: string }> = {
+  blocked: { label: "막힘", tone: "border-accent text-accent", dot: "bg-accent" },
+  waiting: { label: "내 입력 대기", tone: "border-accent text-accent", dot: "bg-accent" },
+  done: { label: "내 차례", tone: "border-ask text-ask", dot: "bg-ask" },
+  working: { label: "작업 중", tone: "border-now text-now", dot: "bg-now animate-pulse" },
+  idle: { label: "쉬는 중", tone: "border-hair text-muted", dot: "shadow-[inset_0_0_0_1.5px_var(--faint)]" },
+};
+
+const INTERRUPTED = { label: "중단됨", tone: "border-accent text-accent", dot: "bg-accent" };
+
+export function nodeTitle(agent: AgentCard): string {
+  return agent.title ?? agent.prompt?.split("\n")[0] ?? agent.agentType ?? "세션";
+}
+
+function stateOf(agent: AgentCard) {
+  return agent.interrupted && agent.state !== "working" ? INTERRUPTED : NODE_STATE[agent.state];
+}
+
+interface NodeBoxProps {
+  node: GraphNode;
+  now: number;
+  selected: boolean;
+  /** Worktree names this conductor handed work to. */
+  delegatedTo: string[];
+  reports: number;
+}
+
+/** One session on the canvas: state, elapsed time, title and the last message line. */
+export function NodeBox({ node, now, selected, delegatedTo, reports }: NodeBoxProps) {
+  const { agent } = node;
+  const state = stateOf(agent);
+  const conductor = agent.orchestration?.conductor ?? null;
+  return (
+    <div
+      className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] px-3 py-2.5 select-none ${state.tone} ${
+        conductor ? "bg-now/5" : "bg-bg"
+      } ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-bg" : ""}`}
+    >
+      <p className="flex items-center gap-1.5 text-[11px] leading-none font-semibold tracking-[0.02em]">
+        <span className={`size-1.5 shrink-0 rounded-full ${state.dot}`} />
+        {conductor && <span className="text-now">지휘자 · {conductor.scope.kind === "project" ? "프로젝트" : "워크트리"} ·</span>}
+        <span>{state.label}</span>
+        <span className="ml-auto font-normal text-muted">{formatElapsed(agent.stateSince, now)}</span>
+      </p>
+      <p className="truncate text-[14px] leading-snug font-bold text-fg">{nodeTitle(agent)}</p>
+      {conductor ? (
+        <p className="flex min-w-0 flex-wrap gap-1 text-[11px] leading-none">
+          {delegatedTo.map((name) => (
+            <span key={name} className="truncate rounded-[5px] bg-now/10 px-1.5 py-1 text-now">
+              → {name}
+            </span>
+          ))}
+          {reports > 0 && <span className="rounded-[5px] bg-now/10 px-1.5 py-1 text-now">보고 {reports}</span>}
+          {delegatedTo.length === 0 && reports === 0 && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
+        </p>
+      ) : (
+        <p className="truncate text-[12px] text-muted">{plainMessage(agent.lastMessage) || agent.worktreeName}</p>
+      )}
+    </div>
+  );
+}

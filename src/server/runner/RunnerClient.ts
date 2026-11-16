@@ -1,6 +1,7 @@
 import "server-only";
 import { runnerResponseSchema } from "@/common/runner/schema";
 import type { RunnerInputRequest, RunnerLaunchRequest, RunnerPermissionAnswer, RunnerSession } from "@/common/runner/types";
+import type { LinkKind } from "@/common/orchestration/types";
 
 export interface RunnerClientOptions {
   baseUrl: string;
@@ -52,6 +53,31 @@ export class RunnerClient {
       method: "POST",
       headers: JSON_HEADERS,
       body: JSON.stringify({ requestId, answer }),
+    });
+  }
+
+  async delegatePermission(id: string, requestId: string): Promise<void> {
+    await this.call(`/sessions/${encodeURIComponent(id)}/delegate`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ requestId }) });
+  }
+
+  async connect(from: string, to: string, kind: LinkKind, prompt: string | null): Promise<void> {
+    await this.call("/links", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ from, to, kind, prompt }) });
+  }
+
+  async unlink(linkId: string): Promise<void> {
+    await this.call(`/links/${encodeURIComponent(linkId)}`, { method: "DELETE" });
+  }
+
+  async resumeLink(linkId: string): Promise<void> {
+    await this.call(`/links/${encodeURIComponent(linkId)}/resume`, { method: "POST" });
+  }
+
+  /** `path` when the worktree was created, `error` when creating failed, neither when the person declined. */
+  async settleWorktreeRequest(conductorId: string, requestId: string, result: { path?: string; error?: string }): Promise<void> {
+    await this.call(`/conductors/${encodeURIComponent(conductorId)}/worktree`, {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ requestId, ...result }),
     });
   }
 

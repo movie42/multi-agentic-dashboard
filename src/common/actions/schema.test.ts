@@ -5,6 +5,13 @@ const SESSION = "0b8c1a7e-1234-4abc-8def-0123456789ab";
 const ok = (value: unknown) => actionRequestSchema.safeParse(value).success;
 
 describe("actionRequestSchema", () => {
+  it("accepts a line between two sessions and a launch that connects the new session", () => {
+    expect(ok({ type: "connect-sessions", from: "a", to: "b", kind: "report", prompt: null })).toBe(true);
+    expect(ok({ type: "connect-sessions", from: "a", to: "b", kind: "fork", prompt: null })).toBe(false);
+    expect(ok({ type: "launch-agent", worktreePath: "/w", prompt: "", link: { from: "a", kind: "delegate" } })).toBe(true);
+    expect(ok({ type: "launch-agent", worktreePath: "/w", prompt: "", link: { from: "", kind: "delegate" } })).toBe(false);
+  });
+
   it.each([
     [{ type: "send-prompt", terminalHandle: "t", text: "hi" }, true],
     [{ type: "send-prompt", terminalHandle: "t", text: "   " }, false],

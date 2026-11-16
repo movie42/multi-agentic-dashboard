@@ -1,3 +1,4 @@
+import type { SessionOrchestration } from "@/common/orchestration/types";
 import type { RunnerPermission } from "@/common/runner/types";
 import type { SessionRef } from "@/common/sessions/types";
 import type { FeatureSummary, FlowTaskSummary, JiraIssueInfo, PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
@@ -37,6 +38,8 @@ export interface AgentCard {
   model: string | null;
   contextPercent: number | null;
   permission: RunnerPermission | null;
+  /** Conductor settings, outgoing lines and parent from the runner daemon; null for sessions it does not know. */
+  orchestration: SessionOrchestration | null;
 }
 
 export interface WorktreeSummary {

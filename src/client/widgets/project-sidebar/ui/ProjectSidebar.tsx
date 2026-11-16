@@ -228,8 +228,8 @@ export function ProjectSidebar({
                       onToggleFocus(project.repo);
                       return;
                     }
-                    if (!active) prefs.selectRepo(project.repo);
-                    setOpen(project.repo, active ? !open : true);
+                    prefs.selectRepo(project.repo);
+                    setOpen(project.repo, true);
                   }}
                 />
                 <button

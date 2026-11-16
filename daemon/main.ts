@@ -1,10 +1,11 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import pty from "node-pty";
 import { RUNNER_PORT, RUNNER_USAGE_FILE, type RunnerSession, type RunnerUsage } from "../src/common/runner/types.ts";
 import { DEFAULT_ALLOWED_ORIGINS } from "./guard.ts";
-import { createRunnerServer } from "./server.ts";
+import { Orchestration, ORCHESTRATION_FILE, parseSavedOrchestration } from "./orchestration/Orchestration.ts";
+import { createRunnerServer, pasteOf } from "./server.ts";
 import { commandFor } from "./session/command.ts";
 import { SessionRegistry } from "./session/SessionRegistry.ts";
 import { parseSavedSessions, restoreRequestsOf, savedSessionsOf, SESSIONS_FILE } from "./session/restore.ts";
@@ -22,8 +23,13 @@ const shell = process.env.SHELL ?? "/bin/zsh";
 const dataDir = process.env.AGENT_CONTROL_DATA_DIR ?? path.join(homedir(), ".local", "share", "agent-control");
 const usageFile = process.env.RUNNER_USAGE_FILE ?? path.join(dataDir, RUNNER_USAGE_FILE);
 const statusLine = { node: process.execPath, script: path.join(import.meta.dirname, "statusline.mjs") };
+// Must match ATTACHMENT_DIR in app/api/attachments/route.ts; both run as the same user, so tmpdir() agrees.
+const attachmentDir = path.join(tmpdir(), "agent-control", "attachments");
+mkdir(attachmentDir, { recursive: true }).catch((error: unknown) => console.warn("[daemon] attachment folder", error));
 
 const sessionsFile = process.env.RUNNER_SESSIONS_FILE ?? path.join(dataDir, SESSIONS_FILE);
+const orchestrationFile = process.env.RUNNER_ORCHESTRATION_FILE ?? path.join(dataDir, ORCHESTRATION_FILE);
+const SUBMIT_DELAY_MS = 300;
 
 async function writeAtomic(file: string, body: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
@@ -36,34 +42,44 @@ async function saveUsage(usage: RunnerUsage): Promise<void> {
   await writeAtomic(usageFile, JSON.stringify(usage));
 }
 
-async function readSavedSessions(): Promise<unknown> {
+async function readSaved(file: string, label: string): Promise<unknown> {
   try {
-    return JSON.parse(await readFile(sessionsFile, "utf8"));
+    return JSON.parse(await readFile(file, "utf8"));
   } catch (error) {
-    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error("[runner] saved sessions unreadable", error);
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error(`[runner] saved ${label} unreadable`, error);
     return null;
   }
 }
 
-const sessionSaver = { stopped: false, last: "", queue: Promise.resolve() };
+interface Saver {
+  file: string;
+  label: string;
+  last: string;
+  queue: Promise<void>;
+}
 
-function saveSessions(sessions: RunnerSession[]): void {
-  if (sessionSaver.stopped) return;
-  const body = JSON.stringify({ sessions: savedSessionsOf(sessions) });
-  if (body === sessionSaver.last) return;
-  sessionSaver.last = body;
-  sessionSaver.queue = sessionSaver.queue
-    .then(() => writeAtomic(sessionsFile, body))
+const savers = {
+  stopped: false,
+  sessions: { file: sessionsFile, label: "sessions", last: "", queue: Promise.resolve() } satisfies Saver,
+  orchestration: { file: orchestrationFile, label: "orchestration", last: "", queue: Promise.resolve() } satisfies Saver,
+};
+
+function save(saver: Saver, body: string): void {
+  if (savers.stopped || body === saver.last) return;
+  saver.last = body;
+  saver.queue = saver.queue
+    .then(() => writeAtomic(saver.file, body))
     .catch((error: unknown) => {
-      if (sessionSaver.last === body) sessionSaver.last = "";
-      console.error("[runner] sessions save failed", error);
+      if (saver.last === body) saver.last = "";
+      console.error(`[runner] ${saver.label} save failed`, error);
     });
 }
 
 const SAVE_FLUSH_MS = 2000;
 
-function flushSessions(): Promise<void> {
-  return Promise.race([sessionSaver.queue, new Promise<void>((resolve) => setTimeout(resolve, SAVE_FLUSH_MS).unref())]);
+function flushSaves(): Promise<void> {
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, SAVE_FLUSH_MS).unref());
+  return Promise.race([Promise.all([savers.sessions.queue, savers.orchestration.queue]).then(() => {}), timeout]);
 }
 
 const shellEnv = await readShellEnv(shell);
@@ -75,22 +91,42 @@ function sessionEnv(): Record<string, string> {
   return { ...Object.fromEntries(entries), TERM: "xterm-256color", COLORTERM: "truecolor" };
 }
 
-const relay: { onChange: (sessions: RunnerSession[]) => void } = { onChange: () => {} };
+const relay: { onChange: () => void } = { onChange: () => {} };
 
 const registry = new SessionRegistry({
   spawn: (file, args, options) => pty.spawn(file, args, { name: "xterm-256color", ...options }),
-  commandFor: (request) => commandFor(request, { claude: command, shell, baseUrl, statusLine }),
+  commandFor: (request) => commandFor(request, { claude: command, shell, baseUrl, statusLine, attachmentDir }),
   env: sessionEnv(),
-  onChange: (sessions) => relay.onChange(sessions),
+  onChange: () => relay.onChange(),
   onUsage: (usage) => {
     saveUsage(usage).catch((error: unknown) => console.error("[runner] usage save failed", error));
   },
 });
 
-const runner = createRunnerServer({ registry, port, allowedOrigins });
-relay.onChange = (sessions) => {
-  runner.broadcast({ type: "sessions", sessions });
-  saveSessions(sessions);
+const orchestration = new Orchestration({
+  get: (id) => registry.get(id),
+  send: (id, text) => {
+    registry.write(id, pasteOf(text));
+    setTimeout(() => registry.write(id, "\r"), SUBMIT_DELAY_MS).unref();
+  },
+  onChange: () => relay.onChange(),
+});
+orchestration.load(parseSavedOrchestration(await readSaved(orchestrationFile, "orchestration")));
+
+const runner = createRunnerServer({ registry, orchestration, port, allowedOrigins });
+const lifecycle = { restored: false };
+
+function persist(sessions: RunnerSession[]): void {
+  save(savers.sessions, JSON.stringify({ sessions: savedSessionsOf(sessions) }));
+  save(savers.orchestration, JSON.stringify(orchestration.snapshot(sessions)));
+}
+
+relay.onChange = () => {
+  const sessions = registry.list();
+  // Before restore the registry is empty, and pruning then would drop every saved line.
+  if (lifecycle.restored) orchestration.prune(new Set(sessions.map((session) => session.id)));
+  runner.broadcast({ type: "sessions", sessions: orchestration.decorate(sessions) });
+  persist(sessions);
 };
 
 runner.server.on("error", (error) => {
@@ -98,22 +134,32 @@ runner.server.on("error", (error) => {
   process.exit(1);
 });
 
-const saved = parseSavedSessions(await readSavedSessions());
+const saved = parseSavedSessions(await readSaved(sessionsFile, "sessions"));
 
 runner.server.listen(port, "127.0.0.1", () => {
   console.log(`[runner] listening on ${baseUrl} (claude: ${command})`);
-  if (saved.length === 0) return;
-  sessionSaver.stopped = true;
-  const restored = registry.restore(restoreRequestsOf(saved));
-  sessionSaver.stopped = false;
-  saveSessions(registry.list());
+  if (saved.length === 0) {
+    lifecycle.restored = true;
+    relay.onChange();
+    return;
+  }
+  savers.stopped = true;
+  const requests = restoreRequestsOf(saved).map((request) => {
+    const id = request.launch.resumeSessionId;
+    const conductor = id ? orchestration.conductor(id) : null;
+    return conductor ? { ...request, launch: { ...request.launch, conductor: { scope: conductor.scope, grants: conductor.grants } } } : request;
+  });
+  const restored = registry.restore(requests);
+  savers.stopped = false;
+  lifecycle.restored = true;
+  relay.onChange();
   console.log(`[runner] restored ${restored.length}/${saved.length} sessions from ${sessionsFile}`);
 });
 
 async function shutdown(signal: string) {
   console.log(`[runner] ${signal} — closing sessions`);
-  sessionSaver.stopped = true;
-  await flushSessions();
+  savers.stopped = true;
+  await flushSaves();
   registry.closeAll();
   runner.server.close();
   process.exit(0);

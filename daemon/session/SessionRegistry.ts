@@ -49,6 +49,7 @@ export interface CommandRequest {
   kind: RunnerSessionKind;
   prompt?: string;
   resumeSessionId?: string;
+  conductor?: boolean;
 }
 
 export interface Command {
@@ -147,7 +148,8 @@ export class SessionRegistry {
     running?.screen.dispose();
     const id = resumeSessionId ?? this.#options.newId();
     const now = this.#options.now();
-    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId });
+    const conductor = kind === "claude" && request.conductor !== undefined;
+    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId, ...(conductor ? { conductor } : {}) });
     const pty = this.#options.spawn(command.file, command.args, {
       cwd,
       cols: INITIAL_COLS,
@@ -168,6 +170,7 @@ export class SessionRegistry {
         contextPercent: null,
         conversationId: null,
         permission: null,
+        orchestration: null,
       },
       hooked: false,
       pty,

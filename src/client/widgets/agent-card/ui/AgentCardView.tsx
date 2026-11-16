@@ -10,6 +10,7 @@ import { TurnList } from "./ConversationHistory";
 import { ChatView, type ChatLayout } from "./ChatView";
 import { MessageView } from "./MessageView";
 import { PermissionPrompt } from "@/client/features/answer-permission";
+import { OrchestrationPanel } from "@/client/features/conduct-sessions";
 import { ModelPicker } from "@/client/features/choose-model";
 import { AttachToTodo } from "@/client/features/attach-to-todo";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
@@ -300,7 +301,13 @@ export function AgentCardView({
       {view === "history" && agent.session && <TurnList key={`conversation-${agent.session.id}`} sessionId={agent.session.id} />}
 
       {view === "terminal" && terminalHandle && (
-        <div className="h-[420px]">
+        <div
+          className={
+            chatLayout === "page"
+              ? "h-[calc(100dvh-var(--strip-h,0px)-var(--tabs-h,0px)-8rem)] min-h-[420px] pb-4"
+              : "h-[420px]"
+          }
+        >
           <RunnerTerminal key={terminalHandle} sessionId={terminalHandle} />
         </div>
       )}
@@ -318,8 +325,15 @@ export function AgentCardView({
         </div>
       )}
 
+      {agent.orchestration && terminalHandle && <OrchestrationPanel terminalHandle={terminalHandle} orchestration={agent.orchestration} />}
+
       {agent.permission && terminalHandle && (
-        <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} />
+        <PermissionPrompt
+          key={agent.permission.id}
+          terminalHandle={terminalHandle}
+          permission={agent.permission}
+          delegable={agent.parentId !== null}
+        />
       )}
 
       {chatLayout === "page" && filesFooter}

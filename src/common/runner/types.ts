@@ -1,3 +1,5 @@
+import type { ConductorLaunch, SessionOrchestration } from "../orchestration/types";
+
 export const RUNNER_PORT = 3198;
 
 export type RunnerStatus = "idle" | "working" | "waiting" | "exited";
@@ -21,6 +23,8 @@ export interface RunnerSession {
    */
   conversationId: string | null;
   permission: RunnerPermission | null;
+  /** Filled by the daemon's orchestration store; null from older daemons. */
+  orchestration: SessionOrchestration | null;
 }
 
 export type RunnerPermissionSuggestion = Record<string, unknown>;
@@ -56,6 +60,8 @@ export interface RunnerLaunchRequest {
   prompt?: string;
   resumeSessionId?: string;
   kind?: RunnerSessionKind;
+  /** Launches the session as a conductor: it gets the daemon's orchestration tools. */
+  conductor?: ConductorLaunch;
 }
 
 export interface RunnerInputRequest {

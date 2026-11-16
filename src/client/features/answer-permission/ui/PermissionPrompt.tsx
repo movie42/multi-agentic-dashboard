@@ -119,7 +119,42 @@ interface PromptBodyProps {
   permission: RunnerPermission;
 }
 
-function ToolPrompt({ terminalHandle, permission }: PromptBodyProps) {
+interface DelegateButtonProps extends PromptBodyProps {
+  disabled: boolean;
+}
+
+type DelegateResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
+
+/** Adds this kind of request to the conductor's delegated rules and hands the current one to it. */
+function DelegateButton({ terminalHandle, permission, disabled }: DelegateButtonProps) {
+  const [result, dispatch, sending] = useActionState<DelegateResult>(async (previous) => {
+    if (previous.kind === "sent") return previous;
+    try {
+      await postAction({ type: "delegate-permission", terminalHandle, requestId: permission.id });
+      return { kind: "sent" };
+    } catch (error) {
+      toastError("permission", error);
+      return { kind: "error", message: error instanceof Error ? error.message : String(error) };
+    }
+  }, { kind: "idle" });
+  if (result.kind === "sent") return <p className="text-[12px] text-muted">지휘자에게 넘겼어요. 지휘자가 판단하지 못하면 여기 그대로 남아요.</p>;
+  return (
+    <button
+      type="button"
+      disabled={disabled || sending}
+      onClick={() => startTransition(() => dispatch())}
+      className="cursor-pointer rounded-full bg-tint-2 px-3 py-1 text-left text-[12px] hover:bg-fg hover:text-bg disabled:cursor-default disabled:opacity-30"
+    >
+      앞으로 지휘자에게 맡기기
+    </button>
+  );
+}
+
+interface ToolPromptProps extends PromptBodyProps {
+  delegable: boolean;
+}
+
+function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) {
   const { status, send, locked } = useSend(terminalHandle, permission.id);
   const [denying, setDenying] = useState(false);
   const [reason, setReason] = useState("");
@@ -182,6 +217,7 @@ function ToolPrompt({ terminalHandle, permission }: PromptBodyProps) {
           ))}
         </div>
       )}
+      {!denying && delegable && <DelegateButton terminalHandle={terminalHandle} permission={permission} disabled={locked} />}
       <StatusLine status={status} />
     </>
   );
@@ -301,16 +337,18 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
 interface PermissionPromptProps {
   terminalHandle: string;
   permission: RunnerPermission;
+  /** The session was handed out by a conductor, so this kind of request can be delegated to it. */
+  delegable?: boolean;
 }
 
-export function PermissionPrompt({ terminalHandle, permission }: PermissionPromptProps) {
+export function PermissionPrompt({ terminalHandle, permission, delegable = false }: PermissionPromptProps) {
   const questions = questionsOf(permission);
   return (
     <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
       {questions.length > 0 ? (
         <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} />
       ) : (
-        <ToolPrompt terminalHandle={terminalHandle} permission={permission} />
+        <ToolPrompt terminalHandle={terminalHandle} permission={permission} delegable={delegable} />
       )}
     </div>
   );

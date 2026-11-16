@@ -37,6 +37,7 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
+import { ProjectCanvas } from "@/client/widgets/project-graph";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "@/client/widgets/doc-panel";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -392,11 +393,13 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       />
 
       <main
-        className={`mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 md:px-12 ${
-          selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
-            ? "gap-6 pt-8"
-            : "gap-16 pt-14 pb-36"
-        }`}
+        className={
+          selectedRepo !== null && prefs.selectedWorktreeId === null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
+            ? "flex h-dvh min-w-0 flex-col"
+            : `mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 md:px-12 ${
+                selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff ? "gap-6 pt-8" : "gap-16 pt-14 pb-36"
+              }`
+        }
       >
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />
@@ -567,6 +570,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             onAction={runAction}
             focused={focused.has(selectedRepo)}
             onToggleFocus={() => toggleFocus(selectedRepo)}
+            onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
           />
         )}
       </main>
@@ -598,6 +602,7 @@ interface ProjectViewProps {
   onAction: (action: ActionRequest) => Promise<void>;
   focused: boolean;
   onToggleFocus: () => void;
+  onOpenWorktree: (worktreeId: string) => void;
 }
 
 function ProjectView({
@@ -614,6 +619,7 @@ function ProjectView({
   onAction,
   focused,
   onToggleFocus,
+  onOpenWorktree,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
   const worktree =
@@ -660,13 +666,39 @@ function ProjectView({
     />
   ) : null;
 
+  const header = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+      <span className="font-semibold text-fg">{repo}</span>
+      <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
+      <FocusToggle active={focused} onToggle={onToggleFocus} />
+    </div>
+  );
+
+  if (selectedWorktreeId === null) {
+    return (
+      <ProjectCanvas
+        repo={repo}
+        worktrees={ordered}
+        agents={agents.top.flatMap((agent) => [agent, ...agents.workersOf(agent)])}
+        mode={mode}
+        now={now}
+        header={
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px] text-muted">
+            <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em] text-fg">{repo}</h1>
+            <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
+            <FocusToggle active={focused} onToggle={onToggleFocus} />
+          </div>
+        }
+        renderCard={renderCard}
+        onAction={onAction}
+        onOpenWorktree={onOpenWorktree}
+      />
+    );
+  }
+
   return (
     <>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
-        <span className="font-semibold text-fg">{repo}</span>
-        <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
-        <FocusToggle active={focused} onToggle={onToggleFocus} />
-      </div>
+      {header}
       {!worktree ? (
         <p className="text-[15px] text-muted">이 프로젝트에 워크트리가 없어요.</p>
       ) : feature ? (

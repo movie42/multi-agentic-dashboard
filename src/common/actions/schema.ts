@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GRANT_BUNDLES, LINK_KINDS } from "../orchestration/types";
 import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits";
 
 export const MAX_PROMPT = 8000;
@@ -46,8 +47,32 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set-model"), terminalHandle: z.string(), model: z.enum(MODEL_CHOICES) }),
   z.object({ type: z.literal("toggle-voice"), terminalHandle: z.string(), intent: z.enum(["toggle", "stop"]).default("toggle") }),
   z.object({ type: z.literal("read-voice"), terminalHandle: z.string() }),
-  z.object({ type: z.literal("launch-agent"), worktreePath: absolutePath, prompt: z.string().max(MAX_PROMPT) }),
+  z.object({
+    type: z.literal("launch-agent"),
+    worktreePath: absolutePath,
+    prompt: z.string().max(MAX_PROMPT),
+    /** Connects the new session to an existing one right after it starts (the canvas ghost box). */
+    link: z.object({ from: z.string().min(1), kind: z.enum(LINK_KINDS) }).optional(),
+  }),
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
+  z.object({
+    type: z.literal("launch-conductor"),
+    worktreePath: absolutePath,
+    prompt: z.string().max(MAX_PROMPT),
+    scope: z.enum(["project", "worktree"]),
+    grants: z.array(z.enum(GRANT_BUNDLES)),
+  }),
+  z.object({ type: z.literal("delegate-permission"), terminalHandle: z.string(), requestId: z.string() }),
+  z.object({
+    type: z.literal("connect-sessions"),
+    from: z.string().min(1),
+    to: z.string().min(1),
+    kind: z.enum(LINK_KINDS),
+    prompt: z.string().max(MAX_PROMPT).nullable(),
+  }),
+  z.object({ type: z.literal("unlink-sessions"), linkId: z.string() }),
+  z.object({ type: z.literal("resume-link"), linkId: z.string() }),
+  z.object({ type: z.literal("answer-worktree-request"), terminalHandle: z.string(), requestId: z.string(), approve: z.boolean() }),
   z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
   z.object({ type: z.literal("rename-worktree"), worktreePath: absolutePath, name: title }),
   z.object({ type: z.literal("import-project"), path: absolutePath }),

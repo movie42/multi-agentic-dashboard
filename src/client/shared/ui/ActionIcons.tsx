@@ -50,6 +50,14 @@ export const ACTION_ICONS = {
       <path d="M10 9.5v4M8 11.5h4" />
     </Icon>
   ),
+  conductor: (
+    <Icon>
+      <circle cx="10" cy="4.5" r="2" />
+      <circle cx="4.5" cy="15" r="2" />
+      <circle cx="15.5" cy="15" r="2" />
+      <path d="M10 6.5v3.5M10 10 5.6 13.3M10 10l4.4 3.3" />
+    </Icon>
+  ),
   session: (
     <Icon>
       <path d="M3.5 5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v6.5a2 2 0 0 1-2 2H9l-3.5 3v-3a2 2 0 0 1-2-2z" />

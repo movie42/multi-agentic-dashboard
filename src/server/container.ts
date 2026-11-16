@@ -44,10 +44,13 @@ import { GRAPH_PAGE, readGraph } from "./gitGraph/readGraph";
 import { MergedReader } from "./gitGraph/readMerged";
 import { switchBranch } from "./gitGraph/switchBranch";
 import { readWorkingDiff, readWorkingTree } from "./gitGraph/readWorkingTree";
+import { readFileOverlaps } from "./projects/fileOverlaps";
+import { ConductorActions } from "./orchestration/conductorActions";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
 
 export interface Services {
+  conductors: ConductorActions;
   errorLog: ErrorLog;
   sessionIndex: SessionIndex;
   sessionTitles: SessionTitles;
@@ -90,6 +93,7 @@ export interface Services {
     readWorkingTree: typeof readWorkingTree;
     readWorkingDiff: typeof readWorkingDiff;
   };
+  fileOverlaps: (worktreePaths: string[]) => ReturnType<typeof readFileOverlaps>;
 }
 
 function graphReader(merged: MergedReader) {
@@ -161,6 +165,11 @@ function createServices(): Services {
   });
   const docs = new DocServer({ worktreePaths: (options) => board.worktreePaths(options) });
   return {
+    conductors: new ConductorActions({
+      worktrees: async () => (await board.load()).worktrees,
+      runner,
+      createWorktree: (input) => worktrees.create(input),
+    }),
     errorLog,
     sessionIndex,
     sessionTitles,
@@ -188,6 +197,7 @@ function createServices(): Services {
     docs,
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
     gitGraph: { readGraph: graphReader(new MergedReader()), readCommit, readCommitDiff, switchBranch, readWorkingTree, readWorkingDiff },
+    fileOverlaps: (worktreePaths) => readFileOverlaps(worktreePaths, warn),
   };
 }
 
