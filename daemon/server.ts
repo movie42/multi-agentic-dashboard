@@ -188,7 +188,7 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
       if (request.method === "OPTIONS") {
         response.writeHead(204, {
           "Access-Control-Allow-Origin": origin ?? "",
-          "Access-Control-Allow-Methods": "GET, POST, DELETE",
+          "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE",
           "Access-Control-Allow-Headers": "Content-Type",
           "Access-Control-Max-Age": "600",
           Vary: "Origin",
@@ -319,6 +319,12 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
       }
 
       const link = LINK_PATH.exec(url.pathname);
+      if (link && request.method === "PATCH") {
+        const prompt = field(await readBody(request), "prompt");
+        const edited = orchestration.edit(decodeURIComponent(link[1] ?? ""), typeof prompt === "string" ? prompt : null);
+        respond(response, origin, edited ? 200 : 400, edited ? { ok: true } : { ok: false, error: "선 내용을 고칠 수 없어요." });
+        return;
+      }
       if (link && request.method === "DELETE") {
         const removed = orchestration.disconnect(decodeURIComponent(link[1] ?? ""));
         respond(response, origin, removed ? 200 : 404, removed ? { ok: true } : { ok: false, error: "선이 없어요." });

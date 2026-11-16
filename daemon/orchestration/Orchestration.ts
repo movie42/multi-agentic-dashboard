@@ -104,6 +104,10 @@ export function delegateText(from: RunnerSession, prompt: string): string {
   return `[Agent Control] 세션 ${from.id} (${from.cwd})이 이 일을 맡겼어요. 마치면 마지막 답이 그 세션에 보고돼요.\n\n${prompt.trim()}`;
 }
 
+export function revisedText(from: RunnerSession, prompt: string): string {
+  return `[Agent Control] 세션 ${from.id} (${from.cwd})이 맡긴 일을 고쳤어요. 앞서 받은 내용 대신 아래 내용으로 이어서 해 주세요.\n\n${prompt.trim()}`;
+}
+
 export function nextText(from: RunnerSession, prompt: string | null, answer: string | null): string {
   const lead = prompt?.trim() || "앞 세션이 끝났어요. 이어서 맡은 일을 시작해 주세요.";
   const result = answer?.trim() ? `\n\n앞 세션(${from.id})의 마지막 답:\n${answer.trim()}` : "";
@@ -260,6 +264,28 @@ export class Orchestration {
     this.#links = this.#links.filter((link) => link.id !== linkId);
     if (this.#links.length === before) return false;
     this.#deps.onChange();
+    return true;
+  }
+
+  /**
+   * A delegate line's work still waiting in the worker's queue is swapped for the new text; once it went
+   * out, the revision follows it. A next line's text is only read at the next stop.
+   */
+  edit(linkId: string, prompt: string | null): boolean {
+    const link = this.#links.find((item) => item.id === linkId);
+    if (!link || link.kind === "report") return false;
+    const text = prompt?.trim() ? prompt : null;
+    if (link.kind === "delegate" && !text) return false;
+    if (text === link.prompt) return true;
+    this.#replace({ ...link, prompt: text });
+    const delegator = this.#deps.get(link.from);
+    if (link.kind !== "delegate" || !text || !delegator) return true;
+    const queue = this.#queues.get(link.to) ?? [];
+    if (queue.some((item) => item.link === link.id)) {
+      this.#queues.set(link.to, queue.map((item) => (item.link === link.id ? { ...item, text: delegateText(delegator, text) } : item)));
+    } else {
+      this.deliver(link.to, revisedText(delegator, text), link.id);
+    }
     return true;
   }
 

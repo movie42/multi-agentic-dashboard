@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/board/types";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
@@ -23,11 +24,77 @@ interface ConnectionListProps {
   edges: GraphEdge[];
   /** The session the list is read from; without one every line shows both ends. */
   focusId: string | null;
+  /** Open each line's text editor right away, for the view of one chosen line. */
+  editing?: boolean;
   onAction: (action: ActionRequest) => Promise<void>;
 }
 
+interface LinkPromptProps {
+  edge: GraphEdge & { kind: "delegate" | "next"; linkId: string };
+  startOpen: boolean;
+  onAction: (action: ActionRequest) => Promise<void>;
+}
+
+/** What a delegate line handed over, or what a next line will send; editable in place. */
+function LinkPrompt({ edge, startOpen, onAction }: LinkPromptProps) {
+  const [draft, setDraft] = useState<string | null>(startOpen ? (edge.prompt ?? "") : null);
+  const [saving, setSaving] = useState(false);
+  const delegate = edge.kind === "delegate";
+  const empty = delegate ? "맡긴 내용이 없어요." : "비어 있어요 · 앞 세션의 마지막 답만 보내요.";
+
+  const save = async () => {
+    if (draft === null) return;
+    setSaving(true);
+    try {
+      await onAction({ type: "edit-link", linkId: edge.linkId, prompt: draft.trim() ? draft : null });
+      setDraft(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (draft === null) {
+    return (
+      <div className="flex items-start gap-2 pl-1">
+        <p className={`line-clamp-3 min-w-0 flex-1 text-[12px] whitespace-pre-wrap ${edge.prompt ? "text-fg" : "text-muted"}`}>{edge.prompt ?? empty}</p>
+        <button type="button" onClick={() => setDraft(edge.prompt ?? "")} className={PILL}>
+          고치기
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 pl-1">
+      <textarea
+        rows={4}
+        autoFocus={!startOpen}
+        value={draft}
+        onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value)}
+        placeholder={delegate ? "무엇을 맡길까요?" : "뒤 세션에 보낼 말 · 비우면 앞 세션의 마지막 답을 넣어요"}
+        className="resize-y rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
+      />
+      <p className="text-[11px] text-muted">
+        {delegate ? "아직 전달 전이면 고친 내용으로 바꾸고, 이미 전달됐으면 고친 내용을 이어서 보내요. 맡은 세션이 일하는 중이면 그 턴이 끝난 뒤 들어가요." : "다음에 앞 세션이 턴을 마칠 때부터 고친 말을 보내요."}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={saving || (delegate && !draft.trim()) || draft === (edge.prompt ?? "")}
+          onClick={() => void save()}
+          className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
+        >
+          {delegate ? "고쳐서 다시 보내기" : "저장"}
+        </button>
+        <button type="button" onClick={() => setDraft(null)} className={PILL}>
+          취소
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Lines between sessions with what can be done to each: resume a stopped line, unlink. */
-export function ConnectionList({ graph, edges, focusId, onAction }: ConnectionListProps) {
+export function ConnectionList({ graph, edges, focusId, editing = false, onAction }: ConnectionListProps) {
   const name = (id: string) => {
     const agent = graph.nodes.get(id)?.agent;
     return agent ? `${nodeTitle(agent)} · ${agent.worktreeName}` : id;
@@ -36,7 +103,7 @@ export function ConnectionList({ graph, edges, focusId, onAction }: ConnectionLi
     return <p className="text-[13px] text-muted">이어진 세션이 없어요. 도구 막대의 &lsquo;잇기&rsquo;로 상자끼리 이을 수 있어요.</p>;
   }
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="flex flex-col gap-3">
       {edges.map((edge) => {
         const kind = edge.kind === "delegate" || edge.kind === "report" || edge.kind === "next" ? edge.kind : null;
         if (!kind || !edge.linkId) return null;
@@ -45,20 +112,23 @@ export function ConnectionList({ graph, edges, focusId, onAction }: ConnectionLi
         const text =
           focusId === null ? `${name(edge.from)} → ${name(edge.to)}` : outgoing ? `→ ${name(edge.to)}` : `← ${name(edge.from)}`;
         return (
-          <li key={edge.id} className="flex items-center gap-2 text-[13px]">
-            <span className={`shrink-0 font-semibold ${edge.paused ? "text-accent" : EDGE_STYLE[kind].pill}`}>
-              {LINK_TEXT[kind]}
-              {edge.paused && " · 멈춤"}
-            </span>
-            <span className="min-w-0 flex-1 truncate">{text}</span>
-            {edge.paused && (
-              <button type="button" onClick={() => void onAction({ type: "resume-link", linkId })} className={PILL}>
-                다시 켜기
+          <li key={edge.id} className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 text-[13px]">
+              <span className={`shrink-0 font-semibold ${edge.paused ? "text-accent" : EDGE_STYLE[kind].pill}`}>
+                {LINK_TEXT[kind]}
+                {edge.paused && " · 멈춤"}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{text}</span>
+              {edge.paused && (
+                <button type="button" onClick={() => void onAction({ type: "resume-link", linkId })} className={PILL}>
+                  다시 켜기
+                </button>
+              )}
+              <button type="button" onClick={() => void onAction({ type: "unlink-sessions", linkId })} className={`${PILL} text-accent`}>
+                끊기
               </button>
-            )}
-            <button type="button" onClick={() => void onAction({ type: "unlink-sessions", linkId })} className={`${PILL} text-accent`}>
-              끊기
-            </button>
+            </div>
+            {kind !== "report" && <LinkPrompt edge={{ ...edge, kind, linkId }} startOpen={editing} onAction={onAction} />}
           </li>
         );
       })}
@@ -122,7 +192,7 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
         {view.kind === "edge" && (
           <section className="flex flex-col gap-3">
             <p className={HEADING}>고른 연결</p>
-            <ConnectionList graph={graph} edges={[view.edge]} focusId={null} onAction={onAction} />
+            <ConnectionList key={view.edge.id} graph={graph} edges={[view.edge]} focusId={null} editing onAction={onAction} />
           </section>
         )}
         {view.kind === "many" && (

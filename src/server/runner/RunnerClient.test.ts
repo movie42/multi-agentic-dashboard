@@ -65,6 +65,15 @@ describe("RunnerClient", () => {
     );
   });
 
+  it("edits a line's text through the daemon", async () => {
+    const { client, fetchFn } = setup([json({ ok: true })]);
+    await client.editLink("l 1", "다시 해 줘");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://runner/links/l%201",
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ prompt: "다시 해 줘" }) }),
+    );
+  });
+
   it("reads a session's screen rows", async () => {
     const { client, fetchFn } = setup([json({ ok: true, lines: ["a", "b"] })]);
     expect(await client.screen("s 1")).toEqual(["a", "b"]);

@@ -68,6 +68,10 @@ export class RunnerClient {
     await this.call(`/links/${encodeURIComponent(linkId)}`, { method: "DELETE" });
   }
 
+  async editLink(linkId: string, prompt: string | null): Promise<void> {
+    await this.call(`/links/${encodeURIComponent(linkId)}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ prompt }) });
+  }
+
   async resumeLink(linkId: string): Promise<void> {
     await this.call(`/links/${encodeURIComponent(linkId)}/resume`, { method: "POST" });
   }

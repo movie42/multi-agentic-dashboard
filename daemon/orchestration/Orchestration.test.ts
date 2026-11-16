@@ -150,6 +150,41 @@ describe("Orchestration rules", () => {
     expect(sent).toEqual([]);
   });
 
+  it("sends a revised delegate prompt after the work already went out, and keeps it on the line", () => {
+    const { orchestration, sent, runTurn } = setup();
+    const line = orchestration.connect("a", "b", "delegate", "버튼 고쳐 줘");
+    expect(orchestration.edit(line?.id ?? "", "버튼 색만 고쳐 줘")).toBe(true);
+    expect(orchestration.links().find((link) => link.id === line?.id)?.prompt).toBe("버튼 색만 고쳐 줘");
+    runTurn("b", "고쳤어요");
+    const toWorker = sent.filter((item) => item.id === "b");
+    expect(toWorker).toHaveLength(2);
+    expect(toWorker[1]?.text).toContain("맡긴 일을 고쳤어요");
+    expect(orchestration.edit(line?.id ?? "", "  ")).toBe(false);
+  });
+
+  it("swaps a delegate prompt still waiting in the worker's queue instead of sending both", () => {
+    const { orchestration, sent, setStatus } = setup();
+    setStatus("b", "working");
+    const line = orchestration.connect("a", "b", "delegate", "버튼 고쳐 줘");
+    orchestration.edit(line?.id ?? "", "버튼 색만 고쳐 줘");
+    expect(orchestration.queued("b")).toBe(1);
+    setStatus("b", "idle");
+    orchestration.flush("b");
+    expect(sent.filter((item) => item.id === "b").map((item) => item.text)).toEqual([expect.stringContaining("이 일을 맡겼어요")]);
+    expect(sent.at(-1)?.text).toContain("버튼 색만 고쳐 줘");
+  });
+
+  it("changes what a next line sends on the following stop without sending anything now", () => {
+    const { orchestration, sent } = setup();
+    const line = orchestration.connect("a", "b", "next", "리뷰해 줘");
+    expect(orchestration.edit(line?.id ?? "", "테스트도 돌려 줘")).toBe(true);
+    expect(sent).toEqual([]);
+    orchestration.onStop("a", "done");
+    expect(sent.at(-1)?.text).toContain("테스트도 돌려 줘");
+    const report = orchestration.connect("a", "c", "report");
+    expect(orchestration.edit(report?.id ?? "", "x")).toBe(false);
+  });
+
   it("pauses a line after it bounces back and forth three times", () => {
     const { orchestration, sent, runTurn } = setup();
     orchestration.connect("a", "b", "report");

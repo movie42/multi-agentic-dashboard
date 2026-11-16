@@ -78,6 +78,8 @@ export async function POST(request: Request) {
       await runner.connect(body.from, body.to, body.kind, body.prompt?.trim() || null);
     } else if (body.type === "unlink-sessions") {
       await runner.unlink(body.linkId);
+    } else if (body.type === "edit-link") {
+      await runner.editLink(body.linkId, body.prompt?.trim() || null);
     } else if (body.type === "resume-link") {
       await runner.resumeLink(body.linkId);
     } else if (body.type === "open-terminal") {

@@ -15,6 +15,8 @@ export interface MenuContext {
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
   onConnectFrom: (id: string) => void;
+  /** Open one line in the side panel with its text editor showing. */
+  onEditLink: (edgeId: string) => void;
   onTidy: () => void;
 }
 
@@ -170,6 +172,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     title: "연결",
     rename: null,
     items: [
+      ...(edge.kind === "delegate" || edge.kind === "next" ? [{ label: "내용 고치기", run: () => context.onEditLink(edge.id) }] : []),
       ...(edge.paused ? [{ label: "다시 켜기", run: () => void onAction({ type: "resume-link", linkId }) }] : []),
       { label: "끊기", danger: true, run: () => void onAction({ type: "unlink-sessions", linkId }) },
     ],

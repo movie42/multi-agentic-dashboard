@@ -72,6 +72,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("unlink-sessions"), linkId: z.string() }),
   z.object({ type: z.literal("resume-link"), linkId: z.string() }),
+  z.object({ type: z.literal("edit-link"), linkId: z.string(), prompt: z.string().max(MAX_PROMPT).nullable() }),
   z.object({ type: z.literal("answer-worktree-request"), terminalHandle: z.string(), requestId: z.string(), approve: z.boolean() }),
   z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
   z.object({ type: z.literal("rename-worktree"), worktreePath: absolutePath, name: title }),
