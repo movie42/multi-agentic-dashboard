@@ -13,11 +13,13 @@ import { callerOf } from "./guard.ts";
 import { answerOf, permissionInputOf } from "./session/permissions.ts";
 import { parseStatusLine } from "./session/statusLine.ts";
 import type { SessionRegistry } from "./session/SessionRegistry.ts";
+import { MCP_PATH, type Orchestration } from "./orchestration/Orchestration.ts";
 
 export interface RunnerServerOptions {
   registry: SessionRegistry;
   port: number;
   allowedOrigins: readonly string[];
+  orchestration?: Orchestration;
 }
 
 export interface RunnerServer {
@@ -107,7 +109,7 @@ function send(socket: WebSocket, message: TerminalServerMessage | SessionsMessag
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
 
-export function createRunnerServer({ registry, port, allowedOrigins }: RunnerServerOptions): RunnerServer {
+export function createRunnerServer({ registry, port, allowedOrigins, orchestration }: RunnerServerOptions): RunnerServer {
   const sockets = new WebSocketServer({ noServer: true });
   const watchers = new Set<WebSocket>();
 
@@ -147,12 +149,14 @@ export function createRunnerServer({ registry, port, allowedOrigins }: RunnerSer
       if (hook && request.method === "POST" && hook[2] === "PermissionRequest") {
         const id = decodeURIComponent(hook[1] ?? "");
         const input = permissionInputOf(await readBody(request));
-        if (!input || watchers.size === 0) {
+        const delegated = input !== null && orchestration?.delegates(id, input) === true;
+        if (!input || (watchers.size === 0 && !delegated)) {
           respond(response, undefined, 200, {});
           return;
         }
         const pending = registry.holdPermission(id, input);
         const requestId = registry.get(id)?.permission?.id ?? null;
+        if (requestId) orchestration?.onPermissionHeld(id, requestId, input);
         const onClose = () => {
           if (requestId && !response.writableEnded) registry.cancelPermission(id, requestId);
         };
@@ -191,6 +195,7 @@ export function createRunnerServer({ registry, port, allowedOrigins }: RunnerSer
             notificationType: typeof notificationType === "string" ? notificationType : null,
             conversationId: typeof conversationId === "string" && conversationId ? conversationId : null,
           });
+          orchestration?.noteHook(decodeURIComponent(id), event, body);
         }
         respond(response, undefined, 200, {});
         return;
@@ -241,9 +246,34 @@ export function createRunnerServer({ registry, port, allowedOrigins }: RunnerSer
         return;
       }
 
+      const mcp = MCP_PATH.exec(url.pathname);
+      if (mcp && orchestration) {
+        if (request.method !== "POST") {
+          response.writeHead(405, { Allow: "POST" }).end();
+          return;
+        }
+        const reply = await orchestration.mcp(decodeURIComponent(mcp[1] ?? ""), await readBody(request));
+        if (reply === null) {
+          response.writeHead(202).end();
+          return;
+        }
+        respond(response, undefined, 200, reply);
+        return;
+      }
+
+      if (orchestration && url.pathname.startsWith("/orchestration")) {
+        const routed = await orchestration.route(request.method ?? "GET", url.pathname, () => readBody(request));
+        if (routed) {
+          respond(response, origin, routed.status, routed.body);
+          return;
+        }
+      }
+
       const session = SESSION_PATH.exec(url.pathname);
       if (session && request.method === "DELETE") {
-        const closed = registry.close(decodeURIComponent(session[1] ?? ""));
+        const closedId = decodeURIComponent(session[1] ?? "");
+        const closed = registry.close(closedId);
+        if (closed) orchestration?.store.forgetSession(closedId);
         respond(response, origin, closed ? 200 : 404, closed ? { ok: true } : { ok: false, error: "세션이 없어요." });
         return;
       }

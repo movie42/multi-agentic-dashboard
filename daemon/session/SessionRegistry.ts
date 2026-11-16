@@ -49,6 +49,7 @@ export interface CommandRequest {
   kind: RunnerSessionKind;
   prompt?: string;
   resumeSessionId?: string;
+  conductor?: boolean;
 }
 
 export interface Command {
@@ -147,7 +148,7 @@ export class SessionRegistry {
     running?.screen.dispose();
     const id = resumeSessionId ?? this.#options.newId();
     const now = this.#options.now();
-    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId });
+    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId, conductor: kind === "claude" && request.conductor === true });
     const pty = this.#options.spawn(command.file, command.args, {
       cwd,
       cols: INITIAL_COLS,
@@ -284,6 +285,16 @@ export class SessionRegistry {
     const decision = decisionFor(permission, answer);
     if (!decision) return false;
     this.#releasePermission(entry, hookOutput(decision));
+    return true;
+  }
+
+  /** Marks the held permission as handed to a conductor first; a person can still answer it. */
+  delegatePermission(id: string, requestId: string, conductorId: string): boolean {
+    const entry = this.#entries.get(id);
+    const permission = entry?.session.permission;
+    if (!entry || !permission || permission.id !== requestId) return false;
+    entry.session = { ...entry.session, permission: { ...permission, delegatedTo: conductorId } };
+    this.#changed();
     return true;
   }
 

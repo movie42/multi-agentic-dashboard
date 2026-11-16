@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { orchestrationStateSchema } from "../orchestration/schema";
 
 export const runnerSessionSchema = z.object({
   id: z.string(),
@@ -19,6 +20,7 @@ export const runnerSessionSchema = z.object({
       toolName: z.string(),
       toolInput: z.record(z.string(), z.unknown()),
       suggestions: z.array(z.record(z.string(), z.unknown())),
+      delegatedTo: z.string().nullable().optional().catch(null),
     })
     .nullable()
     .catch(null),
@@ -30,4 +32,5 @@ export const runnerResponseSchema = z.object({
   session: runnerSessionSchema.optional(),
   sessions: z.array(runnerSessionSchema).optional(),
   lines: z.array(z.string()).optional(),
+  orchestration: orchestrationStateSchema.optional().catch(undefined),
 });

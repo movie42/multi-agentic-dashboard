@@ -8,7 +8,7 @@ import { useBoard } from "./useBoard";
 const runner = vi.hoisted(() => ({ connection: { state: "connecting" } as { state: "connecting" } | { state: "online"; sessions: never[] } }));
 vi.mock("@/client/entities/runner", () => ({ useRunnerSessions: () => runner.connection }));
 
-const snapshot = (fetchedAt: number): BoardSnapshot => ({ fetchedAt, projects: [], worktrees: [], agents: [], features: [] });
+const snapshot = (fetchedAt: number): BoardSnapshot => ({ fetchedAt, projects: [], worktrees: [], agents: [], features: [], orchestration: { links: [], conductors: [], proposals: [] } });
 
 function respond(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body)));

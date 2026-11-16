@@ -319,7 +319,7 @@ export function AgentCardView({
       )}
 
       {agent.permission && terminalHandle && (
-        <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} />
+        <PermissionPrompt key={agent.permission.id} terminalHandle={terminalHandle} permission={agent.permission} conductorId={agent.parentId} />
       )}
 
       {chatLayout === "page" && filesFooter}

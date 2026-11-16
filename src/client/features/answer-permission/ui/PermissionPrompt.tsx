@@ -119,7 +119,38 @@ interface PromptBodyProps {
   permission: RunnerPermission;
 }
 
-function ToolPrompt({ terminalHandle, permission }: PromptBodyProps) {
+interface ConductorLineProps {
+  conductorId: string;
+  workerId: string;
+  permission: RunnerPermission;
+}
+
+/** For a worker of a conductor: shows that the conductor decides first, or offers to hand this kind of request to it. */
+function ConductorLine({ conductorId, workerId, permission }: ConductorLineProps) {
+  const [granted, setGranted] = useState(false);
+  if (permission.delegatedTo) return <p className="text-[12px] font-semibold text-focus">지휘자가 먼저 판단하는 중이에요. 여기서 답해도 돼요.</p>;
+  if (granted) return <p className="text-[12px] text-focus">다음부터 이런 요청은 지휘자가 먼저 판단해요.</p>;
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        void postAction({ type: "grant-conductor", conductorId, workerId }).then(
+          () => setGranted(true),
+          (error: unknown) => toastError("grant-conductor", error),
+        )
+      }
+      className="self-start text-[12px] font-semibold text-focus hover:underline"
+    >
+      앞으로 이런 요청은 지휘자에게 맡기기
+    </button>
+  );
+}
+
+interface ToolPromptProps extends PromptBodyProps {
+  conductorId: string | null;
+}
+
+function ToolPrompt({ terminalHandle, permission, conductorId }: ToolPromptProps) {
   const { status, send, locked } = useSend(terminalHandle, permission.id);
   const [denying, setDenying] = useState(false);
   const [reason, setReason] = useState("");
@@ -182,6 +213,7 @@ function ToolPrompt({ terminalHandle, permission }: PromptBodyProps) {
           ))}
         </div>
       )}
+      {conductorId && <ConductorLine conductorId={conductorId} workerId={terminalHandle} permission={permission} />}
       <StatusLine status={status} />
     </>
   );
@@ -301,16 +333,18 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
 interface PermissionPromptProps {
   terminalHandle: string;
   permission: RunnerPermission;
+  /** The conductor this session works for, if any. */
+  conductorId?: string | null;
 }
 
-export function PermissionPrompt({ terminalHandle, permission }: PermissionPromptProps) {
+export function PermissionPrompt({ terminalHandle, permission, conductorId = null }: PermissionPromptProps) {
   const questions = questionsOf(permission);
   return (
     <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
       {questions.length > 0 ? (
         <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} />
       ) : (
-        <ToolPrompt terminalHandle={terminalHandle} permission={permission} />
+        <ToolPrompt terminalHandle={terminalHandle} permission={permission} conductorId={conductorId} />
       )}
     </div>
   );
