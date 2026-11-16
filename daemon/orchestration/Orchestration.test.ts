@@ -92,6 +92,19 @@ describe("Orchestration records", () => {
 });
 
 describe("Orchestration rules", () => {
+  it("sends the work written on a delegate line to the worker right away", () => {
+    const { orchestration, sent } = setup();
+    orchestration.connect("c", "a", "delegate", "테스트 고쳐 줘");
+    expect(sent).toEqual([{ id: "a", text: expect.stringContaining("테스트 고쳐 줘") }]);
+    expect(sent[0]?.text).toContain("세션 c");
+    expect(orchestration.links()).toEqual([
+      expect.objectContaining({ kind: "delegate", from: "c", to: "a" }),
+      expect.objectContaining({ kind: "report", from: "a", to: "c" }),
+    ]);
+    orchestration.connect("c", "b", "delegate");
+    expect(sent).toHaveLength(1);
+  });
+
   it("reports a worker's last answer to its target when the worker stops", () => {
     const { orchestration, sent } = setup();
     orchestration.connect("a", "c", "report");

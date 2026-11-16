@@ -144,4 +144,24 @@ describe("ProjectCanvas", () => {
     fireEvent.contextMenu(screen.getByText("둘째"));
     expect(screen.getByRole("menuitem", { name: "세션 닫기" })).toBeTruthy();
   });
+  it("shows a renamed session's title on its box", () => {
+    renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", title: null, prompt: "원래 요청", session: { id: "s-a", title: "새 이름", titleSource: "custom", bookmark: null } }),
+    ]);
+    expect(screen.getByText("새 이름")).toBeTruthy();
+    expect(screen.queryByText("원래 요청")).toBeNull();
+  });
+
+  it("switches between the edit and hand tools with V and H", () => {
+    renderCanvas([agentCard({ id: "a", worktreeId: "/p/shop-a", title: "첫째" })]);
+    expect(screen.getByRole("radio", { name: "편집" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.keyDown(window, { code: "KeyH", key: "h" });
+    expect(screen.getByRole("radio", { name: "이동" }).getAttribute("aria-checked")).toBe("true");
+    const box = screen.getByText("첫째");
+    fireEvent.pointerDown(box, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(box, { button: 0, pointerId: 1 });
+    expect(screen.getByTestId("card")).toBeTruthy();
+    fireEvent.keyDown(window, { code: "KeyV", key: "v" });
+    expect(screen.getByRole("radio", { name: "편집" }).getAttribute("aria-checked")).toBe("true");
+  });
 });

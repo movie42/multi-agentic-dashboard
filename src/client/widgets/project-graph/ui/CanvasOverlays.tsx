@@ -19,7 +19,7 @@ const PICK_KINDS: ReadonlyArray<{
   label: string;
   hint: string;
 }> = [
-  { kind: "delegate", label: "맡김", hint: "누가 일을 맡겼는지 기록만 해요" },
+  { kind: "delegate", label: "맡김", hint: "적은 일을 뒤 세션에 바로 보내요" },
   {
     kind: "report",
     label: "끝나면 보고",
@@ -73,7 +73,7 @@ export function ConnectPicker({
     <ScreenSized at={at} zoom={zoom}>
       <foreignObject
         width={320}
-        height={kind === "next" ? 230 : 170}
+        height={kind === "report" ? 170 : 240}
         className="overflow-visible"
       >
         <div className="flex flex-col gap-2 rounded-[12px] bg-bg p-3 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]">
@@ -97,26 +97,28 @@ export function ConnectPicker({
           <p className="text-[12px] text-muted">
             {PICK_KINDS.find((option) => option.kind === kind)?.hint}
           </p>
-          {kind === "next" && (
+          {kind !== "report" && (
             <textarea
-              rows={2}
+              rows={3}
+              autoFocus
               value={prompt}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
                 setPrompt(event.target.value)
               }
-              placeholder="뒤 세션에 보낼 말 · 비우면 앞 세션의 마지막 답을 넣어요"
+              placeholder={kind === "delegate" ? "무엇을 맡길까요?" : "뒤 세션에 보낼 말 · 비우면 앞 세션의 마지막 답을 넣어요"}
               className="resize-none rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
             />
           )}
           <div className="flex gap-2">
             <button
               type="button"
+              disabled={kind === "delegate" && !prompt.trim()}
               onClick={() =>
-                onPick(kind, kind === "next" && prompt.trim() ? prompt : null)
+                onPick(kind, kind !== "report" && prompt.trim() ? prompt : null)
               }
-              className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85"
+              className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
             >
-              잇기
+              {kind === "delegate" ? "맡기기" : "잇기"}
             </button>
             <button
               type="button"

@@ -15,7 +15,8 @@ const NODE_STATE: Record<AgentState, { label: string; tone: string; dot: string 
 const INTERRUPTED = { label: "중단됨", tone: "border-accent text-accent", dot: "bg-accent" };
 
 export function nodeTitle(agent: AgentCard): string {
-  return agent.title ?? agent.prompt?.split("\n")[0] ?? agent.agentType ?? "세션";
+  // The session title is where a rename lands (the card reads the same field); `agent.title` is unset for live sessions.
+  return agent.session?.title ?? agent.title ?? agent.prompt?.split("\n")[0] ?? (agent.agentType === "shell" ? "터미널" : "제목 없음");
 }
 
 function stateOf(agent: AgentCard) {

@@ -100,6 +100,10 @@ export function reportText(from: RunnerSession, answer: string | null): string {
   return `[Agent Control] 세션 ${from.id} (${from.cwd})이 할 일을 마치고 보고했어요.\n\n${body}`;
 }
 
+export function delegateText(from: RunnerSession, prompt: string): string {
+  return `[Agent Control] 세션 ${from.id} (${from.cwd})이 이 일을 맡겼어요. 마치면 마지막 답이 그 세션에 보고돼요.\n\n${prompt.trim()}`;
+}
+
 export function nextText(from: RunnerSession, prompt: string | null, answer: string | null): string {
   const lead = prompt?.trim() || "앞 세션이 끝났어요. 이어서 맡은 일을 시작해 주세요.";
   const result = answer?.trim() ? `\n\n앞 세션(${from.id})의 마지막 답:\n${answer.trim()}` : "";
@@ -232,13 +236,22 @@ export class Orchestration {
     return true;
   }
 
+  /** A delegate `prompt` is sent to `to` right away; report / next prompts wait for `from` to stop. */
   connect(from: string, to: string, kind: LinkKind, prompt: string | null = null): OrchestrationLink | null {
     if (from === to || !this.#deps.get(from) || !this.#deps.get(to)) return null;
     const existing = this.#links.find((link) => link.from === from && link.to === to && link.kind === kind);
-    if (existing) return existing;
-    const link: OrchestrationLink = { id: this.#deps.newId(), kind, from, to, prompt, trips: 0, paused: false, createdAt: this.#deps.now() };
-    this.#links = [...this.#links, link];
-    this.#deps.onChange();
+    const link: OrchestrationLink = existing ?? { id: this.#deps.newId(), kind, from, to, prompt, trips: 0, paused: false, createdAt: this.#deps.now() };
+    if (!existing) {
+      this.#links = [...this.#links, link];
+      this.#deps.onChange();
+    }
+    // A delegate line drawn by a person carries the work itself: it goes to the worker now, and the
+    // worker's answer comes back to the delegator, so neither side is left guessing what the line means.
+    const delegator = this.#deps.get(from);
+    if (kind === "delegate" && prompt && delegator) {
+      this.connect(to, from, "report");
+      this.deliver(to, delegateText(delegator, prompt), link.id);
+    }
     return link;
   }
 
