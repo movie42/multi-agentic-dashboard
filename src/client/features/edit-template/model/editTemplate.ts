@@ -73,8 +73,14 @@ export function removeRoute(template: WorkflowTemplate, id: string): WorkflowTem
 
 export function templateProblems(template: WorkflowTemplate): string[] {
   const titles = new Map(template.cards.map((card) => [card.key, card.title]));
+  const kindOf = new Map(template.cards.map((card) => [card.key, card.kind]));
   return [
     template.name.trim() ? null : "템플릿 이름을 적어 주세요.",
+    ...template.cards.map((card) =>
+      card.continueFrom && template.routes.some((route) => route.to === card.key && kindOf.get(route.from) === "judge")
+        ? `'${card.title}' 카드는 판단 카드 뒤에 있어서 '앞 카드 세션에 이어서'를 쓸 수 없어요.`
+        : null,
+    ),
     ...template.cards.map((card) => (card.kind === "judge" && !template.routes.some((route) => route.from === card.key) ? `판단 카드 '${card.title}'에 나가는 길이 없어요.` : null)),
     ...template.routes.map((route) => {
       const from = template.cards.find((card) => card.key === route.from);

@@ -626,6 +626,7 @@ export function CanvasStage(props: CanvasStageProps) {
               worktree={cluster.worktree}
               steps={stepsOf(cluster.worktree)}
               sessions={cluster.nodeIds.filter((id) => graph.nodes.has(id)).length}
+              empty={cluster.nodeIds.length === 0}
               onOpen={() => props.onOpenWorktree(cluster.worktree.worktreeId)}
             />
           ))}

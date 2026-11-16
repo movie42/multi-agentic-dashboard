@@ -41,6 +41,7 @@ interface CardEditorProps {
 function CardEditor({ template, card, index, onChange }: CardEditorProps) {
   const others = template.cards.filter((item) => item.key !== card.key);
   const routes = template.routes.filter((route) => route.from === card.key);
+  const afterJudge = template.routes.some((route) => route.to === card.key && template.cards.find((item) => item.key === route.from)?.kind === "judge");
   const patch = (value: Partial<Omit<TemplateCard, "key">>) => onChange(updateCard(template, card.key, value));
   return (
     <li className="flex flex-col gap-2 rounded-[10px] p-3 shadow-[inset_0_0_0_1px_var(--hair)]">
@@ -93,7 +94,7 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
             ))}
           </select>
         </label>
-        {card.kind === "work" && index > 0 && (
+        {card.kind === "work" && index > 0 && (!afterJudge || card.continueFrom) && (
           <label className="flex items-center gap-1.5" title="새 세션 대신 앞 카드의 세션에 이 카드의 프롬프트를 보내요">
             <input type="checkbox" checked={card.continueFrom} onChange={(event: React.ChangeEvent<HTMLInputElement>) => patch({ continueFrom: event.target.checked })} />
             앞 카드 세션에 이어서

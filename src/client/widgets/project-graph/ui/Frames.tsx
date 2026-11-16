@@ -20,11 +20,12 @@ interface ClusterFrameProps {
   worktree: WorktreeSummary;
   steps: WorkflowStep[] | null;
   sessions: number;
+  empty: boolean;
   onOpen: () => void;
 }
 
 /** A worktree as a dashed frame; dragging its header moves every session in it. */
-export function ClusterFrame({ id, rect, worktree, steps, sessions, onOpen }: ClusterFrameProps) {
+export function ClusterFrame({ id, rect, worktree, steps, sessions, empty, onOpen }: ClusterFrameProps) {
   const current = steps?.findIndex((step) => step.status === "now" || step.status === "ask") ?? -1;
   const pr = worktree.pullRequest.kind === "found" ? worktree.pullRequest : null;
   return (
@@ -53,7 +54,7 @@ export function ClusterFrame({ id, rect, worktree, steps, sessions, onOpen }: Cl
           </button>
         </div>
       </foreignObject>
-      {sessions === 0 && (
+      {empty && (
         <foreignObject x={rect.x} y={rect.y + CLUSTER_HEAD} width={rect.w} height={rect.h - CLUSTER_HEAD}>
           <p className="px-4 text-[12px] text-muted">열린 세션이 없어요</p>
         </foreignObject>

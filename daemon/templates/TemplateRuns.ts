@@ -112,7 +112,8 @@ export class TemplateRuns {
     const session = run?.current ? run.sessions[run.current] : undefined;
     if (!run || !session || !text.trim() || (run.state !== "paused" && run.state !== "running")) return { ok: false, error: "다시 보낼 카드 세션이 없어요." };
     if (!this.#deps.deliver(session, `[Agent Control] ${text.trim()}`)) return { ok: false, error: "카드 세션이 닫혔어요." };
-    return { ok: true, run: this.#put({ ...run, state: "running", hold: null, choice: null }) };
+    const trips = run.hold?.reason === "trips" ? {} : run.trips;
+    return { ok: true, run: this.#put({ ...run, state: "running", hold: null, choice: null, trips }) };
   }
 
   stop(runId: string): Result {
@@ -129,6 +130,20 @@ export class TemplateRuns {
 
   isJudge(sessionId: string): boolean {
     return this.list().some((run) => run.cards.some((card) => card.kind === "judge" && run.sessions[card.key] === sessionId));
+  }
+
+  launchOptionsOf(sessionId: string): Pick<RunnerLaunchRequest, "model" | "effort" | "judge"> {
+    for (const run of this.#runs.values()) {
+      const owners = run.cards.filter((card) => run.sessions[card.key] === sessionId);
+      const opener = owners.find((card) => !card.continueFrom) ?? owners[0];
+      if (!opener) continue;
+      return {
+        ...(opener.model ? { model: opener.model } : {}),
+        ...(opener.effort ? { effort: opener.effort } : {}),
+        ...(owners.some((card) => card.kind === "judge") ? { judge: true } : {}),
+      };
+    }
+    return {};
   }
 
   judgeRoutes(sessionId: string): TemplateRoute[] {
@@ -206,7 +221,7 @@ export class TemplateRuns {
 
   #enter(run: TemplateRun, card: TemplateCard, from: Arrival | null): TemplateRun {
     const own = this.#liveSession(run.sessions[card.key]);
-    const previous = from && card.continueFrom ? this.#liveSession(run.sessions[from.card.key]) : null;
+    const previous = from && card.continueFrom && from.card.kind === "work" ? this.#liveSession(run.sessions[from.card.key]) : null;
     const text = cardText(run, card, from, own !== null);
     const target = own ?? previous;
     if (target) this.#deps.deliver(target, text);

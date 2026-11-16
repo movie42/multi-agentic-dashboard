@@ -11,6 +11,8 @@ describe("editTemplate", () => {
     expect(templateProblems(judge)).toHaveLength(2);
     const labeled = updateRoute(updateRoute(judge, "r1", { label: "통과" }), "r2", { label: "고칠 것" });
     expect(templateProblems(labeled)).toEqual([]);
+    const afterJudge = { ...labeled, cards: labeled.cards.map((card) => (card.key === "c3" ? { ...card, continueFrom: true } : card)) };
+    expect(templateProblems(afterJudge)).toEqual(["'카드 3' 카드는 판단 카드 뒤에 있어서 '앞 카드 세션에 이어서'를 쓸 수 없어요."]);
     expect(setKind(labeled, "c1", "work").routes).toEqual([{ id: "r1", from: "c1", to: "c3", label: null }]);
   });
 

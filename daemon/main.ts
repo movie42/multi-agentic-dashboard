@@ -188,7 +188,7 @@ runner.server.listen(port, "127.0.0.1", () => {
         ...request.launch,
         ...(conductor ? { conductor: { scope: conductor.scope, grants: conductor.grants } } : {}),
         ...(askPermissions ? { askPermissions } : {}),
-        ...(id && runs.isJudge(id) ? { judge: true } : {}),
+        ...(id ? runs.launchOptionsOf(id) : {}),
       },
     };
   });

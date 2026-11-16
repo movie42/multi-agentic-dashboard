@@ -27,6 +27,8 @@ export function RunPanel({ run, focusKey }: RunPanelProps) {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const current = run.cards.find((card) => card.key === run.current) ?? null;
+  const stateLabel = run.state === "running" && run.hold?.reason === "check-failed" ? "확인 명령 통과 대기" : STATE_LABEL[run.state];
+  const waiting = run.state === "paused" || run.hold !== null;
   const active = run.state === "running" || run.state === "paused";
   const routes = current ? routesFrom(run.routes, current.key) : [];
   const pickRoute = active && current !== null && run.hold?.reason === "no-choice" && routes.length > 0;
@@ -48,9 +50,7 @@ export function RunPanel({ run, focusKey }: RunPanelProps) {
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-semibold tracking-[0.08em] text-muted">템플릿 · {run.name}</p>
-        <span className={`text-[12px] font-semibold ${run.state === "paused" ? "text-ask" : run.state === "running" ? "text-now" : "text-muted"}`}>
-          {STATE_LABEL[run.state]}
-        </span>
+        <span className={`text-[12px] font-semibold ${waiting && active ? "text-ask" : run.state === "running" ? "text-now" : "text-muted"}`}>{stateLabel}</span>
       </div>
       {run.intent && <p className="text-[12px] whitespace-pre-wrap text-muted">이번 작업 · {run.intent}</p>}
       {run.hold && <p className="rounded-[8px] bg-ask/10 px-2.5 py-2 text-[12px] text-ask">{run.hold.text}</p>}

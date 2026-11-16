@@ -175,4 +175,45 @@ describe("TemplateRuns", () => {
     runs.prune(new Set());
     expect(runs.list()[0]).toMatchObject({ state: "paused", hold: { reason: "exited" } });
   });
+
+  it("opens a new session for a continue-from card after a judge, and restores each session's launch options", async () => {
+    const { runs, launched } = setup();
+    const judged = templateOf({
+      ...flow,
+      cards: flow.cards.map((card) => (card.key === "pr" ? { ...card, continueFrom: true } : card)),
+    })!;
+    const result = runs.expand(judged, "/repo/other", "x");
+    if (!result.ok) throw new Error(result.error);
+    runs.start(result.run.id);
+    await runs.onStop("s1", "ok");
+    await runs.onStop("s1", "built");
+    await runs.onStop("s2", "verified");
+    runs.choose("s3", "통과", "좋아요");
+    await runs.onStop("s3", "pass");
+    expect(launched).toHaveLength(4);
+    expect(runs.list()[0]?.sessions.pr).toBe("s4");
+    expect(runs.launchOptionsOf("s2")).toEqual({ model: "sonnet", effort: "low" });
+    expect(runs.launchOptionsOf("s3")).toEqual({ judge: true });
+    expect(runs.launchOptionsOf("s1")).toEqual({});
+  });
+
+  it("starts the trip count over when a person sends a fix after the trip limit", async () => {
+    const { runs } = setup();
+    const run = expand(runs);
+    runs.start(run.id);
+    await runs.onStop("s1", "ok");
+    const loop = async () => {
+      await runs.onStop("s1", "built");
+      await runs.onStop("s2", "verified");
+      runs.choose("s3", "고칠 것 있음", "다시");
+      await runs.onStop("s3", "fix");
+    };
+    await loop();
+    await loop();
+    await loop();
+    expect(runs.list()[0]?.hold?.reason).toBe("trips");
+    runs.retry(run.id, "이번엔 통과시켜도 돼");
+    expect(runs.list()[0]).toMatchObject({ state: "running", trips: {} });
+    expect(runs.list()[0]?.trips).toEqual({});
+  });
 });
