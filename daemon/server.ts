@@ -251,11 +251,15 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
           });
           if (event === "UserPromptSubmit") orchestration.onPrompt(id);
         }
-        respond(response, undefined, 200, {});
+        // Lines fire before the hook returns, so a prompt the next turn submits cannot reach onPrompt ahead of onStop.
         if (event === "Stop") {
-          const answer = await readAnswer(body);
-          orchestration.onStop(id, answer);
+          try {
+            orchestration.onStop(id, await readAnswer(body));
+          } catch (error) {
+            console.warn("[runner] stop lines failed", id, error);
+          }
         }
+        respond(response, undefined, 200, {});
         return;
       }
 

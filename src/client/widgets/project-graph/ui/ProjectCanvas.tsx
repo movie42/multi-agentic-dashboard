@@ -153,6 +153,11 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const linkFromId = ghostFrom ?? (liveSelected.length === 1 ? liveSelected[0]! : null);
   const linkFromAgent = linkFromId ? graph.nodes.get(linkFromId)?.agent : undefined;
 
+  const titleOf = (id: string) => {
+    const agent = graph.nodes.get(id)?.agent;
+    return agent ? nodeTitle(agent) : "세션";
+  };
+
   const menuContent = menu
     ? menuFor(menu.target, {
         graph,
@@ -219,8 +224,8 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
                 <ConnectPicker
                   at={pending.at}
                   zoom={zoom}
-                  fromTitle={nodeTitle(graph.nodes.get(pending.from)?.agent ?? agents[0]!)}
-                  toTitle={nodeTitle(graph.nodes.get(pending.to)?.agent ?? agents[0]!)}
+                  fromTitle={titleOf(pending.from)}
+                  toTitle={titleOf(pending.to)}
                   onPick={pick}
                   onCancel={() => setPending(null)}
                 />
