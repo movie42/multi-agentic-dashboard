@@ -1368,8 +1368,27 @@
               ]
             },
             {
+              "id": "P6-14",
+              "title": "main에 먼저 머지된 PR #12(같은 기능의 별도 구현)를 합침: 데몬 · 화면은 이 작업의 것을 바탕으로 두고, #12에만 있던 동작을 옮겨 붙임",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/conductorMcp.ts</code> · <code>daemon/orchestration/Orchestration.ts</code> · <code>daemon/server.ts</code> · <code>daemon/session/SessionRegistry.ts</code> · <code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code> · <code>src/client/features/conduct-sessions/ui/OrchestrationPanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "#12의 <code>RuleRunner</code> · <code>OrchestrationStore</code> · <code>ProjectGraph</code>는 이 작업의 <code>Orchestration</code> · 캔버스와 역할이 같아 지웠다. 옮겨 붙인 것: 지휘자 도구 <code>list_worktrees</code>, 워크트리 요청에 첫 요청(<code>prompt</code>)을 담으면 만든 뒤 그곳에 일꾼을 열어 보고하게 함, 지휘자의 권한 거절(<code>deny</code>), 지휘자가 먼저 판단 중인 권한 카드 표시(<code>delegatedTo</code>)"
+                ],
+                [
+                  "결정",
+                  "#12 쪽 사이드바 동작(전체 보기에서 이름을 다시 누르면 접기)은 이 작업의 결정(접기는 ▶만)을 유지. #12의 <code>session-orchestration.json</code> 기록은 이 작업으로 합쳐져 있어 지웠다"
+                ]
+              ]
+            },
+            {
               "id": "P6-V",
-              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code> 통과 · 선 끝 옮기기 · 서브 에이전트 · bypass 실행 인자 테스트 · <code>bun run desktop</code> 후 앱 재시작 · 데몬 재시작",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code> 통과 · 선 끝 옮기기 · 서브 에이전트 · bypass 실행 인자 · #12 합친 동작(지휘자 서버 테스트) · <code>bun run desktop</code> 후 앱 재시작 · 데몬 재시작",
               "done": true
             }
           ]

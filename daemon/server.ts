@@ -206,7 +206,7 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
           respond(response, undefined, 200, {});
           return;
         }
-        const pending = registry.holdPermission(id, input);
+        const pending = registry.holdPermission(id, input, delegate);
         const worker = registry.get(id);
         const requestId = worker?.permission?.id ?? null;
         if (delegate && worker && requestId) orchestration.deliver(delegate, forwardedPermissionText(worker, requestId, input), null);
@@ -358,14 +358,15 @@ export function createRunnerServer({ registry, orchestration, port, allowedOrigi
         const requestId = field(body, "requestId");
         const created = field(body, "path");
         const error = field(body, "error");
+        const conductorId = decodeURIComponent(worktreeRequest[1] ?? "");
+        const folder = typeof created === "string" && created.startsWith("/") ? created : null;
         const settled =
-          typeof requestId === "string" &&
-          orchestration.settleWorktree(
-            decodeURIComponent(worktreeRequest[1] ?? ""),
-            requestId,
-            typeof created === "string" && created.startsWith("/") ? created : null,
-            typeof error === "string" ? error : undefined,
-          );
+          typeof requestId === "string" ? orchestration.settleWorktree(conductorId, requestId, folder, typeof error === "string" ? error : undefined) : null;
+        if (settled?.prompt && folder) {
+          const worker = registry.launch({ cwd: folder, prompt: settled.prompt, askPermissions: true });
+          orchestration.connect(conductorId, worker.id, "delegate");
+          orchestration.connect(worker.id, conductorId, "report");
+        }
         respond(response, origin, settled ? 200 : 409, settled ? { ok: true } : { ok: false, error: "이미 처리한 워크트리 요청이에요." });
         return;
       }

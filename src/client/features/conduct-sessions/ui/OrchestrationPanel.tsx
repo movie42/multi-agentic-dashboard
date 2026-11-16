@@ -44,6 +44,7 @@ function WorktreeRequestRow({ terminalHandle, request }: WorktreeRequestRowProps
         <code className="font-mono">{request.branch}</code>
         {request.base && <span className="text-muted"> · {request.base}에서</span>} — {request.reason}
       </p>
+      {request.prompt && <p className="text-[12px] text-muted">만들면 이 요청으로 일꾼을 열어요: {request.prompt}</p>}
       <div className="flex gap-2">
         <button type="button" disabled={locked} onClick={() => answer(true)} className={PRIMARY}>
           {pending ? "만드는 중" : "만들기"}

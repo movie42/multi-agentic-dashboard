@@ -233,9 +233,9 @@ describe("Orchestration rules", () => {
   it("tells the conductor what happened to its worktree request and widens its scope", () => {
     const { orchestration, sent } = setup();
     orchestration.addConductor("c", { scope, grants: [] });
-    const request = orchestration.requestWorktree("c", { branch: "feat/x", base: null, reason: "split work" });
+    const request = orchestration.requestWorktree("c", { branch: "feat/x", base: null, reason: "split work", prompt: null });
     expect(orchestration.conductor("c")?.worktreeRequest?.branch).toBe("feat/x");
-    expect(orchestration.settleWorktree("c", request?.id ?? "", "/elsewhere/feat-x")).toBe(true);
+    expect(orchestration.settleWorktree("c", request?.id ?? "", "/elsewhere/feat-x")).toMatchObject({ branch: "feat/x" });
     expect(orchestration.conductor("c")?.scope.paths).toContain("/elsewhere/feat-x");
     expect(orchestration.conductor("c")?.worktreeRequest).toBeNull();
     expect(sent[0]?.text).toContain("/elsewhere/feat-x");

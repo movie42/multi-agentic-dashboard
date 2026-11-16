@@ -225,19 +225,23 @@ export class Orchestration {
     return worktreeRequest;
   }
 
-  /** Settles the pending worktree request; `path` is the created folder, null when the person declined. */
-  settleWorktree(conductorId: string, requestId: string, path: string | null, error?: string): boolean {
+  /**
+   * Settles the pending worktree request; `path` is the created folder, null when the person declined.
+   * Returns the settled request so the caller can open its first worker.
+   */
+  settleWorktree(conductorId: string, requestId: string, path: string | null, error?: string): WorktreeRequest | null {
     const conductor = this.#conductors.get(conductorId);
     const request = conductor?.worktreeRequest;
-    if (!conductor || !request || request.id !== requestId) return false;
+    if (!conductor || !request || request.id !== requestId) return null;
     const paths = path && !conductor.scope.paths.includes(path) ? [...conductor.scope.paths, path] : conductor.scope.paths;
     this.#conductors.set(conductorId, { ...conductor, scope: { ...conductor.scope, paths }, worktreeRequest: null });
     this.#deps.onChange();
+    const next = request.prompt ? "첫 요청을 담아 이 폴더에 일꾼을 열었어요. 끝나면 보고가 와요." : "start_session으로 이 폴더에 세션을 열 수 있어요.";
     const text = path
-      ? `[Agent Control] 요청한 워크트리 '${request.branch}'를 만들었어요: ${path}\nstart_session으로 이 폴더에 세션을 열 수 있어요.`
+      ? `[Agent Control] 요청한 워크트리 '${request.branch}'를 만들었어요: ${path}\n${next}`
       : `[Agent Control] 요청한 워크트리 '${request.branch}'는 만들지 않았어요.${error ? ` (${error})` : " 사람이 거절했어요."}`;
     this.deliver(conductorId, text, null);
-    return true;
+    return request;
   }
 
   /** A delegate `prompt` is sent to `to` right away; report / next prompts wait for `from` to stop. */

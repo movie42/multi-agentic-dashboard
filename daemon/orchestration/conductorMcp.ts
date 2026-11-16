@@ -25,6 +25,11 @@ const str = (description: string) => ({ type: "string", description });
 
 export const CONDUCTOR_TOOLS: ToolDefinition[] = [
   {
+    name: "list_worktrees",
+    description: "List the worktree folders inside your scope, with how many live sessions each has.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
     name: "list_sessions",
     description: "List the Agent Control sessions inside your scope: id, folder, status (idle/working/waiting/exited), who delegated it, and pending permission requests.",
     inputSchema: { type: "object", properties: {} },
@@ -74,20 +79,25 @@ export const CONDUCTOR_TOOLS: ToolDefinition[] = [
       "Ask the person to create a new git worktree for you. Nothing is created until they confirm on the dashboard; you get a message with the new folder (or the refusal) afterwards.",
     inputSchema: {
       type: "object",
-      properties: { branch: str("New branch name"), base: str("Branch to start from (optional)"), reason: str("Why it is needed, one sentence") },
+      properties: {
+        branch: str("New branch name"),
+        base: str("Branch to start from (optional)"),
+        reason: str("Why it is needed, one sentence"),
+        prompt: str("First request for a worker to open there once it exists (optional); that worker reports to you"),
+      },
       required: ["branch", "reason"],
     },
   },
   {
     name: "answer_permission",
     description:
-      "Answer a permission request a worker forwarded to you. 'allow' approves it. 'pass' leaves it to the person — use it whenever the request goes beyond the work you handed out or you are not sure.",
+      "Answer a permission request a worker forwarded to you. 'allow' approves it, 'deny' refuses it when it clearly does not fit the work you handed out, 'pass' leaves it to the person — use it whenever you are not sure.",
     inputSchema: {
       type: "object",
       properties: {
         session_id: str("Worker session id"),
         request_id: str("Permission request id from the forwarded message"),
-        decision: { type: "string", enum: ["allow", "pass"] },
+        decision: { type: "string", enum: ["allow", "deny", "pass"] },
       },
       required: ["session_id", "request_id", "decision"],
     },
@@ -99,8 +109,9 @@ export function conductorInstructions(): string {
     "You are a conductor session in Agent Control. You plan the work and hand it to worker sessions with the agent-control MCP tools instead of doing it all yourself.",
     "- start_session opens a worker in a worktree inside your scope; it reports its last answer back to you whenever it finishes a turn.",
     "- Messages that start with [Agent Control] come from the dashboard daemon (worker reports, forwarded permission requests, worktree results), not from the person.",
-    "- Forwarded permission requests: answer with answer_permission. Allow only what fits the work you handed out; otherwise pass it to the person.",
-    "- Need a new worktree? Use request_worktree; the person confirms it first.",
+    "- list_worktrees shows the folders you may open sessions in.",
+    "- Forwarded permission requests: answer with answer_permission. Allow only what fits the work you handed out, deny what clearly does not, and pass it to the person when unsure.",
+    "- Need a new worktree? Use request_worktree; the person confirms it first. Give it a prompt and a worker opens there once it exists.",
   ].join("\n");
 }
 
@@ -135,6 +146,11 @@ export async function callConductorTool(conductorId: string, name: string, args:
   };
 
   switch (name) {
+    case "list_worktrees": {
+      const live = deps.list().filter((session) => session.status !== "exited" && session.id !== conductorId);
+      const worktrees = conductor.scope.paths.map((folder) => ({ path: folder, sessions: live.filter((session) => session.cwd === folder || session.cwd.startsWith(`${folder}/`)).length }));
+      return ok(JSON.stringify(worktrees, null, 2));
+    }
     case "list_sessions": {
       const sessions = deps.list().filter((session) => session.id !== conductorId && orchestration.inScope(conductorId, session.cwd));
       return ok(JSON.stringify({ scope: conductor.scope, sessions: sessions.map((session) => summary(session, deps)) }, null, 2));
@@ -181,7 +197,7 @@ export async function callConductorTool(conductorId: string, name: string, args:
       if (!/^[\w./-]{1,120}$/.test(branch)) return fail("branch must be a plain branch name.");
       if (!reason) return fail("reason is required.");
       if (conductor.worktreeRequest) return fail("A worktree request is already waiting for the person.");
-      orchestration.requestWorktree(conductorId, { branch, base: arg(args, "base") || null, reason });
+      orchestration.requestWorktree(conductorId, { branch, base: arg(args, "base") || null, reason, prompt: arg(args, "prompt") || null });
       return ok("Asked the person on the dashboard. You will get a message when they confirm or decline.");
     }
     case "answer_permission": {
@@ -189,7 +205,12 @@ export async function callConductorTool(conductorId: string, name: string, args:
       const permission = target?.permission;
       if (!target || !permission || permission.id !== arg(args, "request_id")) return fail("That permission request is no longer pending.");
       if (orchestration.parentOf(target.id) !== conductorId) return fail("Only the conductor that delegated this worker can answer.");
-      if (arg(args, "decision") !== "allow") return ok("Left to the person.");
+      const decision = arg(args, "decision");
+      if (decision === "deny") {
+        const denied = deps.answerPermission(target.id, permission.id, { behavior: "deny", message: "The conductor declined this request." });
+        return denied ? ok("Denied.") : fail("That permission request is no longer pending.");
+      }
+      if (decision !== "allow") return ok("Left to the person.");
       const input = { toolName: permission.toolName, toolInput: permission.toolInput, suggestions: permission.suggestions };
       if (!isDelegated(conductor, input)) return fail("This request is outside what the person delegated to you; it stays with the person.");
       const answered = deps.answerPermission(target.id, permission.id, { behavior: "allow", suggestionIndex: null });

@@ -47,7 +47,7 @@ const conductorSession = (worktreeRequest: { id: string; branch: string; base: s
         scope: { kind: "worktree", root: "/p/app-a", paths: ["/p/app-a", "/p/app-a1"] },
         grants: [],
         rules: [],
-        worktreeRequest: worktreeRequest ? { ...worktreeRequest, reason: "r", requestedAt: 1 } : null,
+        worktreeRequest: worktreeRequest ? { ...worktreeRequest, reason: "r", prompt: null, requestedAt: 1 } : null,
       },
     },
   });

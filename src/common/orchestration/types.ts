@@ -47,6 +47,8 @@ export interface WorktreeRequest {
   branch: string;
   base: string | null;
   reason: string;
+  /** First request for a worker opened in the new worktree once it exists; that worker reports to the conductor. */
+  prompt: string | null;
   requestedAt: number;
 }
 

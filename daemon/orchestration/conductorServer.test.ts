@@ -123,4 +123,28 @@ describe("conductor over the runner server", () => {
     expect((await sessions())[0]?.orchestration?.conductor?.scope.paths).toContain("/tmp/feat-split");
     expect(sent.at(-1)?.text).toContain("/tmp/feat-split");
   });
+  it("lists its worktrees, opens the first worker in a requested worktree, and can deny a delegated request", async () => {
+    const { runner, registry, post, call, sessions } = setup();
+    await listen(runner);
+    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [] }, grants: ["build"] } })).json();
+    const id: string = launched.session.id;
+    expect(JSON.parse((await call(id, "list_worktrees", {})).text)).toEqual([{ path: folder, sessions: 0 }]);
+
+    await call(id, "request_worktree", { branch: "feat/split", reason: "parallel work", prompt: "write the parser" });
+    const request = (await sessions())[0]?.orchestration?.conductor?.worktreeRequest;
+    expect(request?.prompt).toBe("write the parser");
+    await post(`/conductors/${id}/worktree`, { requestId: request?.id, path: folder });
+    const worker = (await sessions()).find((session) => session.id !== id);
+    expect(worker?.orchestration?.parentId).toBe(id);
+    expect(worker?.orchestration?.links).toEqual([expect.objectContaining({ kind: "report", to: id })]);
+
+    const workerId = worker?.id ?? "";
+    const permission = post(`/hooks/${workerId}/PermissionRequest`, { tool_name: "Bash", tool_input: { command: "bun run build" } });
+    await until(() => registry.get(workerId)?.permission !== null);
+    const held = (await sessions()).find((session) => session.id === workerId)?.permission;
+    expect(held?.delegatedTo).toBe(id);
+    const requestId = held?.id ?? "";
+    expect((await call(id, "answer_permission", { session_id: workerId, request_id: requestId, decision: "deny" })).text).toBe("Denied.");
+    expect(await (await permission).json()).toMatchObject({ hookSpecificOutput: { decision: { behavior: "deny" } } });
+  });
 });

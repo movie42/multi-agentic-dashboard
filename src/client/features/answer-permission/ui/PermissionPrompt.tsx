@@ -217,7 +217,8 @@ function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) 
           ))}
         </div>
       )}
-      {!denying && delegable && <DelegateButton terminalHandle={terminalHandle} permission={permission} disabled={locked} />}
+      {!denying && permission.delegatedTo && <p className="text-[12px] font-semibold text-focus">지휘자가 먼저 판단하는 중이에요. 여기서 답해도 돼요.</p>}
+      {!denying && delegable && !permission.delegatedTo && <DelegateButton terminalHandle={terminalHandle} permission={permission} disabled={locked} />}
       <StatusLine status={status} />
     </>
   );

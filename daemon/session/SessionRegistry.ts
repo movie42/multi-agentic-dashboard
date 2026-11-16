@@ -268,7 +268,7 @@ export class SessionRegistry {
     return true;
   }
 
-  holdPermission(id: string, input: PermissionRequestInput): Promise<PermissionHookOutput> {
+  holdPermission(id: string, input: PermissionRequestInput, delegatedTo: string | null = null): Promise<PermissionHookOutput> {
     const entry = this.#entries.get(id);
     if (!entry || entry.session.status === "exited") return Promise.resolve({});
     this.#releasePermission(entry, {});
@@ -278,7 +278,7 @@ export class SessionRegistry {
       entry.held = { settle: resolve, timer };
       entry.session = {
         ...entry.session,
-        permission: { id: this.#options.newId(), receivedAt: this.#options.now(), ...input },
+        permission: { id: this.#options.newId(), receivedAt: this.#options.now(), ...input, ...(delegatedTo ? { delegatedTo } : {}) },
       };
       this.#changed();
     });

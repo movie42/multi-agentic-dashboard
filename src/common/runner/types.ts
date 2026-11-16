@@ -35,6 +35,8 @@ export interface RunnerPermission {
   toolName: string;
   toolInput: Record<string, unknown>;
   suggestions: RunnerPermissionSuggestion[];
+  /** The conductor that was asked to decide first, because a person delegated this kind of request to it. */
+  delegatedTo?: string | null;
 }
 
 export type RunnerPermissionAnswer =

@@ -8,7 +8,7 @@ const orchestrationSchema = z.object({
       grants: z.array(z.enum(GRANT_BUNDLES)),
       rules: z.array(z.object({ toolName: z.string(), prefix: z.string().nullable() })),
       worktreeRequest: z
-        .object({ id: z.string(), branch: z.string(), base: z.string().nullable(), reason: z.string(), requestedAt: z.number() })
+        .object({ id: z.string(), branch: z.string(), base: z.string().nullable(), reason: z.string(), prompt: z.string().nullable().optional().transform((value) => value ?? null), requestedAt: z.number() })
         .nullable(),
     })
     .nullable(),
@@ -46,6 +46,7 @@ export const runnerSessionSchema = z.object({
       toolName: z.string(),
       toolInput: z.record(z.string(), z.unknown()),
       suggestions: z.array(z.record(z.string(), z.unknown())),
+      delegatedTo: z.string().nullable().optional().catch(null),
     })
     .nullable()
     .catch(null),
