@@ -1,225 +1,271 @@
-import path from "node:path";
-import type { ConductorScope } from "../../src/common/orchestration/types.ts";
+import { isAbsolute } from "node:path";
 import type { RunnerLaunchRequest, RunnerPermissionAnswer, RunnerSession } from "../../src/common/runner/types.ts";
-import type { OrchestrationStore } from "./OrchestrationStore.ts";
+import { isDelegated } from "./grants.ts";
+import type { Orchestration } from "./Orchestration.ts";
 
-export interface ScopedWorktree {
-  path: string;
-  branch: string | null;
+export const MCP_SERVER_NAME = "agent-control";
+const PROTOCOL_VERSION = "2025-06-18";
+
+export interface ConductorToolDeps {
+  orchestration: Orchestration;
+  list: () => RunnerSession[];
+  get: (id: string) => RunnerSession | null;
+  launch: (request: RunnerLaunchRequest) => RunnerSession;
+  answerPermission: (id: string, requestId: string, answer: RunnerPermissionAnswer) => boolean;
+  isDirectory: (path: string) => Promise<boolean>;
 }
 
-export interface ConductorContext {
-  store: OrchestrationStore;
-  sessions: {
-    list(): RunnerSession[];
-    get(id: string): RunnerSession | null;
-    launch(request: RunnerLaunchRequest): RunnerSession;
-    answerPermission(id: string, requestId: string, answer: RunnerPermissionAnswer): boolean;
-  };
-  rules: { deliver(sessionId: string, text: string): void; readResult(sessionId: string): Promise<string | null> };
-  worktreesOf: (scope: ConductorScope) => Promise<ScopedWorktree[]>;
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
 }
 
-interface JsonRpcRequest {
-  id?: string | number | null;
-  method: string;
-  params?: Record<string, unknown>;
-}
+const str = (description: string) => ({ type: "string", description });
 
-interface ToolResult {
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}
-
-const SUPPORTED_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
-const REF = /^(?!.*\.\.)(?!.*\/\/)[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
-
-const string = (description: string) => ({ type: "string", description });
-
-const TOOLS = [
+export const CONDUCTOR_TOOLS: ToolDefinition[] = [
   {
     name: "list_worktrees",
-    description: "Worktrees you may start sessions in (your scope).",
+    description: "List the worktree folders inside your scope, with how many live sessions each has.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "list_sessions",
-    description: "Running sessions inside your scope, with their status and whether they report to you.",
+    description: "List the Agent Control sessions inside your scope: id, folder, status (idle/working/waiting/exited), who delegated it, and pending permission requests.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "start_session",
-    description: "Open a worker session in a worktree with a first prompt. It reports back to you automatically when it stops.",
+    description:
+      "Open a new Claude Code worker session in a worktree folder inside your scope and give it its first request. The worker reports back to you automatically each time it finishes a turn.",
     inputSchema: {
       type: "object",
-      properties: { worktree_path: string("Absolute path from list_worktrees"), prompt: string("The worker's first instruction") },
-      required: ["worktree_path", "prompt"],
+      properties: { cwd: str("Absolute worktree folder, inside your scope"), prompt: str("The worker's first request") },
+      required: ["cwd", "prompt"],
     },
   },
   {
     name: "send_to_session",
-    description: "Send a follow-up instruction to a session in your scope. It is typed in once that session is idle.",
-    inputSchema: { type: "object", properties: { session_id: string("Session id"), text: string("Instruction") }, required: ["session_id", "text"] },
+    description: "Send a follow-up message to a session in your scope. If it is busy, the message waits until its current turn ends.",
+    inputSchema: {
+      type: "object",
+      properties: { session_id: str("Target session id"), text: str("Message to send") },
+      required: ["session_id", "text"],
+    },
   },
   {
     name: "read_result",
-    description: "Read a session's latest answer.",
-    inputSchema: { type: "object", properties: { session_id: string("Session id") }, required: ["session_id"] },
+    description: "Read a session's status and its last answer.",
+    inputSchema: { type: "object", properties: { session_id: str("Session id") }, required: ["session_id"] },
   },
   {
-    name: "propose_worktree",
-    description: "Ask for a new worktree. A person confirms it in the dashboard before it is created; the first prompt then opens a worker that reports to you.",
+    name: "link_sessions",
+    description:
+      "Connect two sessions in your scope: kind 'report' sends the source's last answer to the target whenever the source finishes a turn; kind 'next' sends the target `prompt` (plus the source's last answer) when the source finishes.",
     inputSchema: {
       type: "object",
       properties: {
-        name: string("Folder suffix, e.g. COMP-611 or login-redirect"),
-        branch: string("New branch, e.g. feat/COMP-611"),
-        base_branch: string("Branch to start from"),
-        prompt: string("First instruction for the worker that opens there"),
+        from: str("Source session id"),
+        to: str("Target session id"),
+        kind: { type: "string", enum: ["report", "next"] },
+        prompt: str("For 'next': what the target should do"),
       },
-      required: ["name", "branch", "base_branch", "prompt"],
+      required: ["from", "to", "kind"],
+    },
+  },
+  {
+    name: "request_worktree",
+    description:
+      "Ask the person to create a new git worktree for you. Nothing is created until they confirm on the dashboard; you get a message with the new folder (or the refusal) afterwards.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        branch: str("New branch name"),
+        base: str("Branch to start from (optional)"),
+        reason: str("Why it is needed, one sentence"),
+        prompt: str("First request for a worker to open there once it exists (optional); that worker reports to you"),
+      },
+      required: ["branch", "reason"],
     },
   },
   {
     name: "answer_permission",
-    description: "Answer a worker's permission request that was delegated to you.",
+    description:
+      "Answer a permission request a worker forwarded to you. 'allow' approves it, 'deny' refuses it when it clearly does not fit the work you handed out, 'pass' leaves it to the person — use it whenever you are not sure.",
     inputSchema: {
       type: "object",
       properties: {
-        session_id: string("Worker session id"),
-        request_id: string("Permission request id from the message"),
-        decision: { type: "string", enum: ["allow", "deny", "ask_human"] },
+        session_id: str("Worker session id"),
+        request_id: str("Permission request id from the forwarded message"),
+        decision: { type: "string", enum: ["allow", "deny", "pass"] },
       },
       required: ["session_id", "request_id", "decision"],
     },
   },
 ];
 
-const text = (value: string, isError = false): ToolResult => ({ content: [{ type: "text", text: value }], ...(isError ? { isError } : {}) });
+export function conductorInstructions(): string {
+  return [
+    "You are a conductor session in Agent Control. You plan the work and hand it to worker sessions with the agent-control MCP tools instead of doing it all yourself.",
+    "- start_session opens a worker in a worktree inside your scope; it reports its last answer back to you whenever it finishes a turn.",
+    "- Messages that start with [Agent Control] come from the dashboard daemon (worker reports, forwarded permission requests, worktree results), not from the person.",
+    "- list_worktrees shows the folders you may open sessions in.",
+    "- Forwarded permission requests: answer with answer_permission. Allow only what fits the work you handed out, deny what clearly does not, and pass it to the person when unsure.",
+    "- Need a new worktree? Use request_worktree; the person confirms it first. Give it a prompt and a worker opens there once it exists.",
+  ].join("\n");
+}
 
-function arg(params: Record<string, unknown>, key: string): string {
-  const value = params[key];
+type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+
+const ok = (text: string): ToolResult => ({ content: [{ type: "text", text }] });
+const fail = (text: string): ToolResult => ({ content: [{ type: "text", text }], isError: true });
+
+function arg(args: Record<string, unknown>, key: string): string {
+  const value = args[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
-function within(cwd: string, worktrees: ScopedWorktree[]): boolean {
-  return worktrees.some((worktree) => cwd === worktree.path || cwd.startsWith(`${worktree.path}/`));
+function summary(session: RunnerSession, deps: ConductorToolDeps) {
+  return {
+    id: session.id,
+    cwd: session.cwd,
+    kind: session.kind,
+    status: session.status,
+    delegatedBy: deps.orchestration.parentOf(session.id),
+    permission: session.permission ? { request_id: session.permission.id, tool: session.permission.toolName } : null,
+  };
 }
 
-async function callTool(conductorId: string, name: string, params: Record<string, unknown>, context: ConductorContext): Promise<ToolResult> {
-  const conductor = context.store.conductor(conductorId);
-  if (!conductor) return text("이 세션은 지휘자가 아니에요.", true);
-  const scoped = await context.worktreesOf(conductor.scope);
-  const inScope = (sessionId: string) => {
-    const session = context.sessions.get(sessionId);
-    return session && session.status !== "exited" && within(session.cwd, scoped) ? session : null;
+export async function callConductorTool(conductorId: string, name: string, args: Record<string, unknown>, deps: ConductorToolDeps): Promise<ToolResult> {
+  const { orchestration } = deps;
+  const conductor = orchestration.conductor(conductorId);
+  if (!conductor) return fail("This session is not a conductor.");
+  const inScopeSession = (id: string): RunnerSession | null => {
+    const session = deps.get(id);
+    return session && id !== conductorId && orchestration.inScope(conductorId, session.cwd) ? session : null;
   };
+
   switch (name) {
-    case "list_worktrees":
-      return text(JSON.stringify(scoped, null, 2));
+    case "list_worktrees": {
+      const live = deps.list().filter((session) => session.status !== "exited" && session.id !== conductorId);
+      const worktrees = conductor.scope.paths.map((folder) => ({ path: folder, sessions: live.filter((session) => session.cwd === folder || session.cwd.startsWith(`${folder}/`)).length }));
+      return ok(JSON.stringify(worktrees, null, 2));
+    }
     case "list_sessions": {
-      const reportsToMe = new Set(context.store.state().links.filter((link) => link.kind === "report" && link.to === conductorId).map((link) => link.from));
-      const listed = context.sessions
-        .list()
-        .filter((session) => session.id !== conductorId && session.status !== "exited" && within(session.cwd, scoped))
-        .map((session) => ({ id: session.id, worktree: session.cwd, status: session.status, reportsToMe: reportsToMe.has(session.id) }));
-      return text(JSON.stringify(listed, null, 2));
+      const sessions = deps.list().filter((session) => session.id !== conductorId && orchestration.inScope(conductorId, session.cwd));
+      return ok(JSON.stringify({ scope: conductor.scope, sessions: sessions.map((session) => summary(session, deps)) }, null, 2));
     }
     case "start_session": {
-      const worktreePath = arg(params, "worktree_path");
-      const prompt = arg(params, "prompt");
-      if (!prompt) return text("prompt가 비었어요.", true);
-      const target = scoped.find((worktree) => worktree.path === path.resolve(worktreePath));
-      if (!target) return text(`범위 밖의 워크트리예요: ${worktreePath}. list_worktrees로 고르세요.`, true);
-      const worker = context.sessions.launch({ cwd: target.path, prompt });
-      context.store.addLink({ from: conductorId, to: worker.id, kind: "delegate" }, "conductor");
-      context.store.addLink({ from: worker.id, to: conductorId, kind: "report" }, "conductor");
-      return text(`세션 ${worker.id}을 ${target.path}에서 열었어요. 끝나면 보고가 들어와요.`);
+      const cwd = arg(args, "cwd");
+      const prompt = arg(args, "prompt");
+      if (!prompt) return fail("prompt is required.");
+      if (!isAbsolute(cwd) || !orchestration.inScope(conductorId, cwd)) {
+        return fail(`${cwd || "(empty)"} is outside your scope. Allowed folders: ${conductor.scope.paths.join(", ")}. Use request_worktree for a new one.`);
+      }
+      if (!(await deps.isDirectory(cwd))) return fail(`${cwd} does not exist.`);
+      const worker = deps.launch({ cwd, prompt, askPermissions: true });
+      orchestration.connect(conductorId, worker.id, "delegate");
+      orchestration.connect(worker.id, conductorId, "report");
+      return ok(`Started worker ${worker.id} in ${cwd}. It will report back when it finishes a turn.`);
     }
     case "send_to_session": {
-      const sessionId = arg(params, "session_id");
-      const message = arg(params, "text");
-      if (!inScope(sessionId)) return text("범위 안에 그런 세션이 없어요.", true);
-      if (!message) return text("text가 비었어요.", true);
-      context.rules.deliver(sessionId, message);
-      return text("보냈어요. 그 세션이 쉬는 상태가 되면 입력돼요.");
+      const target = inScopeSession(arg(args, "session_id"));
+      const text = arg(args, "text");
+      if (!target) return fail("No such session in your scope.");
+      if (!text) return fail("text is required.");
+      const queued = target.status !== "idle" || target.permission !== null;
+      if (!orchestration.deliver(target.id, text, null)) return fail("The session has exited.");
+      return ok(queued ? `Session ${target.id} is busy; the message is queued until its turn ends.` : `Sent to ${target.id}.`);
     }
     case "read_result": {
-      const sessionId = arg(params, "session_id");
-      if (!inScope(sessionId)) return text("범위 안에 그런 세션이 없어요.", true);
-      return text((await context.rules.readResult(sessionId)) ?? "아직 읽을 답이 없어요.");
+      const target = inScopeSession(arg(args, "session_id"));
+      if (!target) return fail("No such session in your scope.");
+      return ok(JSON.stringify({ ...summary(target, deps), lastAnswer: orchestration.lastAnswer(target.id) }, null, 2));
     }
-    case "propose_worktree": {
-      const proposal = { name: arg(params, "name"), branch: arg(params, "branch"), baseBranch: arg(params, "base_branch"), prompt: arg(params, "prompt") };
-      if (!NAME.test(proposal.name) || !REF.test(proposal.branch) || !REF.test(proposal.baseBranch)) return text("이름이나 브랜치 모양이 올바르지 않아요.", true);
-      const created = context.store.addProposal({ conductorId, ...proposal });
-      return text(`워크트리 제안(${created.id})을 올렸어요. 사람이 대시보드에서 확인하면 만들어지고, 그곳에 연 세션이 보고해요.`);
+    case "link_sessions": {
+      const kind = arg(args, "kind");
+      const from = inScopeSession(arg(args, "from")) ?? (arg(args, "from") === conductorId ? deps.get(conductorId) : null);
+      const to = inScopeSession(arg(args, "to")) ?? (arg(args, "to") === conductorId ? deps.get(conductorId) : null);
+      if (kind !== "report" && kind !== "next") return fail("kind must be 'report' or 'next'.");
+      if (!from || !to) return fail("Both sessions must be in your scope.");
+      const link = orchestration.connect(from.id, to.id, kind, arg(args, "prompt") || null);
+      return link ? ok(`Linked ${from.id} -> ${to.id} (${kind}).`) : fail("Could not link these sessions.");
+    }
+    case "request_worktree": {
+      const branch = arg(args, "branch");
+      const reason = arg(args, "reason");
+      if (!/^[\w./-]{1,120}$/.test(branch)) return fail("branch must be a plain branch name.");
+      if (!reason) return fail("reason is required.");
+      if (conductor.worktreeRequest) return fail("A worktree request is already waiting for the person.");
+      orchestration.requestWorktree(conductorId, { branch, base: arg(args, "base") || null, reason, prompt: arg(args, "prompt") || null });
+      return ok("Asked the person on the dashboard. You will get a message when they confirm or decline.");
     }
     case "answer_permission": {
-      const sessionId = arg(params, "session_id");
-      const requestId = arg(params, "request_id");
-      const decision = arg(params, "decision");
-      const permission = context.sessions.get(sessionId)?.permission;
-      if (!permission || permission.id !== requestId || permission.delegatedTo !== conductorId) return text("나에게 맡겨진 그 권한 요청이 없어요(이미 답했을 수 있어요).", true);
-      if (decision === "ask_human") return text("사람에게 남겨 뒀어요. 대시보드 카드에서 답할 거예요.");
-      const answer: RunnerPermissionAnswer =
-        decision === "allow" ? { behavior: "allow", suggestionIndex: null } : { behavior: "deny", message: "The conductor session denied this request." };
-      return context.sessions.answerPermission(sessionId, requestId, answer) ? text("답했어요.") : text("답하지 못했어요. 이미 끝난 요청이에요.", true);
+      const target = inScopeSession(arg(args, "session_id"));
+      const permission = target?.permission;
+      if (!target || !permission || permission.id !== arg(args, "request_id")) return fail("That permission request is no longer pending.");
+      if (orchestration.parentOf(target.id) !== conductorId) return fail("Only the conductor that delegated this worker can answer.");
+      const decision = arg(args, "decision");
+      if (decision === "deny") {
+        const denied = deps.answerPermission(target.id, permission.id, { behavior: "deny", message: "The conductor declined this request." });
+        return denied ? ok("Denied.") : fail("That permission request is no longer pending.");
+      }
+      if (decision !== "allow") return ok("Left to the person.");
+      const input = { toolName: permission.toolName, toolInput: permission.toolInput, suggestions: permission.suggestions };
+      if (!isDelegated(conductor, input)) return fail("This request is outside what the person delegated to you; it stays with the person.");
+      const answered = deps.answerPermission(target.id, permission.id, { behavior: "allow", suggestionIndex: null });
+      return answered ? ok("Allowed.") : fail("That permission request is no longer pending.");
     }
     default:
-      return text(`모르는 도구예요: ${name}`, true);
+      return fail(`Unknown tool ${name}.`);
   }
+}
+
+interface JsonRpcRequest {
+  id: string | number | null;
+  method: string;
+  params: Record<string, unknown>;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
-function requestOf(value: unknown): JsonRpcRequest | null {
-  const raw = record(value);
+function rpcOf(body: unknown): JsonRpcRequest | null {
+  const raw = record(body);
   if (!raw || typeof raw.method !== "string") return null;
-  const id = raw.id;
-  return {
-    method: raw.method,
-    ...(typeof id === "string" || typeof id === "number" || id === null ? { id } : {}),
-    ...(record(raw.params) ? { params: record(raw.params) ?? {} } : {}),
-  };
+  const id = typeof raw.id === "string" || typeof raw.id === "number" ? raw.id : null;
+  return { id, method: raw.method, params: record(raw.params) ?? {} };
 }
 
 /**
- * One MCP (Streamable HTTP) message from a conductor session, answered with plain JSON. Returns null for
- * notifications, which get no reply.
+ * One MCP JSON-RPC message over the Streamable HTTP transport, answered as plain JSON.
+ * Returns null for notifications, which get an empty 202.
  */
-export async function handleMcpMessage(conductorId: string, body: unknown, context: ConductorContext): Promise<unknown | null> {
-  const request = requestOf(body);
-  if (!request) return { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } };
-  if (request.id === undefined) return null;
-  const reply = (result: unknown) => ({ jsonrpc: "2.0", id: request.id, result });
-  const params = request.params ?? {};
-  switch (request.method) {
+export async function handleMcpMessage(conductorId: string, body: unknown, deps: ConductorToolDeps): Promise<Record<string, unknown> | null> {
+  const rpc = rpcOf(body);
+  if (!rpc) return { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } };
+  if (rpc.id === null) return null;
+  const reply = (result: unknown) => ({ jsonrpc: "2.0", id: rpc.id, result });
+  switch (rpc.method) {
     case "initialize": {
-      const asked = typeof params.protocolVersion === "string" ? params.protocolVersion : "";
+      const requested = rpc.params.protocolVersion;
       return reply({
-        protocolVersion: SUPPORTED_VERSIONS.includes(asked) ? asked : SUPPORTED_VERSIONS[0],
+        protocolVersion: typeof requested === "string" ? requested : PROTOCOL_VERSION,
         capabilities: { tools: {} },
-        serverInfo: { name: "agent-control-conductor", version: "1.0.0" },
+        serverInfo: { name: MCP_SERVER_NAME, version: "1.0.0" },
+        instructions: conductorInstructions(),
       });
     }
     case "ping":
       return reply({});
     case "tools/list":
-      return reply({ tools: TOOLS });
+      return reply({ tools: CONDUCTOR_TOOLS });
     case "tools/call": {
-      const name = typeof params.name === "string" ? params.name : "";
-      try {
-        return reply(await callTool(conductorId, name, record(params.arguments) ?? {}, context));
-      } catch (error) {
-        console.error("[orchestration] tool failed", name, error);
-        return reply(text(error instanceof Error ? error.message : String(error), true));
-      }
+      const name = typeof rpc.params.name === "string" ? rpc.params.name : "";
+      return reply(await callConductorTool(conductorId, name, record(rpc.params.arguments) ?? {}, deps));
     }
     default:
-      return { jsonrpc: "2.0", id: request.id, error: { code: -32601, message: `Method not found: ${request.method}` } };
+      return { jsonrpc: "2.0", id: rpc.id, error: { code: -32601, message: `Method not found: ${rpc.method}` } };
   }
 }

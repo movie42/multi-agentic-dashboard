@@ -1,4 +1,5 @@
 import "server-only";
+import { readRunningSubagents } from "@/server/sessions/subagents";
 import { readFile } from "node:fs/promises";
 import type { AskRunner } from "./intentDiff/AskRunner";
 import type { AskStore } from "./intentDiff/AskStore";
@@ -44,12 +45,13 @@ import { GRAPH_PAGE, readGraph } from "./gitGraph/readGraph";
 import { MergedReader } from "./gitGraph/readMerged";
 import { switchBranch } from "./gitGraph/switchBranch";
 import { readWorkingDiff, readWorkingTree } from "./gitGraph/readWorkingTree";
+import { readFileOverlaps } from "./projects/fileOverlaps";
+import { ConductorActions } from "./orchestration/conductorActions";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
-import { readOverlaps } from "./projectOverview/overlaps";
-import type { WorktreeOverlap } from "@/common/projectOverview/types";
 
 export interface Services {
+  conductors: ConductorActions;
   errorLog: ErrorLog;
   sessionIndex: SessionIndex;
   sessionTitles: SessionTitles;
@@ -92,10 +94,7 @@ export interface Services {
     readWorkingTree: typeof readWorkingTree;
     readWorkingDiff: typeof readWorkingDiff;
   };
-  /** Pairs of the project's worktrees (main checkout excluded) that change the same files. */
-  projectOverlaps: (projectPath: string) => Promise<WorktreeOverlap[]>;
-  /** Creates the worktree a conductor proposed, then lets the runner open its worker there. */
-  acceptProposal: (proposalId: string) => Promise<void>;
+  fileOverlaps: (worktreePaths: string[]) => ReturnType<typeof readFileOverlaps>;
 }
 
 function graphReader(merged: MergedReader) {
@@ -144,7 +143,6 @@ function createServices(): Services {
     projects: () => projects.list(),
     worktreesOf,
     meta: () => worktreeMeta.read(),
-    orchestration: () => runner.orchestration(),
     runnerSessions: async () => {
       const [sessions, live] = await Promise.all([
         runner.list(),
@@ -162,12 +160,18 @@ function createServices(): Services {
       transcriptOf: (cwd, sessionId) => sessionTranscripts.read(cwd, sessionId),
       sessionRefOf: (file, size) => sessionTitles.refOf(file, size),
       readBookmarks: () => bookmarks.read(),
+      subagentsOf: (file) => readRunningSubagents(file, Date.now()),
     },
     fs: nodeFileSystem,
     warn,
   });
   const docs = new DocServer({ worktreePaths: (options) => board.worktreePaths(options) });
   return {
+    conductors: new ConductorActions({
+      worktrees: async () => (await board.load()).worktrees,
+      runner,
+      createWorktree: (input) => worktrees.create(input),
+    }),
     errorLog,
     sessionIndex,
     sessionTitles,
@@ -195,35 +199,7 @@ function createServices(): Services {
     docs,
     flowAnswers: new FlowAnswerStore({ isViewable: (file) => docs.isViewable(file) }),
     gitGraph: { readGraph: graphReader(new MergedReader()), readCommit, readCommitDiff, switchBranch, readWorkingTree, readWorkingDiff },
-    acceptProposal: async (proposalId) => {
-      const state = await runner.orchestration();
-      const proposal = state.proposals.find((entry) => entry.id === proposalId);
-      if (!proposal) throw new Error("이미 처리한 제안이에요");
-      const conductor = state.conductors.find((entry) => entry.sessionId === proposal.conductorId);
-      if (!conductor) throw new Error("제안한 지휘자가 없어요");
-      const registered = await projects.list();
-      const owners = await Promise.all(
-        registered.map(async (project) => ((await worktreesOf(project)).some((worktree) => worktree.path === conductor.scope.root) ? project : null)),
-      );
-      const project = owners.find((owner) => owner !== null);
-      if (!project) throw new Error("지휘자 범위의 프로젝트를 찾지 못했어요");
-      const created = await worktrees.create({
-        projectPath: project.path,
-        name: proposal.name,
-        branch: proposal.branch,
-        baseBranch: proposal.baseBranch,
-        parentPath: conductor.scope.kind === "worktree" ? conductor.scope.root : null,
-        reference: /^[A-Z][A-Z0-9]+-\d+$/.test(proposal.name) ? proposal.name : null,
-        prompt: "",
-      });
-      await runner.acceptProposal(proposalId, created.path);
-    },
-    projectOverlaps: async (projectPath) => {
-      const project = (await projects.list()).find((candidate) => candidate.path === projectPath);
-      if (!project) throw new Error("프로젝트를 찾지 못했어요");
-      const paths = (await worktreesOf(project)).filter((worktree) => !worktree.isMain).map((worktree) => worktree.path);
-      return readOverlaps(paths, undefined, (error, worktreePath) => warn("project-overlaps", error, { worktreePath }));
-    },
+    fileOverlaps: (worktreePaths) => readFileOverlaps(worktreePaths, warn),
   };
 }
 

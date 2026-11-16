@@ -1,17 +1,22 @@
 {
   "id": "project-overview",
-  "title": "프로젝트 전체 보기",
+  "title": "프로젝트 전체 보기 · 세션 오케스트레이션",
   "type": "기능 개발",
-  "branch": "feat/project-overview",
-  "links": [],
+  "branch": "main",
+  "links": [
+    {
+      "label": "PR #14",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/14"
+    }
+  ],
   "stages": {
     "screen": {
       "status": "done",
-      "summary": "그래프 초안 1장 · 행 11개 · 확인 필요 2",
+      "summary": "그래프 초안 1장 · 행 11개",
       "conclusion": [
         "사용자 스케치(상자와 선)대로 다시 그렸어요: 맨 위 프로젝트 세션 [[S18]]이 워크트리 세션 [[S20]]에 일을 맡기고, 세션은 워크트리별 점선 상자 [[S19]]로 묶여요.",
         "상자를 누르면 오른쪽 패널 [[S24]]에서 바로 답해요. 선 종류는 [[S23]]이에요.",
-        "[[S17]] 잇기 · [[S18]] 지휘자 · [[S22]] 끌어 잇기 · [[S25]] 규칙은 session-orchestration에서 붙여요."
+        "프로젝트 레벨 세션은 지휘자로 만든 세션이에요 [[S18]]. 선과 규칙은 데몬이 저장하고 실행해요 [[S25]]."
       ]
     },
     "grill": {
@@ -99,7 +104,7 @@
                 "text": "전체 보기에서 각 워크트리마다 묶되 워크트리를 횡단해서 영향을 주는 경우도 있잖아. 그것도 시각적으로 표시되면 좋겠고",
                 "by": "user"
               },
-              "appliedTo": "03 구현 계획(작성 전) · 오케스트레이션 작업 [[session-orchestration]]"
+              "appliedTo": "03 구현 계획(작성 전) · 오케스트레이션 [[R4]]"
             },
             {
               "id": "Q3",
@@ -186,12 +191,15 @@
                 "followUp": "",
                 "copy": ""
               },
-              "decision": "이번 작업은 프로젝트 전체 보기만 만든다. 오케스트레이션(세션끼리 맡기고 주고받기, 그래프 편집)은 별도 작업 session-orchestration에서 설계한다.",
+              "decision": "프로젝트 전체 보기와 오케스트레이션(세션끼리 맡기고 주고받기, 그래프에서 잇기)을 이 작업 하나에서 만든다. 별도로 만들었던 session-orchestration 작업은 이 작업에 합쳤다([[R4-Q1]]).",
               "reason": {
-                "text": "전체 보기를 먼저 써서 왔다갔다를 줄이고, 그림은 같은 화면에 나중에 붙인다.",
-                "by": "recommended"
+                "text": "계획 분리하더니 결국 내가 원하는대로 구현이 안됐어",
+                "by": "user"
               },
-              "appliedTo": "session-orchestration 작업 생성"
+              "appliedTo": "[[R4-Q1]] · [[P1]]–[[P5]]",
+              "was": [
+                "이번 작업은 프로젝트 전체 보기만 만든다. 오케스트레이션(세션끼리 맡기고 주고받기, 그래프 편집)은 별도 작업 session-orchestration에서 설계한다."
+              ]
             },
             {
               "id": "Q2",
@@ -227,7 +235,7 @@
                 "text": "서브에이전트는 Claude가 한 세션 안에서 알아서 부르는 것이라 사람이 잇거나 순서를 정할 수 없다. 원하는 건 프로젝트 세션과 워크트리 세션을 직접 이어 붙이고 규칙(대화가 끝나면 보고)을 정하는 것이다 — [[R3-Q2]]에서 확인.",
                 "by": "user"
               },
-              "appliedTo": "session-orchestration 작업 intent"
+              "appliedTo": "작업 intent"
             },
             {
               "id": "Q3",
@@ -259,7 +267,7 @@
                 "text": "누가 누구를 기다리는지가 계속 바뀌어서 스냅샷 파일은 금방 낡는다.",
                 "by": "recommended"
               },
-              "appliedTo": "session-orchestration 작업 intent"
+              "appliedTo": "작업 intent"
             }
           ]
         },
@@ -297,12 +305,15 @@
                 "followUp": "",
                 "copy": ""
               },
-              "decision": "워크트리 사이에는 두 가지 선을 그린다: 어느 워크트리에서 갈라졌는지(실선), 두 워크트리가 같은 파일을 고치고 있어 합칠 때 충돌할 수 있는 경우(점선, 겹친 파일 수 표시). 다른 워크트리 파일을 직접 고친 세션은 그리지 않는다.",
+              "decision": "워크트리 사이 선(갈라짐 실선, 같은 파일 점선 · 파일 수)은 그리되 기본으로 꺼 둔다. 도구 막대의 '워크트리 관계'를 켤 때만 계산하고 보여 준다. 다른 워크트리 파일을 직접 고친 세션은 그리지 않는다.",
               "reason": {
-                "text": "같은 파일 수정은 합칠 때 부딪힐 곳을 미리 알려 줘서 관제에 바로 쓸모가 있고, 직접 고친 경우는 드물어 선만 늘린다.",
-                "by": "recommended"
+                "text": "난 서로 연결한적 없는데 뭔가 쓸모없는 정보가 연결되어있는것같아. 이건 agent끼리 연결이라서",
+                "by": "user"
               },
-              "appliedTo": "[[P1-1]] [[P3-2]]"
+              "appliedTo": "[[P1-1]] [[P2-1]] [[P3-1]]",
+              "was": [
+                "워크트리 사이에는 두 가지 선을 그린다: 어느 워크트리에서 갈라졌는지(실선), 두 워크트리가 같은 파일을 고치고 있어 합칠 때 충돌할 수 있는 경우(점선, 겹친 파일 수 표시). 다른 워크트리 파일을 직접 고친 세션은 그리지 않는다."
+              ]
             },
             {
               "id": "Q2",
@@ -323,193 +334,1061 @@
                 "text": "맞아 … 서브에이전트를 시각화해달라는게 아니라 세션을 열어달라는거야. 서브에이전트끼리 시각화가 아니야.",
                 "by": "user"
               },
-              "appliedTo": "[[R2-Q2]] reason · session-orchestration intent"
+              "appliedTo": "[[R2-Q2]] reason · 작업 intent"
+            }
+          ]
+        },
+        {
+          "id": "R4",
+          "askedAt": "11/16",
+          "from": "session-orchestration 작업에서 옮김(원래 R1) · 지휘자 만드는 방식 설명(채팅 11/16) · 그래프 초안 [[S18]] [[S25]]",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "이 작업을 project-overview와 합칠지",
+              "said": "그래 내가 원한게 이거야",
+              "body": "그래프 화면(상자 · 선 · 오른쪽 패널)은 project-overview 작업, 선이 실제로 동작하게 하는 것(맡김 기록 · 보고 · 끝나면 다음 · 지휘자 도구)은 이 작업으로 나눠 두었어요. 그래프는 선이 없으면 워크트리별 상자 배치일 뿐이고, 선은 그래프 없이는 볼 곳이 없어서 두 작업이 서로 기다리게 돼요.",
+              "intent": "화면을 먼저 쓸 수 있게 나눌지, 동작까지 한 번에 끝낼지를 정해요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "나눈 채로 — project-overview는 그래프 화면과 갈라짐 · 같은 파일 선까지, 이 작업이 맡김 · 보고 선과 지휘자를 더한다"
+                },
+                {
+                  "value": "b",
+                  "label": "하나로 합친다 — 그래프 화면과 동작을 한 작업에서"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a를 추천해요. 그래프 화면은 지금 데이터만으로 쓸 수 있고, 이 작업은 데몬 쪽 변경이 커서 따로 검증하는 게 안전해요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "note": "11/16 채팅: 계획 분리하더니 결국 내가 원하는대로 구현이 안됐어 — 하나로 합친다",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "하나의 작업으로 합친다. 그래프 화면과 오케스트레이션(맡김 · 보고 · 끝나면 다음 · 지휘자)을 project-overview 한 작업에서 만들고, 이미 만든 데몬 쪽 오케스트레이션은 재사용한다.",
+              "reason": {
+                "text": "지휘자 모드도 볼수 있고, 워크트리별 작업도 볼수 있는걸 만드는게 목표였잖아 … 계획 분리하더니 결국 내가 원하는대로 구현이 안됐어",
+                "by": "user"
+              },
+              "appliedTo": "이 작업으로 합침 · [[P1]]–[[P5]]",
+              "was": [
+                "작업을 나눈 채로 둔다. project-overview는 그래프 화면과 갈라짐 · 같은 파일 선까지 만들고, 이 작업이 맡김 · 보고 · 끝나면 다음 선과 지휘자를 더한다."
+              ]
+            },
+            {
+              "id": "Q2",
+              "title": "프로젝트 레벨 세션이 무엇인지",
+              "said": "내가 원했던 마에스트로 (지휘자 콘더)를 프로젝트 또는 워크트리 레벨에서 생성하려면 어떤식으로 되는걸까?",
+              "body": "지금 세션은 모두 어떤 폴더(워크트리)에서 띄워져요. '프로젝트 레벨'을 따로 두려면 기준이 필요해요. ① main 폴더(프로젝트의 원래 체크아웃)에서 띄운 세션을 프로젝트 레벨로 본다 — 새 저장 없이 바로 구분돼요. ② 어느 폴더에서 띄우든 '프로젝트 지휘자'로 표시한 세션만 프로젝트 레벨로 본다 — 세션마다 표시를 저장해야 해요.",
+              "intent": "그래프 맨 위 상자에 어떤 세션이 올라가는지, main 폴더에서 평범한 작업을 하는 세션까지 지휘자처럼 보일지가 갈려요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "① main 폴더에서 띄운 세션 = 프로젝트 레벨"
+                },
+                {
+                  "value": "b",
+                  "label": "② 지휘자로 만든 세션만 프로젝트 레벨 (폴더 무관)"
+                }
+              ],
+              "recommended": "b",
+              "recommendation": "b를 추천해요. main 폴더에서 릴리스 정리 같은 평범한 일도 하는데, 그런 세션이 맨 위에 올라가면 지휘 관계가 흐려져요.",
+              "answer": {
+                "choice": "b",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "프로젝트 레벨 세션은 '지휘자'로 만든 세션만이다. 어느 폴더에서 띄웠는지와 상관없이, 지휘자 표시를 세션마다 저장한다.",
+              "reason": {
+                "text": "main 폴더에서 하는 평범한 작업 세션이 맨 위에 올라가 지휘 관계를 흐리지 않게 한다.",
+                "by": "recommended"
+              },
+              "appliedTo": "[[S18]] · [[P1-1]] [[P3-4]]"
+            },
+            {
+              "id": "Q3",
+              "title": "지휘자가 맡길 수 있는 범위",
+              "said": "내가 원했던 마에스트로 (지휘자 콘더)를 프로젝트 또는 워크트리 레벨에서 생성하려면 어떤식으로 되는걸까?",
+              "body": "지휘자는 데몬이 주는 도구로 일꾼 세션을 열어요. 범위를 넘는 요청은 데몬이 거절해요. 프로젝트 지휘자는 그 프로젝트 모든 워크트리, 워크트리 지휘자는 그 워크트리와 거기서 갈라진 하위 워크트리까지로 잡았어요. 남은 건 새 워크트리를 직접 만들게 할지예요.",
+              "intent": "지휘자가 폴더까지 만들면 편하지만, 모르는 사이 워크트리가 늘어날 수 있어요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "있는 워크트리에만 세션을 연다"
+                },
+                {
+                  "value": "b",
+                  "label": "새 워크트리도 만들 수 있다 (만들기 전에 화면에서 내가 확인)"
+                },
+                {
+                  "value": "c",
+                  "label": "새 워크트리도 확인 없이 만든다"
+                }
+              ],
+              "recommended": "b",
+              "recommendation": "b를 추천해요. 워크트리 만들기 마법사와 같은 확인 단계를 거치면 늘어나는 걸 알 수 있어요.",
+              "answer": {
+                "choice": "b",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "지휘자는 범위 안의 있는 워크트리에 세션을 열 수 있고, 새 워크트리도 만들 수 있다. 새 워크트리는 만들기 전에 화면에서 사람이 확인한다.",
+              "reason": {
+                "text": "워크트리 만들기 마법사와 같은 확인을 거쳐 모르는 사이 워크트리가 늘지 않게 한다.",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획"
+            },
+            {
+              "id": "Q4",
+              "title": "선과 규칙을 저장할 곳",
+              "said": "대화가 끝나면 무조건 세션에게 보고를 하게 하는 등의 알고리즘 순서도를 넣으면 그렇게 동작하면 좋겠어",
+              "body": "'끝나면 보고'를 반드시 지키려면 Claude가 기억하는 게 아니라 데몬이 실행해야 해요. 그러면 규칙은 데몬이 읽는 곳에 있어야 해요. ① 데몬 데이터 폴더의 파일(~/.local/share/agent-control/, 지금 세션 목록을 sessions.json에 두는 곳) — 컴퓨터에만 남아요. ② 프로젝트 저장소 안 파일 — git으로 공유되고 다른 컴퓨터에서도 같은 규칙을 써요.",
+              "intent": "규칙이 이번 작업 한 번용인지, 프로젝트에서 반복해 쓰는 순서도인지를 정해요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "① 데몬 데이터 폴더 (이 컴퓨터에서만)"
+                },
+                {
+                  "value": "b",
+                  "label": "② 프로젝트 저장소 안 (git으로 공유)"
+                },
+                {
+                  "value": "c",
+                  "label": "① 기본 + 원하는 순서도만 ②로 내보내기"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a를 추천해요. 선은 세션 id끼리 잇는 거라 세션이 끝나면 의미가 없어져요. 반복해 쓸 순서도 템플릿은 써 보고 필요하면 나중에 더해요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "선과 규칙은 데몬 데이터 폴더(~/.local/share/agent-control/)에 저장하고 이 컴퓨터에서만 쓴다. 반복해 쓰는 순서도 템플릿은 나중에 필요하면 더한다.",
+              "reason": {
+                "text": "선은 세션끼리 잇는 것이라 세션이 끝나면 의미가 없어진다.",
+                "by": "recommended"
+              },
+              "appliedTo": "[[S25]] · [[P3-5]]"
+            },
+            {
+              "id": "Q5",
+              "title": "일꾼의 권한 요청을 누가 받을지",
+              "said": "내가 원했던 마에스트로 (지휘자 콘더)를 프로젝트 또는 워크트리 레벨에서 생성하려면 어떤식으로 되는걸까?",
+              "body": "일꾼 세션이 파일 쓰기나 명령 실행 허락을 물으면 지금은 사람 화면(카드 · 알림)으로 와요. 지휘자에게 넘겨 대신 허락하게 할 수도 있어요.",
+              "intent": "자동으로 굴러가는 정도와 안전 사이의 선택이에요. 지휘자가 허락하면 사람이 모르는 명령이 실행될 수 있어요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "지금처럼 사람이 받는다"
+                },
+                {
+                  "value": "b",
+                  "label": "지휘자가 받고, 지휘자가 모르면 사람에게"
+                },
+                {
+                  "value": "c",
+                  "label": "세션마다 고른다"
+                }
+              ],
+              "recommended": "a",
+              "recommendation": "a를 추천해요. 처음엔 사람이 받고, 쓰면서 반복되는 허락은 기존 '항상 허용' 규칙으로 줄여요.",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "note": "만약 사람이 지휘자에게 위임한 규칙이 있다면 지휘자가 권한 승인을 해주면 좋겠어",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "일꾼의 권한 요청은 기본적으로 사람이 받는다. 단, 사람이 지휘자에게 위임한 규칙에 해당하면 지휘자가 승인한다. 위임 방식은 [[R5-Q1]] [[R5-Q2]]에서 정한다.",
+              "reason": {
+                "text": "만약 사람이 지휘자에게 위임한 규칙이 있다면 지휘자가 권한 승인을 해주면 좋겠어",
+                "by": "user"
+              },
+              "appliedTo": "03 구현 계획"
+            },
+            {
+              "id": "Q6",
+              "title": "보고가 돌고 도는 경우를 막는 방법",
+              "said": "내가 원했던 마에스트로 (지휘자 콘더)를 프로젝트 또는 워크트리 레벨에서 생성하려면 어떤식으로 되는걸까?",
+              "body": "A가 끝나면 B에게 보고, B가 끝나면 A에게 보고처럼 선이 돌면, 보고가 들어올 때마다 상대가 다시 일하고 끝나서 또 보고해요. 끝없이 이어지면서 사용량을 써요.",
+              "intent": "순서도의 자유도와 폭주 방지 사이의 선택이에요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "선을 이을 때 순환이 생기면 잇지 못하게 막는다"
+                },
+                {
+                  "value": "b",
+                  "label": "순환은 허용하되 같은 선으로 n번 오가면 멈추고 나에게 묻는다"
+                }
+              ],
+              "recommended": "b",
+              "recommendation": "b를 추천해요. '검토 → 수정 → 다시 검토'처럼 일부러 도는 순서도도 쓸모가 있어서, 막기보다 횟수에 상한을 두는 게 맞아요. n은 기본 3번으로 시작해요.",
+              "answer": {
+                "choice": "unsure",
+                "why": "",
+                "note": "순환은... 아마 대화를 주고 받는걸 말하는것같은데 b로 가자",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "순환은 허용한다. 같은 선으로 세 번 오가면 멈추고 사람에게 묻는다.",
+              "reason": {
+                "text": "순환은... 아마 대화를 주고 받는걸 말하는것같은데 b로 가자",
+                "by": "user"
+              },
+              "appliedTo": "03 구현 계획"
+            }
+          ]
+        },
+        {
+          "id": "R5",
+          "askedAt": "11/16",
+          "from": "session-orchestration 작업에서 옮김(원래 R2) · [[R4-Q5]] 메모",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "지휘자에게 권한을 위임하는 방법",
+              "said": "만약 사람이 지휘자에게 위임한 규칙이 있다면 지휘자가 권한 승인을 해주면 좋겠어",
+              "body": "일꾼이 묻는 권한은 '어떤 도구를 어떤 대상에'예요(예: 이 워크트리 파일 편집, bun test 실행, git push). 위임 규칙은 이 중 어디까지 지휘자에게 맡길지 적은 목록이에요. 만드는 길은 두 가지예요. ① 지휘자를 만들 때 맡길 묶음을 고른다(파일 편집 / 테스트 · 빌드 명령 / git 커밋 / 전부). ② 사람에게 온 권한 카드에서 '앞으로 지휘자에게 맡기기'를 눌러 하나씩 쌓는다 — 지금 '항상 허용'과 같은 자리예요.",
+              "intent": "처음부터 넓게 맡길지, 써 보면서 하나씩 늘릴지를 정해요. 위험한 명령(git push, 파일 삭제)이 맡겨지는 경로도 여기서 갈려요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "① 만들 때 묶음을 고른다"
+                },
+                {
+                  "value": "b",
+                  "label": "② 권한 카드에서 하나씩 쌓는다"
+                },
+                {
+                  "value": "c",
+                  "label": "①로 시작하고 ②로 더한다"
+                }
+              ],
+              "recommended": "c",
+              "recommendation": "c를 추천해요. 자주 쓰는 편집 · 테스트는 만들 때 한 번에 맡기고, 그 밖의 것은 처음 물어볼 때 카드에서 맡기면 돼요. git push처럼 되돌리기 어려운 건 묶음에서 빼 둘게요.",
+              "answer": {
+                "choice": "c",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "지휘자를 만들 때 맡길 권한 묶음(파일 편집 / 테스트 · 빌드 명령 / git 커밋)을 고르고, 그 밖의 권한은 사람에게 온 권한 카드의 '앞으로 지휘자에게 맡기기'로 하나씩 더한다. git push처럼 되돌리기 어려운 것은 묶음에 넣지 않는다.",
+              "reason": {
+                "text": "자주 쓰는 편집 · 테스트는 한 번에 맡기고, 나머지는 처음 물어볼 때 맡겨서 위임 범위를 쓰면서 늘린다.",
+                "by": "recommended"
+              },
+              "appliedTo": "데몬 오케스트레이션(재사용 표) 데몬 오케스트레이션(재사용 표)"
+            },
+            {
+              "id": "Q2",
+              "title": "위임 규칙에 맞는 요청을 처리하는 방식",
+              "said": "만약 사람이 지휘자에게 위임한 규칙이 있다면 지휘자가 권한 승인을 해주면 좋겠어",
+              "body": "규칙에 맞는 요청이 오면 ① 데몬이 바로 허락한다 — 빠르고 확실하지만 지휘자는 관여하지 않아요(지금 '항상 허용'과 같아요). ② 데몬이 지휘자 세션에 '일꾼 X가 Y를 하려 해요, 허락할까요?'를 넣고 지휘자가 판단한다 — 지휘자가 맡긴 일의 맥락으로 이상한 요청을 거를 수 있지만, 지휘자가 바쁘면 기다려요. 지휘자가 거절하거나 판단을 못 하면 사람에게 넘어가요.",
+              "intent": "'지휘자가 승인'이 정해진 규칙의 자동 실행인지, 지휘자가 맥락을 보고 판단하는 건지를 확인해요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "① 데몬이 규칙대로 바로 허락"
+                },
+                {
+                  "value": "b",
+                  "label": "② 지휘자가 보고 판단, 모르면 사람에게"
+                }
+              ],
+              "recommended": "b",
+              "recommendation": "b를 추천해요. 말씀하신 '지휘자가 승인'에 가깝고, 같은 편집이라도 맡긴 일과 무관한 파일이면 지휘자가 거를 수 있어요.",
+              "answer": {
+                "choice": "b",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "위임 규칙에 맞는 권한 요청은 데몬이 지휘자 세션에 물어보고, 지휘자가 맡긴 일의 맥락으로 판단한다. 지휘자가 거절하거나 판단하지 못하면 지금처럼 사람에게 넘어간다.",
+              "reason": {
+                "text": "'지휘자가 승인'의 뜻에 맞고, 같은 편집이라도 맡긴 일과 무관한 파일이면 지휘자가 거를 수 있다.",
+                "by": "recommended"
+              },
+              "appliedTo": "데몬 오케스트레이션(재사용 표)"
+            }
+          ]
+        },
+        {
+          "id": "R6",
+          "askedAt": "11/16",
+          "from": "합친 03 계획 검토(채팅 11/16)",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "전체 보기의 기본 화면을 캔버스로 할지",
+              "said": "그냥 기본 화면 자체가 캔버스여야해... Canvas 말이야. ... 피그마처럼 탐색 가능하고 group으로도 묶을수 있고",
+              "intent": "그래프를 페이지 안의 그림으로 둘지, 화면 전체를 자유롭게 움직이고 정리하는 작업판으로 둘지가 갈려요.",
+              "body": "계획은 고정 배치 그래프를 페이지 안에 그리는 것이었어요.",
+              "options": [
+                {
+                  "value": "a",
+                  "label": "페이지 안의 그래프 (고정 배치)"
+                },
+                {
+                  "value": "b",
+                  "label": "화면 전체가 캔버스 — 탐색 · 상자 옮기기 · 그룹"
+                }
+              ],
+              "answer": {
+                "choice": "b",
+                "why": "피그마처럼 탐색 가능하고 group으로도 묶을수 있고",
+                "note": "",
+                "followUp": "",
+                "copy": ""
+              },
+              "decision": "프로젝트 전체 보기는 화면 전체가 피그마 같은 캔버스다. 끌어 이동 · 확대/축소로 탐색하고, 상자를 옮기면 자리를 기억하며, 여러 상자를 그룹으로 묶는다. 처음 배치는 자동이고, 자리 · 그룹 · 보던 위치는 프로젝트마다 이 컴퓨터에 저장한다.",
+              "reason": {
+                "text": "피그마처럼 탐색 가능하고 group으로도 묶을수 있고",
+                "by": "user"
+              },
+              "appliedTo": "[[S26]] [[S27]] [[S28]] [[S16]] [[X15]] · [[P1-3]] [[P3-1]] [[P3-2]] [[P3-3]]"
             }
           ]
         }
       ]
     },
     "tasks": {
-      "status": "done",
-      "summary": "구현 완료 · Phase 3개",
+      "status": "ask",
+      "summary": "구현 · 추가 요청 끝 · PR #14 · 사용자 확인 대기",
       "conclusion": [
-        "사이드바에서 프로젝트 이름을 누르면 그 프로젝트의 그래프 화면이 열려요. 워크트리마다 점선 영역 안에 세션 상자가 놓이고, 상자를 누르면 오른쪽 패널에서 바로 답해요.",
-        "같은 파일 선은 고른 세션의 워크트리 것만 그려요. 실제 프로젝트(워크트리 9개)에서 거의 모든 쌍이 겹쳐 선 수십 개가 엉켰기 때문이에요. 다른 워크트리는 영역 머리의 ⇄n으로 수를 보이고, 누르면 그 워크트리 선을 봐요.",
-        "워크트리가 많으면 영역을 여러 줄로 감싸고, 세션이 6개를 넘는 영역은 3열로 놓아요.",
-        "vitest 104개 파일 · tsc · eslint 통과, compose_mis(세션 34개)와 이 저장소로 라이트 · 다크 화면을 확인했어요."
+        "프로젝트 이름을 누르면 화면 전체가 캔버스인 전체 보기가 열려요. 지휘자 상자는 맨 위, 세션은 워크트리별 점선 프레임 안에 놓여요 [[P3]].",
+        "캔버스는 끌어 이동 · ⌘/핀치 확대, 상자 끌어 옮기기(자리 기억), ⇧ 사각형 선택과 ⌘G 그룹을 지원해요 [[P3-1]] [[P3-2]] [[P3-3]].",
+        "잇기 모드에서 상자를 상자로 끌면 맡김 · 끝나면 보고 · 끝나면 다음 중 골라 데몬에 선을 만들고, 패널에서 끊거나 다시 켜요 [[P4]].",
+        "목록형 임시 화면(ProjectOverview · ConductorMap)은 지웠어요 [[P5-2]].",
+        "앱을 보고 요청한 패널 접기 · 우클릭 메뉴 · 입력창 배치 · 첨부 권한 · 워크트리 선 끄기를 이 작업에 더했어요 [[P6]].",
+        "남은 것: 실제 지휘자를 띄운 모습은 앱에서 직접 확인이 필요해요 [[P5-V]]."
       ],
       "blocks": [
         {
+          "type": "table",
+          "title": "재사용 — 이미 만든 데몬 오케스트레이션",
+          "sub": "session-orchestration에서 만들고 테스트 · 실측까지 끝난 것. 이 계획은 이 위에 화면을 올려요.",
+          "columns": [
+            "무엇",
+            "파일",
+            "그래프에서 쓰는 곳"
+          ],
+          "rows": [
+            [
+              "선 · 지휘자 타입",
+              "<code>src/common/orchestration/types.ts</code>",
+              "선 종류(맡김 · 보고 · 끝나면 다음) · 멈춘 선 · 지휘자 범위"
+            ],
+            [
+              "선 저장 · 실행(Stop 훅, 줄 세우기, 3번 왕복 멈춤)",
+              "<code>daemon/orchestration/Orchestration.ts</code>",
+              "그래프의 선이 실제로 동작하는 곳"
+            ],
+            [
+              "지휘자 MCP 도구",
+              "<code>daemon/orchestration/conductorMcp.ts</code>",
+              "지휘자가 일꾼을 열면 맡김 · 보고 선이 자동으로 생겨 그래프에 나타남"
+            ],
+            [
+              "위임 권한 판정",
+              "<code>daemon/orchestration/grants.ts</code>",
+              "패널의 '맡긴 권한' 표시"
+            ],
+            [
+              "데몬 경로",
+              "<code>daemon/server.ts</code> <code>POST /links</code> · <code>DELETE /links/:id</code> · <code>POST /sessions</code>의 <code>conductor</code>",
+              "잇기 · 끊기 · 지휘자 만들기"
+            ],
+            [
+              "보드 데이터",
+              "<code>AgentCard.orchestration</code> · <code>AgentCard.parentId</code> (<code>src/server/board/boardCards.ts</code>)",
+              "그래프의 상자와 선 원본"
+            ],
+            [
+              "액션",
+              "<code>launch-conductor</code> · <code>unlink-sessions</code> · <code>resume-link</code> · <code>answer-worktree-request</code> · <code>delegate-permission</code>",
+              "패널 · 도구 막대 버튼"
+            ],
+            [
+              "화면 조각",
+              "<code>ConductorLauncher</code> · <code>OrchestrationPanel</code> · 권한 카드 '앞으로 지휘자에게 맡기기' · 워크트리 ⋯ '지휘자'",
+              "+ 세션의 지휘자 만들기 · 오른쪽 패널"
+            ]
+          ]
+        },
+        {
           "type": "checklist",
           "id": "P1",
-          "title": "Phase 1 · 같은 파일 수정 계산 (서버)",
+          "title": "Phase 1 · 캔버스 모델",
+          "sub": "보드 데이터 → 상자 · 묶음 · 선, 처음 자리, 사람이 옮긴 자리 · 그룹. 화면 없이 테스트로 끝나요.",
           "items": [
             {
               "id": "P1-1",
-              "title": "워크트리마다 갈라진 뒤 바뀐 파일(커밋 · 커밋 안 한 변경 · 새 파일)을 모아 겹치는 쌍 계산",
+              "title": "그래프 모델: 보드의 세션 · 워크트리 · 선을 상자(지휘자 / 세션) · 워크트리 묶음 · 선(맡김 · 보고 · 끝나면 다음 · 갈라짐 · 같은 파일)으로 바꾸기",
               "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/projectOverview/overlaps.ts</code> · <code>src/common/projectOverview/types.ts</code> · <code>src/server/projectOverview/overlaps.test.ts</code>"
+                  "<code>src/client/widgets/project-graph/model/graph.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S18]] [[S19]] [[S20]] [[S23]]"
                 ],
                 [
                   "재사용",
-                  "<code>resolveRange</code> (갈라진 지점) · <code>tryGit</code>"
+                  "<code>AgentCard.orchestration.links</code> · <code>parentId</code> · <code>WorktreeSummary.parentWorktreeId</code>(갈라짐)"
                 ],
                 [
                   "결정",
-                  "[[R3-Q1]] 메인 체크아웃은 비교에서 뺌"
+                  "[[R4-Q2]] 지휘자 표시가 있는 세션만 맨 위 줄 · [[R3-Q1]] 메인 체크아웃은 갈라짐의 뿌리로만"
                 ]
               ]
             },
             {
               "id": "P1-2",
-              "title": "프로젝트 단위 겹침 API",
+              "title": "처음 배치(자동 정리): 지휘자 줄은 맨 위, 워크트리 묶음은 사이드바 순서로 두 열 격자, 묶음 안 상자는 '끝나면 다음' 사슬을 아래로 쌓기. 선은 상자 가장자리끼리 곡선",
               "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>app/api/project-overlaps/route.ts</code> · <code>src/server/container.ts</code>"
+                  "<code>src/client/widgets/project-graph/model/layout.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S19]] [[S20]] [[X11]] [[X12]]"
+                ],
+                [
+                  "패턴",
+                  "<code>src/client/widgets/git-graph/model/layout.ts</code> — 순수 함수 배치 + 테스트"
+                ],
+                [
+                  "재사용",
+                  "<code>useWorktreeOrder</code>"
+                ],
+                [
+                  "결정",
+                  "워크트리 하나에 상자가 많으면 이어지지 않은 세션은 최대 3열로 아래로 쌓는다 — 세션 16개 워크트리가 가로로 16칸 늘어나던 문제를 실제 데이터로 보고 고쳤다"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "캔버스 상태: 사람이 옮긴 상자 자리, 직접 만든 그룹(이름 · 상자 목록), 보던 위치 · 배율. 프로젝트마다 저장하고, 사라진 세션은 그룹에서 빼고, 옮긴 적 없는 상자는 자동 자리",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/model/canvasState.ts</code> · <code>src/client/widgets/project-graph/model/useCanvasState.ts</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S26]] [[S27]] [[S28]]"
+                ],
+                [
+                  "재사용",
+                  "<code>storedListStore</code> · <code>useStoredList</code>(localStorage 저장 패턴)"
+                ],
+                [
+                  "결정",
+                  "[[R6-Q1]]"
+                ],
+                [
+                  "결정",
+                  "옮긴 자리 · 그룹 · 보던 위치는 localStorage <code>agent-control:canvas:&lt;repo&gt;</code>에 저장. 저장은 항상 최신 값 위에 덮어써서, 늦게 저장되는 보던 위치가 방금 옮긴 자리를 지우지 않는다"
                 ]
               ]
             },
             {
               "id": "P1-V",
-              "title": "검증: <code>vitest src/server/projectOverview</code> 3개 (실제 git 저장소로 확인)",
-              "done": true
+              "title": "검증: <code>bun run test src/client/widgets/project-graph</code> — 지휘자 없음 · 워크트리 없음 · 선 없는 세션 · 사슬 · 옮긴 자리 우선 · 그룹 묶기/풀기 · 사라진 세션 정리",
+              "done": true,
+              "rows": []
             }
           ]
         },
         {
           "type": "checklist",
           "id": "P2",
-          "title": "Phase 2 · 그래프 화면",
+          "title": "Phase 2 · 같은 파일 수정 (서버)",
           "items": [
             {
               "id": "P2-1",
-              "title": "배치 계산: 갈라진 워크트리는 부모 영역 아래, 루트 영역은 화면 비율에 맞춰 여러 줄, 위쪽 줄은 지휘자 자리",
+              "title": "워크트리마다 루트에서 갈라진 뒤 바뀐 파일(커밋 + 커밋 안 한 변경)을 모아 두 워크트리가 함께 고친 파일을 짝으로 계산",
               "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/project-graph/model/layout.ts</code> · <code>src/client/widgets/project-graph/model/layout.test.ts</code>"
+                  "<code>src/server/projects/fileOverlaps.ts</code> · <code>src/common/projects/overlaps.ts</code>"
                 ],
                 [
                   "SOT",
-                  "[[S19]] [[S20]]"
+                  "[[S23]] [[X13]]"
+                ],
+                [
+                  "재사용",
+                  "<code>git</code> · 루트 후보(gitDiff.ts) · <code>git diff --name-only</code> + <code>git status --porcelain</code>"
+                ],
+                [
+                  "결정",
+                  "[[R3-Q1]]"
                 ]
               ]
             },
             {
               "id": "P2-2",
-              "title": "선 모양: 아래로 가는 선은 아래→위 곡선, 옆 영역끼리는 마주 보는 옆면끼리",
+              "title": "프로젝트 단위 겹침 API와 30초마다 다시 읽는 조회 훅",
               "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/project-graph/model/edges.ts</code> · <code>src/client/widgets/project-graph/model/edges.test.ts</code>"
+                  "<code>app/api/project-overlaps/route.ts</code> · <code>src/server/container.ts</code> · <code>src/client/widgets/project-graph/api/useFileOverlaps.ts</code>"
                 ],
                 [
-                  "SOT",
-                  "[[S23]]"
-                ]
-              ]
-            },
-            {
-              "id": "P2-3",
-              "title": "끌어서 이동 · 휠 스크롤 · ⌘/Ctrl+휠 확대, 처음엔 화면에 맞춤",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/widgets/project-graph/model/useViewport.ts</code>"
+                  "패턴",
+                  "app/api/git-graph 라우트 · react-query 조회 구성"
                 ],
                 [
                   "결정",
-                  "위치는 SVG 속성(transform · x · y)으로만 정해 style 속성을 쓰지 않음"
-                ]
-              ]
-            },
-            {
-              "id": "P2-4",
-              "title": "그래프 위젯: 영역 · 상자 · 선 · 범례 · 새 세션 · 맞춤 · 오른쪽 패널",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/widgets/project-graph/ui/ProjectGraph.tsx</code> · <code>src/client/widgets/project-graph/index.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>AgentCardView</code>(패널) · <code>LaunchAgent</code> · <code>groupAgents</code> · <code>buildSteps</code> · <code>ACTION_ICONS.session</code>"
-                ],
-                [
-                  "SOT",
-                  "[[S16]] [[S21]] [[S24]]"
+                  "같은 파일 선은 고른 상자의 워크트리에 걸린 것만 진하게 · 이름표를 달고, 나머지는 흐리게 깐다 — 워크트리 9개 프로젝트에서 선이 화면을 덮었다"
                 ],
                 [
                   "결정",
-                  "같은 파일 선은 고른 세션의 워크트리 것만, 나머지는 영역 머리 ⇄n"
-                ]
-              ]
-            },
-            {
-              "id": "P2-5",
-              "title": "겹침 조회 (30초마다)",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/entities/project-overview/</code>"
+                  "[[R3-Q1]] 11/16 사용자 확인 후: 기본은 세션끼리 이은 선만, 워크트리 관계 선은 토글로"
                 ]
               ]
             },
             {
               "id": "P2-V",
-              "title": "검증: <code>vitest src/client/widgets/project-graph</code> 7개 · tsc · eslint",
-              "done": true
+              "title": "검증: <code>bun run test src/server/projects</code> (가짜 git 출력으로 겹침 계산)",
+              "done": true,
+              "rows": []
             }
           ]
         },
         {
           "type": "checklist",
           "id": "P3",
-          "title": "Phase 3 · 연결",
+          "title": "Phase 3 · 캔버스 전체 보기 화면",
+          "sub": "화면 전체가 캔버스, 도구 막대 · 범례 · 확대 버튼은 그 위에 떠 있고 오른쪽은 답하기 패널. 스케치 images/project-overview.png.",
           "items": [
             {
               "id": "P3-1",
-              "title": "워크트리를 고르지 않은 프로젝트 화면 = 그래프",
+              "title": "캔버스 탐색: 화면 전체를 채우는 점 격자 캔버스, 빈 곳 끌기 · 스페이스+끌기로 이동, ⌘+휠 · 핀치로 확대/축소, + − 맞춤 버튼, 아래 선 종류 범례. 상자는 HTML, 선은 SVG로 같은 좌표계에",
               "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                  "<code>src/client/widgets/project-graph/ui/Canvas.tsx</code> · <code>src/client/widgets/project-graph/ui/GraphEdges.tsx</code> · <code>src/client/widgets/project-graph/ui/Legend.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S26]] [[S23]] [[X15]]"
                 ],
                 [
                   "결정",
-                  "[[R1-Q1]] 지금까지는 첫 워크트리를 대신 보여 줬음"
+                  "[[R6-Q1]] · 캔버스 라이브러리 없이 CSS transform 한 겹으로 이동 · 확대"
+                ],
+                [
+                  "패턴",
+                  "색은 테마 토큰(<code>--st-now</code> · <code>--st-ask</code> · <code>--hair</code>), 모양은 archify 그림 [[R2-Q3]]"
+                ],
+                [
+                  "결정",
+                  "규칙상 inline style을 못 써서 캔버스 전체를 SVG로 그리고 좌표는 <code>transform</code> · <code>foreignObject x/y</code> 속성으로 준다"
                 ]
               ]
             },
             {
               "id": "P3-2",
-              "title": "사이드바 프로젝트 이름: 워크트리가 골라져 있어도 그래프로, 그래프에서 다시 누르면 접기",
+              "title": "상자 옮기기 · 고르기: 상자 끌어 옮기기(자리 저장), 누르면 고르고 패널에 카드, ⇧클릭 · 사각형 끌기로 여러 개 고르기, Esc로 해제",
               "done": true,
               "rows": [
                 [
                   "파일",
-                  "<code>src/client/widgets/project-sidebar/ui/ProjectSidebar.tsx</code>"
+                  "<code>src/client/widgets/project-graph/ui/useCanvasGestures.ts</code> · <code>src/client/widgets/project-graph/ui/SelectionBox.tsx</code>"
                 ],
                 [
                   "SOT",
-                  "[[S15]]"
+                  "[[S21]] [[S27]]"
+                ],
+                [
+                  "재사용",
+                  "<code>@dnd-kit/core</code>는 쓰지 않음 — 확대 배율 아래 끌기는 포인터 이벤트로 직접 계산"
+                ],
+                [
+                  "결정",
+                  "빈 곳 끌기 = 이동, ⇧ + 빈 곳 끌기 = 사각형 선택(이동과 겹치지 않게 나눔)"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "그룹: 고른 상자 ⌘G로 묶기 · 이름 붙이기(두 번 눌러 바꾸기) · 그룹 끌면 함께 이동 · ⌘⇧G로 풀기. 워크트리 묶음은 자동 그룹으로 같은 모양(점선), 머리에 이름 · 단계 점 줄 · PR · 세션 수 · '워크트리 열기'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/GroupFrame.tsx</code> · <code>src/client/widgets/project-graph/ui/WorktreeCluster.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S19]] [[S28]]"
+                ],
+                [
+                  "재사용",
+                  "WorktreePanel의 단계 점 줄 · <code>ACTION_ICONS</code>"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q3]] 워크트리로 가는 건 따로 있는 버튼 · [[R6-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "상자: 세션 상자(상태 · 경과 시간 · 제목 · 마지막 메시지 한 줄)와 지휘자 상자(맡긴 워크트리 칩 · 받은 보고 수), 고른 상자는 테두리 진하게",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/SessionNode.tsx</code> · <code>src/client/widgets/project-graph/ui/ConductorNode.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S18]] [[S20]] [[S21]]"
+                ],
+                [
+                  "재사용",
+                  "카드의 상태 이름 · 색(<code>AgentCardView</code>가 쓰는 상태 표) · <code>relativeTime</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-5",
+              "title": "오른쪽 패널: 고른 세션 카드(질문 · 선택지 · 직접 답하기) + 연결 · 규칙 목록(이 세션의 선, 멈춘 선 다시 켜기 · 끊기, 지휘자의 맡긴 권한 · 워크트리 요청) + 워크트리 열기 · 터미널. 아무것도 안 골랐으면 안내 문구",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/SidePanel.tsx</code> · <code>src/client/widgets/project-graph/ui/ConnectionList.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S24]] [[S25]] [[X14]]"
+                ],
+                [
+                  "재사용",
+                  "<code>AgentCardView</code>(<code>chatLayout=\"page\"</code>) · <code>OrchestrationPanel</code>의 멈춘 선 · 워크트리 요청 줄"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q3]] · [[R4-Q4]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-6",
+              "title": "도구 막대: 세션 · 내 차례 · 작업 중 수, + 세션(이 프로젝트 워크트리만 고르는 새 세션 입력 / 지휘자로 시작), 규칙(프로젝트의 모든 선 목록을 패널에), 자동 정리(옮긴 자리 · 그룹은 두고 상자 자리만 처음 배치로)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/GraphToolbar.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S16]] [[S18]] [[X15]]"
+                ],
+                [
+                  "재사용",
+                  "<code>LaunchAgent</code>(<code>showRepo={false}</code>) · <code>ConductorLauncher</code>(범위 프로젝트)"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q4]] · [[R4-Q3]]"
                 ]
               ]
             },
             {
               "id": "P3-V",
-              "title": "검증: 개발 서버(3111)에서 compose_mis · multi-agentic-dashboard 그래프, 상자 선택 → 패널 카드, 다크 모드 확인",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code> · 위젯 테스트(가짜 보드로 상자 · 묶음 · 선 개수, 상자 누르면 패널 카드, 끌어 옮긴 자리 유지, ⌘G 그룹)",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 그래프에서 잇기",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "선 만들기 액션: 앱 액션 <code>connect-sessions</code>(from · to · 종류 · 끝나면 다음일 때 보낼 말) → 데몬 <code>POST /links</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code> · <code>src/server/runner/RunnerClient.ts</code> · <code>src/server/orchestration/conductorActions.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "데몬 <code>Orchestration.connect</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>unlink-sessions</code> 액션 처리"
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "잇기 모드: 켜면 상자에서 상자로 끌어 선을 잇고, 놓을 때 맡김 · 보고 · 끝나면 다음 중 고름. 선을 누르면 끊기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/ConnectMode.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S17]] [[S23]]"
+                ],
+                [
+                  "결정",
+                  "[[R4-Q6]] 순환은 허용, 세 번 오가면 데몬이 멈춤"
+                ],
+                [
+                  "결정",
+                  "선 종류 창과 새 세션 입력 창은 배율과 상관없이 화면 크기로 띄운다"
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "새 세션 끌어 잇기: 빈 자리 상자에서 워크트리와 첫 요청을 넣으면 새 세션을 열고 고른 상자와 바로 이음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code>(<code>launch-agent</code>에 <code>link</code> 추가) · <code>daemon/server.ts</code>(<code>POST /sessions</code>이 띄운 뒤 선 연결) · <code>src/client/widgets/project-graph/ui/GhostNode.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S22]]"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 액션 · 데몬 경로 테스트(<code>daemon/server.test.ts</code> · <code>src/server/runner/RunnerClient.test.ts</code>)",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 연결하고 임시 화면 정리",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "워크트리를 고르지 않은 프로젝트 화면(사이드바 프로젝트 이름) = 그래프 전체 보기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code> · <code>ProjectSidebar.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S15]]"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "임시 목록형 화면 지우기: <code>ProjectOverview.tsx</code> · <code>ConductorMap.tsx</code>. 워크트리 ⋯ '지휘자'와 권한 카드 버튼은 그대로 둠",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/ProjectOverview.tsx</code> · <code>ConductorMap.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: browse로 프로젝트 이름 → 그래프 · 상자 눌러 답하기 · 잇기 · 워크트리 열기 확인, 실제 지휘자를 띄워 일꾼과 맡김 · 보고 선이 그래프에 나타나는지 확인, <code>bun run desktop</code> 후 앱 다시 열어 확인",
+              "done": false,
+              "rows": [
+                [
+                  "확인함",
+                  "browse(실제 데이터 compose_mis): 프로젝트 이름 → 캔버스, 상자 눌러 패널 카드, 끌어 옮긴 자리 저장, ⇧ 사각형 + ⌘G 그룹, 잇기 → 선 종류 창 → 맡김 선 생성 → 패널에서 끊기(데몬에 반영 확인). <code>bun run desktop</code> 후 앱 재시작"
+                ],
+                [
+                  "남음",
+                  "실제 지휘자를 띄워 일꾼 · 맡김 · 보고 선이 캔버스에 그려지는지는 아직 보지 않음 · 사용자가 앱에서 직접 확인"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 11/16 추가 요청",
+          "sub": "계획 승인 뒤 앱을 보고 요청한 것. 같은 화면이라 이 작업에 합쳤어요.",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "오른쪽 패널 접기 · 펼치기 (접은 상태 기억)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/SidePanel.tsx</code> · <code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S30]]"
+                ],
+                [
+                  "재사용",
+                  "<code>useStoredList</code>(<code>agent-control:canvas-panel</code>)"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "우클릭 메뉴: 세션 · 워크트리 프레임 · 그룹 · 선마다 이름 바꾸기 · 그룹 · 끊기 · 세션 닫기 등",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/CanvasMenu.tsx</code> · <code>src/client/widgets/project-graph/ui/canvasMenuItems.ts</code> · <code>src/client/widgets/project-graph/ui/CanvasStage.tsx</code>"
+                ],
+                [
+                  "SOT",
+                  "[[S29]]"
+                ],
+                [
+                  "결정",
+                  "세션 닫기 · 연결 모두 끊기는 메뉴 안에서 한 번 더 눌러야 실행. 워크트리 삭제는 기존 확인 창을 거치도록 메뉴에 넣지 않음"
+                ]
+              ]
+            },
+            {
+              "id": "P6-3",
+              "title": "'+ 세션' 입력창이 좁은 팝오버에서 찌그러지던 것 — 창 폭 기준으로 세로 배치",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/launch-agent/ui/LaunchAgent.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "화면 폭(sm:) 대신 컨테이너 폭(@xl:)으로 줄바꿈 — 넓은 곳의 기존 모습은 그대로"
+                ]
+              ]
+            },
+            {
+              "id": "P6-4",
+              "title": "첨부 이미지를 읽을 때마다 권한을 묻던 것 — 데몬 세션에 첨부 폴더를 --add-dir로 넘김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/command.ts</code> · <code>daemon/main.ts</code>"
+                ],
+                [
+                  "원인",
+                  "첨부마다 새 폴더에 저장돼서 '다시 묻지 않기'가 그 폴더 하나만 허용"
+                ],
+                [
+                  "남음",
+                  "데몬 재시작 후 적용 — 재시작하면 세션이 모두 끊겼다 다시 열려서 아직 안 함"
+                ]
+              ]
+            },
+            {
+              "id": "P6-5",
+              "title": "워크트리 관계 선(갈라짐 · 같은 파일)을 기본으로 끄고 도구 막대 토글로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code> · <code>src/client/widgets/project-graph/ui/GraphToolbar.tsx</code> · <code>src/client/widgets/project-graph/ui/Legend.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R3-Q1]]"
+                ]
+              ]
+            },
+            {
+              "id": "P6-6",
+              "title": "우클릭 메뉴를 고른 세션 전체 기준으로: 여러 개 골랐으면 묶기 · 그룹에서 빼기 · 연결 끊기 · 한 번에 닫기, 워크트리 · 그룹 · 빈 캔버스에서도 안의 세션 모두 닫기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/canvasMenuItems.ts</code>"
+                ],
+                [
+                  "결정",
+                  "고른 상자를 우클릭하면 고른 것 전체, 고르지 않은 상자를 우클릭하면 그 상자만 골라 그것만(Figma 방식). 닫기는 <code>close-terminals</code>로 50개씩"
+                ]
+              ]
+            },
+            {
+              "id": "P6-7",
+              "title": "오른쪽 패널 폭을 끌어서 조절 (폭 기억)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/SidePanel.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>ResizeHandle</code>(<code>--canvas-panel-w</code>) · <code>paneWidth</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-8",
+              "title": "선 종류 창에서 '맡김'에 맡길 일을 적고 '맡기기'로 보냄: 적은 일은 뒤 세션에 바로 들어가고, 뒤 세션이 끝나면 답이 맡긴 세션으로 보고됨",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/Orchestration.ts</code> · <code>src/client/widgets/project-graph/ui/CanvasOverlays.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "사람이 그은 맡김 선은 기록만 하던 것을 바꿔, 일을 적어야 맡길 수 있고 보고 선(뒤→앞)을 함께 만든다. 받은 세션에는 누가 맡겼고 끝나면 보고된다는 안내를 앞에 붙인다. 데몬 재시작 후 적용"
+                ]
+              ]
+            },
+            {
+              "id": "P6-9",
+              "title": "마우스 도구 두 가지: 편집(V) — 상자 옮기기, 빈 곳 끌어 여러 개 고르기 / 이동(H) — 어디를 끌어도 캔버스 이동",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/CanvasStage.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "기본은 편집. 스페이스 · 가운데 버튼은 두 도구 모두에서 이동. 이동 도구에서도 상자를 클릭(끌지 않고)하면 고른다"
+                ]
+              ]
+            },
+            {
+              "id": "P6-10",
+              "title": "이름 바꾸기가 상자에 안 보이던 버그: 상자 제목이 세션 제목(<code>agent.session.title</code>)을 읽지 않았음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/NodeBox.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "카드와 같은 필드를 읽는다. 새 이름은 다음 갱신 때 보임"
+                ]
+              ]
+            },
+            {
+              "id": "P6-11",
+              "title": "선을 고르면 양 끝에 손잡이: 끌어서 같은 상자의 다른 면에 놓으면 그 면에 고정, 다른 상자에 놓으면 선을 그 상자로 옮김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/model/layout.ts</code> · <code>model/canvasState.ts</code> · <code>ui/GraphEdges.tsx</code> · <code>ui/CanvasStage.tsx</code> · <code>ui/ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "고정한 면은 캔버스 상태(<code>ends</code>, 링크 id 기준)에 저장하고 자동 정리 때 지운다. 다른 상자로 옮기면 새로 잇고 옛 선을 끊는다. 맡김 선을 옮길 때 맡긴 일은 다시 보내지 않는다"
+                ]
+              ]
+            },
+            {
+              "id": "P6-12",
+              "title": "사람이 연 에이전트는 권한 확인 없이(<code>--permission-mode bypassPermissions</code>) 실행, 지휘자가 연 일꾼만 권한 확인 유지",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/command.ts</code> · <code>daemon/session/SessionRegistry.ts</code> · <code>daemon/orchestration/conductorMcp.ts</code> · <code>daemon/main.ts</code>"
+                ],
+                [
+                  "결정",
+                  "일꾼은 맡긴 권한 묶음과 git push 차단이 권한 요청 훅에 걸려 있어서 확인을 남긴다(<code>RunnerLaunchRequest.askPermissions</code>). 재시작 복원 때도 지휘자의 맡김 선이 있으면 유지. 데몬 재시작 후 적용"
+                ]
+              ]
+            },
+            {
+              "id": "P6-13",
+              "title": "서브 에이전트 표시: 카드에 '서브 에이전트 n개 실행 중', 누르면 각자 무엇을 하는지(마지막 도구 호출 · 글), 캔버스 상자에도 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/subagents.ts</code> · <code>src/client/widgets/agent-card/ui/SubagentRuns.tsx</code> · <code>src/client/widgets/project-graph/ui/NodeBox.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "Claude Code가 세션 기록 옆 <code>subagents/agent-*.meta.json</code>에 <code>finished</code>를 남기는 것을 읽는다. 10분 넘게 파일이 안 바뀐 것은 끝난 것으로 본다"
+                ]
+              ]
+            },
+            {
+              "id": "P6-14",
+              "title": "main에 먼저 머지된 PR #12(같은 기능의 별도 구현)를 합침: 데몬 · 화면은 이 작업의 것을 바탕으로 두고, #12에만 있던 동작을 옮겨 붙임",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/conductorMcp.ts</code> · <code>daemon/orchestration/Orchestration.ts</code> · <code>daemon/server.ts</code> · <code>daemon/session/SessionRegistry.ts</code> · <code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code> · <code>src/client/features/conduct-sessions/ui/OrchestrationPanel.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "#12의 <code>RuleRunner</code> · <code>OrchestrationStore</code> · <code>ProjectGraph</code>는 이 작업의 <code>Orchestration</code> · 캔버스와 역할이 같아 지웠다. 옮겨 붙인 것: 지휘자 도구 <code>list_worktrees</code>, 워크트리 요청에 첫 요청(<code>prompt</code>)을 담으면 만든 뒤 그곳에 일꾼을 열어 보고하게 함, 지휘자의 권한 거절(<code>deny</code>), 지휘자가 먼저 판단 중인 권한 카드 표시(<code>delegatedTo</code>)"
+                ],
+                [
+                  "결정",
+                  "#12 쪽 사이드바 동작(전체 보기에서 이름을 다시 누르면 접기)은 이 작업의 결정(접기는 ▶만)을 유지. #12의 <code>session-orchestration.json</code> 기록은 이 작업으로 합쳐져 있어 지웠다"
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run test</code> 통과 · 선 끝 옮기기 · 서브 에이전트 · bypass 실행 인자 · #12 합친 동작(지휘자 서버 테스트) · <code>bun run desktop</code> 후 앱 재시작 · 데몬 재시작",
               "done": true
             }
           ]
@@ -517,11 +1396,11 @@
       ]
     },
     "done": {
-      "status": "ask",
-      "summary": "PR 여부 확인 대기",
+      "status": "now",
+      "summary": "D3–D5 끝 · D1 · D2 남음",
       "conclusion": [
-        "갈라진 관계 · 같은 파일 수정 선과 그래프 화면만 이 작업의 범위예요.",
-        "코드 리뷰 지적 2건을 고쳤고 타입 검사 · 린트 · 테스트가 통과해요. PR은 만들지 확인을 기다려요."
+        "리뷰 · 테스트 · PR(#14)까지 했어요. SOT 근거를 실제 파일:줄로 바꾸는 D1과 남은 요청 정리 D2가 남았어요.",
+        "실제 지휘자를 띄운 화면 확인([[P5-V]])은 사용자 확인을 기다려요."
       ],
       "blocks": [
         {
@@ -531,12 +1410,12 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": true
+              "done": false
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": true
+              "done": false
             },
             {
               "id": "D3",
@@ -545,7 +1424,11 @@
               "rows": [
                 [
                   "결정",
-                  "/code-review low 지적 2건(제안 수락 순서 · 종료 때 저장 대기)을 <code>d10881b</code>에서 고침"
+                  "/code-review low 3건 중 2건 수정(세션 종료 시 선을 먼저 처리한 뒤 응답, 선 종류 창 제목 대체값). 권한이 영원히 붙잡힌다는 1건은 해당 없음 — 시간이 지나면 풀림(SessionRegistry.ts:272)"
+                ],
+                [
+                  "커밋",
+                  "<code>f01bf93</code>"
                 ]
               ]
             },
@@ -556,14 +1439,20 @@
               "rows": [
                 [
                   "결정",
-                  "tsc · eslint · vitest 103개 파일 548개 통과"
+                  "tsc 통과 · test 581개 통과 · lint는 기존 오류 2건(SessionRegistry.ts:105-106)만"
                 ]
               ]
             },
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "PR",
+                  "https://github.com/movie42/multi-agentic-dashboard/pull/14"
+                ]
+              ]
             }
           ]
         },
@@ -582,12 +1471,32 @@
       "basis": "[[R1-Q1]] [[R1-Q3]] [[R1-Q4]]"
     },
     {
+      "text": "지휘자가 어떤 세션에 일을 맡기고 무엇을 주고받는지를 그래프(상자와 선)로 보고, 지휘자가 없어도 워크트리별 세션을 같은 화면에서 본다.",
+      "state": "confirmed",
+      "basis": "11/16 채팅 · [[R4-Q1]] · 사용자 스케치"
+    },
+    {
+      "text": "전체 보기는 피그마처럼 움직이고 정리하는 캔버스라서, 세션이 많아도 원하는 대로 옮기고 묶어 본다.",
+      "state": "confirmed",
+      "basis": "[[R6-Q1]]"
+    },
+    {
       "text": "워크트리별로 묶어 보되, 어디서 갈라졌는지와 같은 파일을 고치는 중인지를 선으로 보이게 한다.",
       "state": "confirmed",
       "basis": "[[R1-Q2]] [[R3-Q1]]",
       "was": [
         "세션끼리 일을 맡기고 주고받는 관계를 그림으로 보며 관제한다."
       ]
+    },
+    {
+      "text": "프로젝트 레벨 세션(지휘자)과 워크트리 세션을 화면에서 직접 이어 붙이고, '끝나면 보고' 같은 규칙대로 세션들이 움직인다.",
+      "state": "confirmed",
+      "basis": "[[R3-Q2]] · [[R4-Q2]]"
+    },
+    {
+      "text": "사람이 위임한 범위 안에서는 지휘자가 일꾼의 권한 요청까지 처리해 사람 손을 덜 탄다.",
+      "state": "confirmed",
+      "basis": "[[R4-Q5]] [[R5-Q1]] [[R5-Q2]]"
     }
   ],
   "pulledAt": 1794789379870

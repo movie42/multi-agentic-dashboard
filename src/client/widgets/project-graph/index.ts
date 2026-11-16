@@ -1,2 +1,1 @@
-export { ProjectGraph } from "./ui/ProjectGraph";
-export type { ProjectGraphProps } from "./ui/ProjectGraph";
+export { ProjectCanvas } from "./ui/ProjectCanvas";

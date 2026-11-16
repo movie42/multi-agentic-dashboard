@@ -119,38 +119,42 @@ interface PromptBodyProps {
   permission: RunnerPermission;
 }
 
-interface ConductorLineProps {
-  conductorId: string;
-  workerId: string;
-  permission: RunnerPermission;
+interface DelegateButtonProps extends PromptBodyProps {
+  disabled: boolean;
 }
 
-/** For a worker of a conductor: shows that the conductor decides first, or offers to hand this kind of request to it. */
-function ConductorLine({ conductorId, workerId, permission }: ConductorLineProps) {
-  const [granted, setGranted] = useState(false);
-  if (permission.delegatedTo) return <p className="text-[12px] font-semibold text-focus">지휘자가 먼저 판단하는 중이에요. 여기서 답해도 돼요.</p>;
-  if (granted) return <p className="text-[12px] text-focus">다음부터 이런 요청은 지휘자가 먼저 판단해요.</p>;
+type DelegateResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
+
+/** Adds this kind of request to the conductor's delegated rules and hands the current one to it. */
+function DelegateButton({ terminalHandle, permission, disabled }: DelegateButtonProps) {
+  const [result, dispatch, sending] = useActionState<DelegateResult>(async (previous) => {
+    if (previous.kind === "sent") return previous;
+    try {
+      await postAction({ type: "delegate-permission", terminalHandle, requestId: permission.id });
+      return { kind: "sent" };
+    } catch (error) {
+      toastError("permission", error);
+      return { kind: "error", message: error instanceof Error ? error.message : String(error) };
+    }
+  }, { kind: "idle" });
+  if (result.kind === "sent") return <p className="text-[12px] text-muted">지휘자에게 넘겼어요. 지휘자가 판단하지 못하면 여기 그대로 남아요.</p>;
   return (
     <button
       type="button"
-      onClick={() =>
-        void postAction({ type: "grant-conductor", conductorId, workerId }).then(
-          () => setGranted(true),
-          (error: unknown) => toastError("grant-conductor", error),
-        )
-      }
-      className="self-start text-[12px] font-semibold text-focus hover:underline"
+      disabled={disabled || sending}
+      onClick={() => startTransition(() => dispatch())}
+      className="cursor-pointer rounded-full bg-tint-2 px-3 py-1 text-left text-[12px] hover:bg-fg hover:text-bg disabled:cursor-default disabled:opacity-30"
     >
-      앞으로 이런 요청은 지휘자에게 맡기기
+      앞으로 지휘자에게 맡기기
     </button>
   );
 }
 
 interface ToolPromptProps extends PromptBodyProps {
-  conductorId: string | null;
+  delegable: boolean;
 }
 
-function ToolPrompt({ terminalHandle, permission, conductorId }: ToolPromptProps) {
+function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) {
   const { status, send, locked } = useSend(terminalHandle, permission.id);
   const [denying, setDenying] = useState(false);
   const [reason, setReason] = useState("");
@@ -213,7 +217,8 @@ function ToolPrompt({ terminalHandle, permission, conductorId }: ToolPromptProps
           ))}
         </div>
       )}
-      {conductorId && <ConductorLine conductorId={conductorId} workerId={terminalHandle} permission={permission} />}
+      {!denying && permission.delegatedTo && <p className="text-[12px] font-semibold text-focus">지휘자가 먼저 판단하는 중이에요. 여기서 답해도 돼요.</p>}
+      {!denying && delegable && !permission.delegatedTo && <DelegateButton terminalHandle={terminalHandle} permission={permission} disabled={locked} />}
       <StatusLine status={status} />
     </>
   );
@@ -333,18 +338,18 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
 interface PermissionPromptProps {
   terminalHandle: string;
   permission: RunnerPermission;
-  /** The conductor this session works for, if any. */
-  conductorId?: string | null;
+  /** The session was handed out by a conductor, so this kind of request can be delegated to it. */
+  delegable?: boolean;
 }
 
-export function PermissionPrompt({ terminalHandle, permission, conductorId = null }: PermissionPromptProps) {
+export function PermissionPrompt({ terminalHandle, permission, delegable = false }: PermissionPromptProps) {
   const questions = questionsOf(permission);
   return (
     <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
       {questions.length > 0 ? (
         <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} />
       ) : (
-        <ToolPrompt terminalHandle={terminalHandle} permission={permission} conductorId={conductorId} />
+        <ToolPrompt terminalHandle={terminalHandle} permission={permission} delegable={delegable} />
       )}
     </div>
   );

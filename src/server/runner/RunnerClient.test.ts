@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { RunnerClient } from "./RunnerClient";
 
-const session = { id: "s1", cwd: "/w", kind: "claude", status: "idle", prompted: false, startedAt: 1, updatedAt: 1, exitCode: null, model: null, contextPercent: null, conversationId: null, permission: null };
+const session = { id: "s1", cwd: "/w", kind: "claude", status: "idle", prompted: false, startedAt: 1, updatedAt: 1, exitCode: null, model: null, contextPercent: null, conversationId: null, permission: null, orchestration: null };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -54,6 +54,24 @@ describe("RunnerClient", () => {
     const { client, fetchFn } = setup([json({ ok: true })]);
     await client.input("s 1", { text: "hello", submit: true });
     expect(fetchFn).toHaveBeenCalledWith("http://runner/sessions/s%201/input", expect.objectContaining({ body: JSON.stringify({ text: "hello", submit: true }) }));
+  });
+
+  it("connects two sessions with a line through the daemon", async () => {
+    const { client, fetchFn } = setup([json({ ok: true })]);
+    await client.connect("a", "b", "next", "이어서 해 줘");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://runner/links",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ from: "a", to: "b", kind: "next", prompt: "이어서 해 줘" }) }),
+    );
+  });
+
+  it("edits a line's text through the daemon", async () => {
+    const { client, fetchFn } = setup([json({ ok: true })]);
+    await client.editLink("l 1", "다시 해 줘");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://runner/links/l%201",
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ prompt: "다시 해 줘" }) }),
+    );
   });
 
   it("reads a session's screen rows", async () => {

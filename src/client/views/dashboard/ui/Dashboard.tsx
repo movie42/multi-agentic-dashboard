@@ -12,7 +12,6 @@ import type {
 } from "@/common/board/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
-import type { OrchestrationState } from "@/common/orchestration/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
@@ -38,7 +37,7 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
-import { ProjectGraph } from "@/client/widgets/project-graph";
+import { ProjectCanvas } from "@/client/widgets/project-graph";
 import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "@/client/widgets/doc-panel";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -272,7 +271,6 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
 
   const withProgressCard = (agent: AgentCard) => renderCard(agent, true, "box");
   const projectViewCard = (agent: AgentCard) => renderCard(agent, false, "page");
-  const graphPanelCard = (agent: AgentCard) => renderCard(agent, true, "box");
 
   const focused = new Set(focusKeys.filter((repo) => projectByRepo.has(repo)));
   const toggleFocus = (repo: string) =>
@@ -395,11 +393,13 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       />
 
       <main
-        className={`mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 md:px-12 ${
-          selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
-            ? "gap-6 pt-8"
-            : "gap-16 pt-14 pb-36"
-        }`}
+        className={
+          selectedRepo !== null && prefs.selectedWorktreeId === null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
+            ? "flex h-dvh min-w-0 flex-col"
+            : `mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 md:px-12 ${
+                selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff ? "gap-6 pt-8" : "gap-16 pt-14 pb-36"
+              }`
+        }
       >
         {prefs.showingSessions ? (
           <SessionsPage onAction={runAction} />
@@ -566,14 +566,11 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             now={now}
             isDismissed={dismissed.isDismissed}
             renderCard={projectViewCard}
-            renderPanelCard={graphPanelCard}
-            allAgents={board.agents.filter((agent) => agent.repo === selectedRepo)}
-            orchestration={board.orchestration}
-            onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
             expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
             focused={focused.has(selectedRepo)}
             onToggleFocus={() => toggleFocus(selectedRepo)}
+            onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
           />
         )}
       </main>
@@ -601,16 +598,11 @@ interface ProjectViewProps {
   now: number;
   isDismissed: (agent: AgentCard) => boolean;
   renderCard: (agent: AgentCard) => React.ReactNode;
-  /** Card shown in the project graph's side panel. */
-  renderPanelCard: (agent: AgentCard) => React.ReactNode;
-  /** Every session of the project, orchestrated workers included, for the graph. */
-  allAgents: AgentCard[];
-  orchestration: OrchestrationState;
-  onOpenWorktree: (worktreeId: string) => void;
   expandedId: string | null;
   onAction: (action: ActionRequest) => Promise<void>;
   focused: boolean;
   onToggleFocus: () => void;
+  onOpenWorktree: (worktreeId: string) => void;
 }
 
 function ProjectView({
@@ -623,17 +615,15 @@ function ProjectView({
   now,
   isDismissed,
   renderCard,
-  renderPanelCard,
-  allAgents,
-  orchestration,
-  onOpenWorktree,
   expandedId,
   onAction,
   focused,
   onToggleFocus,
+  onOpenWorktree,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
-  const worktree = ordered.find((candidate) => candidate.worktreeId === selectedWorktreeId) ?? null;
+  const worktree =
+    ordered.find((candidate) => candidate.worktreeId === selectedWorktreeId) ?? ordered[0] ?? null;
   const terminalHandlesOf = (target: WorktreeSummary) =>
     agents.top
       .filter((agent) => agent.worktreeId === target.worktreeId)
@@ -676,28 +666,41 @@ function ProjectView({
     />
   ) : null;
 
+  const header = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+      <span className="font-semibold text-fg">{repo}</span>
+      <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
+      <FocusToggle active={focused} onToggle={onToggleFocus} />
+    </div>
+  );
+
+  if (selectedWorktreeId === null) {
+    return (
+      <ProjectCanvas
+        repo={repo}
+        worktrees={ordered}
+        agents={agents.top.flatMap((agent) => [agent, ...agents.workersOf(agent)])}
+        mode={mode}
+        now={now}
+        header={
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px] text-muted">
+            <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em] text-fg">{repo}</h1>
+            <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
+            <FocusToggle active={focused} onToggle={onToggleFocus} />
+          </div>
+        }
+        renderCard={renderCard}
+        onAction={onAction}
+        onOpenWorktree={onOpenWorktree}
+      />
+    );
+  }
+
   return (
     <>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
-        <span className="font-semibold text-fg">{repo}</span>
-        <span>{mode === "company" ? "회사 워크플로" : "개인 워크플로"}</span>
-        <FocusToggle active={focused} onToggle={onToggleFocus} />
-      </div>
-      {ordered.length === 0 ? (
+      {header}
+      {!worktree ? (
         <p className="text-[15px] text-muted">이 프로젝트에 워크트리가 없어요.</p>
-      ) : !worktree ? (
-        <ProjectGraph
-          worktrees={ordered}
-          agents={allAgents}
-          mode={mode}
-          now={now}
-          isDismissed={isDismissed}
-          focusId={expandedId}
-          orchestration={orchestration}
-          renderCard={renderPanelCard}
-          onOpenWorktree={(target) => onOpenWorktree(target.worktreeId)}
-          onAction={onAction}
-        />
       ) : feature ? (
         <FeatureGroup feature={feature} onAction={onAction}>
           <div className="pt-4">{panel}</div>

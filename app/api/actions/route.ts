@@ -66,27 +66,28 @@ export async function POST(request: Request) {
       await runner.input(body.terminalHandle, { text: body.text, submit: true });
     } else if (body.type === "launch-agent") {
       const prompt = body.prompt.trim();
-      await runner.launch({ cwd: body.worktreePath, ...(prompt ? { prompt } : {}) });
+      const session = await runner.launch({ cwd: body.worktreePath, ...(prompt ? { prompt } : {}) });
+      if (body.link) await runner.connect(body.link.from, session.id, body.link.kind, null);
+    } else if (body.type === "launch-conductor") {
+      await services().conductors.launch(body);
+    } else if (body.type === "answer-worktree-request") {
+      await services().conductors.answerWorktreeRequest(body.terminalHandle, body.requestId, body.approve);
+    } else if (body.type === "delegate-permission") {
+      await runner.delegatePermission(body.terminalHandle, body.requestId);
+    } else if (body.type === "connect-sessions") {
+      await runner.connect(body.from, body.to, body.kind, body.prompt?.trim() || null);
+    } else if (body.type === "unlink-sessions") {
+      await runner.unlink(body.linkId);
+    } else if (body.type === "edit-link") {
+      await runner.editLink(body.linkId, body.prompt?.trim() || null);
+    } else if (body.type === "resume-link") {
+      await runner.resumeLink(body.linkId);
     } else if (body.type === "open-terminal") {
       await runner.launch({ cwd: body.worktreePath, kind: "shell" });
     } else if (body.type === "remove-worktree") {
       await worktrees.remove(body.worktreePath, body.force);
     } else if (body.type === "rename-worktree") {
       await worktrees.rename(body.worktreePath, body.name);
-    } else if (body.type === "connect-sessions") {
-      await runner.link({ from: body.from, to: body.to, kind: body.kind });
-    } else if (body.type === "disconnect-sessions") {
-      await runner.unlink(body.linkId);
-    } else if (body.type === "resume-link") {
-      await runner.resumeLink(body.linkId);
-    } else if (body.type === "launch-conductor") {
-      await runner.launchConductor({ cwd: body.cwd, scope: body.scope, grants: body.grants, prompt: body.prompt.trim() });
-    } else if (body.type === "grant-conductor") {
-      await runner.grantConductor(body.conductorId, body.workerId);
-    } else if (body.type === "accept-proposal") {
-      await services().acceptProposal(body.proposalId);
-    } else if (body.type === "reject-proposal") {
-      await runner.rejectProposal(body.proposalId);
     } else if (body.type === "import-project") {
       await services().projects.add(body.path);
     } else if (body.type === "rename-session") {

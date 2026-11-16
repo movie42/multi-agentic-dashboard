@@ -1,7 +1,6 @@
 import "server-only";
-import type { AgentCard, Artifact, BoardSnapshot, ProjectSummary, WorktreeSummary } from "@/common/board/types";
+import type { AgentCard, Artifact, SubagentRun, BoardSnapshot, ProjectSummary, WorktreeSummary } from "@/common/board/types";
 import type { RunnerSession } from "@/common/runner/types";
-import { EMPTY_ORCHESTRATION, type OrchestrationState } from "@/common/orchestration/types";
 import type { SessionBookmark, SessionRef } from "@/common/sessions/types";
 import type { WorkflowMode } from "@/common/workflow/types";
 import type { GitWorktree } from "@/server/projects/gitWorktrees";
@@ -22,6 +21,7 @@ export interface BoardSessionPort {
   transcriptOf(cwd: string, sessionId: string): Promise<TranscriptFacts | null>;
   sessionRefOf(file: string, size: number): Promise<SessionRef>;
   readBookmarks(): Promise<Map<string, SessionBookmark>>;
+  subagentsOf(transcriptFile: string): Promise<SubagentRun[]>;
 }
 
 export interface BoardServiceOptions {
@@ -30,7 +30,6 @@ export interface BoardServiceOptions {
   worktreesOf: (project: Project) => Promise<GitWorktree[]>;
   meta: () => Promise<ReadonlyMap<string, WorktreeMetaEntry>>;
   runnerSessions: () => Promise<RunnerSession[]>;
-  orchestration?: () => Promise<OrchestrationState>;
   workflow: Pick<WorkflowServices, "flowDocs" | "featureDocs"> & {
     git: Pick<GitInfo, "getPullRequest" | "detectMode">;
     jira: Pick<JiraInfo, "getIssue">;
@@ -62,7 +61,7 @@ export class BoardService {
   async load(): Promise<BoardSnapshot> {
     const { workflow, warn } = this.options;
     await this.options.prepare();
-    const [registered, meta, runnerSessions, bookmarks, orchestration] = await Promise.all([
+    const [registered, meta, runnerSessions, bookmarks] = await Promise.all([
       this.options.projects(),
       this.options.meta(),
       this.options.runnerSessions().catch((error: unknown) => {
@@ -72,10 +71,6 @@ export class BoardService {
       this.options.sessions.readBookmarks().catch((error: unknown) => {
         warn("board", error, { step: "bookmarks" });
         return new Map<string, SessionBookmark>();
-      }),
-      (this.options.orchestration?.() ?? Promise.resolve(EMPTY_ORCHESTRATION)).catch((error: unknown) => {
-        warn("board", error, { step: "orchestration" });
-        return EMPTY_ORCHESTRATION;
       }),
     ]);
 
@@ -154,13 +149,9 @@ export class BoardService {
       featureId:
         featureOfWorktree(features, summary.repo, summary.path, summary.branch, taskFeatureDocs, docsHere)?.id ?? null,
     }));
-    const conductorIds = new Set(orchestration.conductors.map((conductor) => conductor.sessionId));
-    const delegatedBy = new Map(
-      orchestration.links.filter((link) => link.kind === "delegate" && conductorIds.has(link.from)).map((link) => [link.to, link.from]),
-    );
-    const agents: AgentCard[] = perWorktree.flatMap((entry) => entry.agents).map((agent) => ({ ...agent, parentId: delegatedBy.get(agent.id) ?? null }));
+    const agents: AgentCard[] = perWorktree.flatMap((entry) => entry.agents);
 
-    const board: BoardSnapshot = { fetchedAt: this.now(), projects, worktrees, agents, features, orchestration };
+    const board: BoardSnapshot = { fetchedAt: this.now(), projects, worktrees, agents, features };
     this.lastBoard = board;
     return board;
   }
@@ -190,7 +181,14 @@ export class BoardService {
         })
       : null;
     const lastMessage = facts?.lastAssistant ?? null;
+    const subagents = facts
+      ? await sessions.subagentsOf(facts.file).catch((error: unknown) => {
+          warn("board", error, { step: "subagents", file: facts.file });
+          return [];
+        })
+      : [];
     return buildAgentCard({
+      subagents,
       session,
       worktree,
       prompt: facts?.firstPrompt ?? null,

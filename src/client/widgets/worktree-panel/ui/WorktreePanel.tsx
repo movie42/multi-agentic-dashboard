@@ -17,6 +17,7 @@ import type {
 import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
+import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { WorktreeNameForm } from "@/client/features/rename-worktree";
@@ -95,6 +96,7 @@ export function WorktreePanel({
   const pr = worktree.pullRequest;
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
+  const [launchingConductor, setLaunchingConductor] = useState(false);
   const activeFilter = filter && groups[filter].length > 0 ? filter : null;
   const sessions = useSessionOrder(worktree.worktreeId, [
     ...groups.needsMe,
@@ -111,6 +113,12 @@ export function WorktreePanel({
       label: "새 세션",
       description: "이 워크트리에 빈 에이전트 세션을 띄워요",
       run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }),
+    },
+    {
+      key: "conductor",
+      label: "지휘자",
+      description: "이 워크트리와 하위 워크트리에 일을 나눠 맡기는 세션을 띄워요",
+      run: () => setLaunchingConductor(true),
     },
     {
       key: "terminal",
@@ -381,6 +389,14 @@ export function WorktreePanel({
 
       <div className="flex min-w-0 flex-col gap-6">
         <WorktreeWizardPanel wizard={wizard} />
+        {launchingConductor && (
+          <ConductorLauncher
+            worktreePath={worktree.path}
+            scope="worktree"
+            scopeName={worktree.name}
+            onClose={() => setLaunchingConductor(false)}
+          />
+        )}
         <FlowOverview worktree={worktree} mode={mode} pr={pr} onOpen={(target) => void open(target)} />
 
         <div ref={markOverviewEnd} aria-hidden className="-mb-6 h-0" />

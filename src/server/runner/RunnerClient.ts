@@ -1,7 +1,7 @@
 import "server-only";
 import { runnerResponseSchema } from "@/common/runner/schema";
 import type { RunnerInputRequest, RunnerLaunchRequest, RunnerPermissionAnswer, RunnerSession } from "@/common/runner/types";
-import { EMPTY_ORCHESTRATION, type LaunchConductorRequest, type LinkRequest, type OrchestrationState } from "@/common/orchestration/types";
+import type { LinkKind } from "@/common/orchestration/types";
 
 export interface RunnerClientOptions {
   baseUrl: string;
@@ -56,50 +56,41 @@ export class RunnerClient {
     });
   }
 
+  async delegatePermission(id: string, requestId: string): Promise<void> {
+    await this.call(`/sessions/${encodeURIComponent(id)}/delegate`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ requestId }) });
+  }
+
+  async connect(from: string, to: string, kind: LinkKind, prompt: string | null): Promise<void> {
+    await this.call("/links", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ from, to, kind, prompt }) });
+  }
+
+  async unlink(linkId: string): Promise<void> {
+    await this.call(`/links/${encodeURIComponent(linkId)}`, { method: "DELETE" });
+  }
+
+  async editLink(linkId: string, prompt: string | null): Promise<void> {
+    await this.call(`/links/${encodeURIComponent(linkId)}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify({ prompt }) });
+  }
+
+  async resumeLink(linkId: string): Promise<void> {
+    await this.call(`/links/${encodeURIComponent(linkId)}/resume`, { method: "POST" });
+  }
+
+  /** `path` when the worktree was created, `error` when creating failed, neither when the person declined. */
+  async settleWorktreeRequest(conductorId: string, requestId: string, result: { path?: string; error?: string }): Promise<void> {
+    await this.call(`/conductors/${encodeURIComponent(conductorId)}/worktree`, {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ requestId, ...result }),
+    });
+  }
+
   async screen(id: string): Promise<string[]> {
     return (await this.call(`/sessions/${encodeURIComponent(id)}/screen`)).lines ?? [];
   }
 
   async close(id: string): Promise<void> {
     await this.call(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
-  }
-
-  async orchestration(): Promise<OrchestrationState> {
-    return (await this.call("/orchestration")).orchestration ?? EMPTY_ORCHESTRATION;
-  }
-
-  async link(request: LinkRequest): Promise<void> {
-    await this.call("/orchestration/links", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(request) });
-  }
-
-  async unlink(linkId: string): Promise<void> {
-    await this.call(`/orchestration/links/${encodeURIComponent(linkId)}`, { method: "DELETE" });
-  }
-
-  async resumeLink(linkId: string): Promise<void> {
-    await this.call(`/orchestration/links/${encodeURIComponent(linkId)}/resume`, { method: "POST" });
-  }
-
-  async launchConductor(request: LaunchConductorRequest): Promise<RunnerSession> {
-    const { session } = await this.call("/orchestration/conductors", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(request) });
-    if (!session) throw new Error("세션 러너 응답에 세션이 없어요.");
-    return session;
-  }
-
-  async grantConductor(conductorId: string, workerId: string): Promise<void> {
-    await this.call(`/orchestration/conductors/${encodeURIComponent(conductorId)}/grants`, {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify({ workerId }),
-    });
-  }
-
-  async acceptProposal(proposalId: string, cwd: string): Promise<void> {
-    await this.call(`/orchestration/proposals/${encodeURIComponent(proposalId)}/accept`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ cwd }) });
-  }
-
-  async rejectProposal(proposalId: string): Promise<void> {
-    await this.call(`/orchestration/proposals/${encodeURIComponent(proposalId)}`, { method: "DELETE" });
   }
 
   ensureRunning(): Promise<void> {

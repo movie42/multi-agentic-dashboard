@@ -17,6 +17,7 @@ export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
     lastMessage: null,
     toolName: null,
     backgroundRunning: false,
+    subagents: [],
     interrupted: false,
     stateSince: null,
     updatedAt: null,
@@ -27,6 +28,7 @@ export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
     model: null,
     contextPercent: null,
     permission: null,
+    orchestration: null,
     ...overrides,
   };
 }

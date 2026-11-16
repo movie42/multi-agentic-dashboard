@@ -70,16 +70,16 @@ export function LaunchAgent({ worktrees, showRepo, draftKey }: LaunchAgentProps)
     <div className="flex flex-col gap-1.5">
       <div
         {...attachments.dropzone}
-        className={`flex flex-col gap-2 rounded-[10px] bg-tint p-3 ${
+        className={`@container flex flex-col gap-2 rounded-[10px] bg-tint p-3 ${
           attachments.dragging ? "shadow-[inset_0_0_0_1.5px_var(--st-now)]" : ""
         }`}
       >
         <AttachmentList attachments={attachments.list} onRemove={attachments.remove} />
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-2 @xl:flex-row @xl:items-end">
           <select
             value={target.path}
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setChosenPath(event.target.value)}
-            className="min-w-0 rounded-full bg-bg px-3 py-1.5 text-[13px] outline-none sm:max-w-80"
+            className="min-w-0 rounded-full bg-bg px-3 py-1.5 text-[13px] outline-none @xl:max-w-80"
           >
             {sorted.map((worktree) => (
               <option key={worktree.worktreeId} value={worktree.path}>

@@ -56,7 +56,6 @@ function snapshot(at: number, agents: { session: string; state: AgentState; path
     fetchedAt: at,
     projects: [],
     features: [],
-    orchestration: { links: [], conductors: [], proposals: [] },
     worktrees: [worktree("/w", pr)],
     agents: agents.map((agent, index) =>
       agentCard({

@@ -1,4 +1,4 @@
-import type { OrchestrationState } from "@/common/orchestration/types";
+import type { SessionOrchestration } from "@/common/orchestration/types";
 import type { RunnerPermission } from "@/common/runner/types";
 import type { SessionRef } from "@/common/sessions/types";
 import type { FeatureSummary, FlowTaskSummary, JiraIssueInfo, PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
@@ -38,6 +38,20 @@ export interface AgentCard {
   model: string | null;
   contextPercent: number | null;
   permission: RunnerPermission | null;
+  /** Conductor settings, outgoing lines and parent from the runner daemon; null for sessions it does not know. */
+  orchestration: SessionOrchestration | null;
+  /** Subagents (Task tool) this session has running right now. */
+  subagents: SubagentRun[];
+}
+
+export interface SubagentRun {
+  id: string;
+  /** What the parent asked for, e.g. "Code review profile API diff". */
+  description: string;
+  agentType: string;
+  /** The subagent's latest step: a tool call ("Bash · git diff …") or the start of its latest text. */
+  activity: string | null;
+  updatedAt: number;
 }
 
 export interface WorktreeSummary {
@@ -69,8 +83,6 @@ export interface BoardSnapshot {
   worktrees: WorktreeSummary[];
   agents: AgentCard[];
   features: FeatureSummary[];
-  /** Lines between sessions, conductors and pending worktree proposals, from the session runner. */
-  orchestration: OrchestrationState;
 }
 
 export type BoardResponse =

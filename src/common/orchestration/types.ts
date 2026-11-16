@@ -1,71 +1,74 @@
-/** A line between two runner sessions that the daemon acts on. */
-export type LinkKind = "delegate" | "report" | "next";
+/**
+ * A line between two runner sessions. `delegate` only records who handed the work out;
+ * `report` and `next` fire when the `from` session finishes a turn (its Stop hook).
+ */
+export const LINK_KINDS = ["delegate", "report", "next"] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
 
-export interface SessionLink {
+export interface OrchestrationLink {
   id: string;
+  kind: LinkKind;
   from: string;
   to: string;
-  kind: LinkKind;
-  createdBy: "user" | "conductor";
-  createdAt: number;
-  /** Deliveries made over this link while a link back exists; at the limit the link pauses. */
+  /** What `next` sends to the target; `report` sends the source's last answer instead. */
+  prompt: string | null;
+  /** Times this line bounced straight back to the session that fed its source. */
   trips: number;
+  /** Stopped after too many bounces; fires again only after a person resumes it. */
   paused: boolean;
+  createdAt: number;
 }
 
-/** Permission bundles a person hands to a conductor when creating it. `git push` is never in one. */
-export const GRANT_BUNDLES = ["edit", "test", "commit"] as const;
+export const MAX_TRIPS = 3;
+
+/** Permission groups a person hands to a conductor when creating it. `git push` is never in one. */
+export const GRANT_BUNDLES = ["edit", "build", "commit"] as const;
 export type GrantBundle = (typeof GRANT_BUNDLES)[number];
 
+export type ConductorScopeKind = "project" | "worktree";
+
 export interface ConductorScope {
-  kind: "project" | "worktree";
-  /** Project folder for a project conductor, worktree folder for a worktree conductor. */
+  kind: ConductorScopeKind;
+  /** The project or worktree folder the conductor was made for. */
   root: string;
+  /** Every worktree folder the conductor may open sessions in. */
+  paths: string[];
+}
+
+/** A permission a person added from a worker's permission card ("앞으로 지휘자에게 맡기기"). */
+export interface DelegatedRule {
+  toolName: string;
+  /** For Bash, the command prefix the rule covers; null covers every call of the tool. */
+  prefix: string | null;
+}
+
+export interface WorktreeRequest {
+  id: string;
+  branch: string;
+  base: string | null;
+  reason: string;
+  /** First request for a worker opened in the new worktree once it exists; that worker reports to the conductor. */
+  prompt: string | null;
+  requestedAt: number;
 }
 
 export interface Conductor {
-  sessionId: string;
   scope: ConductorScope;
   grants: GrantBundle[];
-  /** Grants added one by one from permission cards: a tool name, or `Bash:<command prefix>`. */
-  extraGrants: string[];
+  rules: DelegatedRule[];
+  worktreeRequest: WorktreeRequest | null;
 }
 
-/** A new worktree a conductor asked for; nothing is created until a person confirms it. */
-export interface WorktreeProposal {
-  id: string;
-  conductorId: string;
-  name: string;
-  branch: string;
-  baseBranch: string;
-  prompt: string;
-  createdAt: number;
+/** What the daemon adds to each runner session about orchestration. */
+export interface SessionOrchestration {
+  conductor: Conductor | null;
+  /** The conductor that handed this session its work (the `delegate` line pointing here). */
+  parentId: string | null;
+  /** Lines leaving this session. */
+  links: OrchestrationLink[];
 }
 
-export interface OrchestrationState {
-  links: SessionLink[];
-  conductors: Conductor[];
-  proposals: WorktreeProposal[];
-}
-
-export const EMPTY_ORCHESTRATION: OrchestrationState = { links: [], conductors: [], proposals: [] };
-
-/** How many deliveries a link that has a link back may make before it stops and asks a person. */
-export const MAX_TRIPS = 3;
-
-export const ORCHESTRATION_FILE = "orchestration.json";
-
-export interface LaunchConductorRequest {
-  cwd: string;
+export interface ConductorLaunch {
   scope: ConductorScope;
   grants: GrantBundle[];
-  prompt: string;
 }
-
-export interface LinkRequest {
-  from: string;
-  to: string;
-  kind: LinkKind;
-}
-
-export type OrchestrationResponse = { ok: true; orchestration: OrchestrationState } | { ok: false; error: string };

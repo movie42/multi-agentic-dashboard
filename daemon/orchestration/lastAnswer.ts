@@ -1,53 +1,54 @@
-import { open } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 
-const TAIL_BYTES = 512 * 1024;
-export const ANSWER_LIMIT = 6000;
+const MAX_ANSWER = 12_000;
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
-function textOf(line: string): string | null {
-  try {
-    const entry = record(JSON.parse(line));
-    if (entry?.type !== "assistant") return null;
-    const content = record(entry.message)?.content;
-    if (!Array.isArray(content)) return null;
-    const text = content
-      .map((block) => record(block))
-      .flatMap((block) => (block?.type === "text" && typeof block.text === "string" ? [block.text] : []))
-      .join("\n")
-      .trim();
-    return text || null;
-  } catch {
-    return null;
-  }
+function clip(text: string): string {
+  return text.length > MAX_ANSWER ? `${text.slice(0, MAX_ANSWER)}\n…(이하 생략)` : text;
 }
 
-/** The last assistant text in a Claude Code transcript (JSONL), reading only the file's tail. */
-export function lastAnswerOf(jsonl: string): string | null {
-  const lines = jsonl.split("\n");
-  // eslint-disable-next-line no-restricted-syntax -- position loop from the end
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const text = textOf(lines[index] ?? "");
-    if (text) return text;
+function textOf(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .flatMap((block: unknown) => {
+      const raw = record(block);
+      return raw?.type === "text" && typeof raw.text === "string" ? [raw.text] : [];
+    })
+    .join("\n");
+}
+
+/** The last assistant turn's text in a Claude Code transcript (JSON Lines). */
+export function lastAnswerInTranscript(raw: string): string | null {
+  for (const untrimmed of raw.split("\n").toReversed()) {
+    const line = untrimmed.trim();
+    if (!line) continue;
+    try {
+      const entry = record(JSON.parse(line));
+      if (entry?.type !== "assistant") continue;
+      const text = textOf(record(entry.message)?.content).trim();
+      if (text) return clip(text);
+    } catch {
+      continue;
+    }
   }
   return null;
 }
 
-export function clip(text: string, limit = ANSWER_LIMIT): string {
-  return text.length > limit ? `${text.slice(0, limit)}\n…(뒷부분 생략)` : text;
-}
-
-export async function readLastAnswer(transcriptPath: string): Promise<string | null> {
-  const handle = await open(transcriptPath, "r");
+/** Reads the answer a Stop hook payload carries, falling back to its transcript file. */
+export async function lastAnswerOf(body: unknown, read: (file: string) => Promise<string> = (file) => readFile(file, "utf8")): Promise<string | null> {
+  const raw = record(body);
+  const direct = raw?.last_assistant_message;
+  if (typeof direct === "string" && direct.trim()) return clip(direct.trim());
+  const transcript = raw?.transcript_path;
+  if (typeof transcript !== "string" || !transcript.startsWith("/")) return null;
   try {
-    const { size } = await handle.stat();
-    const start = Math.max(0, size - TAIL_BYTES);
-    const buffer = Buffer.alloc(size - start);
-    await handle.read(buffer, 0, buffer.length, start);
-    return lastAnswerOf(buffer.toString("utf8"));
-  } finally {
-    await handle.close();
+    return lastAnswerInTranscript(await read(transcript));
+  } catch (error) {
+    console.error("[runner] transcript unreadable", transcript, error);
+    return null;
   }
 }

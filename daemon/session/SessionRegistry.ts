@@ -50,6 +50,7 @@ export interface CommandRequest {
   prompt?: string;
   resumeSessionId?: string;
   conductor?: boolean;
+  askPermissions?: boolean;
 }
 
 export interface Command {
@@ -102,7 +103,9 @@ export function asksForTrust(output: string): boolean {
 }
 
 export function trimChunks(chunks: string[], limit: number): string[] {
+  // eslint-disable-next-line no-restricted-syntax -- position loop walking back from the newest chunk
   let start = chunks.length;
+  // eslint-disable-next-line no-restricted-syntax -- running size for the same loop
   let size = 0;
   while (start > 0 && size < limit) {
     start -= 1;
@@ -148,7 +151,9 @@ export class SessionRegistry {
     running?.screen.dispose();
     const id = resumeSessionId ?? this.#options.newId();
     const now = this.#options.now();
-    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId, conductor: kind === "claude" && request.conductor === true });
+    const conductor = kind === "claude" && request.conductor !== undefined;
+    const askPermissions = kind === "claude" && request.askPermissions === true;
+    const command = this.#options.commandFor({ id, kind, prompt, resumeSessionId, ...(conductor ? { conductor } : {}), ...(askPermissions ? { askPermissions } : {}) });
     const pty = this.#options.spawn(command.file, command.args, {
       cwd,
       cols: INITIAL_COLS,
@@ -169,6 +174,7 @@ export class SessionRegistry {
         contextPercent: null,
         conversationId: null,
         permission: null,
+        orchestration: null,
       },
       hooked: false,
       pty,
@@ -262,7 +268,7 @@ export class SessionRegistry {
     return true;
   }
 
-  holdPermission(id: string, input: PermissionRequestInput): Promise<PermissionHookOutput> {
+  holdPermission(id: string, input: PermissionRequestInput, delegatedTo: string | null = null): Promise<PermissionHookOutput> {
     const entry = this.#entries.get(id);
     if (!entry || entry.session.status === "exited") return Promise.resolve({});
     this.#releasePermission(entry, {});
@@ -272,7 +278,7 @@ export class SessionRegistry {
       entry.held = { settle: resolve, timer };
       entry.session = {
         ...entry.session,
-        permission: { id: this.#options.newId(), receivedAt: this.#options.now(), ...input },
+        permission: { id: this.#options.newId(), receivedAt: this.#options.now(), ...input, ...(delegatedTo ? { delegatedTo } : {}) },
       };
       this.#changed();
     });
@@ -285,16 +291,6 @@ export class SessionRegistry {
     const decision = decisionFor(permission, answer);
     if (!decision) return false;
     this.#releasePermission(entry, hookOutput(decision));
-    return true;
-  }
-
-  /** Marks the held permission as handed to a conductor first; a person can still answer it. */
-  delegatePermission(id: string, requestId: string, conductorId: string): boolean {
-    const entry = this.#entries.get(id);
-    const permission = entry?.session.permission;
-    if (!entry || !permission || permission.id !== requestId) return false;
-    entry.session = { ...entry.session, permission: { ...permission, delegatedTo: conductorId } };
-    this.#changed();
     return true;
   }
 

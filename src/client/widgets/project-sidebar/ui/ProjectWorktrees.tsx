@@ -130,7 +130,7 @@ export function ProjectWorktrees({ repo, worktrees, countsOf, active, selectedId
   const rows = flatten(ordered);
   const groupOf = new Map(rows.map((row) => [row.worktree.worktreeId, row.group]));
   const ids = rows.map((row) => row.worktree.worktreeId);
-  const shownId = active ? (ids.find((id) => id === selectedId) ?? ordered[0]?.worktreeId ?? null) : null;
+  const shownId = active ? (ids.find((id) => id === selectedId) ?? null) : null;
   const closestSibling: CollisionDetection = (args) =>
     closestCenter({
       ...args,

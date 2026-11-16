@@ -1,242 +1,379 @@
-import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { promisify } from "node:util";
 import {
   GRANT_BUNDLES,
-  type ConductorScope,
-  type GrantBundle,
-  type LaunchConductorRequest,
+  LINK_KINDS,
+  MAX_TRIPS,
+  type Conductor,
+  type ConductorLaunch,
+  type DelegatedRule,
   type LinkKind,
-  type OrchestrationState,
+  type OrchestrationLink,
+  type WorktreeRequest,
 } from "../../src/common/orchestration/types.ts";
 import type { RunnerSession } from "../../src/common/runner/types.ts";
-import type { PermissionRequestInput } from "../session/permissions.ts";
-import type { SessionRegistry } from "../session/SessionRegistry.ts";
-import { handleMcpMessage, type ScopedWorktree } from "./conductorMcp.ts";
-import { grantFor, isDelegated } from "./grants.ts";
-import { readLastAnswer } from "./lastAnswer.ts";
-import { OrchestrationStore } from "./OrchestrationStore.ts";
-import { RuleRunner } from "./RuleRunner.ts";
 
-const execFileAsync = promisify(execFile);
+export const ORCHESTRATION_FILE = "orchestration.json";
 
-export interface OrchestrationOptions {
-  registry: SessionRegistry;
-  /** worktrees.json in the dashboard's data folder: display names and parent worktrees. */
-  worktreeMetaFile: string;
-  onChange: (state: OrchestrationState) => void;
+/** A daemon-written prompt that has not shown up as UserPromptSubmit yet; stale ones stop blocking the queue. */
+const INFLIGHT_MS = 15_000;
+
+export interface OrchestrationDeps {
+  get: (id: string) => RunnerSession | null;
+  /** Pastes `text` into the session's terminal and presses Enter. */
+  send: (id: string, text: string) => void;
+  onChange: () => void;
+  now?: () => number;
+  newId?: () => string;
 }
 
-export interface RouteResult {
-  status: number;
-  body: unknown;
+export interface SavedOrchestration {
+  conductors: Record<string, Conductor>;
+  links: OrchestrationLink[];
 }
 
-const LINKS_PATH = "/orchestration/links";
-const LINK_PATH = /^\/orchestration\/links\/([^/]+)$/;
-const LINK_RESUME_PATH = /^\/orchestration\/links\/([^/]+)\/resume$/;
-const CONDUCTORS_PATH = "/orchestration/conductors";
-const GRANT_PATH = /^\/orchestration\/conductors\/([^/]+)\/grants$/;
-const PROPOSAL_PATH = /^\/orchestration\/proposals\/([^/]+)$/;
-const PROPOSAL_ACCEPT_PATH = /^\/orchestration\/proposals\/([^/]+)\/accept$/;
-export const MCP_PATH = /^\/mcp\/([^/]+)$/;
+interface Pending {
+  text: string;
+  link: string | null;
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
 }
 
-const LINK_KINDS: readonly LinkKind[] = ["delegate", "report", "next"];
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
 
-export function parseWorktreeList(stdout: string): ScopedWorktree[] {
-  return stdout.split(/\n\s*\n/).flatMap((block) => {
-    const lines = block.split("\n");
-    const target = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
-    if (!target || lines.some((line) => line === "bare" || line.startsWith("prunable"))) return [];
-    const ref = lines.find((line) => line.startsWith("branch "))?.slice("branch ".length) ?? null;
-    return [{ path: target, branch: ref ? ref.replace(/^refs\/heads\//, "") : null }];
+function conductorOf(value: unknown): Conductor | null {
+  const raw = record(value);
+  const scope = record(raw?.scope);
+  if (!raw || !scope) return null;
+  const kind = scope.kind === "project" || scope.kind === "worktree" ? scope.kind : null;
+  if (!kind || typeof scope.root !== "string") return null;
+  const grants = strings(raw.grants).flatMap((grant) => GRANT_BUNDLES.filter((bundle) => bundle === grant));
+  const rules = (Array.isArray(raw.rules) ? raw.rules : []).flatMap((item: unknown): DelegatedRule[] => {
+    const rule = record(item);
+    if (!rule || typeof rule.toolName !== "string") return [];
+    return [{ toolName: rule.toolName, prefix: typeof rule.prefix === "string" ? rule.prefix : null }];
   });
+  return { scope: { kind, root: scope.root, paths: strings(scope.paths) }, grants, rules, worktreeRequest: null };
 }
 
-/** The root worktree and every worktree branched from it, following `parentPath` in worktrees.json. */
-export function descendantsOf(root: string, all: ScopedWorktree[], parentOf: ReadonlyMap<string, string>): ScopedWorktree[] {
-  const inScope = new Set([root]);
-  // eslint-disable-next-line no-restricted-syntax -- fixed-point loop flag
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const worktree of all) {
-      const parent = parentOf.get(worktree.path);
-      if (!inScope.has(worktree.path) && parent && inScope.has(parent)) {
-        inScope.add(worktree.path);
-        grew = true;
-      }
-    }
-  }
-  return all.filter((worktree) => inScope.has(worktree.path));
+function linkOf(value: unknown): OrchestrationLink | null {
+  const raw = record(value);
+  if (!raw) return null;
+  const kind = LINK_KINDS.find((item) => item === raw.kind);
+  const { id, from, to, prompt, trips, paused, createdAt } = raw;
+  if (!kind || typeof id !== "string" || typeof from !== "string" || typeof to !== "string") return null;
+  return {
+    id,
+    kind,
+    from,
+    to,
+    prompt: typeof prompt === "string" ? prompt : null,
+    trips: typeof trips === "number" ? trips : 0,
+    paused: paused === true,
+    createdAt: typeof createdAt === "number" ? createdAt : 0,
+  };
 }
 
-export function permissionMessage(workerId: string, worker: RunnerSession | null, requestId: string, input: PermissionRequestInput): string {
-  const where = worker ? path.basename(worker.cwd) : "";
-  const detail = JSON.stringify(input.toolInput).slice(0, 600);
-  return [
-    `[Agent Control] 권한 요청 — 세션 ${workerId}${where ? ` (${where})` : ""}`,
-    `도구: ${input.toolName}`,
-    `내용: ${detail}`,
-    `answer_permission(session_id: "${workerId}", request_id: "${requestId}", decision: "allow" | "deny" | "ask_human")로 답해 주세요.`,
-  ].join("\n");
+export function parseSavedOrchestration(body: unknown): SavedOrchestration {
+  const raw = record(body);
+  const conductors = Object.fromEntries(
+    Object.entries(record(raw?.conductors) ?? {}).flatMap(([id, value]) => {
+      const conductor = conductorOf(value);
+      return conductor ? [[id, conductor]] : [];
+    }),
+  );
+  const links = (Array.isArray(raw?.links) ? raw.links : []).flatMap((item: unknown) => {
+    const link = linkOf(item);
+    return link ? [link] : [];
+  });
+  return { conductors, links };
+}
+
+export function isWithin(cwd: string, folder: string): boolean {
+  return cwd === folder || cwd.startsWith(`${folder.replace(/\/+$/, "")}/`);
+}
+
+export function reportText(from: RunnerSession, answer: string | null): string {
+  const body = answer?.trim() || "(마지막 답을 읽지 못했어요. read_result 도구로 다시 확인해 주세요.)";
+  return `[Agent Control] 세션 ${from.id} (${from.cwd})이 할 일을 마치고 보고했어요.\n\n${body}`;
+}
+
+export function delegateText(from: RunnerSession, prompt: string): string {
+  return `[Agent Control] 세션 ${from.id} (${from.cwd})이 이 일을 맡겼어요. 마치면 마지막 답이 그 세션에 보고돼요.\n\n${prompt.trim()}`;
+}
+
+export function revisedText(from: RunnerSession, prompt: string): string {
+  return `[Agent Control] 세션 ${from.id} (${from.cwd})이 맡긴 일을 고쳤어요. 앞서 받은 내용 대신 아래 내용으로 이어서 해 주세요.\n\n${prompt.trim()}`;
+}
+
+export function nextText(from: RunnerSession, prompt: string | null, answer: string | null): string {
+  const lead = prompt?.trim() || "앞 세션이 끝났어요. 이어서 맡은 일을 시작해 주세요.";
+  const result = answer?.trim() ? `\n\n앞 세션(${from.id})의 마지막 답:\n${answer.trim()}` : "";
+  return `[Agent Control] ${lead}${result}`;
 }
 
 export class Orchestration {
-  readonly store: OrchestrationStore;
-  readonly rules: RuleRunner;
-  #registry: SessionRegistry;
-  #metaFile: string;
+  #conductors = new Map<string, Conductor>();
+  #links: OrchestrationLink[] = [];
+  #answers = new Map<string, string>();
+  #queues = new Map<string, Pending[]>();
+  #fedBy = new Map<string, string>();
+  #inflight = new Map<string, number>();
+  #deps: Required<OrchestrationDeps>;
 
-  constructor(options: OrchestrationOptions) {
-    this.#registry = options.registry;
-    this.#metaFile = options.worktreeMetaFile;
-    this.store = new OrchestrationStore({ onChange: options.onChange });
-    this.rules = new RuleRunner({
-      store: this.store,
-      sessions: { get: (id) => options.registry.get(id), write: (id, data) => options.registry.write(id, data) },
-      readAnswer: readLastAnswer,
+  constructor(deps: OrchestrationDeps) {
+    this.#deps = { now: Date.now, newId: () => crypto.randomUUID(), ...deps };
+  }
+
+  load(saved: SavedOrchestration): void {
+    this.#conductors = new Map(Object.entries(saved.conductors));
+    this.#links = [...saved.links];
+  }
+
+  /** Persisted under the id a restart resumes with — the conversation the terminal ended on. */
+  snapshot(sessions: RunnerSession[]): SavedOrchestration {
+    const keyOf = new Map(sessions.map((session) => [session.id, session.conversationId ?? session.id]));
+    const key = (id: string) => keyOf.get(id) ?? id;
+    return {
+      conductors: Object.fromEntries([...this.#conductors].map(([id, conductor]) => [key(id), { ...conductor, worktreeRequest: null }])),
+      links: this.#links.map((link) => ({ ...link, from: key(link.from), to: key(link.to) })),
+    };
+  }
+
+  /** Drops what points at sessions that no longer exist. */
+  prune(liveIds: ReadonlySet<string>): void {
+    const conductors = [...this.#conductors.keys()].filter((id) => !liveIds.has(id));
+    const links = this.#links.filter((link) => !liveIds.has(link.from) || !liveIds.has(link.to));
+    if (conductors.length === 0 && links.length === 0) return;
+    conductors.forEach((id) => this.#conductors.delete(id));
+    this.#links = this.#links.filter((link) => !links.includes(link));
+    [this.#answers, this.#queues, this.#fedBy, this.#inflight].forEach((map) => {
+      [...map.keys()].filter((id) => !liveIds.has(id)).forEach((id) => map.delete(id));
     });
+    this.#deps.onChange();
   }
 
-  async worktreesOf(scope: ConductorScope): Promise<ScopedWorktree[]> {
-    const { stdout } = await execFileAsync("git", ["-C", scope.root, "worktree", "list", "--porcelain"], { timeout: 10_000 });
-    const all = parseWorktreeList(stdout);
-    if (scope.kind === "project") return all;
-    return descendantsOf(scope.root, all, await this.#parents());
-  }
-
-  async #parents(): Promise<Map<string, string>> {
-    try {
-      const worktrees = record(record(JSON.parse(await readFile(this.#metaFile, "utf8")))?.worktrees) ?? {};
-      return new Map(
-        Object.entries(worktrees).flatMap(([worktreePath, entry]): [string, string][] => {
-          const parent = record(entry)?.parentPath;
-          return typeof parent === "string" ? [[worktreePath, parent]] : [];
-        }),
-      );
-    } catch {
-      return new Map();
-    }
-  }
-
-  noteHook(sessionId: string, event: string, body: unknown): void {
-    this.rules.noteHook(sessionId, event, body).catch((error: unknown) => console.error("[orchestration] hook failed", sessionId, event, error));
-  }
-
-  /** Whether a permission request from this session goes to a conductor before a person. */
-  delegates(sessionId: string, input: PermissionRequestInput): boolean {
-    const conductor = this.store.conductorOf(sessionId);
-    const worker = this.#registry.get(sessionId);
-    return Boolean(conductor && worker && isDelegated(conductor, input, worker.cwd));
-  }
-
-  onPermissionHeld(sessionId: string, requestId: string, input: PermissionRequestInput): void {
-    if (!this.delegates(sessionId, input)) return;
-    const conductor = this.store.conductorOf(sessionId);
-    if (!conductor || !this.#registry.delegatePermission(sessionId, requestId, conductor.sessionId)) return;
-    this.rules.deliver(conductor.sessionId, permissionMessage(sessionId, this.#registry.get(sessionId), requestId, input));
-  }
-
-  launchConductor(request: LaunchConductorRequest): RunnerSession {
-    const session = this.#registry.launch({ cwd: request.cwd, prompt: request.prompt || undefined, conductor: true });
-    this.store.addConductor({ sessionId: session.id, scope: request.scope, grants: request.grants, extraGrants: [] });
-    return session;
-  }
-
-  async mcp(conductorId: string, body: unknown): Promise<unknown | null> {
-    return handleMcpMessage(conductorId, body, {
-      store: this.store,
-      sessions: {
-        list: () => this.#registry.list(),
-        get: (id) => this.#registry.get(id),
-        launch: (request) => this.#registry.launch(request),
-        answerPermission: (id, requestId, answer) => this.#registry.answerPermission(id, requestId, answer),
+  decorate(sessions: RunnerSession[]): RunnerSession[] {
+    return sessions.map((session) => ({
+      ...session,
+      orchestration: {
+        conductor: this.#conductors.get(session.id) ?? null,
+        parentId: this.parentOf(session.id),
+        links: this.#links.filter((link) => link.from === session.id),
       },
-      rules: this.rules,
-      worktreesOf: (scope) => this.worktreesOf(scope),
-    });
+    }));
   }
 
-  /** HTTP routes under /orchestration for the dashboard; null when the path is not one of them. */
-  async route(method: string, pathname: string, body: () => Promise<unknown>): Promise<RouteResult | null> {
-    const ok = (extra: Record<string, unknown> = {}): RouteResult => ({ status: 200, body: { ok: true, orchestration: this.store.state(), ...extra } });
-    const fail = (status: number, error: string): RouteResult => ({ status, body: { ok: false, error } });
+  conductor(id: string): Conductor | null {
+    return this.#conductors.get(id) ?? null;
+  }
 
-    if (pathname === "/orchestration" && method === "GET") return ok();
+  isConductor(id: string): boolean {
+    return this.#conductors.has(id);
+  }
 
-    if (pathname === LINKS_PATH && method === "POST") {
-      const raw = record(await body());
-      const from = raw?.from;
-      const to = raw?.to;
-      const kind = LINK_KINDS.find((candidate) => candidate === raw?.kind);
-      if (typeof from !== "string" || typeof to !== "string" || !kind) return fail(400, "잇는 두 세션과 선 종류가 필요해요.");
-      if (!this.#registry.get(from) || !this.#registry.get(to)) return fail(404, "세션이 없어요.");
-      try {
-        this.store.addLink({ from, to, kind }, "user");
-      } catch (error) {
-        return fail(400, error instanceof Error ? error.message : String(error));
-      }
-      return ok();
+  parentOf(id: string): string | null {
+    return this.#links.find((link) => link.kind === "delegate" && link.to === id)?.from ?? null;
+  }
+
+  links(): OrchestrationLink[] {
+    return [...this.#links];
+  }
+
+  lastAnswer(id: string): string | null {
+    return this.#answers.get(id) ?? null;
+  }
+
+  addConductor(id: string, launch: ConductorLaunch): Conductor {
+    const conductor: Conductor = { scope: launch.scope, grants: [...launch.grants], rules: [], worktreeRequest: null };
+    this.#conductors.set(id, conductor);
+    this.#deps.onChange();
+    return conductor;
+  }
+
+  addRule(conductorId: string, rule: DelegatedRule): boolean {
+    const conductor = this.#conductors.get(conductorId);
+    if (!conductor) return false;
+    if (conductor.rules.some((item) => item.toolName === rule.toolName && item.prefix === rule.prefix)) return true;
+    this.#conductors.set(conductorId, { ...conductor, rules: [...conductor.rules, rule] });
+    this.#deps.onChange();
+    return true;
+  }
+
+  addScopePath(conductorId: string, folder: string): boolean {
+    const conductor = this.#conductors.get(conductorId);
+    if (!conductor) return false;
+    const paths = conductor.scope.paths.includes(folder) ? conductor.scope.paths : [...conductor.scope.paths, folder];
+    this.#conductors.set(conductorId, { ...conductor, scope: { ...conductor.scope, paths } });
+    this.#deps.onChange();
+    return true;
+  }
+
+  inScope(conductorId: string, cwd: string): boolean {
+    const conductor = this.#conductors.get(conductorId);
+    return Boolean(conductor?.scope.paths.some((folder) => isWithin(cwd, folder)));
+  }
+
+  requestWorktree(conductorId: string, request: Omit<WorktreeRequest, "id" | "requestedAt">): WorktreeRequest | null {
+    const conductor = this.#conductors.get(conductorId);
+    if (!conductor) return null;
+    const worktreeRequest = { ...request, id: this.#deps.newId(), requestedAt: this.#deps.now() };
+    this.#conductors.set(conductorId, { ...conductor, worktreeRequest });
+    this.#deps.onChange();
+    return worktreeRequest;
+  }
+
+  /**
+   * Settles the pending worktree request; `path` is the created folder, null when the person declined.
+   * Returns the settled request so the caller can open its first worker.
+   */
+  settleWorktree(conductorId: string, requestId: string, path: string | null, error?: string): WorktreeRequest | null {
+    const conductor = this.#conductors.get(conductorId);
+    const request = conductor?.worktreeRequest;
+    if (!conductor || !request || request.id !== requestId) return null;
+    const paths = path && !conductor.scope.paths.includes(path) ? [...conductor.scope.paths, path] : conductor.scope.paths;
+    this.#conductors.set(conductorId, { ...conductor, scope: { ...conductor.scope, paths }, worktreeRequest: null });
+    this.#deps.onChange();
+    const next = request.prompt ? "첫 요청을 담아 이 폴더에 일꾼을 열었어요. 끝나면 보고가 와요." : "start_session으로 이 폴더에 세션을 열 수 있어요.";
+    const text = path
+      ? `[Agent Control] 요청한 워크트리 '${request.branch}'를 만들었어요: ${path}\n${next}`
+      : `[Agent Control] 요청한 워크트리 '${request.branch}'는 만들지 않았어요.${error ? ` (${error})` : " 사람이 거절했어요."}`;
+    this.deliver(conductorId, text, null);
+    return request;
+  }
+
+  /** A delegate `prompt` is sent to `to` right away; report / next prompts wait for `from` to stop. */
+  connect(from: string, to: string, kind: LinkKind, prompt: string | null = null): OrchestrationLink | null {
+    if (from === to || !this.#deps.get(from) || !this.#deps.get(to)) return null;
+    const existing = this.#links.find((link) => link.from === from && link.to === to && link.kind === kind);
+    const link: OrchestrationLink = existing ?? { id: this.#deps.newId(), kind, from, to, prompt, trips: 0, paused: false, createdAt: this.#deps.now() };
+    if (!existing) {
+      this.#links = [...this.#links, link];
+      this.#deps.onChange();
     }
-
-    const resume = LINK_RESUME_PATH.exec(pathname);
-    if (resume && method === "POST") return this.store.resumeLink(decodeURIComponent(resume[1] ?? "")) ? ok() : fail(404, "선이 없어요.");
-
-    const link = LINK_PATH.exec(pathname);
-    if (link && method === "DELETE") return this.store.removeLink(decodeURIComponent(link[1] ?? "")) ? ok() : fail(404, "선이 없어요.");
-
-    if (pathname === CONDUCTORS_PATH && method === "POST") {
-      const raw = record(await body());
-      const scope = record(raw?.scope);
-      const cwd = raw?.cwd;
-      const root = scope?.root;
-      if (typeof cwd !== "string" || !cwd.startsWith("/") || typeof root !== "string" || !root.startsWith("/")) return fail(400, "지휘자를 띄울 폴더와 범위가 필요해요.");
-      const grants = Array.isArray(raw?.grants) ? raw.grants.flatMap((grant): GrantBundle[] => GRANT_BUNDLES.filter((bundle) => bundle === grant)) : [];
-      const session = this.launchConductor({
-        cwd,
-        scope: { kind: scope?.kind === "worktree" ? "worktree" : "project", root },
-        grants,
-        prompt: typeof raw?.prompt === "string" ? raw.prompt : "",
-      });
-      return ok({ session });
+    // A delegate line drawn by a person carries the work itself: it goes to the worker now, and the
+    // worker's answer comes back to the delegator, so neither side is left guessing what the line means.
+    const delegator = this.#deps.get(from);
+    if (kind === "delegate" && prompt && delegator) {
+      this.connect(to, from, "report");
+      this.deliver(to, delegateText(delegator, prompt), link.id);
     }
+    return link;
+  }
 
-    const grant = GRANT_PATH.exec(pathname);
-    if (grant && method === "POST") {
-      const workerId = record(await body())?.workerId;
-      const conductorId = decodeURIComponent(grant[1] ?? "");
-      const permission = typeof workerId === "string" ? this.#registry.get(workerId)?.permission : null;
-      const added = permission ? grantFor(permission) : null;
-      if (!added) return fail(400, "지휘자에게 맡길 수 없는 요청이에요.");
-      return this.store.addExtraGrant(conductorId, added) ? ok({ grant: added }) : fail(404, "지휘자가 없어요.");
+  disconnect(linkId: string): boolean {
+    const before = this.#links.length;
+    this.#links = this.#links.filter((link) => link.id !== linkId);
+    if (this.#links.length === before) return false;
+    this.#deps.onChange();
+    return true;
+  }
+
+  /**
+   * A delegate line's work still waiting in the worker's queue is swapped for the new text; once it went
+   * out, the revision follows it. A next line's text is only read at the next stop.
+   */
+  edit(linkId: string, prompt: string | null): boolean {
+    const link = this.#links.find((item) => item.id === linkId);
+    if (!link || link.kind === "report") return false;
+    const text = prompt?.trim() ? prompt : null;
+    if (link.kind === "delegate" && !text) return false;
+    if (text === link.prompt) return true;
+    this.#replace({ ...link, prompt: text });
+    const delegator = this.#deps.get(link.from);
+    if (link.kind !== "delegate" || !text || !delegator) return true;
+    const queue = this.#queues.get(link.to) ?? [];
+    if (queue.some((item) => item.link === link.id)) {
+      this.#queues.set(link.to, queue.map((item) => (item.link === link.id ? { ...item, text: delegateText(delegator, text) } : item)));
+    } else {
+      this.deliver(link.to, revisedText(delegator, text), link.id);
     }
+    return true;
+  }
 
-    const accept = PROPOSAL_ACCEPT_PATH.exec(pathname);
-    if (accept && method === "POST") {
-      const cwd = record(await body())?.cwd;
-      if (typeof cwd !== "string" || !cwd.startsWith("/")) return fail(400, "만든 워크트리 경로가 필요해요.");
-      const proposal = this.store.takeProposal(decodeURIComponent(accept[1] ?? ""));
-      if (!proposal) return fail(404, "제안이 없어요.");
-      const worker = this.#registry.launch({ cwd, prompt: proposal.prompt || undefined });
-      this.store.addLink({ from: proposal.conductorId, to: worker.id, kind: "delegate" }, "conductor");
-      this.store.addLink({ from: worker.id, to: proposal.conductorId, kind: "report" }, "conductor");
-      this.rules.deliver(proposal.conductorId, `[Agent Control] 제안한 워크트리 ${proposal.name}을 만들고 세션 ${worker.id}을 열었어요.`);
-      return ok({ session: worker });
+  resume(linkId: string): boolean {
+    const link = this.#links.find((item) => item.id === linkId);
+    if (!link) return false;
+    this.#replace({ ...link, paused: false, trips: 0 });
+    return true;
+  }
+
+  /** UserPromptSubmit: a prompt the daemon did not write means a person took over, so bounce counts start over. */
+  onPrompt(id: string): void {
+    if (this.#inflight.has(id)) {
+      this.#inflight.delete(id);
+      return;
     }
+    this.#fedBy.delete(id);
+    const touched = this.#links.filter((link) => link.trips > 0 && (link.from === id || link.to === id));
+    touched.forEach((link) => this.#replace({ ...link, trips: 0 }));
+  }
 
-    const proposal = PROPOSAL_PATH.exec(pathname);
-    if (proposal && method === "DELETE") {
-      const taken = this.store.takeProposal(decodeURIComponent(proposal[1] ?? ""));
-      if (!taken) return fail(404, "제안이 없어요.");
-      this.rules.deliver(taken.conductorId, `[Agent Control] 워크트리 제안 ${taken.name}은 사람이 거절했어요.`);
-      return ok();
+  /** Stop: the session finished a turn. Fire its report / next lines, then hand it anything queued. */
+  onStop(id: string, answer: string | null): void {
+    if (answer?.trim()) this.#answers.set(id, answer);
+    this.#inflight.delete(id);
+    const from = this.#deps.get(id);
+    if (from) {
+      const fedBy = this.#links.find((link) => link.id === this.#fedBy.get(id)) ?? null;
+      this.#fedBy.delete(id);
+      this.#links
+        .filter((link) => link.from === id && link.kind !== "delegate" && !link.paused)
+        .forEach((link) => this.#fire(link, from, answer, fedBy));
     }
+    this.flush(id);
+  }
 
-    return null;
+  /** Puts text into a session now if it is free, otherwise queues it until its next Stop. */
+  deliver(to: string, text: string, link: string | null): boolean {
+    const target = this.#deps.get(to);
+    if (!target || target.status === "exited") return false;
+    this.#queues.set(to, [...(this.#queues.get(to) ?? []), { text, link }]);
+    this.flush(to);
+    return true;
+  }
+
+  queued(id: string): number {
+    return this.#queues.get(id)?.length ?? 0;
+  }
+
+  flush(id: string): void {
+    const target = this.#deps.get(id);
+    const queue = this.#queues.get(id) ?? [];
+    if (!target || queue.length === 0) return;
+    if (target.status === "exited") {
+      this.#queues.delete(id);
+      return;
+    }
+    const sentAt = this.#inflight.get(id);
+    const busy = target.status !== "idle" || target.permission !== null || (sentAt !== undefined && this.#deps.now() - sentAt < INFLIGHT_MS);
+    if (busy) return;
+    const [next, ...rest] = queue;
+    if (!next) return;
+    this.#queues.set(id, rest);
+    this.#inflight.set(id, this.#deps.now());
+    if (next.link) this.#fedBy.set(id, next.link);
+    else this.#fedBy.delete(id);
+    this.#deps.send(id, next.text);
+  }
+
+  #fire(link: OrchestrationLink, from: RunnerSession, answer: string | null, fedBy: OrchestrationLink | null): void {
+    const bounced = fedBy !== null && fedBy.from === link.to;
+    const trips = bounced ? link.trips + 1 : link.trips;
+    if (trips >= MAX_TRIPS) {
+      console.log("[runner] link paused after bouncing", link.id, link.from, "->", link.to);
+      this.#replace({ ...link, trips, paused: true });
+      return;
+    }
+    if (trips !== link.trips) this.#replace({ ...link, trips });
+    const text = link.kind === "report" ? reportText(from, answer) : nextText(from, link.prompt, answer);
+    this.deliver(link.to, text, link.id);
+  }
+
+  #replace(link: OrchestrationLink): void {
+    this.#links = this.#links.map((item) => (item.id === link.id ? link : item));
+    this.#deps.onChange();
   }
 }
