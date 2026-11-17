@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { removeTemplate, saveTemplate, templateKeys } from "@/client/entities/runner";
+import { editRun, removeTemplate, saveTemplate, templateKeys } from "@/client/entities/runner";
 import { toastError } from "@/client/shared/model/toastStore";
 import { EFFORT_CHOICES, MODEL_CHOICES } from "@/common/actions/schema";
-import { BUILTIN_TEMPLATE_PREFIX, type TemplateCard, type WorkflowTemplate } from "@/common/templates/types";
+import { BUILTIN_TEMPLATE_PREFIX, type TemplateCard, type TemplateRoute, type TemplateRun, type WorkflowTemplate } from "@/common/templates/types";
 import {
   addCard,
   addRoute,
@@ -29,17 +29,52 @@ const CHOICE =
 interface TemplateEditorProps {
   initial: WorkflowTemplate;
   isNew: boolean;
+  /** Edits this expanded run instead of the saved template; cards that already have a session cannot be removed. */
+  run?: TemplateRun;
   onClose: () => void;
+}
+
+interface RouteFieldsProps {
+  template: WorkflowTemplate;
+  route: TemplateRoute;
+  onChange: (template: WorkflowTemplate) => void;
+}
+
+/** The same line kinds the canvas draws between sessions; what a next line hands over is editable. */
+export function RouteFields({ template, route, onChange }: RouteFieldsProps) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex gap-1">
+        <button type="button" aria-pressed={route.kind === "next"} onClick={() => onChange(updateRoute(template, route.id, { kind: "next" }))} className={CHOICE} title="뒤 카드에 넘길 말을 보내요 · 비우면 앞 카드의 마지막 답">
+          끝나면 다음
+        </button>
+        <button type="button" aria-pressed={route.kind === "report"} onClick={() => onChange(updateRoute(template, route.id, { kind: "report" }))} className={CHOICE} title="앞 카드의 마지막 답을 그대로 보내요">
+          끝나면 보고
+        </button>
+      </div>
+      {route.kind === "next" && (
+        <textarea
+          rows={2}
+          value={route.prompt ?? ""}
+          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => onChange(updateRoute(template, route.id, { prompt: event.target.value.trim() ? event.target.value : null }))}
+          placeholder="뒤 카드에 넘길 말 · 비우면 앞 카드의 마지막 답을 넣어요"
+          className={`${INPUT} resize-y`}
+        />
+      )}
+    </div>
+  );
 }
 
 interface CardEditorProps {
   template: WorkflowTemplate;
   card: TemplateCard;
   index: number;
+  /** Already has a session in the run being edited. */
+  locked: boolean;
   onChange: (template: WorkflowTemplate) => void;
 }
 
-function CardEditor({ template, card, index, onChange }: CardEditorProps) {
+function CardEditor({ template, card, index, locked, onChange }: CardEditorProps) {
   const others = template.cards.filter((item) => item.key !== card.key);
   const routes = template.routes.filter((route) => route.from === card.key);
   const afterJudge = template.routes.some((route) => route.to === card.key && template.cards.find((item) => item.key === route.from)?.kind === "judge");
@@ -63,7 +98,13 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
         <button type="button" disabled={index === template.cards.length - 1} onClick={() => onChange(moveCard(template, card.key, 1))} className={PILL} aria-label="아래로">
           ↓
         </button>
-        <button type="button" disabled={template.cards.length <= 1} onClick={() => onChange(removeCard(template, card.key))} className={`${PILL} text-accent`}>
+        <button
+          type="button"
+          disabled={template.cards.length <= 1 || locked}
+          title={locked ? "이미 세션이 있는 카드는 뺄 수 없어요" : undefined}
+          onClick={() => onChange(removeCard(template, card.key))}
+          className={`${PILL} text-accent`}
+        >
           빼기
         </button>
       </div>
@@ -116,6 +157,7 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
         className={`${INPUT} font-mono text-[12px]`}
       />
       {card.kind === "work" ? (
+        <div className="flex flex-col gap-1.5">
         <label className="flex items-center gap-2 text-[12px] text-muted">
           끝나면
           <select
@@ -131,11 +173,14 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
             ))}
           </select>
         </label>
+        {routes[0] && <RouteFields template={template} route={routes[0]} onChange={onChange} />}
+        </div>
       ) : (
         <div className="flex flex-col gap-1.5">
           <p className="text-[12px] text-muted">나가는 길 · 판단 카드의 지휘자가 조건 글을 읽고 하나를 골라요</p>
           {routes.map((route) => (
-            <div key={route.id} className="flex items-center gap-2">
+            <div key={route.id} className="flex flex-col gap-1.5 rounded-[8px] p-2 shadow-[inset_0_0_0_1px_var(--hair)]">
+            <div className="flex items-center gap-2">
               <input
                 value={route.label ?? ""}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => onChange(updateRoute(template, route.id, { label: event.target.value }))}
@@ -153,6 +198,8 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
                 빼기
               </button>
             </div>
+            <RouteFields template={template} route={route} onChange={onChange} />
+            </div>
           ))}
           <button type="button" disabled={others.length === 0} onClick={() => onChange(addRoute(template, card.key))} className={`${PILL} self-start`}>
             길 추가
@@ -163,7 +210,7 @@ function CardEditor({ template, card, index, onChange }: CardEditorProps) {
   );
 }
 
-export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps) {
+export function TemplateEditor({ initial, isNew, run: editedRun, onClose }: TemplateEditorProps) {
   const queryClient = useQueryClient();
   const [template, setTemplate] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -177,6 +224,9 @@ export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps)
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const runOnly = editedRun !== undefined;
+  const lockedKeys = new Set(editedRun ? [...Object.keys(editedRun.sessions), ...(editedRun.current ? [editedRun.current] : [])] : []);
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -193,7 +243,7 @@ export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-fg/20 p-6" onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div role="dialog" aria-label="템플릿 편집" className="flex w-full max-w-[720px] flex-col gap-4 rounded-[14px] bg-bg p-5 shadow-[0_24px_60px_-20px_var(--faint),inset_0_0_0_1px_var(--hair)]">
+      <div role="dialog" aria-label={runOnly ? "펼친 흐름 고치기" : "템플릿 편집"} className="flex w-full max-w-[720px] flex-col gap-4 rounded-[14px] bg-bg p-5 shadow-[0_24px_60px_-20px_var(--faint),inset_0_0_0_1px_var(--hair)]">
         <div className="flex items-center gap-3">
           <input
             value={template.name}
@@ -205,12 +255,18 @@ export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps)
             닫기
           </button>
         </div>
-        <p className="text-[12px] text-muted">
-          카드는 위에서부터 차례로 세션이 돼요. 템플릿은 모든 프로젝트에서 쓰는 <code>~/.local/share/agent-control/templates.json</code>에 저장돼서 파일을 직접 고칠 수도 있어요.
-        </p>
+        {runOnly ? (
+          <p className="text-[12px] text-muted">
+            이 워크트리에 펼친 흐름만 고쳐요. 고친 내용은 다음에 카드로 넘어갈 때부터 들어가요. 저장한 템플릿까지 바꾸려면 &lsquo;템플릿에도 저장&rsquo;을 눌러요.
+          </p>
+        ) : (
+          <p className="text-[12px] text-muted">
+            카드는 위에서부터 차례로 세션이 돼요. 템플릿은 모든 프로젝트에서 쓰는 <code>~/.local/share/agent-control/templates.json</code>에 저장돼서 파일을 직접 고칠 수도 있어요.
+          </p>
+        )}
         <ol className="flex flex-col gap-3">
           {template.cards.map((card, index) => (
-            <CardEditor key={card.key} template={template} card={card} index={index} onChange={setTemplate} />
+            <CardEditor key={card.key} template={template} card={card} index={index} locked={lockedKeys.has(card.key)} onChange={setTemplate} />
           ))}
         </ol>
         <button type="button" onClick={() => setTemplate(addCard(template))} className={`${PILL} self-start`}>
@@ -227,15 +283,28 @@ export function TemplateEditor({ initial, isNew, onClose }: TemplateEditorProps)
           <button
             type="button"
             disabled={busy || problems.length > 0}
-            onClick={() => void run(() => saveTemplate(template))}
+            onClick={() => void run(() => (editedRun ? editRun(editedRun.id, template) : saveTemplate(template)))}
             className="rounded-full bg-fg px-4 py-1.5 text-[13px] font-semibold text-bg hover:opacity-85 disabled:opacity-30"
           >
             저장
           </button>
+          {editedRun && (
+            <button
+              type="button"
+              disabled={busy || problems.length > 0}
+              onClick={() => void run(async () => {
+                await editRun(editedRun.id, template);
+                await saveTemplate({ ...template, id: editedRun.templateId });
+              })}
+              className={PILL}
+            >
+              템플릿에도 저장
+            </button>
+          )}
           <button type="button" onClick={onClose} className={PILL}>
             취소
           </button>
-          {!isNew && !(builtin && template.updatedAt === 0) && (
+          {!isNew && !runOnly && !(builtin && template.updatedAt === 0) && (
             <button type="button" disabled={busy} onClick={() => void run(() => removeTemplate(template.id))} className={`${PILL} ml-auto text-accent`}>
               {builtin ? "기본으로 되돌리기" : "템플릿 지우기"}
             </button>

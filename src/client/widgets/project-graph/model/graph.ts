@@ -18,7 +18,7 @@ export interface GraphCluster {
   nodeIds: string[];
 }
 
-export type EdgeKind = LinkKind | "fork" | "overlap" | "route";
+export type EdgeKind = LinkKind | "fork" | "overlap";
 
 export interface ReservedCard {
   id: string;
@@ -38,6 +38,8 @@ export interface GraphEdge {
   prompt: string | null;
   /** Files both worktrees changed, for an overlap edge. */
   files: string[];
+  /** The template run line behind a next / report edge between run cards. */
+  route?: { runId: string; routeId: string; label: string | null };
 }
 
 export interface ProjectGraph {
@@ -114,7 +116,17 @@ export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], ov
       const from = runCardNode(run, route.from, nodes);
       const to = runCardNode(run, route.to, nodes);
       if (from === to) continue;
-      edges.push({ id: `route:${run.id}:${route.id}`, kind: "route", from, to, linkId: null, paused: false, prompt: route.label, files: [] });
+      edges.push({
+        id: `route:${run.id}:${route.id}`,
+        kind: route.kind,
+        from,
+        to,
+        linkId: null,
+        paused: false,
+        prompt: route.prompt,
+        files: [],
+        route: { runId: run.id, routeId: route.id, label: route.label },
+      });
     }
   }
   return { conductors, clusters, nodes, reserved, runs: shownRuns, edges };

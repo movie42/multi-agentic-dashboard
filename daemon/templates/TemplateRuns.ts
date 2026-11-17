@@ -33,7 +33,12 @@ export function cardText(run: TemplateRun, card: TemplateCard, from: Arrival | n
     : `[Agent Control] 템플릿 '${run.name}' · '${card.title}' 카드예요.`;
   const body = revisit ? "" : card.prompt.trim();
   const picked = from?.route?.label ? `'${from.card.title}' 카드가 '${from.route.label}' 길을 골랐어요.${from.reason?.trim() ? ` 이유: ${from.reason.trim()}` : ""}` : "";
-  const answer = from?.answer?.trim() ? `앞 카드 '${from.card.title}'의 마지막 답:\n${from.answer.trim()}` : "";
+  const handed = from?.route?.kind === "next" ? from.route.prompt?.trim() : "";
+  const answer = handed
+    ? `앞 카드 '${from?.card.title}'에서 넘긴 말:\n${handed}`
+    : from?.answer?.trim()
+      ? `앞 카드 '${from.card.title}'의 마지막 답:\n${from.answer.trim()}`
+      : "";
   const routes = card.kind === "judge" ? judgeText(run, card) : "";
   return [head, intent, body, picked, answer, routes].filter(Boolean).join("\n\n");
 }
@@ -114,6 +119,17 @@ export class TemplateRuns {
     if (!this.#deps.deliver(session, `[Agent Control] ${text.trim()}`)) return { ok: false, error: "카드 세션이 닫혔어요." };
     const trips = run.hold?.reason === "trips" ? {} : run.trips;
     return { ok: true, run: this.#put({ ...run, state: "running", hold: null, choice: null, trips }) };
+  }
+
+  /** Replaces a run's cards and lines; a card that already has a session or is running stays. Takes effect the next time a card is entered. */
+  edit(runId: string, edited: Pick<WorkflowTemplate, "name" | "cards" | "routes">): Result {
+    const run = this.#runs.get(runId);
+    if (!run || !ACTIVE.has(run.state)) return { ok: false, error: "고칠 수 있는 펼친 템플릿이 없어요." };
+    const keys = new Set(edited.cards.map((card) => card.key));
+    const lost = run.cards.find((card) => (run.sessions[card.key] || card.key === run.current) && !keys.has(card.key));
+    if (lost) return { ok: false, error: `'${lost.title}' 카드는 이미 세션이 있어서 뺄 수 없어요.` };
+    if (edited.cards.length === 0) return { ok: false, error: "카드가 하나는 있어야 해요." };
+    return { ok: true, run: this.#put({ ...run, name: edited.name, cards: edited.cards, routes: edited.routes }) };
   }
 
   stop(runId: string): Result {

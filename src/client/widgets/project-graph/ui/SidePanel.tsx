@@ -10,6 +10,7 @@ import type { TemplateRun } from "@/common/templates/types";
 import { runOfNode, type GraphEdge, type ProjectGraph } from "../model/graph";
 import { EDGE_STYLE } from "./GraphEdges";
 import { nodeTitle } from "./NodeBox";
+import { RouteEditor } from "./RouteEditor";
 import { RunPanel } from "./RunPanel";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
@@ -156,6 +157,7 @@ interface SidePanelProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
+  onEditRun: (run: TemplateRun) => void;
   onCollapse: () => void;
 }
 
@@ -164,8 +166,10 @@ const FOOT_BUTTON =
   "inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-[13px] font-semibold shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint";
 
 /** Answer the selected session in place, see its lines, one line, or every line of the project. */
-export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onCollapse }: SidePanelProps) {
+export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onEditRun, onCollapse }: SidePanelProps) {
   const links = graph.edges.filter((edge) => edge.linkId !== null);
+  const routeEdge = view.kind === "edge" ? view.edge.route : undefined;
+  const routeRun = routeEdge ? graph.runs.find((run) => run.id === routeEdge.runId) : undefined;
   const agent = view.kind === "agent" ? view.agent : null;
   const agentRun = agent ? runOfNode(graph.runs, agent.id) : null;
   return (
@@ -197,7 +201,8 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
             <ConnectionList graph={graph} edges={links} focusId={null} onAction={onAction} />
           </section>
         )}
-        {view.kind === "edge" && (
+        {routeEdge && routeRun && <RouteEditor key={`${routeRun.id}:${routeEdge.routeId}`} run={routeRun} routeId={routeEdge.routeId} onEditRun={onEditRun} />}
+        {view.kind === "edge" && !routeEdge && (
           <section className="flex flex-col gap-3">
             <p className={HEADING}>고른 연결</p>
             <ConnectionList key={view.edge.id} graph={graph} edges={[view.edge]} focusId={null} editing onAction={onAction} />
@@ -210,7 +215,7 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
             ⌘G로 그룹으로 묶을 수 있어요.
           </p>
         )}
-        {view.kind === "run" && <RunPanel key={view.run.id} run={view.run} focusKey={view.cardKey} />}
+        {view.kind === "run" && <RunPanel key={view.run.id} run={view.run} focusKey={view.cardKey} onEdit={onEditRun} />}
         {view.kind === "empty" && <p className="pt-10 text-center text-[14px] text-muted">상자를 누르면 여기서 답할 수 있어요.</p>}
         {agent && (
           <div className="flex flex-col gap-5">
@@ -220,7 +225,12 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
             {renderCard(agent)}
             {agentRun && (
               <div className="border-t border-hair pt-4">
-                <RunPanel key={agentRun.id} run={agentRun} focusKey={Object.entries(agentRun.sessions).find(([, id]) => id === agent.id)?.[0] ?? null} />
+                <RunPanel
+                  key={agentRun.id}
+                  run={agentRun}
+                  focusKey={Object.entries(agentRun.sessions).find(([, id]) => id === agent.id)?.[0] ?? null}
+                  onEdit={onEditRun}
+                />
               </div>
             )}
             <section className="flex flex-col gap-2 border-t border-hair pt-4">

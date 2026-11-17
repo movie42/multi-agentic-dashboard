@@ -22,9 +22,10 @@ const PRIMARY = "shrink-0 rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 f
 interface RunPanelProps {
   run: TemplateRun;
   focusKey: string | null;
+  onEdit: (run: TemplateRun) => void;
 }
 
-export function RunPanel({ run, focusKey }: RunPanelProps) {
+export function RunPanel({ run, focusKey, onEdit }: RunPanelProps) {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const current = run.cards.find((card) => card.key === run.current) ?? null;
@@ -96,6 +97,11 @@ export function RunPanel({ run, focusKey }: RunPanelProps) {
         {active && !pickRoute && (run.state === "paused" || run.hold) && (
           <button type="button" disabled={busy} onClick={() => void act({ action: "continue" })} className={PRIMARY}>
             {run.hold?.reason === "check-failed" ? "그래도 계속" : "계속"}
+          </button>
+        )}
+        {(active || run.state === "expanded") && (
+          <button type="button" onClick={() => onEdit(run)} className={PILL}>
+            카드 · 선 고치기
           </button>
         )}
         {active && (

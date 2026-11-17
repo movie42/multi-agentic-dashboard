@@ -49,11 +49,11 @@ const FLOW: WorkflowTemplate = {
     ),
   ],
   routes: [
-    { id: "plan-build", from: "plan", to: "build", label: null },
-    { id: "build-verify", from: "build", to: "verify", label: null },
-    { id: "verify-review", from: "verify", to: "review", label: null },
-    { id: "review-pr", from: "review", to: "pr", label: "통과" },
-    { id: "review-build", from: "review", to: "build", label: "고칠 것 있음" },
+    { id: "plan-build", from: "plan", to: "build", kind: "next", label: null, prompt: null },
+    { id: "build-verify", from: "build", to: "verify", kind: "next", label: null, prompt: null },
+    { id: "verify-review", from: "verify", to: "review", kind: "next", label: null, prompt: null },
+    { id: "review-pr", from: "review", to: "pr", kind: "next", label: "통과", prompt: null },
+    { id: "review-build", from: "review", to: "build", kind: "report", label: "고칠 것 있음", prompt: null },
   ],
   updatedAt: 0,
 };

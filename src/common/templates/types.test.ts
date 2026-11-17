@@ -24,7 +24,7 @@ describe("templateOf", () => {
     expect(template?.cards[0]).toMatchObject({ kind: "work", check: "test -f ok", model: null, pauseAfter: false });
     expect(template?.cards[1]).toMatchObject({ kind: "judge", continueFrom: false, title: "review" });
     expect(template?.routes.map((route) => route.id)).toEqual(["r1", "r2"]);
-    expect(routesFrom(template?.routes ?? [], "review")).toEqual([{ id: "r2", from: "review", to: "plan", label: "고칠 것 있음" }]);
+    expect(routesFrom(template?.routes ?? [], "review")).toEqual([{ id: "r2", from: "review", to: "plan", kind: "next", label: "고칠 것 있음", prompt: null }]);
   });
 
   it("rejects a template without cards", () => {

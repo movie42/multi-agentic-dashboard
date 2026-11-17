@@ -6,6 +6,7 @@ export { TerminalTail } from "./ui/TerminalTail";
 export {
   controlRun,
   draftTemplateFromText,
+  editRun,
   expandTemplate,
   fetchTemplates,
   removeRun,

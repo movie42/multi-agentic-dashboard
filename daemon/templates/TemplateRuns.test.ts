@@ -216,4 +216,20 @@ describe("TemplateRuns", () => {
     expect(runs.list()[0]).toMatchObject({ state: "running", trips: {} });
     expect(runs.list()[0]?.trips).toEqual({});
   });
+
+  it("edits a running run: a next line with text hands that text over, and a card with a session cannot be removed", async () => {
+    const { runs, launched, delivered } = setup();
+    const run = expand(runs);
+    runs.start(run.id);
+    const routes = run.routes.map((route) => (route.id === "r2" ? { ...route, prompt: "검증 기준: 로그인만" } : route));
+    expect(runs.edit(run.id, { name: run.name, cards: run.cards.filter((card) => card.key !== "plan"), routes }).ok).toBe(false);
+    const edited = runs.edit(run.id, { name: run.name, cards: run.cards, routes });
+    expect(edited.ok).toBe(true);
+    await runs.onStop("s1", null);
+    await runs.onStop("s1", "built");
+    const verify = launched.at(-1)?.prompt ?? "";
+    expect(verify).toContain("검증 기준: 로그인만");
+    expect(verify).not.toContain("answer of");
+    expect(delivered.length).toBeGreaterThan(0);
+  });
 });

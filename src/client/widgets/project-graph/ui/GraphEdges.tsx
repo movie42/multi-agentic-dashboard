@@ -9,15 +9,13 @@ export const EDGE_STYLE: Record<EdgeKind, { label: string; stroke: string; dash?
   next: { label: "끝나면", stroke: "stroke-muted", marker: true, pill: "text-muted" },
   fork: { label: "갈라짐", stroke: "stroke-faint", dash: "2 5", marker: false, pill: "text-muted" },
   overlap: { label: "같은 파일", stroke: "stroke-ask", dash: "6 5", marker: false, pill: "text-ask" },
-  route: { label: "다음 카드", stroke: "stroke-now", dash: "3 4", marker: true, pill: "text-now" },
 };
 
-const MARKER_KINDS = ["delegate", "report", "next", "route", "paused"] as const;
+const MARKER_KINDS = ["delegate", "report", "next", "paused"] as const;
 const MARKER_FILL: Record<(typeof MARKER_KINDS)[number], string> = {
   delegate: "fill-fg",
   report: "fill-now",
   next: "fill-muted",
-  route: "fill-now",
   paused: "fill-accent",
 };
 
@@ -36,7 +34,7 @@ export function EdgeMarkers() {
 function edgeLabel(edge: GraphEdge): string {
   if (edge.paused) return `${EDGE_STYLE[edge.kind].label} · 멈춤`;
   if (edge.kind === "overlap") return `같은 파일 ${edge.files.length}`;
-  if (edge.kind === "route" && edge.prompt) return edge.prompt;
+  if (edge.route?.label) return `${EDGE_STYLE[edge.kind].label} · ${edge.route.label}`;
   return EDGE_STYLE[edge.kind].label;
 }
 
@@ -85,7 +83,7 @@ export function GraphEdges({ edges, rectOf, ends, endDrag, selectedId, focusClus
               className={`${edge.paused ? "stroke-accent" : style.stroke} ${faint ? "opacity-20" : ""}`}
               markerEnd={marker ? `url(#edge-arrow-${marker})` : undefined}
             />
-            {edge.linkId && (
+            {(edge.linkId || edge.route) && (
               <path
                 d={geometry.d}
                 fill="none"
@@ -106,10 +104,10 @@ export function GraphEdges({ edges, rectOf, ends, endDrag, selectedId, focusClus
               type="button"
               data-edge={edge.id}
               title={edge.kind === "overlap" ? edge.files.join("\n") : undefined}
-              onClick={() => edge.linkId && onSelect(edge)}
+              onClick={() => (edge.linkId || edge.route) && onSelect(edge)}
               className={`rounded-full bg-bg px-2 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap shadow-[inset_0_0_0_1px_var(--hair)] ${
                 edge.paused ? "text-accent" : EDGE_STYLE[edge.kind].pill
-              } ${edge.linkId ? "cursor-pointer hover:bg-tint" : "cursor-default"}`}
+              } ${edge.linkId || edge.route ? "cursor-pointer hover:bg-tint" : "cursor-default"}`}
             >
               {edgeLabel(edge)}
             </button>

@@ -46,6 +46,10 @@ export async function controlRun(runId: string, request: RunAction): Promise<voi
   await call(`/runs/${encodeURIComponent(runId)}/${action}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) });
 }
 
+export async function editRun(runId: string, edited: Pick<WorkflowTemplate, "name" | "cards" | "routes">): Promise<void> {
+  await call(`/runs/${encodeURIComponent(runId)}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(edited) });
+}
+
 export async function removeRun(runId: string): Promise<void> {
   await call(`/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
 }

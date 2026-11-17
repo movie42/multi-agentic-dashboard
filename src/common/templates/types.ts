@@ -13,11 +13,22 @@ export interface TemplateCard {
   check: string | null;
 }
 
+/**
+ * The same line kinds as `OrchestrationLink`, minus `delegate`: a run moves one card at a time, so a
+ * line can only fire when its source card ends. `next` sends `prompt` (or the last answer when empty);
+ * `report` always sends the last answer.
+ */
+export const ROUTE_KINDS = ["next", "report"] as const;
+export type RouteKind = (typeof ROUTE_KINDS)[number];
+
 export interface TemplateRoute {
   id: string;
   from: string;
   to: string;
+  kind: RouteKind;
+  /** The condition a judge card picks by; null on a work card's line. */
   label: string | null;
+  prompt: string | null;
 }
 
 export interface WorkflowTemplate {
@@ -89,7 +100,9 @@ export function cardOf(value: unknown): TemplateCard | null {
 export function routeOf(value: unknown): TemplateRoute | null {
   const raw = record(value);
   if (!raw || typeof raw.id !== "string" || typeof raw.from !== "string" || typeof raw.to !== "string") return null;
-  return { id: raw.id, from: raw.from, to: raw.to, label: optionalText(raw.label) };
+  const kind = ROUTE_KINDS.find((item) => item === raw.kind) ?? "next";
+  const prompt = kind === "next" && typeof raw.prompt === "string" && raw.prompt.trim() ? raw.prompt.slice(0, MAX_TEMPLATE_PROMPT) : null;
+  return { id: raw.id, from: raw.from, to: raw.to, kind, label: optionalText(raw.label), prompt };
 }
 
 export function templateOf(value: unknown): WorkflowTemplate | null {

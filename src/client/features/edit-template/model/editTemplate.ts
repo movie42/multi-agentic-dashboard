@@ -53,18 +53,26 @@ export function setNext(template: WorkflowTemplate, key: string, to: string | nu
   const others = template.routes.filter((route) => route.from !== key);
   if (!to || to === key) return { ...template, routes: others };
   const id = freshKey(others.map((route) => route.id), "r");
-  return { ...template, routes: [...others, { id, from: key, to, label: null }] };
+  const kept = template.routes.find((route) => route.from === key);
+  return { ...template, routes: [...others, { id, from: key, to, kind: kept?.kind ?? "next", label: null, prompt: kept?.prompt ?? null }] };
 }
 
 export function addRoute(template: WorkflowTemplate, key: string): WorkflowTemplate {
   const to = template.cards.find((card) => card.key !== key)?.key;
   if (!to) return template;
   const id = freshKey(template.routes.map((route) => route.id), "r");
-  return { ...template, routes: [...template.routes, { id, from: key, to, label: "" }] };
+  return { ...template, routes: [...template.routes, { id, from: key, to, kind: "next", label: "", prompt: null }] };
 }
 
-export function updateRoute(template: WorkflowTemplate, id: string, patch: Partial<Pick<TemplateRoute, "to" | "label">>): WorkflowTemplate {
-  return { ...template, routes: template.routes.map((route) => (route.id === id ? { ...route, ...patch } : route)) };
+export function updateRoute(template: WorkflowTemplate, id: string, patch: Partial<Pick<TemplateRoute, "to" | "kind" | "label" | "prompt">>): WorkflowTemplate {
+  return {
+    ...template,
+    routes: template.routes.map((route) => {
+      if (route.id !== id) return route;
+      const next = { ...route, ...patch };
+      return next.kind === "report" ? { ...next, prompt: null } : next;
+    }),
+  };
 }
 
 export function removeRoute(template: WorkflowTemplate, id: string): WorkflowTemplate {

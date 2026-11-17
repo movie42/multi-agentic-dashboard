@@ -18,7 +18,7 @@ import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useRunnerSessions } from "@/client/entities/runner";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
-import type { WorkflowTemplate } from "@/common/templates/types";
+import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
 import { draftFromSelection } from "../model/templateDraft";
 import { ConductorPopover, ConnectPicker, TemplatePopover } from "./CanvasOverlays";
 import { GraphToolbar } from "./GraphToolbar";
@@ -79,7 +79,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [menu, setMenu] = useState<{ target: MenuTarget; at: Point } | null>(null);
   const [conductorFor, setConductorFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [templateFor, setTemplateFor] = useState<{ clusterId: string; at: Point } | null>(null);
-  const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean } | null>(null);
+  const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean; run?: TemplateRun } | null>(null);
   const [panelPref, writePanelPref] = useStoredList("agent-control:canvas-panel");
   const panelCollapsed = panelPref.includes("collapsed");
 
@@ -226,7 +226,9 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
 
   return (
     <div className="flex h-dvh min-w-0">
-      {editing && <TemplateEditor key={editing.template.id} initial={editing.template} isNew={editing.isNew} onClose={() => setEditing(null)} />}
+      {editing && (
+        <TemplateEditor key={editing.run?.id ?? editing.template.id} initial={editing.template} isNew={editing.isNew} run={editing.run} onClose={() => setEditing(null)} />
+      )}
       <div className="relative min-w-0 flex-1">
         <CanvasStage
           key={stageKey}
@@ -341,7 +343,15 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           {view.kind === "agent" && <span className="size-2 rounded-full bg-ask" />}
         </button>
       ) : (
-        <SidePanel graph={graph} view={view} renderCard={renderCard} onAction={onAction} onOpenWorktree={onOpenWorktree} onCollapse={() => writePanelPref(["collapsed"])} />
+        <SidePanel
+          graph={graph}
+          view={view}
+          renderCard={renderCard}
+          onAction={onAction}
+          onOpenWorktree={onOpenWorktree}
+          onEditRun={(run) => setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run })}
+          onCollapse={() => writePanelPref(["collapsed"])}
+        />
       )}
     </div>
   );

@@ -17,6 +17,7 @@ import { describePermission, isDelegated, ruleFor } from "./orchestration/grants
 import { lastAnswerOf } from "./orchestration/lastAnswer.ts";
 import type { Orchestration } from "./orchestration/Orchestration.ts";
 import { handleJudgeMessage } from "./templates/judgeMcp.ts";
+import { templateOf } from "../src/common/templates/types.ts";
 import type { TemplateRuns } from "./templates/TemplateRuns.ts";
 import type { TemplateStore } from "./templates/TemplateStore.ts";
 import { DICTATION_HANDLE, type Dictation } from "./session/Dictation.ts";
@@ -448,6 +449,15 @@ export function createRunnerServer({ registry, orchestration, runs, templates, d
       }
 
       const run = RUN_PATH.exec(url.pathname);
+      if (run && request.method === "PATCH") {
+        const runId = decodeURIComponent(run[1] ?? "");
+        const body = await readBody(request);
+        const edited = templateOf({ id: runId, name: field(body, "name"), cards: field(body, "cards"), routes: field(body, "routes") });
+        const result = edited ? runs.edit(runId, edited) : { ok: false as const, error: "고친 카드나 선을 읽지 못했어요." };
+        respond(response, origin, result.ok ? 200 : 409, result.ok ? { ok: true, run: result.run } : { ok: false, error: result.error });
+        return;
+      }
+
       if (run && request.method === "DELETE") {
         const removed = runs.remove(decodeURIComponent(run[1] ?? ""));
         respond(response, origin, removed ? 200 : 404, removed ? { ok: true } : { ok: false, error: "펼친 템플릿이 없어요." });

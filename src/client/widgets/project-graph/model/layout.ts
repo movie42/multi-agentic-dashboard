@@ -38,7 +38,7 @@ export function chainColumns(cluster: GraphCluster, graph: ProjectGraph): string
   const nextOf = new Map<string, string>();
   const hasIncoming = new Set<string>();
   for (const edge of graph.edges) {
-    if ((edge.kind !== "next" && edge.kind !== "route") || !members.has(edge.from) || !members.has(edge.to) || edge.from === edge.to) continue;
+    if ((edge.kind !== "next" && !edge.route) || !members.has(edge.from) || !members.has(edge.to) || edge.from === edge.to) continue;
     if (nextOf.has(edge.from) || hasIncoming.has(edge.to)) continue;
     nextOf.set(edge.from, edge.to);
     hasIncoming.add(edge.to);

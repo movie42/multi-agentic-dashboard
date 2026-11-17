@@ -167,6 +167,9 @@ interface TemplatePopoverProps {
   onClose: () => void;
 }
 
+/** Shared root branches name a line of history, not a task, so they cannot stand in for an empty task description. */
+const ROOT_BRANCH = /^(main|master|develop|trunk)$|^release\//;
+
 export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, onEdit, onDraft, onClose }: TemplatePopoverProps) {
   const templates = useQuery(templatesQueryOptions());
   const list = templates.data ?? [];
@@ -176,6 +179,8 @@ export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, 
   const [description, setDescription] = useState("");
   const [drafting, setDrafting] = useState(false);
   const chosen = list.find((template) => template.id === picked) ?? list[0] ?? null;
+  const fallbackIntent = branch && !ROOT_BRANCH.test(branch) ? branch : null;
+  const canExpand = Boolean(chosen) && !busy && Boolean(intent.trim() || fallbackIntent);
 
   const draft = async () => {
     if (!description.trim()) return;
@@ -191,10 +196,10 @@ export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, 
   };
 
   const expand = async (start: boolean) => {
-    if (!chosen) return;
+    if (!chosen || !canExpand) return;
     setBusy(true);
     try {
-      await expandTemplate({ templateId: chosen.id, cwd: worktreePath, intent: intent.trim() || branch || worktreeName, start });
+      await expandTemplate({ templateId: chosen.id, cwd: worktreePath, intent: intent.trim() || fallbackIntent || "", start });
       onClose();
     } catch (error) {
       toastError("template-expand", error);
@@ -226,16 +231,20 @@ export function TemplatePopover({ at, zoom, worktreePath, worktreeName, branch, 
               rows={3}
               value={intent}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setIntent(event.target.value)}
-              placeholder={`이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요. 비우면 '${branch ?? worktreeName}'`}
+              placeholder={
+                fallbackIntent
+                  ? `이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요. 비우면 '${fallbackIntent}'`
+                  : `이번 작업 내용 · 모든 카드 프롬프트 맨 위에 붙어요. ${branch ? `'${branch}'는 작업 이름이 아니라서` : "브랜치가 없어서"} 꼭 적어야 시작할 수 있어요`
+              }
               className="min-w-0 flex-1 resize-none rounded-[8px] bg-tint px-2.5 py-2 text-[13px] outline-none placeholder:text-muted"
             />
             <DictationButton onText={(text) => setIntent(appendDictation(intent, text))} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={!chosen || busy} onClick={() => void expand(true)} className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30">
+            <button type="button" disabled={!canExpand} onClick={() => void expand(true)} className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30">
               펼치고 시작
             </button>
-            <button type="button" disabled={!chosen || busy} onClick={() => void expand(false)} className={CHOICE}>
+            <button type="button" disabled={!canExpand} onClick={() => void expand(false)} className={CHOICE}>
               펼치기만
             </button>
             {chosen && (

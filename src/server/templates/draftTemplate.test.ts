@@ -24,8 +24,8 @@ describe("draftFromOutput", () => {
     expect(template.name).toBe("리뷰 흐름");
     expect(template.cards.map((card) => `${card.key}:${card.kind}:${card.check}`)).toEqual(["build:work:bun run test", "review:judge:null"]);
     expect(template.routes).toEqual([
-      { id: "r1", from: "build", to: "review", label: null },
-      { id: "r2", from: "review", to: "build", label: "고칠 것 있음" },
+      { id: "r1", from: "build", to: "review", kind: "next", label: null, prompt: null },
+      { id: "r2", from: "review", to: "build", kind: "next", label: "고칠 것 있음", prompt: null },
     ]);
   });
 
