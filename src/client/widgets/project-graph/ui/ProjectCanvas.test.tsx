@@ -38,9 +38,9 @@ const link = (kind: OrchestrationLink["kind"], from: string, to: string): Orches
   createdAt: 0,
 });
 
-const conductor = { scope: { kind: "project" as const, root: "/p/shop", paths: ["/p/shop", "/p/shop-a"] }, grants: [], rules: [], worktreeRequest: null };
+const conductor = { scope: { kind: "project" as const, root: "/p/shop", paths: [], projects: ["/p/shop"] }, grants: [], rules: [], knownProjects: [], worktreeRequest: null, projectRequest: null };
 
-function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {})) {
+function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), elsewhere: { everyAgent?: AgentCard[]; onOpenProject?: (repo: string) => void } = {}) {
   const client = new QueryClient();
   render(
     <QueryClientProvider client={client}>
@@ -48,6 +48,8 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {})) {
         repo="shop"
         worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]}
         agents={agents}
+        everyAgent={elsewhere.everyAgent ?? agents}
+        onOpenProject={elsewhere.onOpenProject ?? (() => {})}
         mode="personal"
         now={0}
         header={<h1>shop</h1>}
@@ -111,13 +113,33 @@ describe("ProjectCanvas", () => {
     const client = new QueryClient();
     render(
       <QueryClientProvider client={client}>
-        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
+        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenProject={() => {}} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
     fireEvent.click(screen.getByRole("menuitem", { name: "지휘자" }));
     expect(screen.getByText(/이 워크트리와 하위 워크트리/)).toBeTruthy();
     expect(onOpenWorktree).not.toHaveBeenCalled();
+  });
+
+  it("draws a conductor from outside the project on top, and sends its own conductor's other-project workers to that project", () => {
+    const appConductor = { ...conductor, scope: { kind: "app" as const, root: "/data/conductor", paths: [], projects: ["/p/shop", "/p/web"] } };
+    const onOpenProject = vi.fn();
+    const here = [
+      agentCard({ id: "w", worktreeId: "/p/shop-a", title: "일꾼", orchestration: { conductor: null, parentId: "app", links: [link("report", "w", "app")] } }),
+      agentCard({ id: "c", worktreeId: "/p/shop", title: "코디네이터", orchestration: { conductor, parentId: null, links: [link("delegate", "c", "x")] } }),
+    ];
+    const everyAgent = [
+      ...here,
+      agentCard({ id: "app", repo: "", worktreeId: "/data/conductor", title: "앱 코디", orchestration: { conductor: appConductor, parentId: null, links: [link("delegate", "app", "w")] } }),
+      agentCard({ id: "x", repo: "web", worktreeId: "/p/web", title: "웹 일꾼" }),
+    ];
+    renderCanvas(here, undefined, { everyAgent, onOpenProject });
+    expect(screen.getByText("앱 지휘자 ·")).toBeTruthy();
+    expect(screen.getByText("앱 코디")).toBeTruthy();
+    expect(screen.queryByText("웹 일꾼")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /다른 프로젝트 일꾼 1 · web/ }));
+    expect(onOpenProject).toHaveBeenCalledWith("web");
   });
 
   it("unlinks a line from the side panel", () => {
@@ -145,6 +167,8 @@ describe("ProjectCanvas", () => {
             agentCard({ id: "s1", worktreeId: "/p/shop-a", title: "결제 API", artifacts: [{ target: doc, label: "pay · 03-tasks", kind: "html" }] }),
             agentCard({ id: "s2", worktreeId: "/p/shop-a", title: "환불", artifacts: [{ target: doc, label: "pay · 03-tasks", kind: "html" }, { target: "https://x/pr/1", label: "#1", kind: "pr" }] }),
           ]}
+          everyAgent={[]}
+          onOpenProject={() => {}}
           mode="personal"
           now={0}
           header={null}

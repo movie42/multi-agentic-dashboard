@@ -4,10 +4,12 @@ import { isDelegated, ruleFor } from "./grants.ts";
 
 const bash = (command: string) => ({ toolName: "Bash", toolInput: { command }, suggestions: [] });
 const conductor = (overrides: Partial<Conductor> = {}): Conductor => ({
-  scope: { kind: "project", root: "/r", paths: ["/r"] },
+  scope: { kind: "project", root: "/r", paths: [], projects: ["/r"] },
   grants: [],
   rules: [],
+  knownProjects: [],
   worktreeRequest: null,
+  projectRequest: null,
   ...overrides,
 });
 

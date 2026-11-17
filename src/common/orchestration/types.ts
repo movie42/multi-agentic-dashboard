@@ -25,14 +25,18 @@ export const MAX_TRIPS = 3;
 export const GRANT_BUNDLES = ["edit", "build", "commit"] as const;
 export type GrantBundle = (typeof GRANT_BUNDLES)[number];
 
-export type ConductorScopeKind = "project" | "worktree";
+/** `app`: opened outside any project, running in its own empty folder. */
+export const CONDUCTOR_SCOPE_KINDS = ["app", "project", "worktree"] as const;
+export type ConductorScopeKind = (typeof CONDUCTOR_SCOPE_KINDS)[number];
 
 export interface ConductorScope {
   kind: ConductorScopeKind;
-  /** The project or worktree folder the conductor was made for. */
+  /** The folder the conductor runs in: its project, its worktree, or the app conductor folder. */
   root: string;
-  /** Every worktree folder the conductor may open sessions in. */
+  /** Worktree folders granted one by one: a worktree conductor's worktree and its children, worktrees made on request. */
   paths: string[];
+  /** Project folders whose every worktree is in scope, read from git each time so later worktrees count too. */
+  projects: string[];
 }
 
 /** A permission a person added from a worker's permission card ("앞으로 지휘자에게 맡기기"). */
@@ -44,6 +48,8 @@ export interface DelegatedRule {
 
 export interface WorktreeRequest {
   id: string;
+  /** The project folder to make it in; null means the conductor's own project. */
+  project: string | null;
   branch: string;
   base: string | null;
   reason: string;
@@ -52,11 +58,23 @@ export interface WorktreeRequest {
   requestedAt: number;
 }
 
+/** A conductor asking the person to let it open sessions in one more project. */
+export interface ProjectRequest {
+  id: string;
+  /** Project folder as the conductor named it. */
+  path: string;
+  reason: string;
+  requestedAt: number;
+}
+
 export interface Conductor {
   scope: ConductorScope;
   grants: GrantBundle[];
   rules: DelegatedRule[];
+  /** Projects on the dashboard when it started, so it can name one in request_project. */
+  knownProjects: string[];
   worktreeRequest: WorktreeRequest | null;
+  projectRequest: ProjectRequest | null;
 }
 
 /** What the daemon adds to each runner session about orchestration. */
@@ -71,4 +89,7 @@ export interface SessionOrchestration {
 export interface ConductorLaunch {
   scope: ConductorScope;
   grants: GrantBundle[];
+  knownProjects: string[];
 }
+
+export const APP_CONDUCTOR_FOLDER = "conductor";

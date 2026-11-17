@@ -29,7 +29,7 @@ function setup() {
   });
   const sent: Array<{ id: string; text: string }> = [];
   const orchestration = new Orchestration({ get: (id) => registry.get(id), send: (id, text) => sent.push({ id, text }), onChange: () => {} });
-  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), dictation: new Dictation({ spawn: () => { throw new Error("no dictation in tests"); }, claude: "claude", cwd: "/", env: {} }), port: PORT, allowedOrigins: [] });
+  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), dictation: new Dictation({ spawn: () => { throw new Error("no dictation in tests"); }, claude: "claude", cwd: "/", env: {} }), port: PORT, allowedOrigins: [], appConductorFolder: "/tmp/agent-control-test-conductor" });
   current = runner;
   const post = async (path: string, body: unknown) =>
     fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -63,11 +63,11 @@ describe("conductor over the runner server", () => {
     await listen(runner);
 
     const launched = await (
-      await post("/sessions", { cwd: folder, prompt: "plan", conductor: { scope: { kind: "project", root: folder, paths: [] }, grants: ["build"] } })
+      await post("/sessions", { cwd: folder, prompt: "plan", conductor: { scope: { kind: "project", root: folder, paths: [], projects: [folder] }, grants: ["build"] } })
     ).json();
     const conductorId: string = launched.session.id;
     expect(commands[0]?.args).toEqual(["conductor"]);
-    expect(launched.session.orchestration.conductor.scope.paths).toEqual([folder]);
+    expect(launched.session.orchestration.conductor.scope.projects).toEqual([folder]);
 
     const init = await (await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })).json();
     expect(init.result.serverInfo.name).toBe("agent-control");
@@ -99,7 +99,7 @@ describe("conductor over the runner server", () => {
   it("lets a person through when the request is outside the delegated bundles", async () => {
     const { runner, sent, post, call, sessions } = setup();
     await listen(runner);
-    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "project", root: folder, paths: [] }, grants: [] } })).json();
+    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "project", root: folder, paths: [], projects: [folder] }, grants: [] } })).json();
     await call(launched.session.id, "start_session", { cwd: folder, prompt: "x" });
     const workerId = (await sessions()).find((session) => session.id !== launched.session.id)?.id ?? "";
     const response = await post(`/hooks/${workerId}/PermissionRequest`, { tool_name: "Bash", tool_input: { command: "git push" } });
@@ -126,6 +126,37 @@ describe("conductor over the runner server", () => {
     expect((await sessions())[0]?.orchestration?.conductor?.scope.paths).toContain("/tmp/feat-split");
     expect(sent.at(-1)?.text).toContain("/tmp/feat-split");
   });
+  it("runs an app conductor in its own folder and asks the person before reaching another project", async () => {
+    const { runner, post, call, sessions } = setup();
+    await listen(runner);
+    const launched = await (
+      await post("/sessions", { cwd: "/", conductor: { scope: { kind: "app", root: "/", paths: [], projects: [] }, grants: [], knownProjects: [folder] } })
+    ).json();
+    const id: string = launched.session.id;
+    expect(launched.session.cwd).toBe("/tmp/agent-control-test-conductor");
+    expect(launched.session.orchestration.conductor.scope.root).toBe("/tmp/agent-control-test-conductor");
+    expect((await call(id, "start_session", { cwd: folder, prompt: "x" })).isError).toBe(true);
+    expect(JSON.parse((await call(id, "list_projects", {})).text).others).toEqual([folder]);
+    expect((await call(id, "request_worktree", { branch: "feat/x", reason: "r" })).isError).toBe(true);
+
+    expect((await call(id, "request_project", { project: folder, reason: "fix the build" })).isError).toBe(false);
+    const request = (await sessions())[0]?.orchestration?.conductor?.projectRequest;
+    expect(request?.path).toBe(folder);
+    expect((await post(`/conductors/${id}/project`, { requestId: request?.id, path: folder })).status).toBe(200);
+    expect((await call(id, "start_session", { cwd: folder, prompt: "x" })).isError).toBe(false);
+    expect((await call(id, "request_worktree", { branch: "feat/x", reason: "r" })).isError).toBe(false);
+    expect((await sessions()).find((session) => session.id === id)?.orchestration?.conductor?.worktreeRequest?.project).toBe(folder);
+  });
+
+  it("makes a worktree conductor's request in its own project even when it has another project", async () => {
+    const { runner, post, call, sessions } = setup();
+    await listen(runner);
+    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [], projects: ["/other"] }, grants: [] } })).json();
+    const id: string = launched.session.id;
+    expect((await call(id, "request_worktree", { branch: "feat/x", reason: "r" })).isError).toBe(false);
+    expect((await sessions())[0]?.orchestration?.conductor?.worktreeRequest?.project).toBeNull();
+  });
+
   it("lists its worktrees, opens the first worker in a requested worktree, and can deny a delegated request", async () => {
     const { runner, registry, post, call, sessions } = setup();
     await listen(runner);

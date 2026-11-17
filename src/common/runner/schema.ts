@@ -1,15 +1,22 @@
 import { z } from "zod";
-import { GRANT_BUNDLES, LINK_KINDS } from "../orchestration/types";
+import { CONDUCTOR_SCOPE_KINDS, GRANT_BUNDLES, LINK_KINDS } from "../orchestration/types";
 
 const orchestrationSchema = z.object({
   conductor: z
     .object({
-      scope: z.object({ kind: z.enum(["project", "worktree"]), root: z.string(), paths: z.array(z.string()) }),
+      scope: z.object({
+        kind: z.enum(CONDUCTOR_SCOPE_KINDS),
+        root: z.string(),
+        paths: z.array(z.string()),
+        projects: z.array(z.string()).catch([]),
+      }),
       grants: z.array(z.enum(GRANT_BUNDLES)),
       rules: z.array(z.object({ toolName: z.string(), prefix: z.string().nullable() })),
       worktreeRequest: z
-        .object({ id: z.string(), branch: z.string(), base: z.string().nullable(), reason: z.string(), prompt: z.string().nullable().optional().transform((value) => value ?? null), requestedAt: z.number() })
+        .object({ id: z.string(), project: z.string().nullable().catch(null), branch: z.string(), base: z.string().nullable(), reason: z.string(), prompt: z.string().nullable().optional().transform((value) => value ?? null), requestedAt: z.number() })
         .nullable(),
+      knownProjects: z.array(z.string()).catch([]),
+      projectRequest: z.object({ id: z.string(), path: z.string(), reason: z.string(), requestedAt: z.number() }).nullable().catch(null),
     })
     .nullable(),
   parentId: z.string().nullable(),

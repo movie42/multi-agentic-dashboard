@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GRANT_BUNDLES, LINK_KINDS } from "../orchestration/types";
+import { CONDUCTOR_SCOPE_KINDS, GRANT_BUNDLES, LINK_KINDS } from "../orchestration/types";
 import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits";
 
 export const MAX_PROMPT = 8000;
@@ -60,10 +60,12 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
   z.object({
     type: z.literal("launch-conductor"),
-    worktreePath: absolutePath,
+    /** Null when it is opened outside any project (the 전체 view). */
+    worktreePath: absolutePath.nullable(),
     prompt: z.string().max(MAX_PROMPT),
-    scope: z.enum(["project", "worktree"]),
+    scope: z.enum(CONDUCTOR_SCOPE_KINDS),
     grants: z.array(z.enum(GRANT_BUNDLES)),
+    projects: z.array(absolutePath).default([]),
   }),
   z.object({ type: z.literal("delegate-permission"), terminalHandle: z.string(), requestId: z.string() }),
   z.object({
@@ -77,6 +79,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("resume-link"), linkId: z.string() }),
   z.object({ type: z.literal("edit-link"), linkId: z.string(), prompt: z.string().max(MAX_PROMPT).nullable() }),
   z.object({ type: z.literal("answer-worktree-request"), terminalHandle: z.string(), requestId: z.string(), approve: z.boolean() }),
+  z.object({ type: z.literal("answer-project-request"), terminalHandle: z.string(), requestId: z.string(), approve: z.boolean() }),
   z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
   z.object({ type: z.literal("rename-worktree"), worktreePath: absolutePath, name: title }),
   z.object({ type: z.literal("import-project"), path: absolutePath }),

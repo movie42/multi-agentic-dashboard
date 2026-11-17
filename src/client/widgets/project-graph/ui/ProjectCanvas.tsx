@@ -51,6 +51,8 @@ interface ProjectCanvasProps {
   worktrees: WorktreeSummary[];
   /** Every session of the project, orchestrated workers included. */
   agents: AgentCard[];
+  /** Every session on the board, for conductors outside this project that work with sessions here. */
+  everyAgent: AgentCard[];
   mode: WorkflowMode;
   now: number;
   /** Project name, workflow and focus toggle, floated over the top-left corner. */
@@ -58,6 +60,7 @@ interface ProjectCanvasProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
+  onOpenProject: (repo: string) => void;
   renderPanel: (panel: CanvasPanel) => React.ReactNode;
 }
 
@@ -86,14 +89,14 @@ function isTyping(target: EventTarget | null): boolean {
  * The project overview as a canvas: conductors on top, every worktree as a frame of session boxes,
  * the lines between them, and the selected session answered in the side panel.
  */
-export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, renderCard, onAction, onOpenWorktree, renderPanel }: ProjectCanvasProps) {
+export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, header, renderCard, onAction, onOpenWorktree, onOpenProject, renderPanel }: ProjectCanvasProps) {
   // Worktree lines (fork, same files) come from git, not from anything a person connected, so they stay off until asked for.
   const [showWorktreeLines, setShowWorktreeLines] = useState(false);
   const overlapPaths = showWorktreeLines ? worktrees.filter((worktree) => !worktree.isMain).map((worktree) => worktree.path) : [];
   const overlaps = useQuery(fileOverlapsQueryOptions(overlapPaths)).data ?? [];
   const runner = useRunnerSessions();
   const runs = runner.state === "online" ? runner.runs : [];
-  const built = buildGraph(agents, worktrees, overlaps, runs);
+  const built = buildGraph(agents, worktrees, overlaps, runs, everyAgent);
   const graph = showWorktreeLines ? built : { ...built, edges: built.edges.filter((edge) => edge.kind !== "fork" && edge.kind !== "overlap") };
   const auto = autoLayout(graph);
   const [canvas, updateCanvas] = useCanvasState(repo);
@@ -359,6 +362,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           }}
           onViewportChange={(viewport) => updateCanvas((current) => ({ ...current, viewport }))}
           onOpenWorktree={onOpenWorktree}
+          onOpenProject={onOpenProject}
           onRenameGroup={(groupId, name) => save((current) => renameGroup(current, groupId, name))}
           onUngroup={(groupId) => save((current) => ungroup(current, groupId))}
         >

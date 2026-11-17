@@ -85,6 +85,14 @@ export class RunnerClient {
     });
   }
 
+  async settleProjectRequest(conductorId: string, requestId: string, result: { path?: string; error?: string }): Promise<void> {
+    await this.call(`/conductors/${encodeURIComponent(conductorId)}/project`, {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ requestId, ...result }),
+    });
+  }
+
   async startRun(request: { templateId: string; cwd: string; intent: string; start: boolean }): Promise<void> {
     await this.call("/runs", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(request) });
   }

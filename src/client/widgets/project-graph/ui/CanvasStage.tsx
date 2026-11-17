@@ -100,6 +100,7 @@ interface CanvasStageProps {
   onContextMenu: (target: MenuTarget, at: Point) => void;
   onViewportChange: (viewport: Viewport) => void;
   onOpenWorktree: (worktreeId: string) => void;
+  onOpenProject: (repo: string) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onUngroup: (groupId: string) => void;
 }
@@ -675,6 +676,8 @@ export function CanvasStage(props: CanvasStageProps) {
                   selected={selectedIds.has(node.id)}
                   delegatedTo={delegatedTo(node.id)}
                   reports={reportsTo(node.id)}
+                  elsewhere={graph.elsewhere.get(node.id) ?? []}
+                  onOpenProject={props.onOpenProject}
                 />
               </foreignObject>
             );

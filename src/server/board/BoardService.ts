@@ -15,7 +15,7 @@ import type { JiraInfo } from "@/server/workflow/JiraInfo";
 import { issueKeyOfBranch } from "@/server/workflow/JiraInfo";
 import type { WorkflowServices } from "@/server/workflow/services";
 import { extractArtifacts } from "./artifacts";
-import { buildAgentCard, buildWorktreeSummary, withFeatureRepos, worktreeOfCwd, type BoardWorktree } from "./boardCards";
+import { appConductorPlace, buildAgentCard, buildWorktreeSummary, withFeatureRepos, worktreeOfCwd, type BoardWorktree } from "./boardCards";
 
 export interface BoardSessionPort {
   transcriptOf(cwd: string, sessionId: string): Promise<TranscriptFacts | null>;
@@ -149,7 +149,11 @@ export class BoardService {
       featureId:
         featureOfWorktree(features, summary.repo, summary.path, summary.branch, taskFeatureDocs, docsHere)?.id ?? null,
     }));
-    const agents: AgentCard[] = perWorktree.flatMap((entry) => entry.agents);
+    const appConductors = await mapSequential(
+      running.filter((session) => session.orchestration?.conductor && !worktreeOfCwd(session.cwd, live)),
+      (session) => this.agentCard(session, appConductorPlace(session.cwd), bookmarks),
+    );
+    const agents: AgentCard[] = [...perWorktree.flatMap((entry) => entry.agents), ...appConductors];
 
     const board: BoardSnapshot = { fetchedAt: this.now(), projects, worktrees, agents, features };
     this.lastBoard = board;

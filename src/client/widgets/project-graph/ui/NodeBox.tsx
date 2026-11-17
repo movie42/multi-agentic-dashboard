@@ -3,7 +3,8 @@
 import type { AgentCard } from "@/common/board/types";
 import { displayStateOf, type DisplayState } from "@/client/entities/agent";
 import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
-import type { GraphNode } from "../model/graph";
+import type { ConductorScopeKind } from "@/common/orchestration/types";
+import type { ElsewhereWorkers, GraphNode } from "../model/graph";
 
 const NODE_STATE: Record<DisplayState, { label: string; tone: string; dot: string }> = {
   blocked: { label: "막힘", tone: "border-accent text-accent", dot: "bg-accent" },
@@ -20,6 +21,8 @@ export function nodeTitle(agent: AgentCard): string {
   return agent.session?.title ?? agent.title ?? agent.prompt?.split("\n")[0] ?? (agent.agentType === "shell" ? "터미널" : "제목 없음");
 }
 
+const SCOPE_TAG: Record<ConductorScopeKind, string> = { app: "앱", project: "프로젝트", worktree: "워크트리" };
+
 function stateOf(agent: AgentCard) {
   return NODE_STATE[displayStateOf(agent)];
 }
@@ -31,11 +34,14 @@ interface NodeBoxProps {
   /** Worktree names this conductor handed work to. */
   delegatedTo: string[];
   reports: number;
+  /** Workers this conductor has in other projects. */
+  elsewhere: ElsewhereWorkers[];
+  onOpenProject: (repo: string) => void;
 }
 
 /** One session on the canvas: state, elapsed time, title and the last message line. */
-export function NodeBox({ node, now, selected, delegatedTo, reports }: NodeBoxProps) {
-  const { agent } = node;
+export function NodeBox({ node, now, selected, delegatedTo, reports, elsewhere, onOpenProject }: NodeBoxProps) {
+  const { agent, outside } = node;
   const state = stateOf(agent);
   const conductor = agent.orchestration?.conductor ?? null;
   const hasMeta = Boolean(agent.model || agent.effort || agent.contextPercent !== null);
@@ -43,11 +49,15 @@ export function NodeBox({ node, now, selected, delegatedTo, reports }: NodeBoxPr
     <div
       className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] px-3 py-2.5 select-none ${state.tone} ${
         conductor ? "bg-now/5" : "bg-bg"
-      } ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-bg" : ""}`}
+      } ${outside ? "border-dashed" : ""} ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-bg" : ""}`}
     >
       <p className="flex items-center gap-1.5 text-[11px] leading-none font-semibold tracking-[0.02em]">
         <span className={`size-1.5 shrink-0 rounded-full ${state.dot}`} />
-        {conductor && <span className="text-now">지휘자 · {conductor.scope.kind === "project" ? "프로젝트" : "워크트리"} ·</span>}
+        {conductor && (
+          <span className="truncate text-now">
+            {outside ? `${outside.repo ? `${outside.repo} 프로젝트` : "앱"} 지휘자 ·` : `지휘자 · ${SCOPE_TAG[conductor.scope.kind]} ·`}
+          </span>
+        )}
         <span>{state.label}</span>
         <span className="ml-auto font-normal text-muted">{formatElapsed(agent.stateSince, now)}</span>
       </p>
@@ -60,7 +70,18 @@ export function NodeBox({ node, now, selected, delegatedTo, reports }: NodeBoxPr
             </span>
           ))}
           {reports > 0 && <span className="rounded-[5px] bg-now/10 px-1.5 py-1 text-now">보고 {reports}</span>}
-          {delegatedTo.length === 0 && reports === 0 && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
+          {elsewhere.map((entry) => (
+            <button
+              key={entry.repo}
+              type="button"
+              onClick={() => onOpenProject(entry.repo)}
+              title={`${entry.repo} 프로젝트 캔버스로 가기`}
+              className="truncate rounded-[5px] px-1.5 py-1 text-now shadow-[inset_0_0_0_1px_currentColor] hover:bg-now/10"
+            >
+              다른 프로젝트 일꾼 {entry.count} · {entry.repo} ↗
+            </button>
+          ))}
+          {delegatedTo.length === 0 && reports === 0 && elsewhere.length === 0 && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
         </p>
       ) : (
         <p className="truncate text-[12px] text-muted">{plainMessage(agent.lastMessage) || agent.worktreeName}</p>

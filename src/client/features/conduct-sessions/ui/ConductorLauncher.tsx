@@ -1,19 +1,22 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { GRANT_BUNDLES, type ConductorScopeKind, type GrantBundle } from "@/common/orchestration/types";
+import { boardQueryOptions } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 export const GRANT_LABEL: Record<GrantBundle, string> = { edit: "파일 편집", build: "테스트 · 빌드 명령", commit: "git 커밋" };
-export const SCOPE_LABEL: Record<ConductorScopeKind, string> = { project: "프로젝트 전체", worktree: "이 워크트리와 하위 워크트리" };
+export const SCOPE_LABEL: Record<ConductorScopeKind, string> = { app: "고른 프로젝트들", project: "프로젝트 전체", worktree: "이 워크트리와 하위 워크트리" };
 
 type LaunchResult = { kind: "idle" } | { kind: "sent" } | { kind: "error" };
 
 interface ConductorLauncherProps {
-  worktreePath: string;
+  /** Null when opened outside any project: it then runs in its own folder and needs at least one project. */
+  worktreePath: string | null;
   scope: ConductorScopeKind;
   /** Where the conductor's range is shown to the person, e.g. the project or worktree name. */
   scopeName: string;
@@ -25,9 +28,19 @@ interface ConductorLauncherProps {
 export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onLaunched = onClose }: ConductorLauncherProps) {
   const [prompt, setPrompt] = useState("");
   const [grants, setGrants] = useState<GrantBundle[]>(["edit", "build"]);
+  const { data: board } = useQuery({ ...boardQueryOptions(), refetchInterval: false });
+  const worktrees = board?.worktrees ?? [];
+  const ownProject = worktrees.find((worktree) => worktree.path === worktreePath)?.projectPath ?? null;
+  const choices = [...new Map(worktrees.map((worktree) => [worktree.projectPath, worktree.repo])).entries()]
+    .filter(([path]) => path !== ownProject)
+    .map(([path, repo]) => ({ path, repo }));
+  // An app conductor starts with every project unless the person narrows it; others start with their own only.
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const projects = picked ?? (scope === "app" ? choices.map((choice) => choice.path) : []);
+  const needsProject = scope === "app" && projects.length === 0;
   const [result, dispatch, sending] = useActionState<LaunchResult>(async () => {
     try {
-      await postAction({ type: "launch-conductor", worktreePath, prompt, scope, grants });
+      await postAction({ type: "launch-conductor", worktreePath, prompt, scope, grants, projects });
       onLaunched();
       return { kind: "sent" };
     } catch (error) {
@@ -38,8 +51,10 @@ export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onL
 
   const toggle = (grant: GrantBundle) =>
     setGrants((current) => (current.includes(grant) ? current.filter((item) => item !== grant) : [...current, grant]));
+  const toggleProject = (path: string) =>
+    setPicked(projects.includes(path) ? projects.filter((item) => item !== path) : [...projects, path]);
   const launch = () => {
-    if (!sending) startTransition(() => dispatch());
+    if (!sending && !needsProject) startTransition(() => dispatch());
   };
 
   return (
@@ -68,11 +83,29 @@ export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onL
         ))}
         <span className="text-muted">· git push는 맡기지 않아요</span>
       </div>
+      {choices.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
+          <span className="mr-1 text-muted">{scope === "app" ? "맡길 프로젝트" : "함께 맡길 프로젝트"}</span>
+          {choices.map((choice) => (
+            <button
+              key={choice.path}
+              type="button"
+              aria-pressed={projects.includes(choice.path)}
+              onClick={() => toggleProject(choice.path)}
+              title={choice.path}
+              className="rounded-full px-2.5 py-0.5 leading-5 shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint-2 aria-pressed:bg-fg aria-pressed:text-bg aria-pressed:shadow-none"
+            >
+              {choice.repo}
+            </button>
+          ))}
+          <span className="text-muted">· 실행 중에 더 필요하면 지휘자가 물어봐요</span>
+        </div>
+      )}
       <div className="flex gap-2">
         <button
           type="button"
           onClick={launch}
-          disabled={sending || result.kind === "sent"}
+          disabled={sending || needsProject || result.kind === "sent"}
           className="inline-flex items-center gap-1.5 rounded-full bg-fg px-3.5 py-1.5 text-[13px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
         >
           {sending && <Spinner />}

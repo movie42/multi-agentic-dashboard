@@ -9,6 +9,14 @@ export interface GraphNode {
   id: string;
   kind: NodeKind;
   agent: AgentCard;
+  /** Set on a conductor from outside this project drawn here because it works with sessions here: its project name, or null for an app conductor. */
+  outside?: { repo: string | null };
+}
+
+/** Sessions a conductor handed work to in another project, per project. */
+export interface ElsewhereWorkers {
+  repo: string;
+  count: number;
 }
 
 export interface GraphCluster {
@@ -44,6 +52,8 @@ export interface GraphEdge {
 
 export interface ProjectGraph {
   conductors: GraphNode[];
+  /** Per conductor of this project: workers it has in other projects. */
+  elsewhere: Map<string, ElsewhereWorkers[]>;
   clusters: GraphCluster[];
   nodes: Map<string, GraphNode>;
   reserved: Map<string, ReservedCard>;
@@ -66,13 +76,39 @@ export function runOfNode(runs: TemplateRun[], nodeId: string): TemplateRun | nu
 
 /**
  * Turns one project's board data into boxes and lines. Conductors leave their worktree and sit on
- * top; every other session stays in its worktree's cluster. Lines whose other end is not on this
- * project's board are dropped.
+ * top; every other session stays in its worktree's cluster. A conductor from another project (or one
+ * opened outside every project) that works with a session here is drawn on top too, marked as from
+ * outside. Other lines whose far end is not on this project's board are dropped; a conductor's
+ * workers elsewhere are counted in `elsewhere` instead.
  */
-export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], overlaps: FileOverlap[], runs: TemplateRun[] = []): ProjectGraph {
+export function buildGraph(
+  agents: AgentCard[],
+  worktrees: WorktreeSummary[],
+  overlaps: FileOverlap[],
+  runs: TemplateRun[] = [],
+  everyAgent: AgentCard[] = agents,
+): ProjectGraph {
   const nodes = new Map<string, GraphNode>();
   for (const agent of agents) {
     nodes.set(agent.id, { id: agent.id, kind: agent.orchestration?.conductor ? "conductor" : "session", agent });
+  }
+  const here = new Set(nodes.keys());
+  const touchesHere = (conductor: AgentCard) =>
+    (conductor.orchestration?.links ?? []).some((link) => here.has(link.to)) ||
+    agents.some((agent) => agent.parentId === conductor.id || (agent.orchestration?.links ?? []).some((link) => link.to === conductor.id));
+  for (const agent of everyAgent) {
+    if (nodes.has(agent.id) || !agent.orchestration?.conductor || !touchesHere(agent)) continue;
+    nodes.set(agent.id, { id: agent.id, kind: "conductor", agent, outside: { repo: agent.repo || null } });
+  }
+  const byId = new Map(everyAgent.map((agent) => [agent.id, agent]));
+  const elsewhere = new Map<string, ElsewhereWorkers[]>();
+  for (const id of here) {
+    const counts = new Map<string, number>();
+    for (const link of nodes.get(id)?.agent.orchestration?.links ?? []) {
+      const target = link.kind === "delegate" && !nodes.has(link.to) ? byId.get(link.to) : undefined;
+      if (target?.repo) counts.set(target.repo, (counts.get(target.repo) ?? 0) + 1);
+    }
+    if (counts.size > 0) elsewhere.set(id, [...counts].map(([repo, count]) => ({ repo, count })));
   }
   const conductors = [...nodes.values()].filter((node) => node.kind === "conductor");
   const clusters: GraphCluster[] = worktrees.map((worktree) => ({
@@ -129,7 +165,7 @@ export function buildGraph(agents: AgentCard[], worktrees: WorktreeSummary[], ov
       });
     }
   }
-  return { conductors, clusters, nodes, reserved, runs: shownRuns, edges };
+  return { conductors, elsewhere, clusters, nodes, reserved, runs: shownRuns, edges };
 }
 
 /** Lines touching one session, for the side panel. */

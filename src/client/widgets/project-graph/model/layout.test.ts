@@ -36,10 +36,12 @@ function orchestration(overrides: Partial<SessionOrchestration>): SessionOrchest
 }
 
 const conductor = {
-  scope: { kind: "project" as const, root: "/p/shop", paths: ["/p/shop", "/p/shop-a"] },
+  scope: { kind: "project" as const, root: "/p/shop", paths: [], projects: ["/p/shop"] },
   grants: [],
   rules: [],
+  knownProjects: [],
   worktreeRequest: null,
+  projectRequest: null,
 };
 
 describe("buildGraph", () => {

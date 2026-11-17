@@ -1,4 +1,5 @@
 import {
+  CONDUCTOR_SCOPE_KINDS,
   GRANT_BUNDLES,
   LINK_KINDS,
   MAX_TRIPS,
@@ -7,6 +8,7 @@ import {
   type DelegatedRule,
   type LinkKind,
   type OrchestrationLink,
+  type ProjectRequest,
   type WorktreeRequest,
 } from "../../src/common/orchestration/types.ts";
 import type { RunnerSession } from "../../src/common/runner/types.ts";
@@ -21,6 +23,8 @@ export interface OrchestrationDeps {
   /** Pastes `text` into the session's terminal and presses Enter. */
   send: (id: string, text: string) => void;
   onChange: () => void;
+  /** Every worktree folder of a project right now; a plain folder project is just itself. */
+  worktreesOf?: (project: string) => Promise<string[]>;
   now?: () => number;
   newId?: () => string;
 }
@@ -47,15 +51,24 @@ function conductorOf(value: unknown): Conductor | null {
   const raw = record(value);
   const scope = record(raw?.scope);
   if (!raw || !scope) return null;
-  const kind = scope.kind === "project" || scope.kind === "worktree" ? scope.kind : null;
+  const kind = CONDUCTOR_SCOPE_KINDS.find((item) => item === scope.kind);
   if (!kind || typeof scope.root !== "string") return null;
+  // Saved before scopes were kept per project: a project conductor covered its own project.
+  const projects = Array.isArray(scope.projects) ? strings(scope.projects) : kind === "project" ? [scope.root] : [];
   const grants = strings(raw.grants).flatMap((grant) => GRANT_BUNDLES.filter((bundle) => bundle === grant));
   const rules = (Array.isArray(raw.rules) ? raw.rules : []).flatMap((item: unknown): DelegatedRule[] => {
     const rule = record(item);
     if (!rule || typeof rule.toolName !== "string") return [];
     return [{ toolName: rule.toolName, prefix: typeof rule.prefix === "string" ? rule.prefix : null }];
   });
-  return { scope: { kind, root: scope.root, paths: strings(scope.paths) }, grants, rules, worktreeRequest: null };
+  return {
+    scope: { kind, root: scope.root, paths: strings(scope.paths), projects },
+    grants,
+    rules,
+    knownProjects: strings(raw.knownProjects),
+    worktreeRequest: null,
+    projectRequest: null,
+  };
 }
 
 function linkOf(value: unknown): OrchestrationLink | null {
@@ -124,7 +137,7 @@ export class Orchestration {
   #deps: Required<OrchestrationDeps>;
 
   constructor(deps: OrchestrationDeps) {
-    this.#deps = { now: Date.now, newId: () => crypto.randomUUID(), ...deps };
+    this.#deps = { now: Date.now, newId: () => crypto.randomUUID(), worktreesOf: async (project) => [project], ...deps };
   }
 
   load(saved: SavedOrchestration): void {
@@ -137,7 +150,7 @@ export class Orchestration {
     const keyOf = new Map(sessions.map((session) => [session.id, session.conversationId ?? session.id]));
     const key = (id: string) => keyOf.get(id) ?? id;
     return {
-      conductors: Object.fromEntries([...this.#conductors].map(([id, conductor]) => [key(id), { ...conductor, worktreeRequest: null }])),
+      conductors: Object.fromEntries([...this.#conductors].map(([id, conductor]) => [key(id), { ...conductor, worktreeRequest: null, projectRequest: null }])),
       links: this.#links.map((link) => ({ ...link, from: key(link.from), to: key(link.to) })),
     };
   }
@@ -187,7 +200,14 @@ export class Orchestration {
   }
 
   addConductor(id: string, launch: ConductorLaunch): Conductor {
-    const conductor: Conductor = { scope: launch.scope, grants: [...launch.grants], rules: [], worktreeRequest: null };
+    const conductor: Conductor = {
+      scope: launch.scope,
+      grants: [...launch.grants],
+      rules: [],
+      knownProjects: [...launch.knownProjects],
+      worktreeRequest: null,
+      projectRequest: null,
+    };
     this.#conductors.set(id, conductor);
     this.#deps.onChange();
     return conductor;
@@ -211,9 +231,49 @@ export class Orchestration {
     return true;
   }
 
-  inScope(conductorId: string, cwd: string): boolean {
+  /** Worktree folders the conductor may open sessions in right now, its projects' current worktrees included. */
+  async scopeFolders(conductorId: string): Promise<string[]> {
     const conductor = this.#conductors.get(conductorId);
-    return Boolean(conductor?.scope.paths.some((folder) => isWithin(cwd, folder)));
+    if (!conductor) return [];
+    const projects = await this.scopeProjects(conductorId);
+    return [...new Set([...conductor.scope.paths, ...projects.flatMap((entry) => [entry.path, ...entry.worktrees])])];
+  }
+
+  /** Each project in scope with its worktree folders as git lists them now. */
+  async scopeProjects(conductorId: string): Promise<{ path: string; worktrees: string[] }[]> {
+    const conductor = this.#conductors.get(conductorId);
+    if (!conductor) return [];
+    return Promise.all(
+      conductor.scope.projects.map(async (project) => ({ path: project, worktrees: await this.#deps.worktreesOf(project).catch(() => [project]) })),
+    );
+  }
+
+  async inScope(conductorId: string, cwd: string): Promise<boolean> {
+    return (await this.scopeFolders(conductorId)).some((folder) => isWithin(cwd, folder));
+  }
+
+  requestProject(conductorId: string, request: Omit<ProjectRequest, "id" | "requestedAt">): ProjectRequest | null {
+    const conductor = this.#conductors.get(conductorId);
+    if (!conductor) return null;
+    const projectRequest = { ...request, id: this.#deps.newId(), requestedAt: this.#deps.now() };
+    this.#conductors.set(conductorId, { ...conductor, projectRequest });
+    this.#deps.onChange();
+    return projectRequest;
+  }
+
+  /** Settles the pending project request; `path` is the project folder the person allowed, null when declined. */
+  settleProject(conductorId: string, requestId: string, path: string | null, error?: string): ProjectRequest | null {
+    const conductor = this.#conductors.get(conductorId);
+    const request = conductor?.projectRequest;
+    if (!conductor || !request || request.id !== requestId) return null;
+    const projects = path && !conductor.scope.projects.includes(path) ? [...conductor.scope.projects, path] : conductor.scope.projects;
+    this.#conductors.set(conductorId, { ...conductor, scope: { ...conductor.scope, projects }, projectRequest: null });
+    this.#deps.onChange();
+    const text = path
+      ? `[Agent Control] 프로젝트 ${path}를 맡겨 줬어요. list_worktrees로 워크트리를 보고 start_session으로 세션을 열 수 있어요.`
+      : `[Agent Control] 프로젝트 ${request.path}는 맡기지 않았어요.${error ? ` (${error})` : " 사람이 거절했어요."}`;
+    this.deliver(conductorId, text, null);
+    return request;
   }
 
   requestWorktree(conductorId: string, request: Omit<WorktreeRequest, "id" | "requestedAt">): WorktreeRequest | null {

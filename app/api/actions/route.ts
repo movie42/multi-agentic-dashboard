@@ -74,6 +74,8 @@ export async function POST(request: Request) {
       await services().conductors.launch(body);
     } else if (body.type === "answer-worktree-request") {
       await services().conductors.answerWorktreeRequest(body.terminalHandle, body.requestId, body.approve);
+    } else if (body.type === "answer-project-request") {
+      await services().conductors.answerProjectRequest(body.terminalHandle, body.requestId, body.approve);
     } else if (body.type === "delegate-permission") {
       await runner.delegatePermission(body.terminalHandle, body.requestId);
     } else if (body.type === "connect-sessions") {

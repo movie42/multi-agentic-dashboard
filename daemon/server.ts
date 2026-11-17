@@ -1,7 +1,7 @@
-import { stat } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
-import { GRANT_BUNDLES, LINK_KINDS, type ConductorLaunch } from "../src/common/orchestration/types.ts";
+import { CONDUCTOR_SCOPE_KINDS, GRANT_BUNDLES, LINK_KINDS, type ConductorLaunch } from "../src/common/orchestration/types.ts";
 import {
   RUNNER_HOOK_EVENTS,
   type RunnerHookEvent,
@@ -33,6 +33,8 @@ export interface RunnerServerOptions {
   dictation: Dictation;
   port: number;
   allowedOrigins: readonly string[];
+  /** Where a conductor opened outside any project runs; created on first use. */
+  appConductorFolder: string;
   readAnswer?: (body: unknown) => Promise<string | null>;
 }
 
@@ -56,6 +58,7 @@ const MCP_PATH = /^\/mcp\/([^/]+)$/;
 const LINK_PATH = /^\/links\/([^/]+)$/;
 const LINK_RESUME_PATH = /^\/links\/([^/]+)\/resume$/;
 const WORKTREE_REQUEST_PATH = /^\/conductors\/([^/]+)\/worktree$/;
+const PROJECT_REQUEST_PATH = /^\/conductors\/([^/]+)\/project$/;
 const TEMPLATE_PATH = /^\/templates\/([^/]+)$/;
 const RUN_PATH = /^\/runs\/([^/]+)$/;
 const RUN_ACTION_PATH = /^\/runs\/([^/]+)\/(start|continue|retry|stop)$/;
@@ -90,18 +93,23 @@ async function isDirectory(path: string): Promise<boolean> {
   }
 }
 
+const absoluteFolders = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.startsWith("/")) : [];
+
 export function conductorLaunchOf(value: unknown): ConductorLaunch | null {
   const scope = field(value, "scope");
-  const kind = field(scope, "kind");
+  const kind = CONDUCTOR_SCOPE_KINDS.find((item) => item === field(scope, "kind"));
   const root = field(scope, "root");
   const paths = field(scope, "paths");
   const grants = field(value, "grants");
-  if (kind !== "project" && kind !== "worktree") return null;
+  if (!kind) return null;
   if (typeof root !== "string" || !root.startsWith("/") || !Array.isArray(paths)) return null;
-  const folders = paths.filter((item): item is string => typeof item === "string" && item.startsWith("/"));
+  const folders = absoluteFolders(paths);
   return {
-    scope: { kind, root, paths: folders.includes(root) ? folders : [root, ...folders] },
+    // A worktree conductor's own folder is always in reach; a project or app conductor reaches folders through its projects.
+    scope: { kind, root, paths: kind !== "worktree" || folders.includes(root) ? folders : [root, ...folders], projects: [...new Set(absoluteFolders(field(scope, "projects")))] },
     grants: Array.isArray(grants) ? GRANT_BUNDLES.filter((bundle) => grants.includes(bundle)) : [],
+    knownProjects: absoluteFolders(field(value, "knownProjects")),
   };
 }
 
@@ -156,7 +164,17 @@ function send(socket: WebSocket, message: TerminalServerMessage | SessionsMessag
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
 
-export function createRunnerServer({ registry, orchestration, runs, templates, dictation, port, allowedOrigins, readAnswer = lastAnswerOf }: RunnerServerOptions): RunnerServer {
+export function createRunnerServer({
+  registry,
+  orchestration,
+  runs,
+  templates,
+  dictation,
+  port,
+  allowedOrigins,
+  appConductorFolder,
+  readAnswer = lastAnswerOf,
+}: RunnerServerOptions): RunnerServer {
   const sockets = new WebSocketServer({ noServer: true });
   const watchers = new Set<WebSocket>();
   const view = () => orchestration.decorate(registry.list());
@@ -305,7 +323,13 @@ export function createRunnerServer({ registry, orchestration, runs, templates, d
       }
 
       if (url.pathname === "/sessions" && request.method === "POST") {
-        const launch = launchRequestOf(await readBody(request));
+        const parsed = launchRequestOf(await readBody(request));
+        const appConductor = parsed?.conductor?.scope.kind === "app";
+        if (appConductor) await mkdir(appConductorFolder, { recursive: true });
+        const launch =
+          parsed?.conductor && appConductor
+            ? { ...parsed, cwd: appConductorFolder, conductor: { ...parsed.conductor, scope: { ...parsed.conductor.scope, root: appConductorFolder } } }
+            : parsed;
         if (!launch || !(await isDirectory(launch.cwd))) {
           respond(response, origin, 400, { ok: false, error: "폴더를 찾을 수 없어요. 절대 경로를 입력해 주세요." });
           return;
@@ -387,6 +411,20 @@ export function createRunnerServer({ registry, orchestration, runs, templates, d
           orchestration.connect(worker.id, conductorId, "report");
         }
         respond(response, origin, settled ? 200 : 409, settled ? { ok: true } : { ok: false, error: "이미 처리한 워크트리 요청이에요." });
+        return;
+      }
+
+      const projectRequest = PROJECT_REQUEST_PATH.exec(url.pathname);
+      if (projectRequest && request.method === "POST") {
+        const body = await readBody(request);
+        const requestId = field(body, "requestId");
+        const allowed = field(body, "path");
+        const error = field(body, "error");
+        const conductorId = decodeURIComponent(projectRequest[1] ?? "");
+        const folder = typeof allowed === "string" && allowed.startsWith("/") ? allowed : null;
+        const settled =
+          typeof requestId === "string" ? orchestration.settleProject(conductorId, requestId, folder, typeof error === "string" ? error : undefined) : null;
+        respond(response, origin, settled ? 200 : 409, settled ? { ok: true } : { ok: false, error: "이미 처리한 프로젝트 요청이에요." });
         return;
       }
 

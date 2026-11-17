@@ -171,10 +171,293 @@
       "status": "done"
     },
     "tasks": {
-      "status": "wait",
-      "summary": "계획 작성 전",
+      "status": "done",
+      "summary": "구현 끝 · 앱에서 실제 확인 전",
+      "conclusion": [
+        "지휘자 범위를 프로젝트 단위로 저장해요. 데몬이 세션을 열 때마다 그 프로젝트의 지금 워크트리 목록을 읽어서, 나중에 만든 워크트리에도 세션을 열 수 있어요 [[P1-2]].",
+        "'전체' 화면에서 '지휘자로 시작'을 고르면 프로젝트 밖 전용 폴더에서 실행되는 앱 지휘자를 열어요 [[P1-3]] [[P3-2]].",
+        "지휘자를 만들 때 함께 맡길 프로젝트를 고르고, 실행 중에는 지휘자가 request_project로 요청하면 세션 카드의 확인 카드로 허락해요 [[P1-4]] [[P3-1]] [[P3-3]].",
+        "다른 프로젝트 지휘자가 일을 맡긴 일꾼이 있으면, 그 일꾼의 캔버스 맨 위에 점선 지휘자 상자가 함께 그려져요. 내 지휘자 상자에서는 '다른 프로젝트 일꾼 n'을 눌러 그 프로젝트로 가요 [[P3-4]].",
+        "남은 것: 데몬 재시작과 앱 다시 빌드(bun run desktop) 뒤 실제 화면에서 확인해야 해요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "P1 · 범위 모델과 데몬",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "지휘자 범위에 '앱' 종류와 프로젝트 단위 범위(projects)를 더한다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/orchestration/types.ts</code> <code>src/common/runner/schema.ts</code>"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q4]] 프로젝트 단위로 저장, 워크트리 지휘자는 paths 그대로"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "데몬이 범위를 판정할 때 프로젝트의 지금 워크트리 목록(git worktree list)을 읽는다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/Orchestration.ts</code> <code>daemon/main.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/server/projects/gitWorktrees.ts</code>의 porcelain 파싱 방식"
+                ],
+                [
+                  "결정",
+                  "git 결과는 3초 동안 캐시해요. 도구 호출 한 번이 세션 여러 개의 범위를 확인해도 git은 한 번만 돌아요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "프로젝트 밖에서 연 지휘자는 데몬 데이터 폴더 아래 conductor 폴더에서 실행한다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code>"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q2]]"
+                ],
+                [
+                  "결정",
+                  "앱 서버는 데몬 데이터 폴더를 모르니 cwd \"/\"로 보내고, 데몬이 앱 범위 요청이면 자기 conductor 폴더로 바꿔 만들어요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "MCP 도구: list_projects · request_project 추가, request_worktree에 project 인자",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/conductorMcp.ts</code> <code>daemon/server.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "워크트리 요청(request_worktree → 확인 카드 → /conductors/:id/worktree)과 같은 흐름"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: bun run test (daemon/orchestration) · bunx tsc --noEmit",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "P2 · 앱 서버",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "launch-conductor가 앱 범위와 함께 맡길 프로젝트(projects)를 받는다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code> <code>src/server/orchestration/conductorScope.ts</code> <code>conductorActions.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "워크트리 요청을 요청에 적힌 프로젝트에 만들고, 프로젝트 요청을 승인·거절하는 액션",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>conductorActions.ts</code> <code>RunnerClient.ts</code> <code>app/api/actions/route.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "어느 워크트리에도 속하지 않은 지휘자 세션도 보드 카드로 만든다(앱 지휘자)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/board/BoardService.ts</code> <code>boardCards.ts</code>"
+                ],
+                [
+                  "결정",
+                  "앱 지휘자 카드는 repo가 빈 값이라 어느 프로젝트 화면에도 안 나오고 '전체' 화면에만 나와요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: bun run test · bunx tsc --noEmit",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "P3 · 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "지휘자 시작 카드에 '함께 맡길 프로젝트' 선택, 앱 범위 문구",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/conduct-sessions/ui/ConductorLauncher.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q3]]"
+                ],
+                [
+                  "결정",
+                  "앱 지휘자는 처음에 모든 프로젝트가 골라진 채로 시작하고, 하나도 안 고르면 시작 버튼이 꺼져요. 프로젝트 · 워크트리 지휘자는 자기 프로젝트만 골라진 채로 시작해요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "'전체' 화면에서 지휘자 열기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q1]] [[R1-Q2]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "카드의 프로젝트 요청 확인 카드 · 워크트리 요청에 프로젝트 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>OrchestrationPanel.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "캔버스: 다른 프로젝트 지휘자를 가상 상자로 그리고 맡김 선을 잇는다 · 내 지휘자 상자에 '다른 프로젝트 일꾼 n'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/model/graph.ts</code> <code>NodeBox.tsx</code> <code>ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "[[R1-Q5]]"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: bun run test · bunx tsc --noEmit · bun run lint",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "bunx tsc --noEmit 통과 · bun run test 691개 통과 · bun run lint 오류 0(기존 경고 9)"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "now",
+      "summary": "리뷰 전",
       "conclusion": [],
-      "blocks": []
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 screen 단계가 없어 바꿀 SOT 근거가 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행이나 서버 · 기획 요청이 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review low 지적 1건: 워크트리 지휘자에 다른 프로젝트가 하나 있으면 project 없이 요청한 워크트리가 그 프로젝트에 만들어지던 문제. 기본값을 '자기 프로젝트'로 고치고 테스트를 더했어요(앱 지휘자만 프로젝트가 하나일 때 자동으로 골라요)."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "bunx tsc --noEmit 통과 · bun run test 692개 통과 · bun run lint 오류 0"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
     }
   },
   "intent": [
@@ -196,6 +479,11 @@
       "stage": "grill",
       "stop": "R2 확인 질문",
       "why": "사용자가 질문을 주고받지 말고 진행하길 원함 — [[R1-Q1]] [[R1-Q2]]의 추정은 확인 질문 없이 결정에 반영"
+    },
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 03 계획 승인을 기다리지 말고 구현까지 진행하라고 함"
     }
   ]
 }

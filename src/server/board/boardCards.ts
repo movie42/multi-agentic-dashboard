@@ -14,6 +14,14 @@ export interface BoardWorktree extends GitWorktree {
   meta: WorktreeMetaEntry;
 }
 
+/**
+ * Where an app conductor's card sits: it runs outside every project, so it gets a place of its own
+ * with no repo, which keeps it out of every project view and in the 전체 view.
+ */
+export function appConductorPlace(cwd: string): BoardWorktree {
+  return { path: cwd, branch: null, isMain: false, project: { path: cwd, name: "", kind: "folder" }, meta: { displayName: "앱 지휘자" } };
+}
+
 export function worktreeName(worktree: BoardWorktree): string {
   return worktree.meta.displayName ?? worktree.branch ?? path.basename(worktree.path);
 }

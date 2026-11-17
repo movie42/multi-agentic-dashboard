@@ -4,9 +4,11 @@ import { realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import pty from "node-pty";
+import { APP_CONDUCTOR_FOLDER } from "../src/common/orchestration/types.ts";
 import { RUNNER_PORT, RUNNER_USAGE_FILE, type RunnerSession, type RunnerUsage } from "../src/common/runner/types.ts";
 import { DEFAULT_ALLOWED_ORIGINS } from "./guard.ts";
 import { Orchestration, ORCHESTRATION_FILE, parseSavedOrchestration } from "./orchestration/Orchestration.ts";
+import { projectWorktreeLister } from "./orchestration/projectWorktrees.ts";
 import { createRunnerServer, pasteOf } from "./server.ts";
 import { runsOf } from "../src/common/templates/types.ts";
 import { RUNS_FILE, TemplateRuns } from "./templates/TemplateRuns.ts";
@@ -122,6 +124,7 @@ const orchestration = new Orchestration({
     setTimeout(() => registry.write(id, "\r"), SUBMIT_DELAY_MS).unref();
   },
   onChange: () => relay.onChange(),
+  worktreesOf: projectWorktreeLister(),
 });
 orchestration.load(parseSavedOrchestration(await readSaved(orchestrationFile, "orchestration")));
 
@@ -153,7 +156,16 @@ const dictation = new Dictation({
   cwd: dictationDir,
   env: sessionEnv(),
 });
-const runner = createRunnerServer({ registry, orchestration, runs, templates, dictation, port, allowedOrigins });
+const runner = createRunnerServer({
+  registry,
+  orchestration,
+  runs,
+  templates,
+  dictation,
+  port,
+  allowedOrigins,
+  appConductorFolder: path.join(dataDir, APP_CONDUCTOR_FOLDER),
+});
 const lifecycle = { restored: false };
 
 function persist(sessions: RunnerSession[]): void {
@@ -198,7 +210,7 @@ runner.server.listen(port, "127.0.0.1", () => {
       ...request,
       launch: {
         ...request.launch,
-        ...(conductor ? { conductor: { scope: conductor.scope, grants: conductor.grants } } : {}),
+        ...(conductor ? { conductor: { scope: conductor.scope, grants: conductor.grants, knownProjects: conductor.knownProjects } } : {}),
         ...(askPermissions ? { askPermissions } : {}),
         ...(id ? runs.launchOptionsOf(id) : {}),
       },

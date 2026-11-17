@@ -1,7 +1,7 @@
 import { isAbsolute } from "node:path";
 import type { RunnerLaunchRequest, RunnerPermissionAnswer, RunnerSession } from "../../src/common/runner/types.ts";
 import { isDelegated } from "./grants.ts";
-import type { Orchestration } from "./Orchestration.ts";
+import { isWithin, type Orchestration } from "./Orchestration.ts";
 
 export const MCP_SERVER_NAME = "agent-control";
 const PROTOCOL_VERSION = "2025-06-18";
@@ -24,6 +24,12 @@ interface ToolDefinition {
 const str = (description: string) => ({ type: "string", description });
 
 export const CONDUCTOR_TOOLS: ToolDefinition[] = [
+  {
+    name: "list_projects",
+    description:
+      "List the projects you may open sessions in, with their worktree folders, and the other projects on the dashboard you can ask for with request_project.",
+    inputSchema: { type: "object", properties: {} },
+  },
   {
     name: "list_worktrees",
     description: "List the worktree folders inside your scope, with how many live sessions each has.",
@@ -80,12 +86,23 @@ export const CONDUCTOR_TOOLS: ToolDefinition[] = [
     inputSchema: {
       type: "object",
       properties: {
+        project: str("Project folder to make it in, one of list_projects. Leave it out for your own project"),
         branch: str("New branch name"),
         base: str("Branch to start from (optional)"),
         reason: str("Why it is needed, one sentence"),
         prompt: str("First request for a worker to open there once it exists (optional); that worker reports to you"),
       },
       required: ["branch", "reason"],
+    },
+  },
+  {
+    name: "request_project",
+    description:
+      "Ask the person to let you open sessions in one more project (a folder from list_projects' `others`, or one the person named). Nothing changes until they confirm on the dashboard; you get a message afterwards.",
+    inputSchema: {
+      type: "object",
+      properties: { project: str("Absolute project folder"), reason: str("Why it is needed, one sentence") },
+      required: ["project", "reason"],
     },
   },
   {
@@ -109,7 +126,8 @@ export function conductorInstructions(): string {
     "You are a conductor session in Agent Control. You plan the work and hand it to worker sessions with the agent-control MCP tools instead of doing it all yourself.",
     "- start_session opens a worker in a worktree inside your scope; it reports its last answer back to you whenever it finishes a turn.",
     "- Messages that start with [Agent Control] come from the dashboard daemon (worker reports, forwarded permission requests, worktree results), not from the person.",
-    "- list_worktrees shows the folders you may open sessions in.",
+    "- list_projects and list_worktrees show the projects and folders you may open sessions in. Worktrees a person adds later count too.",
+    "- Need another project? Use request_project; the person confirms it first.",
     "- Forwarded permission requests: answer with answer_permission. Allow only what fits the work you handed out, deny what clearly does not, and pass it to the person when unsure.",
     "- Need a new worktree? Use request_worktree; the person confirms it first. Give it a prompt and a worker opens there once it exists.",
   ].join("\n");
@@ -140,27 +158,34 @@ export async function callConductorTool(conductorId: string, name: string, args:
   const { orchestration } = deps;
   const conductor = orchestration.conductor(conductorId);
   if (!conductor) return fail("This session is not a conductor.");
+  const folders = await orchestration.scopeFolders(conductorId);
+  const within = (cwd: string) => folders.some((folder) => isWithin(cwd, folder));
   const inScopeSession = (id: string): RunnerSession | null => {
     const session = deps.get(id);
-    return session && id !== conductorId && orchestration.inScope(conductorId, session.cwd) ? session : null;
+    return session && id !== conductorId && within(session.cwd) ? session : null;
   };
 
   switch (name) {
+    case "list_projects": {
+      const projects = await orchestration.scopeProjects(conductorId);
+      const others = conductor.knownProjects.filter((project) => !conductor.scope.projects.includes(project));
+      return ok(JSON.stringify({ projects, worktreeGrants: conductor.scope.paths, others }, null, 2));
+    }
     case "list_worktrees": {
       const live = deps.list().filter((session) => session.status !== "exited" && session.id !== conductorId);
-      const worktrees = conductor.scope.paths.map((folder) => ({ path: folder, sessions: live.filter((session) => session.cwd === folder || session.cwd.startsWith(`${folder}/`)).length }));
+      const worktrees = folders.map((folder) => ({ path: folder, sessions: live.filter((session) => isWithin(session.cwd, folder)).length }));
       return ok(JSON.stringify(worktrees, null, 2));
     }
     case "list_sessions": {
-      const sessions = deps.list().filter((session) => session.id !== conductorId && orchestration.inScope(conductorId, session.cwd));
+      const sessions = deps.list().filter((session) => session.id !== conductorId && within(session.cwd));
       return ok(JSON.stringify({ scope: conductor.scope, sessions: sessions.map((session) => summary(session, deps)) }, null, 2));
     }
     case "start_session": {
       const cwd = arg(args, "cwd");
       const prompt = arg(args, "prompt");
       if (!prompt) return fail("prompt is required.");
-      if (!isAbsolute(cwd) || !orchestration.inScope(conductorId, cwd)) {
-        return fail(`${cwd || "(empty)"} is outside your scope. Allowed folders: ${conductor.scope.paths.join(", ")}. Use request_worktree for a new one.`);
+      if (!isAbsolute(cwd) || !within(cwd)) {
+        return fail(`${cwd || "(empty)"} is outside your scope. Allowed folders: ${folders.join(", ")}. Use request_worktree for a new worktree or request_project for another project.`);
       }
       if (!(await deps.isDirectory(cwd))) return fail(`${cwd} does not exist.`);
       const worker = deps.launch({ cwd, prompt, askPermissions: true });
@@ -197,7 +222,24 @@ export async function callConductorTool(conductorId: string, name: string, args:
       if (!/^[\w./-]{1,120}$/.test(branch)) return fail("branch must be a plain branch name.");
       if (!reason) return fail("reason is required.");
       if (conductor.worktreeRequest) return fail("A worktree request is already waiting for the person.");
-      orchestration.requestWorktree(conductorId, { branch, base: arg(args, "base") || null, reason, prompt: arg(args, "prompt") || null });
+      const named = arg(args, "project").replace(/\/+$/, "");
+      const isApp = conductor.scope.kind === "app";
+      // A project or worktree conductor without a named project means its own; only an app conductor has no own project.
+      const project = named || (isApp && conductor.scope.projects.length === 1 ? (conductor.scope.projects[0] ?? null) : null);
+      if (named && !conductor.scope.projects.includes(named)) return fail(`${named} is not one of your projects: ${conductor.scope.projects.join(", ") || "(none)"}. Use request_project first.`);
+      if (!project && isApp) return fail(`Name the project: one of ${conductor.scope.projects.join(", ") || "(none — use request_project first)"}.`);
+      orchestration.requestWorktree(conductorId, { project, branch, base: arg(args, "base") || null, reason, prompt: arg(args, "prompt") || null });
+      return ok("Asked the person on the dashboard. You will get a message when they confirm or decline.");
+    }
+    case "request_project": {
+      const project = arg(args, "project").replace(/\/+$/, "");
+      const reason = arg(args, "reason");
+      if (!isAbsolute(project)) return fail("project must be an absolute folder.");
+      if (!reason) return fail("reason is required.");
+      if (conductor.scope.projects.includes(project)) return ok("That project is already yours.");
+      if (conductor.projectRequest) return fail("A project request is already waiting for the person.");
+      if (!(await deps.isDirectory(project))) return fail(`${project} does not exist.`);
+      orchestration.requestProject(conductorId, { path: project, reason });
       return ok("Asked the person on the dashboard. You will get a message when they confirm or decline.");
     }
     case "answer_permission": {

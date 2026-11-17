@@ -33,7 +33,7 @@ function setup() {
   });
   registry.launch({ cwd: "/repo" });
   const orchestration = new Orchestration({ get: (id) => registry.get(id), send: () => {}, onChange: () => {} });
-  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), dictation: new Dictation({ spawn: () => { throw new Error("no dictation in tests"); }, claude: "claude", cwd: "/", env: {} }), port: PORT, allowedOrigins: [] });
+  const runner = createRunnerServer({ registry, orchestration, runs: new TemplateRuns({ get: (id) => registry.get(id), launch: (request) => registry.launch(request), deliver: () => true, lastAnswer: () => null, check: async () => true, onChange: () => {} }), templates: new TemplateStore({ file: "/nonexistent/templates.json", write: async () => {} }), dictation: new Dictation({ spawn: () => { throw new Error("no dictation in tests"); }, claude: "claude", cwd: "/", env: {} }), port: PORT, allowedOrigins: [], appConductorFolder: "/tmp/agent-control-test-conductor" });
   return { runner, registry, written, emit: (data: string) => emit(data) };
 }
 

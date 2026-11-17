@@ -21,7 +21,7 @@ import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
 import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
-import { LaunchAgent, usePendingLaunchStore } from "@/client/features/launch-agent";
+import { usePendingLaunchStore } from "@/client/features/launch-agent";
 import { boardKeys } from "@/client/entities/board";
 import { ProjectSidebar, type ProjectCounts, type WorktreeCounts } from "@/client/widgets/project-sidebar";
 import { AgentList } from "@/client/widgets/agent-list";
@@ -30,6 +30,7 @@ import { SessionTabs } from "@/client/widgets/session-tabs";
 import { StageBoard } from "@/client/widgets/stage-board";
 import { TodoBoardPage } from "@/client/widgets/todo-board";
 import { useAttention } from "../model/useAttention";
+import { AllLaunch } from "./AllLaunch";
 import { useKeyboardNav } from "@/client/shared/lib/useKeyboardNav";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useBoard } from "../model/useBoard";
@@ -498,7 +499,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                 )}
               </div>
               <div className="mt-4">
-                <LaunchAgent worktrees={focusedWorktrees} showRepo draftKey="all" />
+                <AllLaunch worktrees={focusedWorktrees} />
               </div>
             </header>
 
@@ -580,6 +581,8 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             focused={focused.has(selectedRepo)}
             onToggleFocus={() => toggleFocus(selectedRepo)}
             onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
+            everyAgent={board.agents}
+            onOpenProject={prefs.selectRepo}
             renderPanel={(panel) => <DocPanel agents={board.agents} lead={panel} />}
           />
         )}
@@ -615,6 +618,8 @@ interface ProjectViewProps {
   focused: boolean;
   onToggleFocus: () => void;
   onOpenWorktree: (worktreeId: string) => void;
+  everyAgent: AgentCard[];
+  onOpenProject: (repo: string) => void;
   renderPanel: (panel: CanvasPanel) => React.ReactNode;
 }
 
@@ -634,6 +639,8 @@ function ProjectView({
   focused,
   onToggleFocus,
   onOpenWorktree,
+  everyAgent,
+  onOpenProject,
   renderPanel,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
@@ -705,6 +712,8 @@ function ProjectView({
         renderCard={renderPanelCard}
         onAction={onAction}
         onOpenWorktree={onOpenWorktree}
+        everyAgent={everyAgent}
+        onOpenProject={onOpenProject}
         renderPanel={renderPanel}
       />
     );
