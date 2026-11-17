@@ -155,7 +155,7 @@ export function AgentCardView({
             key={artifact.target}
             type="button"
             data-open-artifact={index === 0 ? "" : undefined}
-            title={`${artifact.target}\n클릭: 기본 앱으로 열기`}
+            title={`${artifact.target}\n클릭: ${artifact.target.startsWith("/") ? "오른쪽 패널에서" : "기본 앱으로"} 열기`}
             onClick={() => onAction({ type: "open-artifact", target: artifact.target })}
             className="flex max-w-64 items-center gap-1.5 rounded-full bg-tint-2 px-3 py-1 text-[13px] hover:bg-fg hover:text-bg"
           >
