@@ -11,6 +11,7 @@ describe("FlowDocReader", () => {
       "/w/docs/d/prd.md": { content: "" },
       "/w/docs/d/tasks/t1.json": { content: TASK, mtimeMs: 3 },
       "/w/docs/d/t1/index.html": { content: "" },
+      "/w/docs/d/t1/02-grill.html": { content: "" },
       "/w/docs/nodomain/tasks/x.json": { content: TASK },
       "/w/docs/d/tasks/notes.txt": { content: "" },
     });
@@ -22,6 +23,7 @@ describe("FlowDocReader", () => {
       domain: "d",
       prdExists: true,
       pageIndex: "/w/docs/d/t1/index.html",
+      grillPage: "/w/docs/d/t1/02-grill.html",
       plan: "now",
       updatedAt: 3,
     });

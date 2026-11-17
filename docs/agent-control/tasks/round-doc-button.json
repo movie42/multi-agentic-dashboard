@@ -1,0 +1,137 @@
+{
+  "id": "round-doc-button",
+  "title": "질문 라운드가 열린 작업에 '문서 열기' 버튼",
+  "type": "기능 개발",
+  "branch": "feat/build-apply",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료",
+      "conclusion": [
+        "작업 요약에 질문 페이지 경로 grillPage를 추가했어요. 02-grill.html이 빌드돼 있을 때만 값이 있어요.",
+        "답 안 한 질문이 있는 작업이면 세션 카드 진행 줄, 캔버스 워크트리 프레임 머리, 단계 보드 줄에 '문서 열기' 버튼이 보여요.",
+        "버튼은 02 질문 페이지를 앱 안 문서 패널에 열고, 그 페이지가 없으면 작업 개요 페이지를 열어요.",
+        "tsc · lint(오류 0) · 테스트 705개가 통과했어요. 3100 포트를 다른 프로젝트가 쓰고 있어 화면 확인은 하지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 데이터",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "작업 요약에 질문 페이지 경로 <code>grillPage</code> 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/workflow/types.ts</code> · <code>src/server/workflow/flowTasks.ts</code> · <code>src/server/workflow/FlowDocReader.ts</code> · <code>src/server/workflow/flowTasks.test.ts</code> · <code>src/server/workflow/FlowDocReader.test.ts</code> · <code>test/fixtures.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>pageIndex</code>와 같은 방식 — <code>&lt;domain&gt;/&lt;task&gt;/02-grill.html</code>이 있으면 경로, 없으면 null"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "열 문서를 고르는 순수 함수 <code>roundDocOf(task)</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/workflow/steps.ts</code> · <code>src/common/workflow/steps.test.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>grillStep</code>과 같은 조건(<code>grill.open &gt; 0</code>) — grillPage ?? pageIndex, 라운드가 없으면 null"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bun run test</code>로 FlowDocReader · steps 테스트 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 화면",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "세션 카드 진행 줄에 '문서 열기' 버튼",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code> · <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>onAction({ type: \"open-artifact\" })</code> — Dashboard가 <code>openInPanel</code>로 패널에 연다"
+                ],
+                [
+                  "결정",
+                  "카드에서는 open-artifact 액션을 보내고, Dashboard가 openInPanel로 패널에 열어요. 카드에 store를 직접 붙이지 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "캔버스 워크트리 프레임 머리에 '문서 열기' 버튼",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/Frames.tsx</code> · <code>src/client/widgets/project-graph/ui/CanvasStage.tsx</code> · <code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "ProjectCanvas의 기존 열기 처리(<code>openInPanel</code>, 실패 시 open-artifact)"
+                ],
+                [
+                  "패턴",
+                  "'워크트리 열기' 버튼과 같은 밑줄 버튼"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "단계 보드 줄에 '문서 열기' 버튼",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/stage-board/ui/StageBoard.tsx</code>"
+                ],
+                [
+                  "패턴",
+                  "'답장' · '이동 →'과 같은 둥근 버튼, 그 사이에"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run lint</code> · <code>bun run test</code> 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "질문 라운드가 열린 작업의 질문 페이지를, 워크트리 화면에 들어가 문서를 찾지 않고 그 작업이 보이는 자리에서 바로 연다.",
+      "state": "guess",
+      "basis": "사용자 요청 2026-11-17"
+    }
+  ]
+}

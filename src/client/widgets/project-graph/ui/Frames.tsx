@@ -21,13 +21,16 @@ interface ClusterFrameProps {
   rect: Rect;
   worktree: WorktreeSummary;
   steps: WorkflowStep[] | null;
+  /** The page to open while a question round waits for answers. */
+  roundDoc: string | null;
   sessions: number;
   empty: boolean;
   onOpen: () => void;
+  onOpenDoc: (target: string) => void;
 }
 
 /** A worktree as a dashed frame; dragging its header moves every session in it. */
-export function ClusterFrame({ id, rect, worktree, steps, sessions, empty, onOpen }: ClusterFrameProps) {
+export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, empty, onOpen, onOpenDoc }: ClusterFrameProps) {
   const current = steps?.findIndex((step) => step.status === "now" || step.status === "ask") ?? -1;
   const pr = worktree.pullRequest.kind === "found" ? worktree.pullRequest : null;
   return (
@@ -52,6 +55,16 @@ export function ClusterFrame({ id, rect, worktree, steps, sessions, empty, onOpe
           {pr && <span className="shrink-0 font-semibold text-pr">PR #{pr.number}</span>}
           <span className="ml-auto shrink-0 text-muted">세션 {sessions}</span>
           <WorktreeCommandButtons worktree={worktree} />
+          {roundDoc && (
+            <button
+              type="button"
+              onClick={() => onOpenDoc(roundDoc)}
+              title="답을 기다리는 질문 라운드의 문서를 열어요"
+              className="shrink-0 font-semibold text-ask underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              문서 열기
+            </button>
+          )}
           <button type="button" onClick={onOpen} className="shrink-0 font-semibold underline decoration-faint underline-offset-[3px] hover:decoration-current">
             워크트리 열기
           </button>

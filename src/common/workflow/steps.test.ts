@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { flowTask } from "../../../test/fixtures";
-import { buildSteps, currentStep } from "./steps";
+import { buildSteps, currentStep, roundDocOf } from "./steps";
 
 const summarize = (steps: ReturnType<typeof buildSteps>) =>
   steps.map((step) => `${step.key}:${step.status}${step.detail ? `(${step.detail})` : ""}`);
@@ -64,5 +64,22 @@ describe("currentStep", () => {
     const steps = buildSteps("personal", flowTask({ prdExists: true, grill: { open: 1, total: 1 } }), { kind: "none" });
     expect(currentStep(steps)?.key).toBe("grill");
     expect(currentStep(steps.map((step) => ({ ...step, status: "done" as const })))).toBeNull();
+  });
+});
+
+describe("roundDocOf", () => {
+  it("opens the question page while a round has unanswered questions", () => {
+    const task = flowTask({ grill: { open: 1, total: 3 }, grillPage: "/w/docs/d/t/02-grill.html", pageIndex: "/w/docs/d/t/index.html" });
+    expect(roundDocOf(task)).toBe("/w/docs/d/t/02-grill.html");
+  });
+
+  it("falls back to the overview page when the question page is not built", () => {
+    expect(roundDocOf(flowTask({ grill: { open: 1, total: 1 }, pageIndex: "/w/docs/d/t/index.html" }))).toBe("/w/docs/d/t/index.html");
+  });
+
+  it("has nothing to open when every question is answered or there is no round", () => {
+    expect(roundDocOf(flowTask({ grill: { open: 0, total: 2 }, grillPage: "/x/02-grill.html" }))).toBeNull();
+    expect(roundDocOf(flowTask({ grillPage: "/x/02-grill.html" }))).toBeNull();
+    expect(roundDocOf(null)).toBeNull();
   });
 });

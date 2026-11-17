@@ -41,8 +41,12 @@ export class FlowDocReader {
         if (!json) return null;
         const taskId = json.id ?? entry.name.replace(/\.json$/, "");
         const index = path.join(domainDir, taskId, "index.html");
-        const pageIndex = (await this.exists(index)) ? index : null;
-        return summarizeFlowTask(json, { domain, domainDir, prdExists, pageIndex, mtimeMs });
+        const grill = path.join(domainDir, taskId, "02-grill.html");
+        const [pageIndex, grillPage] = await Promise.all([
+          this.exists(index).then((found) => (found ? index : null)),
+          this.exists(grill).then((found) => (found ? grill : null)),
+        ]);
+        return summarizeFlowTask(json, { domain, domainDir, prdExists, pageIndex, grillPage, mtimeMs });
       }),
     );
     return summaries.filter((summary): summary is FlowTaskSummary => summary !== null);

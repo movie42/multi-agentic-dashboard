@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { flowTask } from "../../../test/fixtures";
 import { isFinishedFlowTask, mergeRepoFlowTasks, splitFlowTasks, summarizeFlowTask } from "./flowTasks";
 
-const location = { domain: "d", domainDir: "/w/docs/d", prdExists: false, pageIndex: null, mtimeMs: 5 };
+const location = { domain: "d", domainDir: "/w/docs/d", prdExists: false, pageIndex: null, grillPage: null, mtimeMs: 5 };
 
 describe("summarizeFlowTask", () => {
   it("counts grill questions and checklist items, splitting -V items into tests", () => {

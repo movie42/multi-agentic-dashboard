@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { LinkKind } from "@/common/orchestration/types";
-import { buildSteps } from "@/common/workflow/steps";
+import { buildSteps, roundDocOf } from "@/common/workflow/steps";
 import type { WorkflowMode } from "@/common/workflow/types";
 import { fileOverlapsQueryOptions } from "../api/fileOverlapsQuery";
 import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resetSize, resizeBox, resolvePositions, setEdgeEnd, ungroup } from "../model/canvasState";
@@ -121,6 +121,9 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const docTabCount = useDocViewerStore((state) => state.tabs.length);
   /** Picking something on the canvas brings its tab forward over any open document. */
   const showLead = () => useDocViewerStore.getState().activate(null);
+  const openDoc = (target: string) => {
+    if (!openInPanel(target)) void onAction({ type: "open-artifact", target });
+  };
 
   const liveIds = new Set([...graph.nodes.keys(), ...graph.reserved.keys(), ...graph.clusters.map((cluster) => cluster.id)]);
   const save = (change: (current: typeof canvas) => typeof canvas) => updateCanvas((current) => pruneCanvas(change(current), liveIds));
@@ -230,9 +233,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         onAction,
         onOpenWorktree,
         onConnectFrom: () => setConnecting(true),
-        onOpenDoc: (target: string) => {
-          if (!openInPanel(target)) void onAction({ type: "open-artifact", target });
-        },
+        onOpenDoc: openDoc,
         onEditLink: (edgeId: string) => {
           showLead();
           setSelected([]);
@@ -306,6 +307,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
             const task = worktree.flowTasks[0];
             return task ? buildSteps(modeOf(worktree.repo), task, worktree.pullRequest) : null;
           }}
+          roundDocOf={(worktree) => roundDocOf(worktree.flowTasks[0])}
           overlay={(zoom) => (
             <>
               {menuContent && menu && <CanvasMenu at={menu.at} zoom={zoom} {...menuContent} onClose={() => setMenu(null)} />}
@@ -370,6 +372,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           }}
           onViewportChange={(viewport) => updateCanvas((current) => ({ ...current, viewport }))}
           onOpenWorktree={onOpenWorktree}
+          onOpenDoc={openDoc}
           onOpenElsewhere={onOpenElsewhere}
           onRenameGroup={(groupId, name) => save((current) => renameGroup(current, groupId, name))}
           onUngroup={(groupId) => save((current) => ungroup(current, groupId))}

@@ -10,7 +10,7 @@ import type {
   ProjectSummary,
   WorktreeSummary,
 } from "@/common/board/types";
-import { buildSteps } from "@/common/workflow/steps";
+import { buildSteps, roundDocOf } from "@/common/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
@@ -295,6 +295,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       taskId: task.taskId,
       title: task.title,
       steps: buildSteps(modeOfRepo(worktree.repo), task, worktree.pullRequest),
+      roundDoc: roundDocOf(task),
     };
   };
 
@@ -572,6 +573,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                 modeOfRepo={modeOfRepo}
                 isDismissed={dismissed.isDismissed}
                 onJump={(repo, worktreeId) => jumpTo(repo, [worktreeId], worktreeId)}
+                onOpenDoc={(target) => void runAction({ type: "open-artifact", target })}
               />
             ) : (
               <>

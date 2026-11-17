@@ -95,6 +95,7 @@ interface CanvasStageProps {
   viewport: Viewport | null;
   now: number;
   stepsOf: (worktree: WorktreeSummary) => WorkflowStep[] | null;
+  roundDocOf: (worktree: WorktreeSummary) => string | null;
   /** World-coordinate extras drawn above the nodes (the ghost box, the line-kind picker); gets the zoom so a popover can stay readable. */
   overlay?: (zoom: number) => React.ReactNode;
   /** Screen-space extras over the canvas (legend). */
@@ -120,6 +121,7 @@ interface CanvasStageProps {
   onContextMenu: (target: MenuTarget, at: Point) => void;
   onViewportChange: (viewport: Viewport) => void;
   onOpenWorktree: (worktreeId: string) => void;
+  onOpenDoc: (target: string) => void;
   onOpenElsewhere: (repo: string, worktreeId: string) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onUngroup: (groupId: string) => void;
@@ -191,6 +193,7 @@ export function CanvasStage(props: CanvasStageProps) {
     viewport,
     now,
     stepsOf,
+    roundDocOf,
     overlay,
     children,
   } = props;
@@ -709,9 +712,11 @@ export function CanvasStage(props: CanvasStageProps) {
                   rect={rect}
                   worktree={cluster.worktree}
                   steps={stepsOf(cluster.worktree)}
+                  roundDoc={roundDocOf(cluster.worktree)}
                   sessions={cluster.nodeIds.filter((id) => graph.nodes.has(id)).length}
                   empty={cluster.nodeIds.length === 0}
                   onOpen={() => props.onOpenWorktree(cluster.worktree.worktreeId)}
+                  onOpenDoc={props.onOpenDoc}
                 />
                 <ResizeCorner id={cluster.id} rect={rect} label="워크트리 크기 조절" />
               </g>

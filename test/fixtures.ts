@@ -42,6 +42,7 @@ export function flowTask(overrides: Partial<FlowTaskSummary> = {}): FlowTaskSumm
     domain: "domain",
     branch: null,
     pageIndex: null,
+    grillPage: null,
     prdExists: false,
     grill: null,
     plan: null,

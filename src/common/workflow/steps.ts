@@ -114,6 +114,12 @@ export function buildSteps(
   ];
 }
 
+/** The page to open while a question round waits for answers: its 02 page, else the task's overview. */
+export function roundDocOf(task: FlowTaskSummary | null | undefined): string | null {
+  if (!task?.grill || task.grill.open === 0) return null;
+  return task.grillPage ?? task.pageIndex;
+}
+
 export function currentStep(steps: WorkflowStep[]): WorkflowStep | null {
   const active = steps.find((step) => step.status === "ask" || step.status === "now");
   if (active) return active;
