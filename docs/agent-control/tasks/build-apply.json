@@ -3,7 +3,12 @@
   "title": "앱 빌드 · 재설치 · 데몬 재시작 버튼과 버전 어긋남 표시",
   "type": "기능 개발",
   "branch": "feat/build-apply",
-  "links": [],
+  "links": [
+    {
+      "label": "PR",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/18"
+    }
+  ],
   "stages": {
     "grill": {
       "rounds": [

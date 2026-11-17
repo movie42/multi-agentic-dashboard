@@ -3,7 +3,12 @@
   "title": "질문 라운드가 열린 작업에 '문서 열기' 버튼",
   "type": "기능 개발",
   "branch": "feat/build-apply",
-  "links": [],
+  "links": [
+    {
+      "label": "PR",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/18"
+    }
+  ],
   "stages": {
     "tasks": {
       "status": "done",
