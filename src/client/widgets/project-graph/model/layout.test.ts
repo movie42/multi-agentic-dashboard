@@ -3,7 +3,7 @@ import type { WorktreeSummary } from "@/common/board/types";
 import type { OrchestrationLink, SessionOrchestration } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
 import { buildGraph, clusterId } from "./graph";
-import { autoLayout, chainColumns, clusterRect, edgeGeometry, NODE_H, NODE_W, nearestSide } from "./layout";
+import { autoLayout, chainColumns, clusterRect, edgeGeometry, NODE_H, NODE_W, nearestSide, parallelShifts } from "./layout";
 import { EMPTY_CANVAS, groupNodes, parseCanvasState, pruneCanvas, resetPositions, resolvePositions, setEdgeEnd, ungroup } from "./canvasState";
 
 function worktree(path: string, overrides: Partial<WorktreeSummary> = {}): WorktreeSummary {
@@ -205,6 +205,22 @@ describe("line ends", () => {
   it("leaves from the facing sides unless a side is pinned", () => {
     expect(edgeGeometry(left, right).start).toEqual({ x: 100, y: 25 });
     expect(edgeGeometry(left, right, { from: "bottom", to: "top" })).toMatchObject({ start: { x: 50, y: 50 }, end: { x: 350, y: 0 } });
+  });
+
+  it("draws two opposite lines between the same boxes apart, so their labels do not overlap", () => {
+    const top = { x: 0, y: 0, w: 100, h: 50 };
+    const below = { x: 0, y: 300, w: 100, h: 50 };
+    const shifts = parallelShifts([
+      { id: "plan-review", from: "plan", to: "review" },
+      { id: "review-plan", from: "review", to: "plan" },
+      { id: "review-pr", from: "review", to: "pr" },
+    ]);
+    expect(shifts.get("review-pr")).toBe(0);
+    const down = edgeGeometry(top, below, {}, shifts.get("plan-review"));
+    const up = edgeGeometry(below, top, {}, shifts.get("review-plan"));
+    expect(Math.abs(down.mid.x - up.mid.x)).toBeGreaterThanOrEqual(120);
+    expect(down.start.y).toBe(50);
+    expect(up.end.y).toBe(50);
   });
 
   it("picks the side nearest to where an end was dropped", () => {

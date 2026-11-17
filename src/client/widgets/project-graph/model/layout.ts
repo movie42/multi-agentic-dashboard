@@ -300,21 +300,44 @@ function autoSides(from: Rect, to: Rect): { from: Side; to: Side } {
   return to.x + to.w / 2 > from.x + from.w / 2 ? { from: "right", to: "left" } : { from: "left", to: "right" };
 }
 
+const ALONG: Record<Side, Point> = { top: { x: 1, y: 0 }, bottom: { x: 1, y: 0 }, left: { x: 0, y: 1 }, right: { x: 0, y: 1 } };
+const LANE_GAP = 128;
+
+/**
+ * How far each line's middle moves sideways so lines joining the same two boxes (in either
+ * direction) sit side by side instead of on one curve with their labels stacked.
+ */
+export function parallelShifts(edges: ReadonlyArray<{ id: string; from: string; to: string }>): Map<string, number> {
+  const lanes = new Map<string, string[]>();
+  for (const edge of edges) {
+    const pair = [edge.from, edge.to].sort().join("\u0000");
+    lanes.set(pair, [...(lanes.get(pair) ?? []), edge.id]);
+  }
+  const shifts = new Map<string, number>();
+  for (const ids of lanes.values()) {
+    ids.forEach((id, index) => shifts.set(id, (index - (ids.length - 1) / 2) * LANE_GAP));
+  }
+  return shifts;
+}
+
 /** A curve between two boxes, or from a box to a loose point while a line end is being dragged. */
-export function edgeGeometry(from: Rect | Point, to: Rect | Point, ends: EdgeEnds = {}): EdgeGeometry {
+export function edgeGeometry(from: Rect | Point, to: Rect | Point, ends: EdgeEnds = {}, shift = 0): EdgeGeometry {
   const asRect = (value: Rect | Point): Rect => ("w" in value ? value : { x: value.x, y: value.y, w: 0, h: 0 });
   const fromRect = asRect(from);
   const toRect = asRect(to);
   const auto = autoSides(fromRect, toRect);
   const fromSide = ends.from ?? auto.from;
   const toSide = ends.to ?? auto.to;
-  const start = sidePoint(fromRect, fromSide);
-  const end = sidePoint(toRect, toSide);
+  const endShift = shift / 4;
+  const bow = (shift - endShift / 4) / 0.75;
+  const offset = (point: Point, side: Side, by: number): Point => ({ x: point.x + ALONG[side].x * by, y: point.y + ALONG[side].y * by });
+  const start = offset(sidePoint(fromRect, fromSide), fromSide, endShift);
+  const end = offset(sidePoint(toRect, toSide), toSide, endShift);
   const bend = Math.max(40, Math.hypot(end.x - start.x, end.y - start.y) / 2);
   const outFrom = "w" in from ? NORMAL[fromSide] : { x: 0, y: 0 };
   const outTo = "w" in to ? NORMAL[toSide] : { x: 0, y: 0 };
-  const c1 = { x: start.x + outFrom.x * bend, y: start.y + outFrom.y * bend };
-  const c2 = { x: end.x + outTo.x * bend, y: end.y + outTo.y * bend };
+  const c1 = offset({ x: start.x + outFrom.x * bend, y: start.y + outFrom.y * bend }, fromSide, bow - endShift);
+  const c2 = offset({ x: end.x + outTo.x * bend, y: end.y + outTo.y * bend }, toSide, bow - endShift);
   const mid = {
     x: 0.125 * start.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * end.x,
     y: 0.125 * start.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * end.y,

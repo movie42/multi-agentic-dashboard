@@ -20,6 +20,7 @@ interface Arrival {
   answer: string | null;
   route: TemplateRoute | null;
   reason: string | null;
+  pickedBy: "card" | "person";
 }
 
 type Result = { ok: true; run: TemplateRun } | { ok: false; error: string };
@@ -32,11 +33,16 @@ export function cardText(run: TemplateRun, card: TemplateCard, from: Arrival | n
     ? `[Agent Control] 템플릿 '${run.name}'의 흐름이 '${card.title}' 카드로 돌아왔어요. 아래 내용을 반영해 이어서 해 주세요.`
     : `[Agent Control] 템플릿 '${run.name}' · '${card.title}' 카드예요.`;
   const body = revisit ? "" : card.prompt.trim();
-  const picked = from?.route?.label ? `'${from.card.title}' 카드가 '${from.route.label}' 길을 골랐어요.${from.reason?.trim() ? ` 이유: ${from.reason.trim()}` : ""}` : "";
+  const picked = !from?.route?.label
+    ? ""
+    : from.pickedBy === "person"
+      ? `사람이 '${from.card.title}' 카드 다음으로 '${from.route.label}' 길을 골랐어요.`
+      : `'${from.card.title}' 카드가 '${from.route.label}' 길을 골랐어요.${from.reason?.trim() ? ` 이유: ${from.reason.trim()}` : ""}`;
   const handed = from?.route?.kind === "next" ? from.route.prompt?.trim() : "";
+  const judgeOverruled = from?.pickedBy === "person" && from.card.kind === "judge";
   const answer = handed
     ? `앞 카드 '${from?.card.title}'에서 넘긴 말:\n${handed}`
-    : from?.answer?.trim()
+    : !judgeOverruled && from?.answer?.trim()
       ? `앞 카드 '${from.card.title}'의 마지막 답:\n${from.answer.trim()}`
       : "";
   const routes = card.kind === "judge" ? judgeText(run, card) : "";
@@ -231,7 +237,8 @@ export class TemplateRuns {
     if (revisit && !force && trips >= MAX_TRIPS) {
       return { ok: true, run: this.#hold({ ...run, trips: { ...run.trips, [route.id]: trips } }, { reason: "trips", text: `'${card.title}' → '${target.title}' 길을 ${trips}번 되돌았어요. 확인한 뒤 계속해 주세요.` }) };
     }
-    const arrival: Arrival = { card, answer, route, reason: run.choice?.routeId === route.id ? run.choice.reason : null };
+    const pickedBy = routeId !== null ? "person" : "card";
+    const arrival: Arrival = { card, answer, route, reason: pickedBy === "card" && run.choice?.routeId === route.id ? run.choice.reason : null, pickedBy };
     return { ok: true, run: this.#enter({ ...run, trips: { ...run.trips, [route.id]: trips } }, target, arrival) };
   }
 

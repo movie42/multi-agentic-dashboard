@@ -1,7 +1,7 @@
 "use client";
 
 import type { EdgeKind, GraphEdge } from "../model/graph";
-import { edgeGeometry, type EdgeEnds, type Point, type Rect } from "../model/layout";
+import { edgeGeometry, parallelShifts, type EdgeEnds, type Point, type Rect } from "../model/layout";
 
 export const EDGE_STYLE: Record<EdgeKind, { label: string; stroke: string; dash?: string; marker: boolean; pill: string }> = {
   delegate: { label: "맡김", stroke: "stroke-fg", marker: true, pill: "text-fg" },
@@ -53,6 +53,7 @@ interface GraphEdgesProps {
 
 /** Lines first, then their labels, so a label is never covered by another line. */
 export function GraphEdges({ edges, rectOf, ends, endDrag, selectedId, focusClusters, onSelect }: GraphEdgesProps) {
+  const shifts = parallelShifts(edges);
   const drawn = edges.flatMap((edge) => {
     const from = rectOf(edge.from);
     const to = rectOf(edge.to);
@@ -65,7 +66,7 @@ export function GraphEdges({ edges, rectOf, ends, endDrag, selectedId, focusClus
         ? edgeGeometry(dragged.point, to, { to: pinned.to })
         : dragged?.end === "to"
           ? edgeGeometry(from, dragged.point, { from: pinned.from })
-          : edgeGeometry(from, to, pinned);
+          : edgeGeometry(from, to, pinned, shifts.get(edge.id));
     return [{ edge, geometry, faint }];
   });
   return (
