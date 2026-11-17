@@ -13,6 +13,7 @@ import {
   type PermissionRequestInput,
 } from "./permissions.ts";
 import type { RestoreRequest } from "./restore.ts";
+import { terminalMenu } from "../../src/common/terminal/menu.ts";
 import { createHeadlessScreen, type CreateScreen, type Screen } from "./screen.ts";
 import type { StatusLineReport } from "./statusLine.ts";
 import { nextStatus, type StatusSignal } from "./status.ts";
@@ -92,6 +93,7 @@ interface Entry {
   listeners: Set<TerminalListener>;
   held: HeldPermission | null;
   interruptWatchUntil: number;
+  menuOpen: boolean;
 }
 
 const DEFAULT_SCROLLBACK = 256 * 1024;
@@ -204,6 +206,7 @@ export class SessionRegistry {
       listeners: new Set(),
       held: null,
       interruptWatchUntil: 0,
+      menuOpen: false,
     };
     this.#entries.set(id, entry);
     pty.onData((data) => this.#append(entry, data));
@@ -354,6 +357,20 @@ export class SessionRegistry {
       this.#apply(entry, { event: "trust-prompt" });
     }
     if (entry.interruptWatchUntil > this.#options.now()) void this.#checkInterrupt(entry);
+    if (entry.session.kind === "claude" && (entry.session.status === "idle" || entry.menuOpen)) void this.#checkMenu(entry);
+  }
+
+  async #checkMenu(entry: Entry): Promise<void> {
+    const open = terminalMenu(await entry.screen.lines()) !== null;
+    const { status } = entry.session;
+    if (open && status === "idle") {
+      entry.menuOpen = true;
+      this.#apply(entry, { event: "menu-open" });
+      return;
+    }
+    if (!entry.menuOpen || (open && status === "waiting")) return;
+    entry.menuOpen = false;
+    if (status === "waiting") this.#apply(entry, { event: "menu-closed" });
   }
 
   async #checkInterrupt(entry: Entry): Promise<void> {
@@ -374,6 +391,7 @@ export class SessionRegistry {
   }
 
   #apply(entry: Entry, signal: StatusSignal): void {
+    if (signal.event !== "menu-open" && signal.event !== "menu-closed") entry.menuOpen = false;
     const status = nextStatus(entry.session.status, signal);
     const prompted = entry.session.prompted || signal.event === "UserPromptSubmit";
     const interrupted =

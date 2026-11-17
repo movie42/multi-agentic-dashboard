@@ -6,7 +6,8 @@ import type { TerminalKey } from "@/common/actions/schema";
 import { terminalScreenKey, useTerminalScreen } from "@/client/entities/runner";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
-import { keysToPick, terminalMenu } from "../lib/terminalMenu";
+import { terminalMenu } from "@/common/terminal/menu";
+import { keysToPick } from "../lib/terminalMenu";
 
 const KEY_BUTTONS: { key: TerminalKey; label: string; title: string }[] = [
   { key: "up", label: "↑", title: "위로" },
