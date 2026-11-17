@@ -20,7 +20,12 @@ export function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
-export function hookSettings(baseUrl: string, sessionId: string, statusLine?: StatusLineScript): string {
+/** `//` marks an absolute path in a permission rule; a single `/` would be relative to the settings file. */
+export function readRule(directory: string): string {
+  return `Read(/${directory.replace(/\/+$/, "")}/**)`;
+}
+
+export function hookSettings(baseUrl: string, sessionId: string, statusLine?: StatusLineScript, readableDirs: readonly string[] = []): string {
   const hooks = Object.fromEntries([
     ...RUNNER_HOOK_EVENTS.map((event) => [
       event,
@@ -39,5 +44,9 @@ export function hookSettings(baseUrl: string, sessionId: string, statusLine?: St
   const command = statusLine
     ? [statusLine.node, statusLine.script, statusLineUrl(baseUrl, sessionId)].map(shellQuote).join(" ")
     : null;
-  return JSON.stringify(command ? { hooks, statusLine: { type: "command", command, padding: 0 } } : { hooks });
+  return JSON.stringify({
+    hooks,
+    ...(command ? { statusLine: { type: "command", command, padding: 0 } } : {}),
+    ...(readableDirs.length > 0 ? { permissions: { allow: readableDirs.map(readRule) } } : {}),
+  });
 }

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import pty from "node-pty";
@@ -31,6 +32,8 @@ const statusLine = { node: process.execPath, script: path.join(import.meta.dirna
 // Must match ATTACHMENT_DIR in app/api/attachments/route.ts; both run as the same user, so tmpdir() agrees.
 const attachmentDir = path.join(tmpdir(), "agent-control", "attachments");
 mkdir(attachmentDir, { recursive: true }).catch((error: unknown) => console.warn("[daemon] attachment folder", error));
+// macOS tmpdir() is /var/folders/..., a symlink into /private/var; Claude may report either spelling.
+const attachmentDirs = [...new Set([attachmentDir, path.join(realpathSync(tmpdir()), "agent-control", "attachments")])];
 
 const sessionsFile = process.env.RUNNER_SESSIONS_FILE ?? path.join(dataDir, SESSIONS_FILE);
 const orchestrationFile = process.env.RUNNER_ORCHESTRATION_FILE ?? path.join(dataDir, ORCHESTRATION_FILE);
@@ -104,7 +107,7 @@ const relay: { onChange: () => void } = { onChange: () => {} };
 
 const registry = new SessionRegistry({
   spawn: (file, args, options) => pty.spawn(file, args, { name: "xterm-256color", ...options }),
-  commandFor: (request) => commandFor(request, { claude: command, shell, baseUrl, statusLine, attachmentDir }),
+  commandFor: (request) => commandFor(request, { claude: command, shell, baseUrl, statusLine, attachmentDirs }),
   env: sessionEnv(),
   onChange: () => relay.onChange(),
   onUsage: (usage) => {

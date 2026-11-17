@@ -9,10 +9,12 @@ export interface CommandEnvironment {
   baseUrl: string;
   statusLine?: StatusLineScript;
   /**
-   * Where the app saves pasted files, one new folder per file. Without it Claude asks to read every
-   * attachment, and "don't ask again" covers only that one folder.
+   * Where the app saves pasted files, one new folder per file, plus its symlink-resolved spelling.
+   * Without a read rule Claude asks to read every attachment, and "don't ask again" covers only that
+   * one folder. `--add-dir` is not used: Claude Code 2.1.3xx shows a blocking directory-trust dialog
+   * for it on every new session.
    */
-  attachmentDir?: string;
+  attachmentDirs?: readonly string[];
 }
 
 export function mcpUrl(baseUrl: string, sessionId: string): string {
@@ -54,10 +56,9 @@ export function commandFor(request: CommandRequest, environment: CommandEnvironm
       ...conductorArgs(request, environment.baseUrl),
       ...judgeArgs(request, environment.baseUrl),
       ...modelArgs(request),
-      ...(environment.attachmentDir ? ["--add-dir", environment.attachmentDir] : []),
       ...(request.askPermissions ? [] : ["--permission-mode", "bypassPermissions"]),
       "--settings",
-      hookSettings(environment.baseUrl, request.id, environment.statusLine),
+      hookSettings(environment.baseUrl, request.id, environment.statusLine, environment.attachmentDirs),
       ...prompt,
     ],
   };

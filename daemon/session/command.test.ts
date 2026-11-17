@@ -29,8 +29,10 @@ describe("commandFor", () => {
   });
 
   it("lets Claude read pasted attachments without asking for each one", () => {
-    const command = commandFor({ id: "s1", kind: "claude" }, { ...environment, attachmentDir: "/tmp/agent-control/attachments" });
-    expect(command.args.slice(2, 4)).toEqual(["--add-dir", "/tmp/agent-control/attachments"]);
+    const command = commandFor({ id: "s1", kind: "claude" }, { ...environment, attachmentDirs: ["/tmp/agent-control/attachments"] });
+    const settings = JSON.parse(command.args[command.args.indexOf("--settings") + 1] ?? "");
+    expect(settings.permissions).toEqual({ allow: ["Read(//tmp/agent-control/attachments/**)"] });
+    expect(command.args).not.toContain("--add-dir");
   });
 
   it("opens a login shell with no hooks", () => {

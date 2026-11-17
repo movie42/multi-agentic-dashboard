@@ -65,7 +65,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports }: NodeBoxPr
         <p className="truncate text-[12px] text-muted">{plainMessage(agent.lastMessage) || agent.worktreeName}</p>
       )}
       {hasMeta && (
-        <p data-node-meta className="mt-auto truncate text-[11px] leading-none text-muted tabular-nums">
+        <p data-node-meta className="mt-auto truncate text-[11px] leading-none font-medium text-focus tabular-nums">
           {[agent.model, agent.effort, agent.contextPercent !== null ? `컨텍스트 ${agent.contextPercent}%` : null]
             .filter(Boolean)
             .join(" · ")}
