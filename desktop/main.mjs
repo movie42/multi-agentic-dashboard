@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { app, BrowserWindow, dialog, globalShortcut, shell, utilityProcess } from "electron";
 import fs from "node:fs";
 import http from "node:http";
@@ -23,16 +24,30 @@ function readRunnerConfig() {
 let serverProcess = null;
 let mainWindow = null;
 
-function ping() {
+const APP_ID = "agent-control";
+
+// "ours" | "other" | "none". Anything answering on the port used to count as our server, so a
+// window could open another project's dev server that happened to hold the port.
+function probe() {
   return new Promise((resolve) => {
-    const request = http.get(`${ORIGIN}/`, (response) => {
-      response.resume();
-      resolve(response.statusCode !== undefined && response.statusCode < 500);
+    const request = http.get(`${ORIGIN}/api/health`, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        try {
+          resolve(JSON.parse(body).app === APP_ID ? "ours" : "other");
+        } catch {
+          resolve("other");
+        }
+      });
     });
-    request.on("error", () => resolve(false));
+    request.on("error", () => resolve("none"));
     request.setTimeout(1500, () => {
       request.destroy();
-      resolve(false);
+      resolve("none");
     });
   });
 }
@@ -40,10 +55,23 @@ function ping() {
 async function waitForServer(timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await ping()) return true;
+    const state = await probe();
+    if (state === "ours") return "ours";
+    if (state === "other" && !serverProcess) return "other";
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
-  return false;
+  return (await probe()) === "ours" ? "ours" : "timeout";
+}
+
+function portHolder() {
+  return new Promise((resolve) => {
+    execFile("lsof", ["-nP", `-iTCP:${PORT}`, "-sTCP:LISTEN", "-Fpc"], (error, stdout) => {
+      if (error) return resolve(null);
+      const pid = stdout.match(/^p(\d+)/m)?.[1];
+      const name = stdout.match(/^c(.+)/m)?.[1];
+      resolve(pid ? `${name ?? "?"} (pid ${pid})` : null);
+    });
+  });
 }
 
 function startServer() {
@@ -179,12 +207,15 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
-    if (!(await ping())) startServer();
-    const ready = await waitForServer(30_000);
-    if (!ready) {
+    if ((await probe()) !== "ours") startServer();
+    const state = await waitForServer(30_000);
+    if (state !== "ours") {
+      const holder = state === "other" ? await portHolder() : null;
       dialog.showErrorBox(
         "Agent Control",
-        `대시보드 서버를 시작하지 못했어요. 로그: ${path.join(app.getPath("userData"), "server.log")}`,
+        state === "other"
+          ? `포트 ${PORT}을 다른 프로그램${holder ? ` ${holder}` : ""}이 쓰고 있어서 대시보드 서버를 띄우지 못했어요. 그 프로그램을 끄고 다시 실행하세요.`
+          : `대시보드 서버를 시작하지 못했어요. 로그: ${path.join(app.getPath("userData"), "server.log")}`,
       );
       app.quit();
       return;
