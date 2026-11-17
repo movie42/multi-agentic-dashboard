@@ -11,7 +11,7 @@ const NODE_STATE: Record<DisplayState, { label: string; tone: string; dot: strin
   done: { label: "내 차례", tone: "border-ask text-ask", dot: "bg-ask" },
   working: { label: "작업 중", tone: "border-now text-now", dot: "bg-now animate-pulse" },
   paused: { label: "멈춤", tone: "border-accent text-accent", dot: "shadow-[inset_0_0_0_1.5px_var(--accent)]" },
-  dormant: { label: "휴면", tone: "border-dashed border-faint text-faint", dot: "shadow-[inset_0_0_0_1.5px_var(--faint)]" },
+  dormant: { label: "잠자는 중", tone: "border-dashed border-faint text-faint", dot: "shadow-[inset_0_0_0_1.5px_var(--faint)]" },
   idle: { label: "쉬는 중", tone: "border-hair text-muted", dot: "shadow-[inset_0_0_0_1.5px_var(--faint)]" },
 };
 

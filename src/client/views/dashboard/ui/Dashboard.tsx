@@ -66,7 +66,7 @@ type LaterGroup = "working" | "paused" | "dormant" | "resting";
 const LATER_SECTIONS: { key: LaterGroup; title: string; status: keyof typeof SECTION_DOT; hint: string }[] = [
   { key: "working", title: "에이전트 작업 중", status: "now", hint: "에이전트가 아직 답을 쓰는 중. 오래 돈 순. 줄을 누르면 펼쳐져요" },
   { key: "paused", title: "멈춤", status: "paused", hint: "Esc로 멈춘 세션. 최근 순. 다시 보내면 이어서 일해요" },
-  { key: "dormant", title: "휴면", status: "dormant", hint: "2시간 넘게 손대지 않은 세션. 최근 순. 줄을 누르면 펼쳐져요" },
+  { key: "dormant", title: "잠자는 중", status: "dormant", hint: "2시간 넘게 손대지 않은 세션. 최근 순. 줄을 누르면 펼쳐져요" },
   { key: "resting", title: "쉬는 중", status: "wait", hint: "정리한 것과 쉬는 세션. 줄을 누르면 펼쳐져요" },
 ];
 
@@ -448,7 +448,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
               </h1>
               <p className="mt-2.5 text-[13px] text-muted">
                 내 차례 {focusGroups.needsMe.length} · 에이전트 작업 중{" "}
-                {focusGroups.working.length} · 멈춤 {focusGroups.paused.length} · 휴면{" "}
+                {focusGroups.working.length} · 멈춤 {focusGroups.paused.length} · 잠자는 중{" "}
                 {focusGroups.dormant.length} · 쉬는 중 {focusGroups.resting.length} · 프로젝트{" "}
                 {focused.size > 0
                   ? `${focused.size}/${board.projects.length}`

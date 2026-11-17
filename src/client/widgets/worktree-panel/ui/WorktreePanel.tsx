@@ -77,7 +77,7 @@ const FILTER_OPTIONS: { key: PanelFilter; label: string; tone: string }[] = [
   { key: "needsMe", label: "내 차례", tone: "text-ask" },
   { key: "working", label: "작업 중", tone: "text-now" },
   { key: "paused", label: "멈춤", tone: "text-accent" },
-  { key: "dormant", label: "휴면", tone: "text-faint" },
+  { key: "dormant", label: "잠자는 중", tone: "text-faint" },
 ];
 
 export function WorktreePanel({

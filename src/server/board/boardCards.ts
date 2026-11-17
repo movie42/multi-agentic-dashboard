@@ -32,7 +32,7 @@ export function stateOf(session: RunnerSession): AgentState {
   return session.prompted ? "done" : "idle";
 }
 
-/** A session nobody touched for this long leaves 내 차례 · 쉬는 중 for 휴면. */
+/** A session nobody touched for this long leaves 내 차례 · 쉬는 중 for 잠자는 중. */
 export const DORMANT_AFTER_MS = 2 * 60 * 60 * 1000;
 
 export function isDormant(session: RunnerSession, now: number): boolean {

@@ -367,7 +367,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
             <p className="text-[12px] text-muted">
               세션 {counts.sessions} · <span className="text-ask">내 차례 {counts.myTurn}</span> · <span className="text-now">작업 중 {counts.working}</span>
               {counts.paused > 0 && <> · <span className="text-accent">멈춤 {counts.paused}</span></>}
-              {counts.dormant > 0 && <> · <span className="text-faint">휴면 {counts.dormant}</span></>}
+              {counts.dormant > 0 && <> · <span className="text-faint">잠자는 중 {counts.dormant}</span></>}
               {connecting && <span className="ml-2 font-semibold text-fg">잇기 모드 · 상자에서 상자로 끌어요 (Esc로 끄기)</span>}
             </p>
           </div>

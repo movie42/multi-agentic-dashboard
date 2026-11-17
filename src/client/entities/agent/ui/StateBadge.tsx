@@ -7,7 +7,7 @@ const STATE_LABEL: Record<DisplayState, string> = {
   done: "내 차례",
   working: "에이전트 작업 중",
   paused: "멈춤",
-  dormant: "휴면",
+  dormant: "잠자는 중",
   idle: "쉬는 중",
 };
 
