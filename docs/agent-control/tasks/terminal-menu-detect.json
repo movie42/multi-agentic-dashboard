@@ -62,7 +62,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/common/terminal/menu.ts</code> · <code>src/common/terminal/menu.test.ts</code> · <code>src/client/features/answer-terminal-menu/lib/terminalMenu.ts</code> · <code>src/client/features/answer-terminal-menu/ui/TerminalMenuControls.tsx</code>"
+                  "<code>src/common/terminal/menu.ts</code> · <code>src/common/terminal/menu.test.ts</code> · <code>src/client/features/answer-terminal-menu/lib/terminalMenu.ts</code> · <code>src/client/features/answer-terminal-menu/ui/TerminalMenuControls.tsx</code> · <code>src/client/features/answer-terminal-menu/lib/terminalMenu.test.ts</code>"
                 ],
                 [
                   "패턴",
@@ -191,5 +191,6 @@
       "stop": "계획 승인",
       "why": "사용자가 원인과 고치는 방법 A를 채팅에서 보고 \"수정해줘\"라고 함"
     }
-  ]
+  ],
+  "base": "594cd28"
 }
