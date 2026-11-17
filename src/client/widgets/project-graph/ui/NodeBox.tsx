@@ -36,10 +36,12 @@ interface NodeBoxProps {
   reports: number;
   /** Has a route to another project's worktree, drawn as a port on the canvas. */
   routed: boolean;
+  /** Resized taller than the default, so the last message gets every line that fits. */
+  roomy?: boolean;
 }
 
 /** One session on the canvas: state, elapsed time, title and the last message line. */
-export function NodeBox({ node, now, selected, delegatedTo, reports, routed }: NodeBoxProps) {
+export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roomy = false }: NodeBoxProps) {
   const { agent, outside } = node;
   const state = stateOf(agent);
   const conductor = agent.orchestration?.conductor ?? null;
@@ -72,7 +74,9 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed }: N
           {delegatedTo.length === 0 && reports === 0 && !routed && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
         </p>
       ) : (
-        <p className="truncate text-[12px] text-muted">{plainMessage(agent.lastMessage) || agent.worktreeName}</p>
+        <p className={`text-[12px] text-muted ${roomy ? "min-h-0 flex-1 overflow-hidden leading-relaxed break-words whitespace-pre-line" : "truncate"}`}>
+          {plainMessage(agent.lastMessage) || agent.worktreeName}
+        </p>
       )}
       {hasMeta && (
         <p data-node-meta className="mt-auto truncate text-[11px] leading-none font-medium text-focus tabular-nums">

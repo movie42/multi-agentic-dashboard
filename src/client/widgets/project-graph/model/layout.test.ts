@@ -123,11 +123,45 @@ describe("autoLayout", () => {
     expect(positions.get("c")!.y + NODE_H).toBeLessThan(positions.get("w")!.y);
   });
 
+  it("keeps a resized box's size and pushes its neighbours down", () => {
+    const graph = buildGraph(
+      [agentCard({ id: "s1", worktreeId: "/p/shop-a" }), agentCard({ id: "s2", worktreeId: "/p/shop-a" }), agentCard({ id: "s3", worktreeId: "/p/shop-a" }), agentCard({ id: "s4", worktreeId: "/p/shop-a" })],
+      [worktree("/p/shop-a")],
+      [],
+    );
+    const sizes = { s1: { w: 400, h: 300 } };
+    const { positions } = autoLayout(graph, { sizes });
+    const s1 = positions.get("s1")!;
+    const s4 = positions.get("s4")!;
+    expect(s4.x).toBe(s1.x);
+    expect(s4.y).toBeGreaterThanOrEqual(s1.y + 300);
+    expect(positions.get("s2")!.x).toBeGreaterThanOrEqual(s1.x + 400);
+  });
+
+  it("never draws a resized worktree frame smaller than it was resized to", () => {
+    const anchor = { x: 10, y: 20 };
+    const rect = clusterRect("wt:a", ["s"], new Map([["s", { x: 40, y: 70 }]]), anchor, { "wt:a": { w: 900, h: 500 } });
+    expect(rect).toEqual({ x: 10, y: 20, w: 900, h: 500 });
+  });
+
+  it("lays out every project as its own block of worktrees", () => {
+    const graph = buildGraph(
+      [agentCard({ id: "a", worktreeId: "/p/shop-a" }), agentCard({ id: "b", repo: "web", worktreeId: "/p/web" })],
+      [worktree("/p/shop-a"), worktree("/p/web", { repo: "web", projectPath: "/p/web" })],
+      [],
+    );
+    const { anchors } = autoLayout(graph, { byProject: true });
+    const shop = anchors.get(clusterId("/p/shop-a"))!;
+    const web = anchors.get(clusterId("/p/web"))!;
+    expect(shop.y).toBe(web.y);
+    expect(web.x).toBeGreaterThan(shop.x + NODE_W);
+  });
+
   it("gives an empty cluster an anchor and a fixed box", () => {
     const graph = buildGraph([], [worktree("/p/shop-a")], []);
     const { anchors } = autoLayout(graph);
     const anchor = anchors.get(clusterId("/p/shop-a"))!;
-    expect(clusterRect([], new Map(), anchor).w).toBeGreaterThan(NODE_W);
+    expect(clusterRect("wt:/p/shop-a", [], new Map(), anchor).w).toBeGreaterThan(NODE_W);
   });
 });
 
@@ -154,11 +188,12 @@ describe("canvas state", () => {
 
   it("reads back only well-formed saved data", () => {
     expect(parseCanvasState("not json")).toEqual(EMPTY_CANVAS);
-    expect(parseCanvasState(JSON.stringify({ positions: { a: { x: 1, y: 2 }, b: "x" }, groups: [{ id: 1 }], viewport: { x: 0, y: 0, zoom: 9 } }))).toEqual({
+    expect(parseCanvasState(JSON.stringify({ positions: { a: { x: 1, y: 2 }, b: "x" }, groups: [{ id: 1 }], viewport: { x: 0, y: 0, zoom: 9 }, sizes: { a: { w: 300, h: 140 }, b: { w: -1, h: 2 } } }))).toEqual({
       positions: { a: { x: 1, y: 2 } },
       groups: [],
       viewport: { x: 0, y: 0, zoom: 2 },
       ends: {},
+      sizes: { a: { w: 300, h: 140 } },
     });
   });
 });

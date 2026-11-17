@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { WorktreeSummary } from "@/common/board/types";
 import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { LaunchAgent } from "@/client/features/launch-agent";
+import type { CanvasScope } from "../model/useCanvasState";
 
 type LaunchMode = "session" | "conductor";
 
@@ -12,7 +13,7 @@ const TOOL =
 const KEY = "text-[11px] font-normal opacity-60";
 
 interface GraphToolbarProps {
-  repo: string;
+  scope: CanvasScope;
   worktrees: WorktreeSummary[];
   connecting: boolean;
   showAllLinks: boolean;
@@ -30,9 +31,10 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 /** Floating tools: new session or conductor, connect mode, the project's lines, group, tidy. */
-export function GraphToolbar({ repo, worktrees, connecting, showAllLinks, canGroup, showWorktreeLines, onToggleWorktreeLines, onToggleConnect, onToggleRules, onGroup, onTidy }: GraphToolbarProps) {
+export function GraphToolbar({ scope, worktrees, connecting, showAllLinks, canGroup, showWorktreeLines, onToggleWorktreeLines, onToggleConnect, onToggleRules, onGroup, onTidy }: GraphToolbarProps) {
   const [launch, setLaunch] = useState<LaunchMode | null>(null);
   const home = worktrees.find((worktree) => worktree.isMain) ?? worktrees[0] ?? null;
+  const repo = scope.kind === "project" ? scope.repo : null;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -89,10 +91,12 @@ export function GraphToolbar({ repo, worktrees, connecting, showAllLinks, canGro
               </button>
             ))}
           </div>
-          {launch === "conductor" && home ? (
+          {launch === "conductor" && repo === null ? (
+            <ConductorLauncher worktreePath={null} scope="app" scopeName="프로젝트 밖에서 실행" onClose={() => setLaunch(null)} />
+          ) : launch === "conductor" && home && repo !== null ? (
             <ConductorLauncher worktreePath={home.path} scope="project" scopeName={repo} onClose={() => setLaunch(null)} />
           ) : (
-            <LaunchAgent worktrees={worktrees} showRepo={false} draftKey={`project:${repo}`} />
+            <LaunchAgent worktrees={worktrees} showRepo={repo === null} draftKey={repo === null ? "all" : `project:${repo}`} />
           )}
         </div>
       )}

@@ -38,7 +38,7 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
-import { ProjectCanvas, type CanvasPanel } from "@/client/widgets/project-graph";
+import { ProjectCanvas, type CanvasPanel, type CanvasScope } from "@/client/widgets/project-graph";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel, QuickOpen } from "@/client/widgets/doc-panel";
 import { useFileExplorerStore } from "@/client/features/browse-files";
@@ -98,12 +98,38 @@ function Section({
   );
 }
 
-type OverviewView = "turn" | "stage";
+type OverviewView = "canvas" | "turn" | "stage";
 
 const VIEW_OPTIONS: { key: OverviewView; label: string }[] = [
+  { key: "canvas", label: "캔버스" },
   { key: "turn", label: "차례별" },
   { key: "stage", label: "단계별" },
 ];
+
+const asView = (value: string | undefined): OverviewView => VIEW_OPTIONS.find((option) => option.key === value)?.key ?? "canvas";
+
+interface ViewToggleProps {
+  view: OverviewView;
+  onChange: (view: OverviewView) => void;
+}
+
+function ViewToggle({ view, onChange }: ViewToggleProps) {
+  return (
+    <div className="flex rounded-full bg-tint p-0.5 text-[13px] font-semibold">
+      {VIEW_OPTIONS.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          aria-pressed={view === option.key}
+          onClick={() => onChange(option.key)}
+          className={`rounded-full px-3.5 py-1.5 leading-none ${view === option.key ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface JumpTarget {
   repo: string;
@@ -111,6 +137,8 @@ interface JumpTarget {
 }
 
 const FALLBACK_PROJECT: ProjectSummary = { repo: "", autoMode: "company" };
+
+const ALL_SCOPE: CanvasScope = { kind: "all" };
 
 const SEARCH_INPUT_CLASS =
   "w-full max-w-md rounded-full bg-tint px-4 py-1.5 text-[14px] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]";
@@ -166,7 +194,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const docOpen = hasDocTabs || treeShown;
   const [query, setQuery] = useState("");
   const [viewKeys, writeView] = useStoredList("agent-control:overview-view");
-  const view: OverviewView = viewKeys[0] === "stage" ? "stage" : "turn";
+  const view = asView(viewKeys[0]);
   const [focusKeys, writeFocus] = useStoredList("agent-control:overview-focus");
   const [jump, setJump] = useState<JumpTarget | null>(null);
   const [sidebarCollapsed, toggleSidebar] = useSidebarCollapsed();
@@ -365,9 +393,15 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     prefs.selectedRepo && projectByRepo.has(prefs.selectedRepo)
       ? prefs.selectedRepo
       : null;
+  const onPage = prefs.showingSessions || prefs.showingTodo || prefs.showingDiff;
+  const onAllCanvas = selectedRepo === null && view === "canvas" && !onPage;
   // The canvas carries the document tabs in its own right panel, so the floating one stays away.
-  const onCanvas =
-    selectedRepo !== null && prefs.selectedWorktreeId === null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff;
+  const onCanvas = onAllCanvas || (selectedRepo !== null && prefs.selectedWorktreeId === null && !onPage);
+  // App conductors belong to no project, so no focus or search hides them.
+  const canvasAgents = [
+    ...visibleAgents,
+    ...board.agents.filter((agent) => !agent.repo && agent.orchestration?.conductor && !visibleAgents.includes(agent)),
+  ];
   const floatingDocOpen = docOpen && !onCanvas;
 
   return (
@@ -441,6 +475,48 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
           />
         ) : prefs.showingDiff ? (
           <DiffTab worktrees={board.worktrees} />
+        ) : onAllCanvas ? (
+          <ProjectCanvas
+            key=":all"
+            scope={ALL_SCOPE}
+            worktrees={visibleWorktrees}
+            agents={canvasAgents}
+            everyAgent={board.agents}
+            modeOf={modeOfRepo}
+            now={now}
+            header={
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em]">전체</h1>
+                  <ViewToggle view={view} onChange={(next) => writeView([next])} />
+                </div>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
+                  placeholder="캔버스 거르기 · 프로젝트, 브랜치, 작업, 요청, 답변"
+                  className={SEARCH_INPUT_CLASS}
+                />
+                <FocusChips
+                  items={board.projects
+                    .map((project) => project.repo)
+                    .filter((repo) => focused.has(repo))
+                    .map((repo) => ({ key: repo, label: repo }))}
+                  onRemove={toggleFocus}
+                  onClear={() => writeFocus([])}
+                />
+              </div>
+            }
+            renderCard={canvasPanelCard}
+            onAction={runAction}
+            onOpenWorktree={(worktreeId) => {
+              const worktree = worktreeById.get(worktreeId);
+              if (worktree) prefs.selectWorktree(worktree.repo, worktreeId);
+            }}
+            onOpenElsewhere={prefs.selectWorktree}
+            onOpenProject={prefs.selectRepo}
+            renderPanel={(panel) => <DocPanel agents={board.agents} lead={panel} />}
+          />
         ) : selectedRepo === null ? (
           <>
             <header>
@@ -465,23 +541,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
               />
 
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="flex rounded-full bg-tint p-0.5 text-[13px] font-semibold">
-                  {VIEW_OPTIONS.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      aria-pressed={view === option.key}
-                      onClick={() => writeView([option.key])}
-                      className={`rounded-full px-3.5 py-1.5 leading-none ${
-                        view === option.key
-                          ? "bg-fg text-bg"
-                          : "text-muted hover:text-fg"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <ViewToggle view={view} onChange={(next) => writeView([next])} />
                 <input
                   type="search"
                   value={query}
@@ -697,10 +757,10 @@ function ProjectView({
   if (selectedWorktreeId === null) {
     return (
       <ProjectCanvas
-        repo={repo}
+        scope={{ kind: "project", repo }}
         worktrees={ordered}
         agents={agents.top.flatMap((agent) => [agent, ...agents.workersOf(agent)])}
-        mode={mode}
+        modeOf={() => mode}
         now={now}
         header={
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px] text-muted">

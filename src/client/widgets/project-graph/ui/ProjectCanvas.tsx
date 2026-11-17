@@ -8,10 +8,10 @@ import type { LinkKind } from "@/common/orchestration/types";
 import { buildSteps } from "@/common/workflow/steps";
 import type { WorkflowMode } from "@/common/workflow/types";
 import { fileOverlapsQueryOptions } from "../api/fileOverlapsQuery";
-import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resolvePositions, setEdgeEnd, ungroup } from "../model/canvasState";
+import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resetSize, resizeBox, resolvePositions, setEdgeEnd, ungroup } from "../model/canvasState";
 import { buildGraph, type GraphEdge } from "../model/graph";
 import { autoLayout, type Point, type Side } from "../model/layout";
-import { useCanvasState } from "../model/useCanvasState";
+import { canvasKey, useCanvasState, type CanvasScope } from "../model/useCanvasState";
 import { CanvasStage, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
@@ -46,14 +46,14 @@ interface PendingConnect {
 }
 
 interface ProjectCanvasProps {
-  repo: string;
-  /** The project's worktrees in sidebar order. */
+  scope: CanvasScope;
+  /** The worktrees shown, in sidebar order. */
   worktrees: WorktreeSummary[];
-  /** Every session of the project, orchestrated workers included. */
+  /** Every session shown, orchestrated workers included. */
   agents: AgentCard[];
   /** Every session on the board, for conductors outside this project that work with sessions here. */
   everyAgent: AgentCard[];
-  mode: WorkflowMode;
+  modeOf: (repo: string) => WorkflowMode;
   now: number;
   /** Project name, workflow and focus toggle, floated over the top-left corner. */
   header: React.ReactNode;
@@ -62,6 +62,8 @@ interface ProjectCanvasProps {
   onOpenWorktree: (worktreeId: string) => void;
   /** A port clicked: go to that worktree in its own project. */
   onOpenElsewhere: (repo: string, worktreeId: string) => void;
+  /** A project frame's link on the all-projects canvas. */
+  onOpenProject?: (repo: string) => void;
   renderPanel: (panel: CanvasPanel) => React.ReactNode;
 }
 
@@ -90,7 +92,7 @@ function isTyping(target: EventTarget | null): boolean {
  * The project overview as a canvas: conductors on top, every worktree as a frame of session boxes,
  * the lines between them, and the selected session answered in the side panel.
  */
-export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, header, renderCard, onAction, onOpenWorktree, onOpenElsewhere, renderPanel }: ProjectCanvasProps) {
+export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, now, header, renderCard, onAction, onOpenWorktree, onOpenElsewhere, onOpenProject, renderPanel }: ProjectCanvasProps) {
   // Worktree lines (fork, same files) come from git, not from anything a person connected, so they stay off until asked for.
   const [showWorktreeLines, setShowWorktreeLines] = useState(false);
   const overlapPaths = showWorktreeLines ? worktrees.filter((worktree) => !worktree.isMain).map((worktree) => worktree.path) : [];
@@ -99,8 +101,8 @@ export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, 
   const runs = runner.state === "online" ? runner.runs : [];
   const built = buildGraph(agents, worktrees, overlaps, runs, everyAgent);
   const graph = showWorktreeLines ? built : { ...built, edges: built.edges.filter((edge) => edge.kind !== "fork" && edge.kind !== "overlap") };
-  const auto = autoLayout(graph);
-  const [canvas, updateCanvas] = useCanvasState(repo);
+  const [canvas, updateCanvas] = useCanvasState(canvasKey(scope));
+  const auto = autoLayout(graph, { sizes: canvas.sizes, byProject: scope.kind === "all" });
   const positions = resolvePositions(auto.positions, canvas.positions);
   const anchors = resolvePositions(auto.anchors, canvas.positions);
 
@@ -292,6 +294,8 @@ export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, 
           positions={positions}
           anchors={anchors}
           groups={canvas.groups}
+          sizes={canvas.sizes}
+          projectFrames={scope.kind === "all"}
           selectedIds={new Set(liveSelected)}
           selectedEdgeId={edgeId}
           ends={canvas.ends}
@@ -300,7 +304,7 @@ export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, 
           now={now}
           stepsOf={(worktree) => {
             const task = worktree.flowTasks[0];
-            return task ? buildSteps(mode, task, worktree.pullRequest) : null;
+            return task ? buildSteps(modeOf(worktree.repo), task, worktree.pullRequest) : null;
           }}
           overlay={(zoom) => (
             <>
@@ -349,6 +353,9 @@ export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, 
             setEdgeId(edge.id);
           }}
           onMove={(moved) => save((current) => movePositions(current, moved))}
+          onResize={(id, size, at) => save((current) => resizeBox(current, id, size, at))}
+          onResetSize={(id) => save((current) => resetSize(current, id))}
+          onOpenProject={onOpenProject}
           onConnect={connect}
           onMoveEnd={(edge, end, nodeId, side) => void moveEnd(edge, end, nodeId, side)}
           onContextMenu={(target, at) => {
@@ -378,7 +385,7 @@ export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, 
           </div>
           <Legend showWorktreeLines={showWorktreeLines} />
           <GraphToolbar
-            repo={repo}
+            scope={scope}
             worktrees={worktrees}
             connecting={connecting}
             showAllLinks={showAllLinks}

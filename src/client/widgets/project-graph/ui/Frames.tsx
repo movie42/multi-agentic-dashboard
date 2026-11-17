@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { WorktreeSummary } from "@/common/board/types";
+import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { StepStatus, WorkflowStep } from "@/common/workflow/types";
+import { displayStateOf } from "@/client/entities/agent";
 import type { UserGroup } from "../model/canvasState";
-import { CLUSTER_HEAD, GROUP_HEAD, type Rect } from "../model/layout";
+import { CLUSTER_HEAD, GROUP_HEAD, PROJECT_HEAD, type Rect } from "../model/layout";
 
 const STEP_DOT: Record<StepStatus, string> = {
   done: "bg-done",
@@ -104,6 +105,77 @@ export function GroupFrame({ rect, group, onRename, onUngroup }: GroupFrameProps
           </button>
         </div>
       </foreignObject>
+    </g>
+  );
+}
+
+interface ProjectFrameProps {
+  repo: string;
+  rect: Rect;
+  /** Sessions in this project's worktrees. */
+  agents: AgentCard[];
+  worktrees: number;
+  onOpen?: () => void;
+}
+
+/** A project on the all-projects canvas, wrapped around its worktree frames; dragging its header moves all of them. */
+export function ProjectFrame({ repo, rect, agents, worktrees, onOpen }: ProjectFrameProps) {
+  const states = agents.map(displayStateOf);
+  const myTurn = states.filter((state) => state === "done" || state === "blocked" || state === "waiting").length;
+  const working = states.filter((state) => state === "working").length;
+  return (
+    <g>
+      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={22} strokeWidth={1.5} className="fill-tint/20 stroke-hair" />
+      <foreignObject x={rect.x} y={rect.y} width={rect.w} height={PROJECT_HEAD}>
+        <div data-drag="project" data-id={repo} className="flex h-full cursor-grab items-center gap-2.5 px-5 text-[12px] leading-none select-none active:cursor-grabbing">
+          <span className="text-[10px] font-semibold tracking-[0.08em] text-muted">PROJECT</span>
+          <span className="max-w-full shrink-0 truncate text-[16px] font-bold">{repo}</span>
+          <span className="min-w-0 truncate text-muted">
+            워크트리 {worktrees} · 세션 {agents.length}
+            {myTurn > 0 && <span className="font-semibold text-ask"> · 내 차례 {myTurn}</span>}
+            {working > 0 && <span className="font-semibold text-now"> · 작업 중 {working}</span>}
+          </span>
+          {onOpen && (
+            <button
+              type="button"
+              onClick={onOpen}
+              title={`${repo} 프로젝트 캔버스 열기`}
+              className="ml-auto shrink-0 font-semibold underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              열기
+            </button>
+          )}
+        </div>
+      </foreignObject>
+    </g>
+  );
+}
+
+const CORNER = 14;
+
+interface ResizeCornerProps {
+  id: string;
+  rect: Rect;
+  label: string;
+}
+
+/**
+ * The bottom-right handle that resizes a box or a frame; the canvas reads `data-resize` on pointer
+ * down. Its grip shows while the pointer is over the surrounding `group/box`.
+ */
+export function ResizeCorner({ id, rect, label }: ResizeCornerProps) {
+  const right = rect.x + rect.w;
+  const bottom = rect.y + rect.h;
+  return (
+    <g data-resize={id} className="group/corner cursor-nwse-resize">
+      <title>{`${label} · 두 번 누르면 원래 크기`}</title>
+      <rect x={right - CORNER} y={bottom - CORNER} width={CORNER + 4} height={CORNER + 4} className="fill-transparent" />
+      <path
+        d={`M ${right - 3} ${bottom - 10} L ${right - 10} ${bottom - 3} M ${right - 3} ${bottom - 5.5} L ${right - 5.5} ${bottom - 3}`}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        className="stroke-muted opacity-0 transition-opacity group-hover/box:opacity-100 group-hover/corner:stroke-fg"
+      />
     </g>
   );
 }

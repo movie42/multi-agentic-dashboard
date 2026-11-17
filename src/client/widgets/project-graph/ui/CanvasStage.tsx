@@ -10,18 +10,23 @@ import {
   groupRect,
   type EdgeEnds,
   intersects,
+  MAX_NODE,
+  MIN_NODE,
   nearestSide,
-  NODE_H,
-  NODE_W,
   nodeRect,
+  NODE_SIZE,
+  nodeSize,
   portRects as placePorts,
   type Point,
+  projectRect,
   type Rect,
   type Side,
+  type Size,
+  type Sizes,
   unionRect,
 } from "../model/layout";
 import { EdgeMarkers, GraphEdges } from "./GraphEdges";
-import { ClusterFrame, GroupFrame } from "./Frames";
+import { ClusterFrame, GroupFrame, ProjectFrame, ResizeCorner } from "./Frames";
 import { NodeBox } from "./NodeBox";
 import { ReservedBox } from "./ReservedBox";
 import { SeaRoutes } from "./SeaRoutes";
@@ -50,12 +55,16 @@ type Gesture =
     }
   | { kind: "marquee"; start: Point; rect: Rect | null; additive: boolean }
   | { kind: "connect"; from: string }
+  | { kind: "resize"; id: string; start: Point; base: Rect; frame: boolean; moved: boolean }
   | { kind: "end"; edge: GraphEdge; end: LineEnd };
 
 type LineEnd = "from" | "to";
 
 /** `select` edits (drag boxes, drag empty space to select several); `hand` only moves the canvas. */
 type PointerTool = "select" | "hand";
+
+/** Smallest a worktree frame can be resized to. */
+const MIN_FRAME: Size = { w: 240, h: 120 };
 
 export type MenuTarget = {
   kind: "node" | "cluster" | "group" | "edge" | "canvas";
@@ -75,6 +84,10 @@ interface CanvasStageProps {
   positions: ReadonlyMap<string, Point>;
   anchors: ReadonlyMap<string, Point>;
   groups: UserGroup[];
+  /** Boxes and frames a person resized. */
+  sizes: Sizes;
+  /** Draw a frame around each project's worktrees, for the canvas that shows every project. */
+  projectFrames?: boolean;
   selectedIds: ReadonlySet<string>;
   selectedEdgeId: string | null;
   ends: Record<string, EdgeEnds>;
@@ -91,6 +104,11 @@ interface CanvasStageProps {
   onOpenNode?: (id: string) => void;
   onSelectEdge: (edge: GraphEdge) => void;
   onMove: (moved: Map<string, Point>) => void;
+  /** A box or frame resized from its corner; a frame also pins its top-left corner at `at`. */
+  onResize: (id: string, size: Size, at?: Point) => void;
+  /** The resize corner clicked twice: back to the default size. */
+  onResetSize: (id: string) => void;
+  onOpenProject?: (repo: string) => void;
   onConnect: (from: string, to: string, at: Point) => void;
   /** A line end dropped on a box: the same box moves it to another side, another box reconnects it. */
   onMoveEnd: (
@@ -164,6 +182,8 @@ export function CanvasStage(props: CanvasStageProps) {
     positions,
     anchors,
     groups,
+    sizes: savedSizes,
+    projectFrames = false,
     selectedIds,
     selectedEdgeId,
     ends,
@@ -193,27 +213,37 @@ export function CanvasStage(props: CanvasStageProps) {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [panning, setPanning] = useState(false);
   const [tool, setTool] = useState<PointerTool>("select");
+  const [resizing, setResizing] = useState<{ id: string; rect: Rect } | null>(null);
 
+  const sizes: Sizes = resizing ? { ...savedSizes, [resizing.id]: { w: resizing.rect.w, h: resizing.rect.h } } : savedSizes;
+  const sizeOf = (id: string) => nodeSize(sizes, id);
   const shown = new Map(
     [...positions].map(([id, point]) => [id, shifted(point, drag, id)]),
   );
   const shownAnchor = (id: string) =>
-    shifted(anchors.get(id) ?? { x: 0, y: 0 }, drag, id);
+    resizing?.id === id ? { x: resizing.rect.x, y: resizing.rect.y } : shifted(anchors.get(id) ?? { x: 0, y: 0 }, drag, id);
   const clusterRects = new Map(
     graph.clusters.map((cluster) => [
       cluster.id,
-      clusterRect(cluster.nodeIds, shown, shownAnchor(cluster.id)),
+      clusterRect(cluster.id, cluster.nodeIds, shown, shownAnchor(cluster.id), sizes),
     ]),
   );
   const rectOf = (id: string): Rect | null => {
     const point = shown.get(id);
-    return point ? nodeRect(point) : (clusterRects.get(id) ?? null);
+    return point ? nodeRect(point, sizeOf(id)) : (clusterRects.get(id) ?? null);
   };
   const groupRects = groups.flatMap((group) => {
-    const rect = groupRect(group.memberIds, shown);
+    const rect = groupRect(group.memberIds, shown, sizes);
     return rect ? [{ group, rect }] : [];
   });
-  const portRects = placePorts(graph.ports, shown);
+  const portRects = placePorts(graph.ports, shown, sizes);
+  const projectRects = projectFrames
+    ? [...new Set(graph.clusters.map((cluster) => cluster.worktree.repo))].flatMap((repo) => {
+        const clusters = graph.clusters.filter((cluster) => cluster.worktree.repo === repo);
+        const rect = projectRect(clusters.flatMap((cluster) => clusterRects.get(cluster.id) ?? []));
+        return rect ? [{ repo, rect, clusters }] : [];
+      })
+    : [];
 
   const toWorld = (clientX: number, clientY: number): Point => {
     const box = svgRef.current?.getBoundingClientRect();
@@ -226,8 +256,9 @@ export function CanvasStage(props: CanvasStageProps) {
   const fit = () => {
     const box = svgRef.current?.getBoundingClientRect();
     const content = unionRect([
-      ...[...shown.values()].map(nodeRect),
+      ...[...shown].map(([id, point]) => nodeRect(point, sizeOf(id))),
       ...clusterRects.values(),
+      ...projectRects.map((entry) => entry.rect),
       ...groupRects.map((entry) => entry.rect),
       ...portRects.values(),
     ]);
@@ -356,6 +387,13 @@ export function CanvasStage(props: CanvasStageProps) {
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
     }
+    const corner = event.button === 0 && !spaceHeld && tool === "select" ? target?.closest("[data-resize]")?.getAttribute("data-resize") : null;
+    const cornerRect = corner ? rectOf(corner) : null;
+    if (corner && cornerRect) {
+      gesture.current = { kind: "resize", id: corner, start: toWorld(event.clientX, event.clientY), base: cornerRect, frame: !positions.has(corner), moved: false };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
     const startPan =
       event.button === 1 ||
       (event.button === 0 && (spaceHeld || (tool === "hand" && !connecting)));
@@ -399,8 +437,13 @@ export function CanvasStage(props: CanvasStageProps) {
       };
     } else if (handle) {
       const id = handle.getAttribute("data-id") ?? "";
+      const dragKind = handle.getAttribute("data-drag");
       const ids =
-        handle.getAttribute("data-drag") === "cluster"
+        dragKind === "project"
+          ? graph.clusters
+              .filter((cluster) => cluster.worktree.repo === id)
+              .flatMap((cluster) => [cluster.id, ...cluster.nodeIds.filter((member) => positions.has(member))])
+          : dragKind === "cluster"
           ? [
               id,
               ...(graph.clusters.find((cluster) => cluster.id === id)
@@ -444,7 +487,16 @@ export function CanvasStage(props: CanvasStageProps) {
       return;
     }
     const world = toWorld(event.clientX, event.clientY);
-    if (current.kind === "end") {
+    if (current.kind === "resize") {
+      const min = current.frame ? MIN_FRAME : MIN_NODE;
+      const dx = world.x - current.start.x;
+      const dy = world.y - current.start.y;
+      if (!current.moved && Math.hypot(dx, dy) * view.zoom <= DRAG_THRESHOLD) return;
+      current.moved = true;
+      const w = Math.round(Math.max(min.w, current.frame ? current.base.w + dx : Math.min(MAX_NODE.w, current.base.w + dx)));
+      const h = Math.round(Math.max(min.h, current.frame ? current.base.h + dy : Math.min(MAX_NODE.h, current.base.h + dy)));
+      setResizing({ id: current.id, rect: { ...current.base, w, h } });
+    } else if (current.kind === "end") {
       setEndDrag({ edgeId: current.edge.id, end: current.end, point: world });
     } else if (current.kind === "move") {
       const dx = world.x - current.start.x;
@@ -472,7 +524,22 @@ export function CanvasStage(props: CanvasStageProps) {
     gesture.current = null;
     setPanning(false);
     if (!current) return;
-    if (current.kind === "pan") {
+    if (current.kind === "resize") {
+      setResizing(null);
+      if (current.moved && resizing?.id === current.id) {
+        const { x, y, w, h } = resizing.rect;
+        props.onResize(current.id, { w, h }, current.frame ? { x: Math.round(x), y: Math.round(y) } : undefined);
+      } else if (!current.moved) {
+        const last = lastClick.current;
+        const id = `resize:${current.id}`;
+        if (last && last.id === id && event.timeStamp - last.at <= DOUBLE_CLICK_MS) {
+          lastClick.current = null;
+          props.onResetSize(current.id);
+        } else {
+          lastClick.current = { id, at: event.timeStamp };
+        }
+      }
+    } else if (current.kind === "pan") {
       if (!current.moved)
         props.onSelect(current.clickId ? [current.clickId] : [], false);
     } else if (current.kind === "move") {
@@ -514,7 +581,7 @@ export function CanvasStage(props: CanvasStageProps) {
       if (rect) {
         props.onSelect(
           [...positions]
-            .filter(([, point]) => intersects(rect, nodeRect(point)))
+            .filter(([id, point]) => intersects(rect, nodeRect(point, sizeOf(id))))
             .map(([id]) => id),
           current.additive,
         );
@@ -564,7 +631,7 @@ export function CanvasStage(props: CanvasStageProps) {
       ? { kind: "node", id: node }
       : edge
         ? { kind: "edge", id: edge }
-        : handle
+        : handle && handle.getAttribute("data-drag") !== "project"
           ? {
               kind:
                 handle.getAttribute("data-drag") === "group"
@@ -623,18 +690,33 @@ export function CanvasStage(props: CanvasStageProps) {
         <EdgeMarkers />
         <rect width="100%" height="100%" fill="url(#canvas-dots)" />
         <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
-          {graph.clusters.map((cluster) => (
-            <ClusterFrame
-              key={cluster.id}
-              id={cluster.id}
-              rect={clusterRects.get(cluster.id)!}
-              worktree={cluster.worktree}
-              steps={stepsOf(cluster.worktree)}
-              sessions={cluster.nodeIds.filter((id) => graph.nodes.has(id)).length}
-              empty={cluster.nodeIds.length === 0}
-              onOpen={() => props.onOpenWorktree(cluster.worktree.worktreeId)}
+          {projectRects.map(({ repo, rect, clusters }) => (
+            <ProjectFrame
+              key={repo}
+              repo={repo}
+              rect={rect}
+              agents={clusters.flatMap((cluster) => cluster.nodeIds.flatMap((id) => graph.nodes.get(id)?.agent ?? []))}
+              worktrees={clusters.length}
+              onOpen={props.onOpenProject ? () => props.onOpenProject?.(repo) : undefined}
             />
           ))}
+          {graph.clusters.map((cluster) => {
+            const rect = clusterRects.get(cluster.id)!;
+            return (
+              <g key={cluster.id} className="group/box">
+                <ClusterFrame
+                  id={cluster.id}
+                  rect={rect}
+                  worktree={cluster.worktree}
+                  steps={stepsOf(cluster.worktree)}
+                  sessions={cluster.nodeIds.filter((id) => graph.nodes.has(id)).length}
+                  empty={cluster.nodeIds.length === 0}
+                  onOpen={() => props.onOpenWorktree(cluster.worktree.worktreeId)}
+                />
+                <ResizeCorner id={cluster.id} rect={rect} label="워크트리 크기 조절" />
+              </g>
+            );
+          })}
           {groupRects.map(({ group, rect }) => (
             <GroupFrame
               key={group.id}
@@ -665,42 +747,49 @@ export function CanvasStage(props: CanvasStageProps) {
           {[...graph.nodes.values()].map((node) => {
             const point = shown.get(node.id);
             if (!point) return null;
+            const size = sizeOf(node.id);
             return (
-              <foreignObject
-                key={node.id}
-                x={point.x}
-                y={point.y}
-                width={NODE_W}
-                height={NODE_H}
-                data-node={node.id}
-                className="overflow-visible"
-              >
-                <NodeBox
-                  node={node}
-                  now={now}
-                  selected={selectedIds.has(node.id)}
-                  delegatedTo={delegatedTo(node.id)}
-                  reports={reportsTo(node.id)}
-                  routed={graph.ports.some((port) => port.routes.some((route) => route.nodeId === node.id))}
-                />
-              </foreignObject>
+              <g key={node.id} className="group/box">
+                <foreignObject
+                  x={point.x}
+                  y={point.y}
+                  width={size.w}
+                  height={size.h}
+                  data-node={node.id}
+                  className="overflow-visible"
+                >
+                  <NodeBox
+                    node={node}
+                    now={now}
+                    selected={selectedIds.has(node.id)}
+                    delegatedTo={delegatedTo(node.id)}
+                    reports={reportsTo(node.id)}
+                    routed={graph.ports.some((port) => port.routes.some((route) => route.nodeId === node.id))}
+                    roomy={size.h > NODE_SIZE.h}
+                  />
+                </foreignObject>
+                <ResizeCorner id={node.id} rect={nodeRect(point, size)} label="세션 상자 크기 조절" />
+              </g>
             );
           })}
           {[...graph.reserved.values()].map((reserved) => {
             const point = shown.get(reserved.id);
             if (!point) return null;
+            const size = sizeOf(reserved.id);
             return (
-              <foreignObject
-                key={reserved.id}
-                x={point.x}
-                y={point.y}
-                width={NODE_W}
-                height={NODE_H}
-                data-node={reserved.id}
-                className="overflow-visible"
-              >
-                <ReservedBox reserved={reserved} selected={selectedIds.has(reserved.id)} />
-              </foreignObject>
+              <g key={reserved.id} className="group/box">
+                <foreignObject
+                  x={point.x}
+                  y={point.y}
+                  width={size.w}
+                  height={size.h}
+                  data-node={reserved.id}
+                  className="overflow-visible"
+                >
+                  <ReservedBox reserved={reserved} selected={selectedIds.has(reserved.id)} />
+                </foreignObject>
+                <ResizeCorner id={reserved.id} rect={nodeRect(point, size)} label="예약 카드 크기 조절" />
+              </g>
             );
           })}
           {connectLine && (

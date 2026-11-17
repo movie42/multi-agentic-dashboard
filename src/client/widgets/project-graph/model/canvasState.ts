@@ -1,4 +1,4 @@
-import type { EdgeEnds, Point, Side } from "./layout";
+import type { EdgeEnds, Point, Side, Size } from "./layout";
 
 export interface UserGroup {
   id: string;
@@ -20,9 +20,11 @@ export interface CanvasState {
   viewport: Viewport | null;
   /** Line ends a person moved to another side of a box, by daemon link id. */
   ends: Record<string, EdgeEnds>;
+  /** Boxes and worktree frames a person resized, by node id or cluster id. */
+  sizes: Record<string, Size>;
 }
 
-export const EMPTY_CANVAS: CanvasState = { positions: {}, groups: [], viewport: null, ends: {} };
+export const EMPTY_CANVAS: CanvasState = { positions: {}, groups: [], viewport: null, ends: {}, sizes: {} };
 
 const SIDES: readonly Side[] = ["top", "right", "bottom", "left"];
 const asSide = (value: unknown): Side | undefined => SIDES.find((side) => side === value);
@@ -38,6 +40,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isPoint(value: unknown): value is Point {
   return isRecord(value) && Number.isFinite(value.x) && Number.isFinite(value.y);
+}
+
+function isSize(value: unknown): value is Size {
+  return isRecord(value) && typeof value.w === "number" && typeof value.h === "number" && value.w > 0 && value.h > 0;
 }
 
 export function parseCanvasState(raw: string | null): CanvasState {
@@ -69,7 +75,10 @@ export function parseCanvasState(raw: string | null): CanvasState {
           }),
         )
       : {};
-    return { positions, groups, viewport, ends };
+    const sizes = isRecord(parsed.sizes)
+      ? Object.fromEntries(Object.entries(parsed.sizes).filter((entry): entry is [string, Size] => isSize(entry[1])))
+      : {};
+    return { positions, groups, viewport, ends, sizes };
   } catch {
     return EMPTY_CANVAS;
   }
@@ -112,18 +121,36 @@ export function groupOf(state: CanvasState, nodeId: string): UserGroup | null {
 /** Drops spots and group members of sessions that closed; the cluster ids stay while the worktree lives. */
 export function pruneCanvas(state: CanvasState, liveIds: ReadonlySet<string>): CanvasState {
   const positions = Object.fromEntries(Object.entries(state.positions).filter(([id]) => liveIds.has(id)));
+  const sizes = Object.fromEntries(Object.entries(state.sizes).filter(([id]) => liveIds.has(id)));
   const groups = state.groups
     .map((group) => ({ ...group, memberIds: group.memberIds.filter((id) => liveIds.has(id)) }))
     .filter((group) => group.memberIds.length > 0);
-  const unchanged = Object.keys(positions).length === Object.keys(state.positions).length && groups.length === state.groups.length && groups.every((group, index) => group.memberIds.length === state.groups[index]?.memberIds.length);
-  return unchanged ? state : { ...state, positions, groups };
+  const unchanged =
+    Object.keys(positions).length === Object.keys(state.positions).length &&
+    Object.keys(sizes).length === Object.keys(state.sizes).length &&
+    groups.length === state.groups.length && groups.every((group, index) => group.memberIds.length === state.groups[index]?.memberIds.length);
+  return unchanged ? state : { ...state, positions, groups, sizes };
 }
 
-/** '자동 정리': every box and line end back to its auto spot, groups kept. */
+/** '자동 정리': every box and line end back to its auto spot, groups and sizes kept. */
 export function resetPositions(state: CanvasState): CanvasState {
   return { ...state, positions: {}, ends: {} };
 }
 
 export function setEdgeEnd(state: CanvasState, linkId: string, end: "from" | "to", side: Side): CanvasState {
   return { ...state, ends: { ...state.ends, [linkId]: { ...state.ends[linkId], [end]: side } } };
+}
+
+/** A resized box or frame; a frame also pins its top-left corner where the resize started. */
+export function resizeBox(state: CanvasState, id: string, size: Size, at?: Point): CanvasState {
+  return {
+    ...state,
+    sizes: { ...state.sizes, [id]: size },
+    positions: at ? { ...state.positions, [id]: at } : state.positions,
+  };
+}
+
+/** Back to the default size. */
+export function resetSize(state: CanvasState, id: string): CanvasState {
+  return { ...state, sizes: Object.fromEntries(Object.entries(state.sizes).filter(([key]) => key !== id)) };
 }

@@ -24,6 +24,31 @@ const GRID_COLUMNS = 2;
 const MAX_COLUMNS = 3;
 export const GROUP_PAD = 28;
 export const GROUP_HEAD = 30;
+export const PROJECT_PAD = 28;
+export const PROJECT_HEAD = 48;
+const PROJECT_GAP = 72;
+const PROJECT_COLUMNS = 3;
+
+export interface Size {
+  w: number;
+  h: number;
+}
+
+export const NODE_SIZE: Size = { w: NODE_W, h: NODE_H };
+export const MIN_NODE: Size = { w: 200, h: 88 };
+export const MAX_NODE: Size = { w: 880, h: 720 };
+const EMPTY_CLUSTER: Size = { w: NODE_W + CLUSTER_PAD * 2, h: CLUSTER_HEAD + EMPTY_H };
+
+/** What a person resized, by node id or cluster id; a box missing here keeps its default size. */
+export type Sizes = Readonly<Record<string, Size>>;
+
+export const nodeSize = (sizes: Sizes, id: string): Size => sizes[id] ?? NODE_SIZE;
+
+export interface LayoutOptions {
+  sizes?: Sizes;
+  /** Every project as its own block of worktrees, for the canvas that shows all projects. */
+  byProject?: boolean;
+}
 
 export interface AutoLayout {
   /** Top-left corner of every node. */
@@ -65,56 +90,91 @@ export function chainColumns(cluster: GraphCluster, graph: ProjectGraph): string
   return [...chains, ...packed];
 }
 
-function clusterSize(columns: string[][]): { w: number; h: number } {
-  if (columns.length === 0) return { w: NODE_W + CLUSTER_PAD * 2, h: CLUSTER_HEAD + EMPTY_H };
-  const rows = Math.max(...columns.map((column) => column.length));
+/** Something with a size that can be put down at an origin, so blocks nest: nodes in worktrees, worktrees in projects. */
+interface Block extends Size {
+  place: (origin: Point) => void;
+}
+
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+/** Blocks in rows of `columns`, each column as wide as its widest block, each row as tall as its tallest. */
+function grid(blocks: Block[], columns: number, gap: number): Block {
+  const widths = Array.from({ length: columns }, (_, column) => Math.max(0, ...blocks.filter((_, index) => index % columns === column).map((block) => block.w)));
+  const columnX = widths.map((_, column) => sum(widths.slice(0, column).map((width) => width + gap)));
+  const rows = Array.from({ length: Math.ceil(blocks.length / columns) }, (_, index) => blocks.slice(index * columns, (index + 1) * columns));
+  const heights = rows.map((row) => Math.max(...row.map((block) => block.h)));
+  const used = Math.min(blocks.length, columns);
   return {
-    w: CLUSTER_PAD * 2 + columns.length * NODE_W + (columns.length - 1) * NODE_GAP,
-    h: CLUSTER_HEAD + rows * NODE_H + (rows - 1) * NODE_GAP + CLUSTER_PAD,
+    w: used === 0 ? 0 : columnX[used - 1]! + widths[used - 1]!,
+    h: sum(heights) + Math.max(0, rows.length - 1) * gap,
+    place: (origin) =>
+      rows.forEach((row, rowIndex) => {
+        const y = origin.y + sum(heights.slice(0, rowIndex).map((height) => height + gap));
+        row.forEach((block, column) => block.place({ x: origin.x + (columnX[column] ?? 0), y }));
+      }),
   };
+}
+
+function clusterBlock(cluster: GraphCluster, graph: ProjectGraph, sizes: Sizes, layout: AutoLayout): Block {
+  const columns = chainColumns(cluster, graph);
+  const widths = columns.map((ids) => Math.max(...ids.map((id) => nodeSize(sizes, id).w)));
+  const heights = columns.map((ids) => sum(ids.map((id) => nodeSize(sizes, id).h)) + (ids.length - 1) * NODE_GAP);
+  const content =
+    columns.length === 0
+      ? EMPTY_CLUSTER
+      : { w: CLUSTER_PAD * 2 + sum(widths) + (columns.length - 1) * NODE_GAP, h: CLUSTER_HEAD + Math.max(...heights) + CLUSTER_PAD };
+  const saved = sizes[cluster.id];
+  return {
+    w: Math.max(content.w, saved?.w ?? 0),
+    h: Math.max(content.h, saved?.h ?? 0),
+    place: (origin) => {
+      layout.anchors.set(cluster.id, origin);
+      columns.forEach((ids, columnIndex) => {
+        const x = origin.x + CLUSTER_PAD + sum(widths.slice(0, columnIndex)) + columnIndex * NODE_GAP;
+        ids.reduce((y, id) => {
+          layout.positions.set(id, { x, y });
+          return y + nodeSize(sizes, id).h + NODE_GAP;
+        }, origin.y + CLUSTER_HEAD);
+      });
+    },
+  };
+}
+
+/** Clusters in the order given, grouped by project in the order each project first appears. */
+function projectBlocks(clusters: Block[], graph: ProjectGraph): Block[] {
+  const byRepo = new Map<string, Block[]>();
+  graph.clusters.forEach((cluster, index) => byRepo.set(cluster.worktree.repo, [...(byRepo.get(cluster.worktree.repo) ?? []), clusters[index]!]));
+  return [...byRepo.values()].map((blocks) => {
+    const inner = grid(blocks, blocks.length > 3 ? 2 : 1, CLUSTER_GAP);
+    return {
+      w: inner.w + PROJECT_PAD * 2,
+      h: inner.h + PROJECT_HEAD + PROJECT_PAD,
+      place: (origin) => inner.place({ x: origin.x + PROJECT_PAD, y: origin.y + PROJECT_HEAD }),
+    };
+  });
 }
 
 /**
  * The first placement, and what '자동 정리' returns to: conductors in one row on top, worktree
- * clusters below in a two-column grid in sidebar order.
+ * clusters below in a two-column grid in sidebar order — or, across projects, each project as a
+ * block of its worktrees, three projects to a row. Resized boxes keep their size.
  */
-export function autoLayout(graph: ProjectGraph): AutoLayout {
-  const positions = new Map<string, Point>();
-  const anchors = new Map<string, Point>();
-  const top = graph.conductors.length > 0 ? NODE_H + CONDUCTOR_GAP : 0;
+export function autoLayout(graph: ProjectGraph, { sizes = {}, byProject = false }: LayoutOptions = {}): AutoLayout {
+  const layout: AutoLayout = { positions: new Map(), anchors: new Map() };
+  const conductorSizes = graph.conductors.map((node) => nodeSize(sizes, node.id));
+  const top = graph.conductors.length > 0 ? Math.max(...conductorSizes.map((size) => size.h)) + CONDUCTOR_GAP : 0;
 
-  const sized = graph.clusters.map((cluster) => {
-    const columns = chainColumns(cluster, graph);
-    return { cluster, columns, ...clusterSize(columns) };
-  });
-  const columnWidths = Array.from({ length: GRID_COLUMNS }, (_, column) =>
-    Math.max(0, ...sized.filter((_, index) => index % GRID_COLUMNS === column).map((entry) => entry.w)),
-  );
-  const columnX = columnWidths.map((_, column) => columnWidths.slice(0, column).reduce((sum, width) => sum + width + CLUSTER_GAP, 0));
+  const clusters = graph.clusters.map((cluster) => clusterBlock(cluster, graph, sizes, layout));
+  const body = byProject ? grid(projectBlocks(clusters, graph), PROJECT_COLUMNS, PROJECT_GAP) : grid(clusters, GRID_COLUMNS, CLUSTER_GAP);
+  body.place({ x: 0, y: top });
 
-  const rows = Array.from({ length: Math.ceil(sized.length / GRID_COLUMNS) }, (_, index) => sized.slice(index * GRID_COLUMNS, (index + 1) * GRID_COLUMNS));
-  const rowTops = rows.map((_, index) => rows.slice(0, index).reduce((y, row) => y + Math.max(...row.map((entry) => entry.h)) + CLUSTER_GAP, top));
-  rows.forEach((row, rowIndex) => {
-    const rowY = rowTops[rowIndex] ?? top;
-    row.forEach((entry, column) => {
-      const origin = { x: columnX[column] ?? 0, y: rowY };
-      anchors.set(entry.cluster.id, origin);
-      entry.columns.forEach((ids, columnIndex) => {
-        ids.forEach((id, rowIndex) => {
-          positions.set(id, {
-            x: origin.x + CLUSTER_PAD + columnIndex * (NODE_W + NODE_GAP),
-            y: origin.y + CLUSTER_HEAD + rowIndex * (NODE_H + NODE_GAP),
-          });
-        });
-      });
-    });
-  });
-
-  const gridWidth = sized.length === 0 ? 0 : columnX[Math.min(sized.length, GRID_COLUMNS) - 1]! + columnWidths[Math.min(sized.length, GRID_COLUMNS) - 1]!;
-  const rowWidth = graph.conductors.length * NODE_W + (graph.conductors.length - 1) * NODE_GAP;
-  const startX = Math.max(0, (gridWidth - rowWidth) / 2);
-  graph.conductors.forEach((node, index) => positions.set(node.id, { x: startX + index * (NODE_W + NODE_GAP), y: 0 }));
-  return { positions, anchors };
+  const rowWidth = sum(conductorSizes.map((size) => size.w)) + Math.max(0, graph.conductors.length - 1) * NODE_GAP;
+  const startX = Math.max(0, (body.w - rowWidth) / 2);
+  graph.conductors.reduce((x, node, index) => {
+    layout.positions.set(node.id, { x, y: 0 });
+    return x + conductorSizes[index]!.w + NODE_GAP;
+  }, startX);
+  return layout;
 }
 
 export const PORT_W = 208;
@@ -127,11 +187,14 @@ const PORT_DISTANCE = 220;
  * Ports float above the sessions they connect to, wherever those were dragged: each centred over
  * its sessions, then pushed apart left to right so none overlap.
  */
-export function portRects(ports: GraphPort[], positions: ReadonlyMap<string, Point>): Map<string, Rect> {
+export function portRects(ports: GraphPort[], positions: ReadonlyMap<string, Point>, sizes: Sizes = {}): Map<string, Rect> {
   const placed = ports.flatMap((port) => {
-    const points = port.routes.flatMap((route) => positions.get(route.nodeId) ?? []);
+    const points = port.routes.flatMap((route) => {
+      const point = positions.get(route.nodeId);
+      return point ? [{ ...point, w: nodeSize(sizes, route.nodeId).w }] : [];
+    });
     if (points.length === 0) return [];
-    const centre = points.reduce((sum, point) => sum + point.x + NODE_W / 2, 0) / points.length;
+    const centre = points.reduce((total, point) => total + point.x + point.w / 2, 0) / points.length;
     const top = Math.min(...points.map((point) => point.y));
     return [{ id: port.id, x: centre - PORT_W / 2, y: top - PORT_DISTANCE - PORT_H }];
   });
@@ -145,31 +208,42 @@ export function portRects(ports: GraphPort[], positions: ReadonlyMap<string, Poi
   return rects;
 }
 
-export function nodeRect(point: Point): Rect {
-  return { x: point.x, y: point.y, w: NODE_W, h: NODE_H };
+export function nodeRect(point: Point, size: Size = NODE_SIZE): Rect {
+  return { x: point.x, y: point.y, w: size.w, h: size.h };
 }
 
-function bounds(points: Point[]): Rect | null {
-  if (points.length === 0) return null;
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return { x, y, w: Math.max(...xs) + NODE_W - x, h: Math.max(...ys) + NODE_H - y };
+function bounds(ids: string[], positions: ReadonlyMap<string, Point>, sizes: Sizes): Rect | null {
+  return unionRect(ids.flatMap((id) => {
+    const point = positions.get(id);
+    return point ? [nodeRect(point, nodeSize(sizes, id))] : [];
+  }));
 }
 
-/** A worktree cluster follows its sessions wherever they were dragged; an empty one stays at its anchor. */
-export function clusterRect(nodeIds: string[], positions: ReadonlyMap<string, Point>, anchor: Point): Rect {
-  const box = bounds(nodeIds.flatMap((id) => positions.get(id) ?? []));
-  if (!box) return { x: anchor.x, y: anchor.y, w: NODE_W + CLUSTER_PAD * 2, h: CLUSTER_HEAD + EMPTY_H };
-  return { x: box.x - CLUSTER_PAD, y: box.y - CLUSTER_HEAD, w: box.w + CLUSTER_PAD * 2, h: box.h + CLUSTER_HEAD + CLUSTER_PAD };
+/**
+ * A worktree cluster follows its sessions wherever they were dragged; an empty one stays at its
+ * anchor. One a person resized also covers its anchor at that size, so it never shrinks below it.
+ */
+export function clusterRect(id: string, nodeIds: string[], positions: ReadonlyMap<string, Point>, anchor: Point, sizes: Sizes = {}): Rect {
+  const box = bounds(nodeIds, positions, sizes);
+  const content = box
+    ? { x: box.x - CLUSTER_PAD, y: box.y - CLUSTER_HEAD, w: box.w + CLUSTER_PAD * 2, h: box.h + CLUSTER_HEAD + CLUSTER_PAD }
+    : { ...anchor, ...EMPTY_CLUSTER };
+  const saved = sizes[id];
+  return saved ? unionRect([content, { ...anchor, ...saved }])! : content;
 }
 
 /** A person's group sits one step outside the clusters it may cross. */
-export function groupRect(memberIds: string[], positions: ReadonlyMap<string, Point>): Rect | null {
-  const box = bounds(memberIds.flatMap((id) => positions.get(id) ?? []));
+export function groupRect(memberIds: string[], positions: ReadonlyMap<string, Point>, sizes: Sizes = {}): Rect | null {
+  const box = bounds(memberIds, positions, sizes);
   if (!box) return null;
   return { x: box.x - GROUP_PAD, y: box.y - GROUP_PAD - GROUP_HEAD, w: box.w + GROUP_PAD * 2, h: box.h + GROUP_PAD * 2 + GROUP_HEAD };
+}
+
+/** A project frame on the all-projects canvas wraps its worktree frames wherever they went. */
+export function projectRect(clusterRects: Rect[]): Rect | null {
+  const box = unionRect(clusterRects);
+  if (!box) return null;
+  return { x: box.x - PROJECT_PAD, y: box.y - PROJECT_HEAD, w: box.w + PROJECT_PAD * 2, h: box.h + PROJECT_HEAD + PROJECT_PAD };
 }
 
 export function unionRect(rects: Rect[]): Rect | null {

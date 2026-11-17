@@ -45,12 +45,12 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), els
   render(
     <QueryClientProvider client={client}>
       <ProjectCanvas
-        repo="shop"
+        scope={{ kind: "project", repo: "shop" }}
         worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]}
         agents={agents}
         everyAgent={elsewhere.everyAgent ?? agents}
         onOpenElsewhere={elsewhere.onOpenElsewhere ?? (() => {})}
-        mode="personal"
+        modeOf={() => "personal"}
         now={0}
         header={<h1>shop</h1>}
         renderCard={(agent) => <div data-testid="card">{agent.title}</div>}
@@ -95,6 +95,52 @@ describe("ProjectCanvas", () => {
     expect(screen.getByTestId("card").textContent).toBe("일꾼");
   });
 
+  it("resizes a session box from its corner and keeps the size", () => {
+    renderCanvas([agentCard({ id: "s1", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "결제 API" })]);
+    const corner = document.querySelector('[data-resize="s1"]')!;
+    fireEvent.pointerDown(corner, { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(corner, { button: 0, pointerId: 1, clientX: 120, clientY: 90 });
+    fireEvent.pointerUp(corner, { button: 0, pointerId: 1, clientX: 120, clientY: 90 });
+    const box = document.querySelector('[data-node="s1"]')!;
+    expect(box.getAttribute("width")).toBe("384");
+    expect(box.getAttribute("height")).toBe("202");
+    expect(JSON.parse(localStorage.getItem("agent-control:canvas:shop")!).sizes.s1).toEqual({ w: 384, h: 202 });
+    localStorage.removeItem("agent-control:canvas:shop");
+  });
+
+  it("draws every project as a frame on the all-projects canvas", () => {
+    const onOpenProject = vi.fn();
+    const client = new QueryClient();
+    const agents = [
+      agentCard({ id: "a", worktreeId: "/p/shop-a", title: "쇼핑 일" }),
+      agentCard({ id: "b", repo: "web", worktreeId: "/p/web", title: "웹 일" }),
+    ];
+    render(
+      <QueryClientProvider client={client}>
+        <ProjectCanvas
+          scope={{ kind: "all" }}
+          worktrees={[worktree("/p/shop-a"), { ...worktree("/p/web", true), repo: "web" }]}
+          agents={agents}
+          everyAgent={agents}
+          onOpenElsewhere={() => {}}
+          onOpenProject={onOpenProject}
+          modeOf={() => "personal"}
+          now={0}
+          header={null}
+          renderCard={() => null}
+          onAction={vi.fn(async () => {})}
+          onOpenWorktree={() => {}}
+          renderPanel={(panel) => panel.content}
+        />
+      </QueryClientProvider>,
+    );
+    expect(document.querySelectorAll('[data-drag="project"]')).toHaveLength(2);
+    expect(screen.getByText("쇼핑 일")).toBeTruthy();
+    expect(screen.getByText("웹 일")).toBeTruthy();
+    fireEvent.click(screen.getAllByTitle(/프로젝트 캔버스 열기/)[1]!);
+    expect(onOpenProject).toHaveBeenCalledWith("web");
+  });
+
   it("opens a folded side panel when a box is double-clicked", () => {
     localStorage.setItem("agent-control:canvas-panel", JSON.stringify(["collapsed"]));
     renderCanvas([agentCard({ id: "s1", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "결제 API" })]);
@@ -113,7 +159,7 @@ describe("ProjectCanvas", () => {
     const client = new QueryClient();
     render(
       <QueryClientProvider client={client}>
-        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenElsewhere={() => {}} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
+        <ProjectCanvas scope={{ kind: "project", repo: "shop" }} worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenElsewhere={() => {}} modeOf={() => "personal"} now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
@@ -174,7 +220,7 @@ describe("ProjectCanvas", () => {
     render(
       <QueryClientProvider client={client}>
         <ProjectCanvas
-          repo="shop"
+          scope={{ kind: "project", repo: "shop" }}
           worktrees={[worktree("/p/shop", true), shopA]}
           agents={[
             agentCard({ id: "s1", worktreeId: "/p/shop-a", title: "결제 API", artifacts: [{ target: doc, label: "pay · 03-tasks", kind: "html" }] }),
@@ -182,7 +228,7 @@ describe("ProjectCanvas", () => {
           ]}
           everyAgent={[]}
           onOpenElsewhere={() => {}}
-          mode="personal"
+          modeOf={() => "personal"}
           now={0}
           header={null}
           renderCard={() => null}
