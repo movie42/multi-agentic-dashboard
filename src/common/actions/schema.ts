@@ -4,7 +4,7 @@ import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits
 
 export const MAX_PROMPT = 8000;
 export const MAX_CLOSE_TERMINALS = 50;
-export const MODEL_CHOICES = ["default", "opus", "sonnet", "haiku"] as const;
+export const MODEL_CHOICES = ["default", "fable", "opus", "sonnet", "haiku"] as const;
 export type ModelChoice = (typeof MODEL_CHOICES)[number];
 /** Keys a terminal-only menu (folder trust, a picker) is answered with. */
 export const TERMINAL_KEYS = ["up", "down", "enter", "escape"] as const;
