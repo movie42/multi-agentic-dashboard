@@ -124,7 +124,7 @@ export function WorktreePanel({
     },
     {
       key: "terminal",
-      label: "터미널",
+      label: "셸 터미널",
       description: "이 워크트리에 셸 터미널을 새 탭으로 열어요",
       run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }),
     },

@@ -163,10 +163,10 @@ function ToolRow({ step }: ToolRowProps) {
       </span>
       <span className="shrink-0 font-semibold">{step.name}</span>
       <span className={`min-w-0 flex-1 truncate ${step.status === "running" ? "text-fg" : "text-muted"}`}>{step.summary}</span>
-      {step.at && <span className="shrink-0 text-faint tabular-nums">{formatClock(step.at)}</span>}
+      {step.at && <span className="shrink-0 text-faint tabular-nums opacity-0 group-hover/tool:opacity-100">{formatClock(step.at)}</span>}
     </>
   );
-  if (!step.detail) return <li className="flex items-baseline gap-2 px-2 py-0.5 font-mono text-[12px]">{line}</li>;
+  if (!step.detail) return <li className="group/tool flex items-baseline gap-2 px-2 py-0.5 font-mono text-[12px]">{line}</li>;
   return (
     <li>
       <details className="group/tool">
@@ -179,6 +179,67 @@ function ToolRow({ step }: ToolRowProps) {
       </details>
     </li>
   );
+}
+
+type ToolRun = [ToolStep, ...ToolStep[]];
+
+interface ToolGroupRowProps {
+  steps: ToolRun;
+  last: ToolStep;
+}
+
+function groupStatus(steps: ToolRun, last: ToolStep): ToolStatus {
+  if (steps.some((step) => step.status === "running")) return "running";
+  if (steps.some((step) => step.status === "error")) return "error";
+  return last.status;
+}
+
+function toolCounts(steps: ToolStep[]): string {
+  const counts = new Map<string, number>();
+  for (const step of steps) counts.set(step.name, (counts.get(step.name) ?? 0) + 1);
+  return [...counts].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name)).join(" · ");
+}
+
+/** A run of back-to-back tool calls folded into one line: what ran, the latest call, and when. */
+function ToolGroupRow({ steps, last }: ToolGroupRowProps) {
+  const status = groupStatus(steps, last);
+  return (
+    <li>
+      <details className="group/tools">
+        <summary className="flex cursor-pointer list-none items-baseline gap-2 rounded-md px-2 py-0.5 font-mono text-[12px] hover:bg-tint-2">
+          <span className={`shrink-0 ${STATUS_DOT[status]}`} title={STATUS_LABEL[status]}>
+            ●
+          </span>
+          <span className="max-w-[55%] shrink-0 truncate font-semibold">{toolCounts(steps)}</span>
+          <span className={`min-w-0 flex-1 truncate ${status === "running" ? "text-fg" : "text-muted"}`}>{last.summary}</span>
+          {last.at && <span className="shrink-0 text-faint tabular-nums">{formatClock(last.at)}</span>}
+          <span aria-hidden className="shrink-0 text-faint transition-transform group-open/tools:rotate-90">
+            ›
+          </span>
+        </summary>
+        <ol className="mt-0.5 mb-1 ml-3 flex flex-col gap-0.5 border-l border-hair pl-1">
+          {steps.map((step) => (
+            <ToolRow key={step.id} step={step} />
+          ))}
+        </ol>
+      </details>
+    </li>
+  );
+}
+
+type ChatItem = { kind: "step"; step: ActivityStep } | { kind: "tools"; steps: ToolRun; last: ToolStep };
+
+/** Back-to-back tool calls become one group; a lone call stays its own row. */
+function groupSteps(steps: ActivityStep[]): ChatItem[] {
+  return steps.reduce<ChatItem[]>((items, step) => {
+    const previous = items.at(-1);
+    if (step.kind !== "tool") return [...items, { kind: "step", step }];
+    if (previous?.kind === "tools") return [...items.slice(0, -1), { kind: "tools", steps: [...previous.steps, step], last: step }];
+    if (previous?.kind === "step" && previous.step.kind === "tool") {
+      return [...items.slice(0, -1), { kind: "tools", steps: [previous.step, step], last: step }];
+    }
+    return [...items, { kind: "step", step }];
+  }, []);
 }
 
 interface TextRowProps {
@@ -291,9 +352,13 @@ export function ChatView({ sessionId, working, layout }: ChatViewProps) {
         <p className="text-[13px] text-muted">아직 대화가 없어요</p>
       ) : (
         <ol className="flex flex-col gap-0.5">
-          {steps.map((step) => (
-            <ChatRow key={step.id} step={step} copyable={!working && step.id === lastTextId} />
-          ))}
+          {groupSteps(steps).map((item) =>
+            item.kind === "tools" ? (
+              <ToolGroupRow key={`tools-${item.steps[0].id}`} steps={item.steps} last={item.last} />
+            ) : (
+              <ChatRow key={item.step.id} step={item.step} copyable={!working && item.step.id === lastTextId} />
+            ),
+          )}
         </ol>
       )}
       {working && (

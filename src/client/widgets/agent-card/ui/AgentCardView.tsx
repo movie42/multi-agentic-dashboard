@@ -130,6 +130,7 @@ export function AgentCardView({
   const pullRequests = collectPullRequests(agent, worktreePr);
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr");
   const showWorktree = agent.worktreeName !== agent.branch;
+  const hasComposer = Boolean(terminalHandle) && !isShell;
   const fallbackTitle = agent.prompt?.replace(/\s+/g, " ").slice(0, 80) ?? (agent.agentType === "shell" ? "터미널" : "제목 없음");
   const bookmark = agent.session
     ? bookmarkTarget(agent.session.id, agent.session.title ?? fallbackTitle, agent.worktreePath, agent.session.bookmark)
@@ -256,10 +257,14 @@ export function AgentCardView({
           )}
           <span data-card-meta className="text-muted tabular-nums">
             {agent.agentType ?? "agent"}
-            {agent.model && <span title="이 세션이 쓰는 모델"> · {agent.model}</span>}
-            {agent.effort && <span title="이 세션이 생각을 얼마나 깊게 하는지 (effort)"> · {agent.effort}</span>}
-            {agent.contextPercent !== null && (
-              <span title="지금 대화가 모델의 컨텍스트 창을 얼마나 채웠는지예요"> · 컨텍스트 {agent.contextPercent}%</span>
+            {!hasComposer && (
+              <>
+                {agent.model && <span title="이 세션이 쓰는 모델"> · {agent.model}</span>}
+                {agent.effort && <span title="이 세션이 생각을 얼마나 깊게 하는지 (effort)"> · {agent.effort}</span>}
+                {agent.contextPercent !== null && (
+                  <span title="지금 대화가 모델의 컨텍스트 창을 얼마나 채웠는지예요"> · 컨텍스트 {agent.contextPercent}%</span>
+                )}
+              </>
             )}
             {agent.toolName && agent.state === "working" ? ` · ${agent.toolName}` : ""}
           </span>
