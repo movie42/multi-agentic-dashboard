@@ -13,11 +13,28 @@ export interface GraphNode {
   outside?: { repo: string | null };
 }
 
-/** Sessions a conductor handed work to in another project, per project. */
-export interface ElsewhereWorkers {
+/**
+ * A worktree in another project that a session here has a route to, drawn as a far-off port:
+ * `out` from a conductor here to its workers there, `home` from a conductor drawn here back to the
+ * worktree it runs in.
+ */
+export interface GraphPort {
+  /** `port:<worktreeId>` */
+  id: string;
   repo: string;
+  worktreeId: string;
+  worktreeName: string;
+  routes: PortRoute[];
+}
+
+export interface PortRoute {
+  nodeId: string;
+  direction: "out" | "home";
+  /** Workers there, for an `out` route. */
   count: number;
 }
+
+export const portId = (worktreeId: string) => `port:${worktreeId}`;
 
 export interface GraphCluster {
   /** `wt:<worktreeId>` — shares the id space with nodes so an edge can end on a cluster. */
@@ -52,8 +69,8 @@ export interface GraphEdge {
 
 export interface ProjectGraph {
   conductors: GraphNode[];
-  /** Per conductor of this project: workers it has in other projects. */
-  elsewhere: Map<string, ElsewhereWorkers[]>;
+  /** Other projects' worktrees that sessions here have routes to. */
+  ports: GraphPort[];
   clusters: GraphCluster[];
   nodes: Map<string, GraphNode>;
   reserved: Map<string, ReservedCard>;
@@ -78,8 +95,8 @@ export function runOfNode(runs: TemplateRun[], nodeId: string): TemplateRun | nu
  * Turns one project's board data into boxes and lines. Conductors leave their worktree and sit on
  * top; every other session stays in its worktree's cluster. A conductor from another project (or one
  * opened outside every project) that works with a session here is drawn on top too, marked as from
- * outside. Other lines whose far end is not on this project's board are dropped; a conductor's
- * workers elsewhere are counted in `elsewhere` instead.
+ * outside. Other lines whose far end is not on this project's board are dropped; routes to other
+ * projects' worktrees become `ports` instead.
  */
 export function buildGraph(
   agents: AgentCard[],
@@ -101,14 +118,23 @@ export function buildGraph(
     nodes.set(agent.id, { id: agent.id, kind: "conductor", agent, outside: { repo: agent.repo || null } });
   }
   const byId = new Map(everyAgent.map((agent) => [agent.id, agent]));
-  const elsewhere = new Map<string, ElsewhereWorkers[]>();
+  const ports = new Map<string, GraphPort>();
+  const addRoute = (target: AgentCard, route: PortRoute) => {
+    const id = portId(target.worktreeId);
+    const port = ports.get(id) ?? { id, repo: target.repo, worktreeId: target.worktreeId, worktreeName: target.worktreeName, routes: [] };
+    const same = port.routes.find((entry) => entry.nodeId === route.nodeId && entry.direction === route.direction);
+    if (same) same.count += route.count;
+    else port.routes.push(route);
+    ports.set(id, port);
+  };
   for (const id of here) {
-    const counts = new Map<string, number>();
     for (const link of nodes.get(id)?.agent.orchestration?.links ?? []) {
       const target = link.kind === "delegate" && !nodes.has(link.to) ? byId.get(link.to) : undefined;
-      if (target?.repo) counts.set(target.repo, (counts.get(target.repo) ?? 0) + 1);
+      if (target?.repo) addRoute(target, { nodeId: id, direction: "out", count: 1 });
     }
-    if (counts.size > 0) elsewhere.set(id, [...counts].map(([repo, count]) => ({ repo, count })));
+  }
+  for (const node of nodes.values()) {
+    if (node.outside?.repo) addRoute(node.agent, { nodeId: node.id, direction: "home", count: 1 });
   }
   const conductors = [...nodes.values()].filter((node) => node.kind === "conductor");
   const clusters: GraphCluster[] = worktrees.map((worktree) => ({
@@ -165,7 +191,7 @@ export function buildGraph(
       });
     }
   }
-  return { conductors, elsewhere, clusters, nodes, reserved, runs: shownRuns, edges };
+  return { conductors, ports: [...ports.values()], clusters, nodes, reserved, runs: shownRuns, edges };
 }
 
 /** Lines touching one session, for the side panel. */

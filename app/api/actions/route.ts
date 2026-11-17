@@ -2,10 +2,14 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { actionRequestSchema, type ActionResponse, type VoiceReadResponse, type VoiceToggleResponse } from "@/common/actions/schema";
+import { actionRequestSchema, type ActionResponse, type TerminalKey, type VoiceReadResponse, type VoiceToggleResponse } from "@/common/actions/schema";
 import { services } from "@/server/container";
 
 const execFileAsync = promisify(execFile);
+
+const KEY_SEQUENCE: Record<TerminalKey, string> = { up: "\x1b[A", down: "\x1b[B", enter: "\r", escape: "\x1b" };
+const KEY_GAP_MS = 40;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function resolveTarget(target: string): Promise<string> {
   if (/^https?:\/\//.test(target)) return target;
@@ -60,6 +64,12 @@ export async function POST(request: Request) {
       await runner.answerPermission(body.terminalHandle, body.requestId, body.answer);
     } else if (body.type === "interrupt-session") {
       await runner.input(body.terminalHandle, { text: "\x1b", raw: true });
+    } else if (body.type === "press-keys") {
+      // One write per key: Claude Code's terminal UI can misread an arrow and a carriage return arriving in one chunk.
+      for (const key of body.keys) {
+        await runner.input(body.terminalHandle, { text: KEY_SEQUENCE[key], raw: true });
+        await wait(KEY_GAP_MS);
+      }
     } else if (body.type === "set-model") {
       await runner.input(body.terminalHandle, { text: `/model ${body.model}`, submit: true });
     } else if (body.type === "set-effort") {

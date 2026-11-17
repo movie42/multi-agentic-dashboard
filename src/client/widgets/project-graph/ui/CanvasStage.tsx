@@ -14,6 +14,7 @@ import {
   NODE_H,
   NODE_W,
   nodeRect,
+  portRects as placePorts,
   type Point,
   type Rect,
   type Side,
@@ -23,6 +24,7 @@ import { EdgeMarkers, GraphEdges } from "./GraphEdges";
 import { ClusterFrame, GroupFrame } from "./Frames";
 import { NodeBox } from "./NodeBox";
 import { ReservedBox } from "./ReservedBox";
+import { SeaRoutes } from "./SeaRoutes";
 
 const DRAG_THRESHOLD = 3;
 const FIT_MARGIN = 64;
@@ -100,7 +102,7 @@ interface CanvasStageProps {
   onContextMenu: (target: MenuTarget, at: Point) => void;
   onViewportChange: (viewport: Viewport) => void;
   onOpenWorktree: (worktreeId: string) => void;
-  onOpenProject: (repo: string) => void;
+  onOpenElsewhere: (repo: string, worktreeId: string) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onUngroup: (groupId: string) => void;
 }
@@ -211,6 +213,7 @@ export function CanvasStage(props: CanvasStageProps) {
     const rect = groupRect(group.memberIds, shown);
     return rect ? [{ group, rect }] : [];
   });
+  const portRects = placePorts(graph.ports, shown);
 
   const toWorld = (clientX: number, clientY: number): Point => {
     const box = svgRef.current?.getBoundingClientRect();
@@ -226,6 +229,7 @@ export function CanvasStage(props: CanvasStageProps) {
       ...[...shown.values()].map(nodeRect),
       ...clusterRects.values(),
       ...groupRects.map((entry) => entry.rect),
+      ...portRects.values(),
     ]);
     if (!box || !content || box.width === 0) return;
     const zoom = clampZoom(
@@ -657,6 +661,7 @@ export function CanvasStage(props: CanvasStageProps) {
             }
             onSelect={props.onSelectEdge}
           />
+          <SeaRoutes ports={graph.ports} portRects={portRects} rectOf={rectOf} onOpen={props.onOpenElsewhere} />
           {[...graph.nodes.values()].map((node) => {
             const point = shown.get(node.id);
             if (!point) return null;
@@ -676,8 +681,7 @@ export function CanvasStage(props: CanvasStageProps) {
                   selected={selectedIds.has(node.id)}
                   delegatedTo={delegatedTo(node.id)}
                   reports={reportsTo(node.id)}
-                  elsewhere={graph.elsewhere.get(node.id) ?? []}
-                  onOpenProject={props.onOpenProject}
+                  routed={graph.ports.some((port) => port.routes.some((route) => route.nodeId === node.id))}
                 />
               </foreignObject>
             );

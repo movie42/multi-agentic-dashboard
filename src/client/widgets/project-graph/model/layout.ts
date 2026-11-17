@@ -1,4 +1,4 @@
-import type { GraphCluster, ProjectGraph } from "./graph";
+import type { GraphCluster, GraphPort, ProjectGraph } from "./graph";
 
 export interface Point {
   x: number;
@@ -115,6 +115,34 @@ export function autoLayout(graph: ProjectGraph): AutoLayout {
   const startX = Math.max(0, (gridWidth - rowWidth) / 2);
   graph.conductors.forEach((node, index) => positions.set(node.id, { x: startX + index * (NODE_W + NODE_GAP), y: 0 }));
   return { positions, anchors };
+}
+
+export const PORT_W = 208;
+export const PORT_H = 60;
+const PORT_GAP = 32;
+/** How far above its sessions a port sits, so the route reads as a long voyage. */
+const PORT_DISTANCE = 220;
+
+/**
+ * Ports float above the sessions they connect to, wherever those were dragged: each centred over
+ * its sessions, then pushed apart left to right so none overlap.
+ */
+export function portRects(ports: GraphPort[], positions: ReadonlyMap<string, Point>): Map<string, Rect> {
+  const placed = ports.flatMap((port) => {
+    const points = port.routes.flatMap((route) => positions.get(route.nodeId) ?? []);
+    if (points.length === 0) return [];
+    const centre = points.reduce((sum, point) => sum + point.x + NODE_W / 2, 0) / points.length;
+    const top = Math.min(...points.map((point) => point.y));
+    return [{ id: port.id, x: centre - PORT_W / 2, y: top - PORT_DISTANCE - PORT_H }];
+  });
+  placed.sort((a, b) => a.x - b.x);
+  const rects = new Map<string, Rect>();
+  placed.reduce((right, entry) => {
+    const x = Math.max(entry.x, right + PORT_GAP);
+    rects.set(entry.id, { x, y: entry.y, w: PORT_W, h: PORT_H });
+    return x + PORT_W;
+  }, -Infinity);
+  return rects;
 }
 
 export function nodeRect(point: Point): Rect {

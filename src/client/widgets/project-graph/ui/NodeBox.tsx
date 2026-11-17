@@ -4,7 +4,7 @@ import type { AgentCard } from "@/common/board/types";
 import { displayStateOf, type DisplayState } from "@/client/entities/agent";
 import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
 import type { ConductorScopeKind } from "@/common/orchestration/types";
-import type { ElsewhereWorkers, GraphNode } from "../model/graph";
+import type { GraphNode } from "../model/graph";
 
 const NODE_STATE: Record<DisplayState, { label: string; tone: string; dot: string }> = {
   blocked: { label: "막힘", tone: "border-accent text-accent", dot: "bg-accent" },
@@ -34,13 +34,12 @@ interface NodeBoxProps {
   /** Worktree names this conductor handed work to. */
   delegatedTo: string[];
   reports: number;
-  /** Workers this conductor has in other projects. */
-  elsewhere: ElsewhereWorkers[];
-  onOpenProject: (repo: string) => void;
+  /** Has a route to another project's worktree, drawn as a port on the canvas. */
+  routed: boolean;
 }
 
 /** One session on the canvas: state, elapsed time, title and the last message line. */
-export function NodeBox({ node, now, selected, delegatedTo, reports, elsewhere, onOpenProject }: NodeBoxProps) {
+export function NodeBox({ node, now, selected, delegatedTo, reports, routed }: NodeBoxProps) {
   const { agent, outside } = node;
   const state = stateOf(agent);
   const conductor = agent.orchestration?.conductor ?? null;
@@ -70,18 +69,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, elsewhere, 
             </span>
           ))}
           {reports > 0 && <span className="rounded-[5px] bg-now/10 px-1.5 py-1 text-now">보고 {reports}</span>}
-          {elsewhere.map((entry) => (
-            <button
-              key={entry.repo}
-              type="button"
-              onClick={() => onOpenProject(entry.repo)}
-              title={`${entry.repo} 프로젝트 캔버스로 가기`}
-              className="truncate rounded-[5px] px-1.5 py-1 text-now shadow-[inset_0_0_0_1px_currentColor] hover:bg-now/10"
-            >
-              다른 프로젝트 일꾼 {entry.count} · {entry.repo} ↗
-            </button>
-          ))}
-          {delegatedTo.length === 0 && reports === 0 && elsewhere.length === 0 && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
+          {delegatedTo.length === 0 && reports === 0 && !routed && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
         </p>
       ) : (
         <p className="truncate text-[12px] text-muted">{plainMessage(agent.lastMessage) || agent.worktreeName}</p>

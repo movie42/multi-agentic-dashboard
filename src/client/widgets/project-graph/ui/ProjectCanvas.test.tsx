@@ -40,7 +40,7 @@ const link = (kind: OrchestrationLink["kind"], from: string, to: string): Orches
 
 const conductor = { scope: { kind: "project" as const, root: "/p/shop", paths: [], projects: ["/p/shop"] }, grants: [], rules: [], knownProjects: [], worktreeRequest: null, projectRequest: null };
 
-function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), elsewhere: { everyAgent?: AgentCard[]; onOpenProject?: (repo: string) => void } = {}) {
+function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), elsewhere: { everyAgent?: AgentCard[]; onOpenElsewhere?: (repo: string, worktreeId: string) => void } = {}) {
   const client = new QueryClient();
   render(
     <QueryClientProvider client={client}>
@@ -49,7 +49,7 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), els
         worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]}
         agents={agents}
         everyAgent={elsewhere.everyAgent ?? agents}
-        onOpenProject={elsewhere.onOpenProject ?? (() => {})}
+        onOpenElsewhere={elsewhere.onOpenElsewhere ?? (() => {})}
         mode="personal"
         now={0}
         header={<h1>shop</h1>}
@@ -113,7 +113,7 @@ describe("ProjectCanvas", () => {
     const client = new QueryClient();
     render(
       <QueryClientProvider client={client}>
-        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenProject={() => {}} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
+        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenElsewhere={() => {}} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
@@ -122,9 +122,9 @@ describe("ProjectCanvas", () => {
     expect(onOpenWorktree).not.toHaveBeenCalled();
   });
 
-  it("draws a conductor from outside the project on top, and sends its own conductor's other-project workers to that project", () => {
+  it("draws a conductor from outside the project on top, and routes to other projects' worktrees both ways", () => {
     const appConductor = { ...conductor, scope: { kind: "app" as const, root: "/data/conductor", paths: [], projects: ["/p/shop", "/p/web"] } };
-    const onOpenProject = vi.fn();
+    const onOpenElsewhere = vi.fn();
     const here = [
       agentCard({ id: "w", worktreeId: "/p/shop-a", title: "일꾼", orchestration: { conductor: null, parentId: "app", links: [link("report", "w", "app")] } }),
       agentCard({ id: "c", worktreeId: "/p/shop", title: "코디네이터", orchestration: { conductor, parentId: null, links: [link("delegate", "c", "x")] } }),
@@ -134,12 +134,25 @@ describe("ProjectCanvas", () => {
       agentCard({ id: "app", repo: "", worktreeId: "/data/conductor", title: "앱 코디", orchestration: { conductor: appConductor, parentId: null, links: [link("delegate", "app", "w")] } }),
       agentCard({ id: "x", repo: "web", worktreeId: "/p/web", title: "웹 일꾼" }),
     ];
-    renderCanvas(here, undefined, { everyAgent, onOpenProject });
+    renderCanvas(here, undefined, { everyAgent, onOpenElsewhere });
     expect(screen.getByText("앱 지휘자 ·")).toBeTruthy();
     expect(screen.getByText("앱 코디")).toBeTruthy();
     expect(screen.queryByText("웹 일꾼")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /다른 프로젝트 일꾼 1 · web/ }));
-    expect(onOpenProject).toHaveBeenCalledWith("web");
+    fireEvent.click(screen.getByRole("button", { name: "일꾼 1" }));
+    expect(onOpenElsewhere).toHaveBeenCalledWith("web", "/p/web");
+  });
+
+  it("draws a port back to the worktree an outside project conductor runs in", () => {
+    const onOpenElsewhere = vi.fn();
+    const home = { ...conductor, scope: { ...conductor.scope, root: "/p/back", projects: ["/p/back", "/p/shop"] } };
+    const here = [agentCard({ id: "w", worktreeId: "/p/shop-a", title: "일꾼", orchestration: { conductor: null, parentId: "bc", links: [link("report", "w", "bc")] } })];
+    const everyAgent = [
+      ...here,
+      agentCard({ id: "bc", repo: "back", worktreeId: "/p/back", worktreeName: "main", title: "백오피스 코디", orchestration: { conductor: home, parentId: null, links: [link("delegate", "bc", "w")] } }),
+    ];
+    renderCanvas(here, undefined, { everyAgent, onOpenElsewhere });
+    fireEvent.click(document.querySelector("[data-port] button")!);
+    expect(onOpenElsewhere).toHaveBeenCalledWith("back", "/p/back");
   });
 
   it("unlinks a line from the side panel", () => {
@@ -168,7 +181,7 @@ describe("ProjectCanvas", () => {
             agentCard({ id: "s2", worktreeId: "/p/shop-a", title: "환불", artifacts: [{ target: doc, label: "pay · 03-tasks", kind: "html" }, { target: "https://x/pr/1", label: "#1", kind: "pr" }] }),
           ]}
           everyAgent={[]}
-          onOpenProject={() => {}}
+          onOpenElsewhere={() => {}}
           mode="personal"
           now={0}
           header={null}

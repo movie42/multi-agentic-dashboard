@@ -13,6 +13,7 @@ import { ChatView, type ChatLayout } from "./ChatView";
 import { MessageView } from "./MessageView";
 import { SubagentRuns } from "./SubagentRuns";
 import { PermissionPrompt } from "@/client/features/answer-permission";
+import { TerminalMenuControls } from "@/client/features/answer-terminal-menu";
 import { OrchestrationPanel } from "@/client/features/conduct-sessions";
 import { EffortPicker } from "@/client/features/choose-effort";
 import { ModelPicker } from "@/client/features/choose-model";
@@ -353,7 +354,7 @@ export function AgentCardView({
       {view !== "terminal" && agent.state === "blocked" && !agent.permission && terminalHandle && !isShell && (
         <div data-jump-focus className="flex flex-col gap-2 rounded-[10px] bg-tint-2 px-3 py-2 text-[13px]">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="min-w-0 flex-1">터미널 화면에서 입력을 기다리고 있어요. 채팅에서는 보이지 않아요.</p>
+            <p className="min-w-0 flex-1">터미널 화면에서 입력을 기다리고 있어요. 여기서 바로 고르거나 터미널을 열어 답할 수 있어요.</p>
             <button
               type="button"
               onClick={() => pick("terminal")}
@@ -363,6 +364,7 @@ export function AgentCardView({
             </button>
           </div>
           <TerminalTail sessionId={terminalHandle} />
+          <TerminalMenuControls terminalHandle={terminalHandle} />
         </div>
       )}
 

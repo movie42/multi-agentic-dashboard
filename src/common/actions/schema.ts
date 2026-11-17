@@ -6,6 +6,10 @@ export const MAX_PROMPT = 8000;
 export const MAX_CLOSE_TERMINALS = 50;
 export const MODEL_CHOICES = ["default", "opus", "sonnet", "haiku"] as const;
 export type ModelChoice = (typeof MODEL_CHOICES)[number];
+/** Keys a terminal-only menu (folder trust, a picker) is answered with. */
+export const TERMINAL_KEYS = ["up", "down", "enter", "escape"] as const;
+export type TerminalKey = (typeof TERMINAL_KEYS)[number];
+export const MAX_TERMINAL_KEYS = 20;
 export const EFFORT_CHOICES = ["auto", "low", "medium", "high", "xhigh", "max"] as const;
 export type EffortChoice = (typeof EFFORT_CHOICES)[number];
 
@@ -46,6 +50,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
     ]),
   }),
   z.object({ type: z.literal("interrupt-session"), terminalHandle: z.string() }),
+  z.object({ type: z.literal("press-keys"), terminalHandle: z.string(), keys: z.array(z.enum(TERMINAL_KEYS)).min(1).max(MAX_TERMINAL_KEYS) }),
   z.object({ type: z.literal("set-model"), terminalHandle: z.string(), model: z.enum(MODEL_CHOICES) }),
   z.object({ type: z.literal("set-effort"), terminalHandle: z.string(), effort: z.enum(EFFORT_CHOICES) }),
   z.object({ type: z.literal("toggle-voice"), terminalHandle: z.string(), intent: z.enum(["toggle", "stop"]).default("toggle") }),

@@ -582,7 +582,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             onToggleFocus={() => toggleFocus(selectedRepo)}
             onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
             everyAgent={board.agents}
-            onOpenProject={prefs.selectRepo}
+            onOpenElsewhere={prefs.selectWorktree}
             renderPanel={(panel) => <DocPanel agents={board.agents} lead={panel} />}
           />
         )}
@@ -619,7 +619,7 @@ interface ProjectViewProps {
   onToggleFocus: () => void;
   onOpenWorktree: (worktreeId: string) => void;
   everyAgent: AgentCard[];
-  onOpenProject: (repo: string) => void;
+  onOpenElsewhere: (repo: string, worktreeId: string) => void;
   renderPanel: (panel: CanvasPanel) => React.ReactNode;
 }
 
@@ -640,7 +640,7 @@ function ProjectView({
   onToggleFocus,
   onOpenWorktree,
   everyAgent,
-  onOpenProject,
+  onOpenElsewhere,
   renderPanel,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
@@ -713,7 +713,7 @@ function ProjectView({
         onAction={onAction}
         onOpenWorktree={onOpenWorktree}
         everyAgent={everyAgent}
-        onOpenProject={onOpenProject}
+        onOpenElsewhere={onOpenElsewhere}
         renderPanel={renderPanel}
       />
     );

@@ -60,7 +60,8 @@ interface ProjectCanvasProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
-  onOpenProject: (repo: string) => void;
+  /** A port clicked: go to that worktree in its own project. */
+  onOpenElsewhere: (repo: string, worktreeId: string) => void;
   renderPanel: (panel: CanvasPanel) => React.ReactNode;
 }
 
@@ -89,7 +90,7 @@ function isTyping(target: EventTarget | null): boolean {
  * The project overview as a canvas: conductors on top, every worktree as a frame of session boxes,
  * the lines between them, and the selected session answered in the side panel.
  */
-export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, header, renderCard, onAction, onOpenWorktree, onOpenProject, renderPanel }: ProjectCanvasProps) {
+export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, header, renderCard, onAction, onOpenWorktree, onOpenElsewhere, renderPanel }: ProjectCanvasProps) {
   // Worktree lines (fork, same files) come from git, not from anything a person connected, so they stay off until asked for.
   const [showWorktreeLines, setShowWorktreeLines] = useState(false);
   const overlapPaths = showWorktreeLines ? worktrees.filter((worktree) => !worktree.isMain).map((worktree) => worktree.path) : [];
@@ -362,7 +363,7 @@ export function ProjectCanvas({ repo, worktrees, agents, everyAgent, mode, now, 
           }}
           onViewportChange={(viewport) => updateCanvas((current) => ({ ...current, viewport }))}
           onOpenWorktree={onOpenWorktree}
-          onOpenProject={onOpenProject}
+          onOpenElsewhere={onOpenElsewhere}
           onRenameGroup={(groupId, name) => save((current) => renameGroup(current, groupId, name))}
           onUngroup={(groupId) => save((current) => ungroup(current, groupId))}
         >
