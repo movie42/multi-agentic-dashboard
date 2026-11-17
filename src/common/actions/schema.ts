@@ -63,6 +63,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
     link: z.object({ from: z.string().min(1), kind: z.enum(LINK_KINDS) }).optional(),
   }),
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
+  z.object({ type: z.literal("run-project-command"), worktreePath: absolutePath, projectPath: absolutePath, name: z.string().min(1) }),
   z.object({
     type: z.literal("launch-conductor"),
     /** Null when it is opened outside any project (the 전체 view). */

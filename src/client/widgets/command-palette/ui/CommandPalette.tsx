@@ -3,18 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentCard, BoardSnapshot } from "@/common/board/types";
 import { StateBadge } from "@/client/entities/agent";
+import { requestCommandManage, requestCommandRun, useAllProjectCommands } from "@/client/entities/project-commands";
 import { openAncestors } from "@/client/shared/lib/openAncestors";
 
 type PaletteItem =
   | { kind: "nav"; key: string; label: string; hint: string; run: () => void }
   | { kind: "project"; key: string; label: string; hint: string; run: () => void }
   | { kind: "worktree"; key: string; label: string; hint: string; run: () => void }
+  | { kind: "command"; key: string; label: string; hint: string; run: () => void }
   | { kind: "agent"; key: string; label: string; hint: string; agent: AgentCard; run: () => void };
 
 const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   nav: "이동",
   project: "프로젝트",
   worktree: "worktree",
+  command: "명령",
   agent: "에이전트",
 };
 
@@ -50,6 +53,7 @@ export function CommandPalette({ board, onSelectRepo, onSelectWorktree, onOpenSe
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const commandsByProject = useAllProjectCommands();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -100,6 +104,30 @@ export function CommandPalette({ board, onSelectRepo, onSelectWorktree, onOpenSe
       hint: [worktree.repo, worktree.branch, ...worktree.flowTasks.map((task) => `${task.taskId} ${task.title}`)].filter(Boolean).join(" · "),
       run: () => onSelectWorktree(worktree.repo, worktree.worktreeId),
     })),
+    ...board.worktrees.flatMap((worktree) =>
+      (commandsByProject.get(worktree.projectPath) ?? []).map((command) => ({
+        kind: "command" as const,
+        key: `command:${worktree.worktreeId}:${command.name}`,
+        label: `${worktree.name} · ${command.name} 실행`,
+        hint: [worktree.repo, worktree.branch, command.command].filter(Boolean).join(" · "),
+        run: () => requestCommandRun(worktree, command),
+      })),
+    ),
+    ...board.projects.flatMap((project) => {
+      const projectWorktrees = board.worktrees.filter((worktree) => worktree.repo === project.repo);
+      const home = projectWorktrees.find((worktree) => worktree.isMain) ?? projectWorktrees[0];
+      if (!home) return [];
+      const registered = (commandsByProject.get(home.projectPath) ?? []).length > 0;
+      return [
+        {
+          kind: "command" as const,
+          key: `command-manage:${project.repo}`,
+          label: `${project.repo} 명령 ${registered ? "수정하기" : "등록하기"}`,
+          hint: registered ? "에이전트에게 명령을 고쳐 달라고 해요" : "에이전트가 저장소를 읽고 버튼으로 둘 명령을 찾아요",
+          run: () => requestCommandManage(home, registered ? "edit" : "register"),
+        },
+      ];
+    }),
   ];
 
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);

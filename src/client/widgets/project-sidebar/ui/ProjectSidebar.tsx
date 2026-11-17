@@ -3,6 +3,7 @@
 import type { ProjectSummary, WorktreeSummary } from "@/common/board/types";
 import { formatClock } from "@/client/shared/lib/format";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
+import { AppStatusPanel } from "@/client/features/apply-app";
 import { ImportProject } from "@/client/features/import-project";
 import { UsageMeter } from "@/client/entities/usage";
 import type { WorkspacePrefs } from "@/client/entities/workspace";
@@ -260,6 +261,7 @@ export function ProjectSidebar({
         })}
       </div>
       <ImportProject />
+      <AppStatusPanel />
 
       <div className="mt-8 hidden flex-col gap-1 text-[11px] text-muted md:flex">
         <p className="mb-1 font-bold tracking-[0.04em]">단축키</p>

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AgentFailure, TodoAgentTurn } from "@/common/todos/agentTurn";
 import { sendTodoAgentMessage, todoKeys } from "@/client/entities/todo";
 import { errorMessage } from "@/client/shared/model/errorMessage";
-import { Modal } from "./Modal";
+import { Modal } from "@/client/shared/ui/Modal";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
 interface TodoAgentDialogProps {

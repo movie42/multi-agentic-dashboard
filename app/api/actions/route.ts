@@ -98,6 +98,10 @@ export async function POST(request: Request) {
       await runner.resumeLink(body.linkId);
     } else if (body.type === "open-terminal") {
       await runner.launch({ cwd: body.worktreePath, kind: "shell" });
+    } else if (body.type === "run-project-command") {
+      const command = (await services().projects.commandsOf(body.projectPath)).find((saved) => saved.name === body.name);
+      if (!command) throw new Error(`등록된 명령이 아니에요: ${body.name}`);
+      await services().appStatus.runInShell(body.worktreePath, command.command);
     } else if (body.type === "remove-worktree") {
       await worktrees.remove(body.worktreePath, body.force);
     } else if (body.type === "rename-worktree") {

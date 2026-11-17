@@ -2,6 +2,7 @@ import "server-only";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { projectCommandSchema, type ProjectCommand } from "@/common/appStatus/types";
 import type { Report } from "@/server/shared/fallback";
 import { JsonFile } from "@/server/shared/JsonFile";
 import { isMissingPath } from "@/server/shared/ports";
@@ -12,10 +13,13 @@ export interface Project {
   path: string;
   name: string;
   kind: ProjectKind;
+  commands?: ProjectCommand[];
 }
 
 const projectsFileSchema = z.object({
-  projects: z.array(z.object({ path: z.string(), name: z.string(), kind: z.enum(["git", "folder"]) })),
+  projects: z.array(
+    z.object({ path: z.string(), name: z.string(), kind: z.enum(["git", "folder"]), commands: z.array(projectCommandSchema).optional() }),
+  ),
 });
 
 type ProjectsFile = z.infer<typeof projectsFileSchema>;
@@ -59,7 +63,23 @@ export class ProjectRegistry {
   }
 
   async replaceAll(projects: Project[]): Promise<void> {
-    await this.file.update(() => ({ projects: withUniqueNames(projects) }));
+    await this.file.update((current) => ({
+      projects: withUniqueNames(projects).map((project) => {
+        const commands = project.commands ?? current.projects.find((saved) => saved.path === project.path)?.commands;
+        return commands ? { ...project, commands } : project;
+      }),
+    }));
+  }
+
+  async commandsOf(projectPath: string): Promise<ProjectCommand[]> {
+    return (await this.list()).find((project) => project.path === projectPath)?.commands ?? [];
+  }
+
+  async setCommands(projectPath: string, commands: ProjectCommand[]): Promise<void> {
+    const next = await this.file.update((current) => ({
+      projects: current.projects.map((project) => (project.path === projectPath ? { ...project, commands } : project)),
+    }));
+    if (!next.projects.some((project) => project.path === projectPath)) throw new Error(`등록된 프로젝트가 아니에요: ${projectPath}`);
   }
 
   async add(folder: string): Promise<Project> {

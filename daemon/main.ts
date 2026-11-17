@@ -156,6 +156,13 @@ const dictation = new Dictation({
   cwd: dictationDir,
   env: sessionEnv(),
 });
+const startedAt = Date.now();
+const daemonCommit = await new Promise<string | null>((resolve) => {
+  execFile("git", ["rev-parse", "HEAD"], { cwd: path.dirname(import.meta.dirname) }, (error, stdout) => {
+    if (error) console.warn("[runner] could not read the daemon's commit", error.message);
+    resolve(error ? null : stdout.trim() || null);
+  });
+});
 const runner = createRunnerServer({
   registry,
   orchestration,
@@ -165,6 +172,7 @@ const runner = createRunnerServer({
   port,
   allowedOrigins,
   appConductorFolder: path.join(dataDir, APP_CONDUCTOR_FOLDER),
+  info: () => ({ commit: daemonCommit, pid: process.pid, startedAt }),
 });
 const lifecycle = { restored: false };
 

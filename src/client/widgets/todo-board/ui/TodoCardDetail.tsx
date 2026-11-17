@@ -12,7 +12,7 @@ import { StateBadge } from "@/client/entities/agent";
 import type { RunTodoOp } from "../model/run";
 import type { SessionLookup, TodoSessionView } from "../model/sessions";
 import { MemoEditor } from "./MemoEditor";
-import { Modal } from "./Modal";
+import { Modal } from "@/client/shared/ui/Modal";
 import { PendingButton } from "@/client/shared/ui/PendingButton";
 
 interface TodoCardDetailProps {

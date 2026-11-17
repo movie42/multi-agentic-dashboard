@@ -33,6 +33,18 @@ describe("ProjectRegistry", () => {
     expect((await registry.list()).map((project) => project.name)).toEqual(["app", "app-2"]);
   });
 
+  it("keeps each project's commands, also across a full replace", async () => {
+    const dir = await tempDir();
+    await mkdir(path.join(dir, "app", ".git"), { recursive: true });
+    const registry = new ProjectRegistry(path.join(dir, "projects.json"), vi.fn());
+    const project = await registry.add(path.join(dir, "app"));
+    await registry.setCommands(project.path, [{ name: "빌드", command: "bun run build" }]);
+    expect(await registry.commandsOf(project.path)).toEqual([{ name: "빌드", command: "bun run build" }]);
+    await registry.replaceAll([{ path: project.path, name: "app", kind: "git" }]);
+    expect(await registry.commandsOf(project.path)).toEqual([{ name: "빌드", command: "bun run build" }]);
+    await expect(registry.setCommands(path.join(dir, "nope"), [])).rejects.toThrow("등록된 프로젝트가 아니에요");
+  });
+
   it("refuses a path that is missing or not a folder", async () => {
     const dir = await tempDir();
     await writeFile(path.join(dir, "file.txt"), "");

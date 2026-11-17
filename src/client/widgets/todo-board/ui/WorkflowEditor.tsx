@@ -6,7 +6,7 @@ import { TODO_DESCRIPTION_LIMIT } from "@/common/todos/schema";
 import type { TodoBoard, TodoStatus } from "@/common/todos/types";
 import { statusTone, TONE_DOT } from "../model/kinds";
 import type { RunTodoOp } from "../model/run";
-import { Modal } from "./Modal";
+import { Modal } from "@/client/shared/ui/Modal";
 
 interface WorkflowEditorProps {
   board: TodoBoard;

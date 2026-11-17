@@ -18,6 +18,7 @@ import type { BoardGroups } from "@/client/entities/agent";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { useWorktreeMenuRequest } from "@/client/entities/workspace";
+import { requestCommandManage, requestCommandRun, useProjectCommands } from "@/client/entities/project-commands";
 import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
 import { RemoveWorktree } from "@/client/features/remove-worktree";
@@ -98,6 +99,7 @@ export function WorktreePanel({
   const closeMenu = () => setMenu(null);
   const openMenu = (at: MenuPoint) => setMenu({ at, confirmingCloseAll: false });
   const pr = worktree.pullRequest;
+  const commands = useProjectCommands(worktree.projectPath);
   const [filter, setFilter] = useState<PanelFilter | null>(null);
   const wizard = useWorktreeWizard(wizardOrigin(worktree, true));
   const [launchingConductor, setLaunchingConductor] = useState(false);
@@ -396,6 +398,29 @@ export function WorktreePanel({
                     {action.label}
                   </MenuItem>
                 ))}
+                <MenuSeparator />
+                <MenuHeading>명령</MenuHeading>
+                {commands.map((command) => (
+                  <MenuItem
+                    key={`command:${command.name}`}
+                    description={command.command}
+                    onSelect={() => {
+                      closeMenu();
+                      requestCommandRun(worktree, command);
+                    }}
+                  >
+                    실행: {command.name}
+                  </MenuItem>
+                ))}
+                <MenuItem
+                  description={commands.length > 0 ? "에이전트에게 고쳐 달라고 해요" : "에이전트가 저장소를 읽고 버튼으로 둘 명령을 찾아요"}
+                  onSelect={() => {
+                    closeMenu();
+                    requestCommandManage(worktree, commands.length > 0 ? "edit" : "register");
+                  }}
+                >
+                  {commands.length > 0 ? "명령 수정하기" : "명령 등록하기"}
+                </MenuItem>
                 {terminalHandles.length > 0 && (
                   <>
                     <MenuSeparator />

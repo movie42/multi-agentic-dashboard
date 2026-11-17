@@ -24,6 +24,8 @@ describe("actionRequestSchema", () => {
     [{ type: "bookmark-session", sessionId: SESSION, name: "n", cwd: "/c", memo: "x".repeat(501) }, false],
     [{ type: "open-artifact", target: "/f" }, true],
     [{ type: "open-terminal", worktreePath: "/w" }, true],
+    [{ type: "run-project-command", worktreePath: "/w", projectPath: "/p", name: "빌드" }, true],
+    [{ type: "run-project-command", worktreePath: "/w", projectPath: "/p", name: "" }, false],
     [{ type: "focus-terminal", terminalHandle: "t" }, false],
     [{ type: "toggle-voice", terminalHandle: "t" }, true],
     [{ type: "read-voice", terminalHandle: "t" }, true],
