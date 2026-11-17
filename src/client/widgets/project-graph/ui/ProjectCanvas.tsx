@@ -16,6 +16,8 @@ import { CanvasStage, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
+import { useStoredListStore } from "@/client/shared/lib/storedListStore";
+import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
@@ -26,6 +28,15 @@ import { Legend } from "./Legend";
 import { nodeTitle } from "./NodeBox";
 import { SidePanel, type PanelView } from "./SidePanel";
 
+
+const PANEL_PREF = "agent-control:canvas-panel";
+
+/** The right panel the host draws around the session view: its first tab, before any document tabs. */
+export interface CanvasPanel {
+  label: string;
+  content: React.ReactNode;
+  onCollapse: () => void;
+}
 
 interface PendingConnect {
   from: string;
@@ -46,6 +57,24 @@ interface ProjectCanvasProps {
   renderCard: (agent: AgentCard) => React.ReactNode;
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
+  renderPanel: (panel: CanvasPanel) => React.ReactNode;
+}
+
+function panelLabel(view: PanelView): string {
+  switch (view.kind) {
+    case "agent":
+      return nodeTitle(view.agent);
+    case "many":
+      return `상자 ${view.count}개`;
+    case "edge":
+      return "연결";
+    case "run":
+      return view.run.name;
+    case "all":
+      return "연결 · 규칙";
+    case "empty":
+      return "세션";
+  }
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -56,7 +85,7 @@ function isTyping(target: EventTarget | null): boolean {
  * The project overview as a canvas: conductors on top, every worktree as a frame of session boxes,
  * the lines between them, and the selected session answered in the side panel.
  */
-export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, renderCard, onAction, onOpenWorktree }: ProjectCanvasProps) {
+export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, renderCard, onAction, onOpenWorktree, renderPanel }: ProjectCanvasProps) {
   // Worktree lines (fork, same files) come from git, not from anything a person connected, so they stay off until asked for.
   const [showWorktreeLines, setShowWorktreeLines] = useState(false);
   const overlapPaths = showWorktreeLines ? worktrees.filter((worktree) => !worktree.isMain).map((worktree) => worktree.path) : [];
@@ -80,8 +109,11 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
   const [conductorFor, setConductorFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [templateFor, setTemplateFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean; run?: TemplateRun } | null>(null);
-  const [panelPref, writePanelPref] = useStoredList("agent-control:canvas-panel");
+  const [panelPref, writePanelPref] = useStoredList(PANEL_PREF);
   const panelCollapsed = panelPref.includes("collapsed");
+  const docTabCount = useDocViewerStore((state) => state.tabs.length);
+  /** Picking something on the canvas brings its tab forward over any open document. */
+  const showLead = () => useDocViewerStore.getState().activate(null);
 
   const liveIds = new Set([...graph.nodes.keys(), ...graph.reserved.keys(), ...graph.clusters.map((cluster) => cluster.id)]);
   const save = (change: (current: typeof canvas) => typeof canvas) => updateCanvas((current) => pruneCanvas(change(current), liveIds));
@@ -94,6 +126,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
     setEdgeId(null);
     setShowAllLinks(false);
     setPending(null);
+    if (ids.length > 0) showLead();
     if (!additive) {
       setSelected(ids);
       return;
@@ -115,6 +148,17 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
     save((current) => ({ ...resetPositions(current), viewport: null }));
     setStageKey((key) => key + 1);
   };
+
+  // A document opened from anywhere (menu, quick open, a session card) unfolds the panel it lands in.
+  useEffect(
+    () =>
+      useDocViewerStore.subscribe((state, previous) => {
+        if (state.active === null || state.active === previous.active) return;
+        const store = useStoredListStore.getState();
+        if (store.lists[PANEL_PREF]?.includes("collapsed")) store.write(PANEL_PREF, []);
+      }),
+    [],
+  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -179,7 +223,11 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         onAction,
         onOpenWorktree,
         onConnectFrom: () => setConnecting(true),
+        onOpenDoc: (target: string) => {
+          if (!openInPanel(target)) void onAction({ type: "open-artifact", target });
+        },
         onEditLink: (edgeId: string) => {
+          showLead();
           setSelected([]);
           setShowAllLinks(false);
           setEdgeId(edgeId);
@@ -287,6 +335,7 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
           onSelect={select}
           onOpenNode={openNode}
           onSelectEdge={(edge: GraphEdge) => {
+            showLead();
             setSelected([]);
             setShowAllLinks(false);
             setEdgeId(edge.id);
@@ -326,7 +375,10 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
             showWorktreeLines={showWorktreeLines}
             onToggleWorktreeLines={() => setShowWorktreeLines((value) => !value)}
             onToggleConnect={() => setConnecting((value) => !value)}
-            onToggleRules={() => setShowAllLinks((value) => !value)}
+            onToggleRules={() => {
+              if (!showAllLinks) showLead();
+              setShowAllLinks(!showAllLinks);
+            }}
             onGroup={groupSelected}
             onTidy={tidy}
           />
@@ -341,17 +393,23 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
         >
           <span aria-hidden>«</span>
           {view.kind === "agent" && <span className="size-2 rounded-full bg-ask" />}
+          {docTabCount > 0 && <span title={`열린 문서 ${docTabCount}개`}>{docTabCount}</span>}
         </button>
       ) : (
-        <SidePanel
-          graph={graph}
-          view={view}
-          renderCard={renderCard}
-          onAction={onAction}
-          onOpenWorktree={onOpenWorktree}
-          onEditRun={(run) => setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run })}
-          onCollapse={() => writePanelPref(["collapsed"])}
-        />
+        renderPanel({
+          label: panelLabel(view),
+          onCollapse: () => writePanelPref(["collapsed"]),
+          content: (
+            <SidePanel
+              graph={graph}
+              view={view}
+              renderCard={renderCard}
+              onAction={onAction}
+              onOpenWorktree={onOpenWorktree}
+              onEditRun={(run) => setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run })}
+            />
+          ),
+        })
       )}
     </div>
   );

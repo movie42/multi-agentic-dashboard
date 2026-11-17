@@ -1,1 +1,1 @@
-export { ProjectCanvas } from "./ui/ProjectCanvas";
+export { ProjectCanvas, type CanvasPanel } from "./ui/ProjectCanvas";

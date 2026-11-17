@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useDocViewerStore } from "./docViewerStore";
+import { openInPanel, useDocViewerStore } from "./docViewerStore";
 
 const A = "/w/docs/d/A/index.html";
 const B = "/w/docs/d/B/index.html";
@@ -63,5 +63,16 @@ describe("docViewerStore", () => {
     openFile("/w/src/a.ts", { preview: true });
     openFile("/w/src/a.ts", { preview: false });
     expect(useDocViewerStore.getState().tabs).toMatchObject([{ target: "/w/src/a.ts", preview: false }]);
+  });
+
+  it("opens a docs page as a page tab, another local file as a file tab, and leaves URLs alone", () => {
+    expect(openInPanel(A)).toBe(true);
+    expect(openInPanel("/w/notes/plan.md")).toBe(true);
+    expect(openInPanel("https://claude.ai/artifact/x")).toBe(false);
+    const state = useDocViewerStore.getState();
+    expect(state.tabs.map((tab) => [tab.kind, tab.target, tab.preview])).toEqual([
+      ["doc", A, false],
+      ["file", "/w/notes/plan.md", false],
+    ]);
   });
 });

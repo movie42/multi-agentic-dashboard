@@ -37,8 +37,8 @@ import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useDismissed } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
-import { ProjectCanvas } from "@/client/widgets/project-graph";
-import { isViewableDoc, useDocViewerStore } from "@/client/features/view-doc";
+import { ProjectCanvas, type CanvasPanel } from "@/client/widgets/project-graph";
+import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel, QuickOpen } from "@/client/widgets/doc-panel";
 import { useFileExplorerStore } from "@/client/features/browse-files";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
@@ -149,7 +149,6 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
   const prefs = useWorkspacePrefs();
   const dismissed = useDismissed();
-  const openDoc = useDocViewerStore((state) => state.open);
   const hasDocTabs = useDocViewerStore((state) => state.tabs.length > 0);
   const treeShown = useFileExplorerStore((state) => state.treeOpen && state.root !== null);
   const docOpen = hasDocTabs || treeShown;
@@ -203,10 +202,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   }, [jump, prefs.selectedRepo]);
 
   const runAction = async (action: ActionRequest) => {
-    if (action.type === "open-artifact" && isViewableDoc(action.target)) {
-      openDoc(action.target);
-      return;
-    }
+    if (action.type === "open-artifact" && openInPanel(action.target)) return;
     const pendingId =
       action.type === "launch-agent"
         ? startPendingLaunch(action.worktreePath, board?.agents ?? [])
@@ -355,16 +351,20 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     prefs.selectedRepo && projectByRepo.has(prefs.selectedRepo)
       ? prefs.selectedRepo
       : null;
+  // The canvas carries the document tabs in its own right panel, so the floating one stays away.
+  const onCanvas =
+    selectedRepo !== null && prefs.selectedWorktreeId === null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff;
+  const floatingDocOpen = docOpen && !onCanvas;
 
   return (
-    <div className={`${sidebarCollapsed ? "" : "md:pl-[var(--sidebar-w,18rem)]"} ${docOpen ? "md:pr-[var(--doc-panel-w,50vw)]" : ""}`}>
+    <div className={`${sidebarCollapsed ? "" : "md:pl-[var(--sidebar-w,18rem)]"} ${floatingDocOpen ? "md:pr-[var(--doc-panel-w,50vw)]" : ""}`}>
       <ResizeHandle
         cssVar="--sidebar-w"
         storageKey="agent-control:sidebar-width"
         edge="right"
         defaultWidth={() => 288}
         min={200}
-        max={() => Math.min(520, window.innerWidth - (docOpen ? paneWidth("--doc-panel-w", 0) : 0) - 400)}
+        max={() => Math.min(520, window.innerWidth - (floatingDocOpen ? paneWidth("--doc-panel-w", 0) : 0) - 400)}
         label="사이드바 크기 조절"
         className={`fixed inset-y-0 left-[calc(var(--sidebar-w,18rem)-4px)] hidden ${sidebarCollapsed ? "" : "md:flex"}`}
       />
@@ -379,9 +379,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
           »
         </button>
       ) : null}
-      <DocPanel agents={board.agents} />
+      {!onCanvas && <DocPanel agents={board.agents} />}
       <QuickOpen fallbackRoot={board.worktrees.find((worktree) => worktree.worktreeId === prefs.selectedWorktreeId)?.path ?? null} />
-      <InputAlerts agents={inputAgents} now={now} docOpen={docOpen} onOpen={jumpToAgent} />
+      <InputAlerts agents={inputAgents} now={now} docOpen={floatingDocOpen} onOpen={jumpToAgent} />
       <CommandPalette
         board={board}
         onSelectRepo={prefs.selectRepo}
@@ -407,7 +407,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
 
       <main
         className={
-          selectedRepo !== null && prefs.selectedWorktreeId === null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff
+          onCanvas
             ? "flex h-dvh min-w-0 flex-col"
             : `mx-auto flex max-w-[1920px] min-w-0 flex-col px-5 md:px-12 ${
                 selectedRepo !== null && !prefs.showingSessions && !prefs.showingTodo && !prefs.showingDiff ? "gap-6 pt-8" : "gap-16 pt-14 pb-36"
@@ -584,6 +584,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             focused={focused.has(selectedRepo)}
             onToggleFocus={() => toggleFocus(selectedRepo)}
             onOpenWorktree={(worktreeId) => prefs.selectWorktree(selectedRepo, worktreeId)}
+            renderPanel={(panel) => <DocPanel agents={board.agents} lead={panel} />}
           />
         )}
       </main>
@@ -616,6 +617,7 @@ interface ProjectViewProps {
   focused: boolean;
   onToggleFocus: () => void;
   onOpenWorktree: (worktreeId: string) => void;
+  renderPanel: (panel: CanvasPanel) => React.ReactNode;
 }
 
 function ProjectView({
@@ -633,6 +635,7 @@ function ProjectView({
   focused,
   onToggleFocus,
   onOpenWorktree,
+  renderPanel,
 }: ProjectViewProps) {
   const { ordered } = useWorktreeOrder(repo, worktrees);
   const worktree =
@@ -703,6 +706,7 @@ function ProjectView({
         renderCard={renderCard}
         onAction={onAction}
         onOpenWorktree={onOpenWorktree}
+        renderPanel={renderPanel}
       />
     );
   }

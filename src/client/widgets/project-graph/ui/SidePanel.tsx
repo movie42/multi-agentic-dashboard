@@ -4,8 +4,6 @@ import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/board/types";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
-import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
-import { paneWidth } from "@/client/shared/lib/paneWidth";
 import type { TemplateRun } from "@/common/templates/types";
 import { runOfNode, type GraphEdge, type ProjectGraph } from "../model/graph";
 import { EDGE_STYLE } from "./GraphEdges";
@@ -13,10 +11,6 @@ import { nodeTitle } from "./NodeBox";
 import { RouteEditor } from "./RouteEditor";
 import { RunPanel } from "./RunPanel";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
-
-const MIN_PANEL = 320;
-/** Room the canvas keeps when the panel is dragged wide. */
-const MIN_CANVAS = 400;
 
 const LINK_TEXT = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음" } as const;
 
@@ -158,7 +152,6 @@ interface SidePanelProps {
   onAction: (action: ActionRequest) => Promise<void>;
   onOpenWorktree: (worktreeId: string) => void;
   onEditRun: (run: TemplateRun) => void;
-  onCollapse: () => void;
 }
 
 const HEADING = "text-[11px] font-semibold tracking-[0.08em] text-muted";
@@ -166,34 +159,15 @@ const FOOT_BUTTON =
   "inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-[13px] font-semibold shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint";
 
 /** Answer the selected session in place, see its lines, one line, or every line of the project. */
-export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onEditRun, onCollapse }: SidePanelProps) {
+export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onEditRun }: SidePanelProps) {
   const links = graph.edges.filter((edge) => edge.linkId !== null);
   const routeEdge = view.kind === "edge" ? view.edge.route : undefined;
   const routeRun = routeEdge ? graph.runs.find((run) => run.id === routeEdge.runId) : undefined;
   const agent = view.kind === "agent" ? view.agent : null;
   const agentRun = agent ? runOfNode(graph.runs, agent.id) : null;
   return (
-    <aside data-scroll className="relative flex h-full w-[var(--canvas-panel-w,440px)] shrink-0 flex-col border-l border-hair bg-bg">
-      <ResizeHandle
-        cssVar="--canvas-panel-w"
-        storageKey="agent-control:canvas-panel-width"
-        edge="left"
-        defaultWidth={() => Math.min(440, window.innerWidth * 0.4)}
-        min={MIN_PANEL}
-        max={() => window.innerWidth - paneWidth("--sidebar-w", 0) - MIN_CANVAS}
-        label="오른쪽 패널 크기 조절"
-        className="absolute inset-y-0 -left-1 z-20"
-      />
-      <button
-        type="button"
-        onClick={onCollapse}
-        title="오른쪽 패널 접기"
-        aria-label="오른쪽 패널 접기"
-        className="absolute top-3 left-2 z-10 flex size-7 items-center justify-center rounded-md text-[15px] text-muted hover:bg-tint hover:text-fg"
-      >
-        »
-      </button>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-11 pb-4">
+    <div data-scroll className="flex h-full flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-4">
         {view.kind === "all" && (
           <section className="flex flex-col gap-3">
             <p className={HEADING}>이 프로젝트의 연결 · 규칙</p>
@@ -252,6 +226,6 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
           </button>
         </div>
       )}
-    </aside>
+    </div>
   );
 }

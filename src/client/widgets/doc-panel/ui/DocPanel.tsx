@@ -25,8 +25,20 @@ const sidebarWidth = () =>
     ? paneWidth("--sidebar-w", 288)
     : 0;
 
+const CANVAS_MIN = 320;
+const CANVAS_ROOM = 400;
+
+/** What a host puts before the document tabs — the canvas puts its session view there. */
+export interface PanelLead {
+  label: string;
+  content: React.ReactNode;
+  onCollapse: () => void;
+}
+
 interface DocPanelProps {
   agents: readonly AgentCard[];
+  /** Given: the panel sits inside the host's layout, stays open, and its first tab shows this. */
+  lead?: PanelLead;
 }
 
 function isSendRequest(data: unknown): data is { type: "flow-answers-send"; page: string } {
@@ -36,14 +48,18 @@ function isSendRequest(data: unknown): data is { type: "flow-answers-send"; page
   );
 }
 
-export function DocPanel({ agents }: DocPanelProps) {
-  const { tabs, active, activate, navigated, pin, close, closeAll: closeTabs } = useDocViewerStore();
+export function DocPanel({ agents, lead }: DocPanelProps) {
+  const { tabs, active: stored, activate, navigated, pin, close, closeAll: closeTabs } = useDocViewerStore();
   const { root, treeOpen, show, hide } = useFileExplorerStore();
   const showToast = useToastStore((state) => state.show);
-  const activeTab = tabs.find((tab) => tab.target === active) ?? null;
+  const embedded = lead !== undefined;
+  // Without a lead tab there is always a document to show; with one, no document means the lead.
+  const activeTab = tabs.find((tab) => tab.target === stored) ?? (embedded ? null : (tabs[0] ?? null));
+  const active = activeTab?.target ?? null;
   const activeFile = activeTab?.kind === "file" ? activeTab.target : null;
   const showTree = treeOpen && root !== null;
-  const isOpen = tabs.length > 0 || showTree;
+  const isOpen = embedded || tabs.length > 0 || showTree;
+  const interceptReload = embedded ? activeTab !== null : isOpen;
   const closeAll = () => {
     closeTabs();
     hide();
@@ -58,17 +74,18 @@ export function DocPanel({ agents }: DocPanelProps) {
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!interceptReload) return;
     const onReload = (event: Event) => {
       event.preventDefault();
       reloadActive();
     };
     window.addEventListener("agent-control:reload", onReload);
     return () => window.removeEventListener("agent-control:reload", onReload);
-  }, [isOpen]);
+  }, [interceptReload]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    // Inside the canvas, Escape clears the canvas selection; it should not throw the documents away.
+    if (!isOpen || embedded) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       useDocViewerStore.getState().closeAll();
@@ -76,7 +93,7 @@ export function DocPanel({ agents }: DocPanelProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen]);
+  }, [isOpen, embedded]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -108,8 +125,24 @@ export function DocPanel({ agents }: DocPanelProps) {
   return (
     <aside
       aria-label="문서"
-      className="fixed inset-y-0 right-0 z-40 flex w-[var(--doc-panel-w,50vw)] border-l border-hair bg-bg"
+      className={
+        embedded
+          ? "relative flex h-full w-[var(--canvas-panel-w,440px)] shrink-0 border-l border-hair bg-bg"
+          : "fixed inset-y-0 right-0 z-40 flex w-[var(--doc-panel-w,50vw)] border-l border-hair bg-bg"
+      }
     >
+      {embedded ? (
+        <ResizeHandle
+          cssVar="--canvas-panel-w"
+          storageKey="agent-control:canvas-panel-width"
+          edge="left"
+          defaultWidth={() => Math.min(440, window.innerWidth * 0.4)}
+          min={CANVAS_MIN}
+          max={() => window.innerWidth - paneWidth("--sidebar-w", 0) - CANVAS_ROOM}
+          label="오른쪽 패널 크기 조절"
+          className="absolute inset-y-0 -left-1 z-20"
+        />
+      ) : (
       <ResizeHandle
         cssVar="--doc-panel-w"
         storageKey="agent-control:doc-panel-width"
@@ -120,6 +153,7 @@ export function DocPanel({ agents }: DocPanelProps) {
         label="문서 패널 크기 조절"
         className="absolute inset-y-0 -left-1"
       />
+      )}
       {showTree && (
         <div className="relative w-[var(--file-tree-w,260px)] shrink-0 border-r border-hair bg-bg">
           <FileTree root={root} activeFile={activeFile} agents={agents} />
@@ -150,6 +184,19 @@ export function DocPanel({ agents }: DocPanelProps) {
             </button>
           )}
           <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
+            {lead && (
+              <div
+                role="tab"
+                aria-selected={active === null}
+                onClick={() => activate(null)}
+                title={lead.label}
+                className={`flex max-w-56 shrink-0 cursor-default items-center rounded-t-md border-x border-t px-3 py-1.5 text-[13px] select-none ${
+                  active === null ? "border-hair bg-bg font-semibold" : "border-transparent text-muted hover:text-fg"
+                }`}
+              >
+                <span className="truncate">{lead.label}</span>
+              </div>
+            )}
             {tabs.map((tab) => (
               <DocTabButton
                 key={tab.target}
@@ -181,19 +228,32 @@ export function DocPanel({ agents }: DocPanelProps) {
                 브라우저로 열기
               </button>
             )}
-            <button
-              type="button"
-              aria-label="문서 패널 닫기"
-              title="닫기 (Esc)"
-              onClick={closeAll}
-              className="rounded px-1.5 text-[16px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
-            >
-              ×
-            </button>
+            {lead ? (
+              <button
+                type="button"
+                aria-label="오른쪽 패널 접기"
+                title="오른쪽 패널 접기"
+                onClick={lead.onCollapse}
+                className="rounded px-1.5 text-[15px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
+              >
+                »
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="문서 패널 닫기"
+                title="닫기 (Esc)"
+                onClick={closeAll}
+                className="rounded px-1.5 text-[16px] leading-none text-muted hover:bg-tint-2 hover:text-fg"
+              >
+                ×
+              </button>
+            )}
           </div>
         </header>
         <div ref={framesRef} className="relative min-h-0 flex-1">
-          {tabs.length === 0 && <p className="px-5 py-8 text-[13px] text-muted">트리에서 파일을 고르면 여기에 열려요.</p>}
+          {lead && <div className={`absolute inset-0 ${active === null ? "" : "invisible"}`}>{lead.content}</div>}
+          {!lead && tabs.length === 0 && <p className="px-5 py-8 text-[13px] text-muted">트리에서 파일을 고르면 여기에 열려요.</p>}
           {tabs.map((tab) =>
             tab.kind === "file" ? (
               <FileView

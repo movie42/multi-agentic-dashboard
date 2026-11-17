@@ -2,7 +2,7 @@ import { MAX_CLOSE_TERMINALS, type ActionRequest } from "@/common/actions/schema
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import { requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
-import type { AgentCard } from "@/common/board/types";
+import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
 import type { ProjectGraph } from "../model/graph";
 import type { MenuItem, MenuRename } from "./CanvasMenu";
@@ -16,6 +16,8 @@ export interface MenuContext {
   save: (change: (current: CanvasState) => CanvasState) => void;
   select: (ids: string[]) => void;
   onAction: (action: ActionRequest) => Promise<void>;
+  /** Open a document in the right panel, or outside the app when the panel cannot show it. */
+  onOpenDoc: (target: string) => void;
   onOpenWorktree: (worktreeId: string) => void;
   onConnectFrom: (id: string) => void;
   /** Open one line in the side panel with its text editor showing. */
@@ -44,10 +46,40 @@ function closeSessions(agents: AgentCard[], onAction: MenuContext["onAction"]): 
 }
 
 /**
+ * The pages of the flow tasks tied to the worktrees, then the documents the sessions wrote (the chips
+ * under a session card), one entry per file.
+ */
+function docsItem(agents: AgentCard[], worktrees: WorktreeSummary[], onOpenDoc: MenuContext["onOpenDoc"]): MenuItem | null {
+  const seen = new Set<string>();
+  const entry = (target: string, label: string, hint: string | undefined): MenuItem[] => {
+    if (seen.has(target)) return [];
+    seen.add(target);
+    return [{ key: target, label, hint, run: () => onOpenDoc(target) }];
+  };
+  const flowPages = worktrees.flatMap((worktree) =>
+    worktree.flowTasks.flatMap((task) =>
+      task.pageIndex ? entry(task.pageIndex, task.title, `flow · ${task.taskId}${worktrees.length > 1 ? ` · ${worktree.name}` : ""}`) : [],
+    ),
+  );
+  const sessionDocs = agents.flatMap((agent) =>
+    agent.artifacts.flatMap((artifact) =>
+      artifact.kind === "pr" ? [] : entry(artifact.target, artifact.label, agents.length > 1 ? nodeTitle(agent) : undefined),
+    ),
+  );
+  const children = [...flowPages, ...sessionDocs];
+  return children.length > 0 ? { label: `문서 열기 (${children.length})`, run: () => {}, children } : null;
+}
+
+function worktreesOf(graph: ProjectGraph, agents: AgentCard[]): WorktreeSummary[] {
+  const ids = new Set(agents.map((agent) => agent.worktreeId));
+  return graph.clusters.flatMap((cluster) => (ids.has(cluster.worktree.worktreeId) ? [cluster.worktree] : []));
+}
+
+/**
  * Actions that work on any set of sessions: the right-clicked one, the selection, a group's members,
  * a worktree's sessions. Everything a single session can do that also makes sense for many is here.
  */
-function sessionsItems(agents: AgentCard[], context: MenuContext, label: string): MenuItem[] {
+function sessionsItems(agents: AgentCard[], context: MenuContext, label: string, withDocs = true): MenuItem[] {
   const { graph, canvas, save, onAction } = context;
   const ids = agents.map((agent) => agent.id);
   const idSet = new Set(ids);
@@ -56,6 +88,7 @@ function sessionsItems(agents: AgentCard[], context: MenuContext, label: string)
   const closable = agents.filter((agent) => agent.terminalHandle);
   const many = agents.length > 1;
   return compact([
+    withDocs && docsItem(agents, worktreesOf(graph, agents), context.onOpenDoc),
     many && { label: `${label} 고르기`, run: () => context.select(ids) },
     {
       label: many ? `${label} 그룹으로 묶기` : "그룹으로 묶기",
@@ -114,7 +147,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
         { label: "패널에서 열기", run: () => context.select([agent.id]) },
         { label: "다른 세션과 잇기", run: () => context.onConnectFrom(agent.id) },
         { label: "워크트리 열기", run: () => context.onOpenWorktree(agent.worktreeId) },
-        { label: "터미널 열기", run: () => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath }) },
+        { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath }) },
         ...sessionsItems([agent], context, "세션"),
       ],
     };
@@ -134,16 +167,17 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       title: `워크트리 · ${worktree.name}`,
       rename: worktree.isMain ? null : { label: "이름 바꾸기", value: worktree.name, onSave: (name) => void onAction({ type: "rename-worktree", worktreePath: worktree.path, name }) },
       items: compact([
+        docsItem(sessions, [worktree], context.onOpenDoc),
         { label: "새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
         { label: "지휘자", run: () => context.onLaunchConductor(worktree.worktreeId) },
         { label: "템플릿 펼치기", run: context.onExpandTemplate },
-        { label: "터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
+        { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
         { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },
         { label: "깃 그래프", run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener") },
         { label: "여기서 워크트리 만들기", run: () => inPanel("worktree") },
         !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") },
         { label: "워크트리 열기", run: () => context.onOpenWorktree(worktree.worktreeId) },
-        ...(sessions.length > 0 ? sessionsItems(sessions, context, `이 워크트리 세션 ${sessions.length}개`) : []),
+        ...(sessions.length > 0 ? sessionsItems(sessions, context, `이 워크트리 세션 ${sessions.length}개`, false) : []),
       ]),
     };
   }

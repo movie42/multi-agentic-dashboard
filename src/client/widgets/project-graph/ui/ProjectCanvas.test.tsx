@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { OrchestrationLink } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
+import { useDocViewerStore } from "@/client/features/view-doc";
 import { ProjectCanvas } from "./ProjectCanvas";
 
 function worktree(path: string, isMain = false): WorktreeSummary {
@@ -53,6 +54,12 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {})) {
         renderCard={(agent) => <div data-testid="card">{agent.title}</div>}
         onAction={onAction}
         onOpenWorktree={() => {}}
+        renderPanel={(panel) => (
+          <div>
+            <button type="button" aria-label="오른쪽 패널 접기" onClick={panel.onCollapse} />
+            {panel.content}
+          </div>
+        )}
       />
     </QueryClientProvider>,
   );
@@ -104,7 +111,7 @@ describe("ProjectCanvas", () => {
     const client = new QueryClient();
     render(
       <QueryClientProvider client={client}>
-        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} />
+        <ProjectCanvas repo="shop" worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} mode="personal" now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
@@ -121,6 +128,40 @@ describe("ProjectCanvas", () => {
     fireEvent.click(screen.getByRole("button", { name: "끝나면" }));
     fireEvent.click(screen.getByRole("button", { name: "끊기" }));
     expect(onAction).toHaveBeenCalledWith({ type: "unlink-sessions", linkId: "next-a-b" });
+  });
+
+  it("lists a worktree's flow pages and session documents and opens the picked one in the panel", () => {
+    const doc = "/p/shop-a/docs/shop/pay/03-tasks.html";
+    const flowPage = "/p/shop-a/docs/shop/pay/index.html";
+    const client = new QueryClient();
+    const shopA = { ...worktree("/p/shop-a"), flowTasks: [{ taskId: "pay", title: "결제", domain: "shop", pageIndex: flowPage } as WorktreeSummary["flowTasks"][number]] };
+    const onAction = vi.fn(async () => {});
+    render(
+      <QueryClientProvider client={client}>
+        <ProjectCanvas
+          repo="shop"
+          worktrees={[worktree("/p/shop", true), shopA]}
+          agents={[
+            agentCard({ id: "s1", worktreeId: "/p/shop-a", title: "결제 API", artifacts: [{ target: doc, label: "pay · 03-tasks", kind: "html" }] }),
+            agentCard({ id: "s2", worktreeId: "/p/shop-a", title: "환불", artifacts: [{ target: doc, label: "pay · 03-tasks", kind: "html" }, { target: "https://x/pr/1", label: "#1", kind: "pr" }] }),
+          ]}
+          mode="personal"
+          now={0}
+          header={null}
+          renderCard={() => null}
+          onAction={onAction}
+          onOpenWorktree={() => {}}
+          renderPanel={(panel) => panel.content}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "문서 열기 (2)" }));
+    expect(screen.getByRole("menuitem", { name: /결제\s*flow · pay/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: /pay · 03-tasks/ }));
+    expect(useDocViewerStore.getState().active).toBe(doc);
+    expect(onAction).not.toHaveBeenCalled();
+    useDocViewerStore.getState().closeAll();
   });
 
   it("closes a session from the right-click menu only after a second press", () => {

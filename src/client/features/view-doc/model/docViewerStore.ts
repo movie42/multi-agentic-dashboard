@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { docLabel, fileLabel } from "../lib/docUrl";
+import { docLabel, fileLabel, isViewableDoc } from "../lib/docUrl";
 
 export interface DocTab {
   kind: "doc" | "file";
@@ -23,7 +23,8 @@ interface DocViewerState {
   open: (target: string) => void;
   openFile: (file: string, options: OpenFileOptions) => void;
   pin: (target: string) => void;
-  activate: (target: string) => void;
+  /** `null` shows whatever the panel puts before the tabs (the canvas session view). */
+  activate: (target: string | null) => void;
   navigated: (target: string, current: string, title: string | null) => void;
   close: (target: string) => void;
   closeAll: () => void;
@@ -98,4 +99,19 @@ function migrateTabs(persisted: unknown): Pick<DocViewerState, "tabs" | "active"
   );
   const active = typeof persisted.active === "string" ? persisted.active : null;
   return { tabs, active };
+}
+
+/**
+ * Opens a session document inside the panel: a `docs/` page as a page tab, any other local file as a
+ * file tab. Returns false for what the panel cannot show (URLs), which the caller opens elsewhere.
+ */
+export function openInPanel(target: string): boolean {
+  const store = useDocViewerStore.getState();
+  if (isViewableDoc(target)) {
+    store.open(target);
+    return true;
+  }
+  if (!target.startsWith("/")) return false;
+  store.openFile(target, { preview: false });
+  return true;
 }
