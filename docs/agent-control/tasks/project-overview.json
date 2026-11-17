@@ -1499,5 +1499,15 @@
       "basis": "[[R4-Q5]] [[R5-Q1]] [[R5-Q2]]"
     }
   ],
-  "pulledAt": 1794789379870
+  "pulledAt": 1794789379870,
+  "followUps": [
+    {
+      "date": "2026-11-17",
+      "text": "캔버스 상자의 모델 · effort · 컨텍스트 줄을 text-focus · font-medium으로 강조",
+      "files": [
+        "src/client/widgets/project-graph/ui/NodeBox.tsx"
+      ],
+      "sha": "54c1639"
+    }
+  ]
 }
