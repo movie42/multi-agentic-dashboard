@@ -32,6 +32,15 @@ export function stateOf(session: RunnerSession): AgentState {
   return session.prompted ? "done" : "idle";
 }
 
+/** A session nobody touched for this long leaves 내 차례 · 쉬는 중 for 휴면. */
+export const DORMANT_AFTER_MS = 2 * 60 * 60 * 1000;
+
+export function isDormant(session: RunnerSession, now: number): boolean {
+  const state = stateOf(session);
+  if (state === "working" || state === "blocked") return false;
+  return now - session.updatedAt > DORMANT_AFTER_MS;
+}
+
 export interface WorktreeSummaryInput {
   worktree: BoardWorktree;
   livePaths: ReadonlySet<string>;
@@ -71,9 +80,10 @@ export interface AgentCardInput {
   bookmarks: ReadonlyMap<string, SessionBookmark>;
   artifacts: Artifact[];
   subagents: SubagentRun[];
+  now: number;
 }
 
-export function buildAgentCard({ session, worktree, prompt, lastMessage, sessionRef, bookmarks, artifacts, subagents }: AgentCardInput): AgentCard {
+export function buildAgentCard({ session, worktree, prompt, lastMessage, sessionRef, bookmarks, artifacts, subagents, now }: AgentCardInput): AgentCard {
   return {
     id: session.id,
     worktreeId: worktree.path,
@@ -89,7 +99,8 @@ export function buildAgentCard({ session, worktree, prompt, lastMessage, session
     lastMessage,
     toolName: null,
     backgroundRunning: false,
-    interrupted: false,
+    interrupted: session.interrupted,
+    dormant: isDormant(session, now),
     stateSince: session.updatedAt,
     updatedAt: session.updatedAt,
     unread: false,

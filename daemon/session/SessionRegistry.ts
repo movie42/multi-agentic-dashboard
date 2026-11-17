@@ -91,6 +91,7 @@ interface Entry {
   chunkSize: number;
   listeners: Set<TerminalListener>;
   held: HeldPermission | null;
+  interruptWatchUntil: number;
 }
 
 const DEFAULT_SCROLLBACK = 256 * 1024;
@@ -99,6 +100,9 @@ const INITIAL_COLS = 120;
 const INITIAL_ROWS = 32;
 
 const TRUST_WINDOW = 4096;
+// Claude Code fires no Stop hook when Esc interrupts a turn; its only trace is this line on screen.
+const INTERRUPTED_LINE = /^\s*⎿\s+Interrupted\b/;
+const INTERRUPT_WATCH_MS = 5000;
 const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
 
 export function asksForTrust(output: string): boolean {
@@ -180,6 +184,7 @@ export class SessionRegistry {
         cwd,
         kind,
         status: prompt ? "working" : "idle",
+        interrupted: false,
         prompted: Boolean(prompt ?? resumeSessionId),
         startedAt: now,
         updatedAt: now,
@@ -198,6 +203,7 @@ export class SessionRegistry {
       chunkSize: 0,
       listeners: new Set(),
       held: null,
+      interruptWatchUntil: 0,
     };
     this.#entries.set(id, entry);
     pty.onData((data) => this.#append(entry, data));
@@ -247,7 +253,11 @@ export class SessionRegistry {
 
   write(id: string, data: string): void {
     const entry = this.#entries.get(id);
-    if (entry && entry.session.status !== "exited") entry.pty.write(data);
+    if (!entry || entry.session.status === "exited") return;
+    if (data === "\x1b" && entry.session.kind === "claude" && entry.session.status === "working") {
+      entry.interruptWatchUntil = this.#options.now() + INTERRUPT_WATCH_MS;
+    }
+    entry.pty.write(data);
   }
 
   resize(id: string, cols: number, rows: number): void {
@@ -343,6 +353,14 @@ export class SessionRegistry {
     if (entry.session.kind === "claude" && !entry.hooked && asksForTrust(trimChunks(entry.chunks, TRUST_WINDOW).join(""))) {
       this.#apply(entry, { event: "trust-prompt" });
     }
+    if (entry.interruptWatchUntil > this.#options.now()) void this.#checkInterrupt(entry);
+  }
+
+  async #checkInterrupt(entry: Entry): Promise<void> {
+    const lines = await entry.screen.lines();
+    if (entry.session.status !== "working" || !lines.some((line) => INTERRUPTED_LINE.test(line))) return;
+    entry.interruptWatchUntil = 0;
+    this.#apply(entry, { event: "interrupt" });
   }
 
   #releasePermission(entry: Entry, output: PermissionHookOutput): void {
@@ -358,8 +376,10 @@ export class SessionRegistry {
   #apply(entry: Entry, signal: StatusSignal): void {
     const status = nextStatus(entry.session.status, signal);
     const prompted = entry.session.prompted || signal.event === "UserPromptSubmit";
-    if (status === entry.session.status && prompted === entry.session.prompted) return;
-    entry.session = { ...entry.session, status, prompted, updatedAt: this.#options.now() };
+    const interrupted =
+      signal.event === "UserPromptSubmit" ? false : entry.session.interrupted || (signal.event === "interrupt" && status !== entry.session.status);
+    if (status === entry.session.status && prompted === entry.session.prompted && interrupted === entry.session.interrupted) return;
+    entry.session = { ...entry.session, status, interrupted, prompted, updatedAt: this.#options.now() };
     this.#changed();
   }
 

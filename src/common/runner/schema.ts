@@ -33,6 +33,7 @@ export const runnerSessionSchema = z.object({
   kind: z.enum(["claude", "shell"]),
   status: z.enum(["idle", "working", "waiting", "exited"]),
   prompted: z.boolean(),
+  interrupted: z.boolean().default(false),
   startedAt: z.number(),
   updatedAt: z.number(),
   exitCode: z.number().nullable(),

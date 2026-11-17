@@ -22,6 +22,11 @@ describe("nextStatus", () => {
     expect(nextStatus("working", { event: "Stop" })).toBe("idle");
   });
 
+  it("moves to idle when the user interrupts a running turn, which sends no Stop hook", () => {
+    expect(nextStatus("working", { event: "interrupt" })).toBe("idle");
+    expect(nextStatus("waiting", { event: "interrupt" })).toBe("waiting");
+  });
+
   it("stays exited whatever arrives after the process ends", () => {
     expect(nextStatus("working", { event: "exit" })).toBe("exited");
     expect(nextStatus("exited", { event: "UserPromptSubmit" })).toBe("exited");

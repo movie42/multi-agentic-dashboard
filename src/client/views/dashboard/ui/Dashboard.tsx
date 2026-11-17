@@ -48,7 +48,7 @@ interface SectionProps {
   title: string;
   count: number;
   hint: string;
-  status: "ask" | "now" | "wait";
+  status: keyof typeof SECTION_DOT;
   strong?: boolean;
   children: React.ReactNode;
 }
@@ -56,8 +56,19 @@ interface SectionProps {
 const SECTION_DOT = {
   ask: "bg-ask",
   now: "bg-now",
+  paused: "shadow-[inset_0_0_0_1.5px_var(--accent)]",
+  dormant: "outline-1 -outline-offset-1 outline-dashed outline-faint",
   wait: "shadow-[inset_0_0_0_1.5px_var(--faint)]",
 } as const;
+
+type LaterGroup = "working" | "paused" | "dormant" | "resting";
+
+const LATER_SECTIONS: { key: LaterGroup; title: string; status: keyof typeof SECTION_DOT; hint: string }[] = [
+  { key: "working", title: "에이전트 작업 중", status: "now", hint: "에이전트가 아직 답을 쓰는 중. 오래 돈 순. 줄을 누르면 펼쳐져요" },
+  { key: "paused", title: "멈춤", status: "paused", hint: "Esc로 멈춘 세션. 최근 순. 다시 보내면 이어서 일해요" },
+  { key: "dormant", title: "휴면", status: "dormant", hint: "2시간 넘게 손대지 않은 세션. 최근 순. 줄을 누르면 펼쳐져요" },
+  { key: "resting", title: "쉬는 중", status: "wait", hint: "정리한 것과 쉬는 세션. 줄을 누르면 펼쳐져요" },
+];
 
 function Section({
   title,
@@ -437,8 +448,8 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
               </h1>
               <p className="mt-2.5 text-[13px] text-muted">
                 내 차례 {focusGroups.needsMe.length} · 에이전트 작업 중{" "}
-                {focusGroups.working.length} · 쉬는 중{" "}
-                {focusGroups.resting.length} · 프로젝트{" "}
+                {focusGroups.working.length} · 멈춤 {focusGroups.paused.length} · 휴면{" "}
+                {focusGroups.dormant.length} · 쉬는 중 {focusGroups.resting.length} · 프로젝트{" "}
                 {focused.size > 0
                   ? `${focused.size}/${board.projects.length}`
                   : board.projects.length}
@@ -506,7 +517,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                   count={visibleGroups.needsMe.length}
                   status="ask"
                   strong
-                  hint="에이전트가 답을 끝내고 나를 기다리는 것들. 막힘·내 입력 대기 → 중단됨 → 새 결과 → 나머지, 같은 순위는 오래 기다린 순"
+                  hint="에이전트가 답을 끝내고 나를 기다리는 것들. 막힘·내 입력 대기 → 새 결과 → 나머지, 같은 순위는 오래 기다린 순"
                 >
                   {visibleGroups.needsMe.length === 0 ? (
                     <p className="text-[15px] text-muted">
@@ -525,15 +536,16 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                   )}
                 </Section>
 
-                {visibleGroups.working.length > 0 && (
+                {LATER_SECTIONS.filter((section) => visibleGroups[section.key].length > 0).map((section) => (
                   <Section
-                    title="에이전트 작업 중"
-                    count={visibleGroups.working.length}
-                    status="now"
-                    hint="에이전트가 아직 답을 쓰는 중. 오래 돈 순. 줄을 누르면 펼쳐져요"
+                    key={section.key}
+                    title={section.title}
+                    count={visibleGroups[section.key].length}
+                    status={section.status}
+                    hint={section.hint}
                   >
                     <AgentList
-                      agents={visibleGroups.working}
+                      agents={visibleGroups[section.key]}
                       now={now}
                       showRepo
                       renderCard={withProgressCard}
@@ -542,26 +554,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                       onAction={runAction}
                     />
                   </Section>
-                )}
-
-                {visibleGroups.resting.length > 0 && (
-                  <Section
-                    title="쉬는 중"
-                    count={visibleGroups.resting.length}
-                    status="wait"
-                    hint="정리한 것과 쉬는 세션. 줄을 누르면 펼쳐져요"
-                  >
-                    <AgentList
-                      agents={visibleGroups.resting}
-                      now={now}
-                      showRepo
-                      renderCard={withProgressCard}
-                      onJump={jumpToAgent}
-                      workersOf={visibleFold.workersOf}
-                      onAction={runAction}
-                    />
-                  </Section>
-                )}
+                ))}
               </>
             )}
           </>

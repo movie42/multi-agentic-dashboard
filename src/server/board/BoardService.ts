@@ -188,6 +188,7 @@ export class BoardService {
         })
       : [];
     return buildAgentCard({
+      now: this.now(),
       subagents,
       session,
       worktree,

@@ -19,6 +19,7 @@ export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
     backgroundRunning: false,
     subagents: [],
     interrupted: false,
+    dormant: false,
     stateSince: null,
     updatedAt: null,
     unread: false,

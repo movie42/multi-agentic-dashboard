@@ -1,18 +1,19 @@
 "use client";
 
-import type { AgentCard, AgentState } from "@/common/board/types";
+import type { AgentCard } from "@/common/board/types";
+import { displayStateOf, type DisplayState } from "@/client/entities/agent";
 import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
 import type { GraphNode } from "../model/graph";
 
-const NODE_STATE: Record<AgentState, { label: string; tone: string; dot: string }> = {
+const NODE_STATE: Record<DisplayState, { label: string; tone: string; dot: string }> = {
   blocked: { label: "막힘", tone: "border-accent text-accent", dot: "bg-accent" },
   waiting: { label: "내 입력 대기", tone: "border-accent text-accent", dot: "bg-accent" },
   done: { label: "내 차례", tone: "border-ask text-ask", dot: "bg-ask" },
   working: { label: "작업 중", tone: "border-now text-now", dot: "bg-now animate-pulse" },
+  paused: { label: "멈춤", tone: "border-accent text-accent", dot: "shadow-[inset_0_0_0_1.5px_var(--accent)]" },
+  dormant: { label: "휴면", tone: "border-dashed border-faint text-faint", dot: "shadow-[inset_0_0_0_1.5px_var(--faint)]" },
   idle: { label: "쉬는 중", tone: "border-hair text-muted", dot: "shadow-[inset_0_0_0_1.5px_var(--faint)]" },
 };
-
-const INTERRUPTED = { label: "중단됨", tone: "border-accent text-accent", dot: "bg-accent" };
 
 export function nodeTitle(agent: AgentCard): string {
   // The session title is where a rename lands (the card reads the same field); `agent.title` is unset for live sessions.
@@ -20,7 +21,7 @@ export function nodeTitle(agent: AgentCard): string {
 }
 
 function stateOf(agent: AgentCard) {
-  return agent.interrupted && agent.state !== "working" ? INTERRUPTED : NODE_STATE[agent.state];
+  return NODE_STATE[displayStateOf(agent)];
 }
 
 interface NodeBoxProps {

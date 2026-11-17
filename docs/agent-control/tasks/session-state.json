@@ -1,0 +1,295 @@
+{
+  "id": "session-state",
+  "title": "세션 멈춤 · 오래된 세션 상태",
+  "type": "기능 수정",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "grill": {
+      "rounds": [
+        {
+          "id": "R1",
+          "askedAt": "11/17",
+          "from": "멈춤 · 오래된 세션 상태 추가 요청",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "얼마 동안 손대지 않으면 '오래됨'으로 볼까요",
+              "intent": "기준이 너무 짧으면 점심 먹고 온 사이 내 차례 세션이 전부 '오래됨'으로 넘어가 놓치고, 너무 길면 며칠 묵은 세션이 계속 내 차례에 쌓여요.",
+              "decision": "마지막 상태 변화에서 2시간이 지난 세션을 휴면으로 봐요. 이름은 '오래됨' 대신 '휴면'으로 정했어요. 사용자가 다른 이름을 원했고 더 묻지 말라고 해서 Claude가 골랐어요.",
+              "reason": {
+                "text": "반나절만 지나도 지금 볼 목록에서 빼고 싶어 짧은 기준을 고른 것으로 읽었어요.",
+                "by": "inferred"
+              },
+              "appliedTo": "[[P2-1]] [[P3-1]]"
+            },
+            {
+              "id": "Q2",
+              "title": "멈춤 · 오래됨을 화면에서 어떻게 나눌까요",
+              "intent": "상태 배지만 바꾸고 묶음은 그대로 두면, 멈춘 세션과 오래된 세션이 여전히 '내 차례' 숫자에 섞여서 지금 볼 세션이 몇 개인지 알 수 없어요.",
+              "decision": "묶음을 내 차례 · 작업 중 · 멈춤 · 휴면 · 쉬는 중으로 나눠요. 내 차례 숫자는 지금 답할 세션만 세요.",
+              "reason": {
+                "text": "내 차례 숫자가 지금 답할 것만 세게 하려는 추천을 그대로 받았어요.",
+                "by": "recommended"
+              },
+              "appliedTo": "[[P3-1]] [[P3-3]] [[P3-4]] [[P3-5]]"
+            },
+            {
+              "id": "Q3",
+              "title": "권한 질문을 기다리는 세션도 오래되면 '오래됨'으로 내릴까요",
+              "intent": "권한 질문(막힘)은 내가 답해야만 에이전트가 이어서 일할 수 있어서, 오래됨으로 내려가면 답할 곳을 잃어요.",
+              "decision": "막힘 · 내 입력 대기 세션은 오래돼도 휴면으로 내리지 않고 내 차례 맨 위에 남겨요.",
+              "reason": {
+                "text": "막힘은 오래될수록 더 급한 일이라 내 차례에 남겨 두려는 추천을 그대로 받았어요.",
+                "by": "recommended"
+              },
+              "appliedTo": "[[P2-1]] [[P3-1]]"
+            }
+          ]
+        }
+      ]
+    },
+    "tasks": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "Esc로 멈추면 러너가 화면의 <code>⎿ Interrupted</code> 줄을 보고 세션을 쉬는 중 + 멈춤으로 바꿔요 [[P1]].",
+        "보드 카드가 멈춤(<code>interrupted</code>)과 휴면(<code>dormant</code>, 2시간)을 실어 와요 [[P2]].",
+        "대시보드 · 워크트리 패널 · 캔버스가 내 차례 · 작업 중 · 멈춤 · 휴면을 따로 보여 줘요 [[P3]].",
+        "러너와 데스크톱 앱을 다시 띄우기 전에는 실제 화면에 반영되지 않아요. 재시작 후 화면 확인은 아직 안 했어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 러너가 멈춤을 알아채기",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "상태 신호에 <code>interrupt</code> 추가: 작업 중이면 쉬는 중으로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/status.ts</code>"
+                ],
+                [
+                  "검증 테스트",
+                  "<code>daemon/session/status.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "Esc 입력 뒤 몇 초 동안 화면에서 <code>⎿ Interrupted</code> 줄을 찾아 멈춤으로 바꾸기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code>"
+                ],
+                [
+                  "검증 테스트",
+                  "<code>daemon/session/SessionRegistry.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Esc 입력 뒤 5초 동안만 화면을 봐요. 에이전트 답에 같은 문구가 찍혀도 Esc가 없으면 멈춤으로 바꾸지 않아요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "<code>RunnerSession.interrupted</code> 추가, 다음 프롬프트에서 꺼짐",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/runner/types.ts</code>"
+                ],
+                [
+                  "결정",
+                  "예전 러너가 이 필드를 안 보내도 깨지지 않게 응답 스키마에서 기본값을 false로 둬요 (<code>src/common/runner/schema.ts</code>)."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bunx vitest run daemon/session</code> 통과, 실제 세션에서 Esc 뒤 화면에 <code>⎿  Interrupted · What should Claude do instead?</code>가 찍히고 상태가 working에 남는 것을 재현",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 보드 카드에 멈춤 · 휴면 싣기",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "<code>interrupted</code> 고정값 제거, <code>dormant</code> 계산(작업 중 · 막힘 · 입력 대기 제외, 2시간)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/board/boardCards.ts</code> · <code>src/common/board/types.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: board 테스트 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 화면에서 멈춤 · 휴면 나누기",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "<code>groupAgents</code>에 <code>paused</code> · <code>dormant</code> 묶음 추가",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/agent/model/classify.ts</code>"
+                ],
+                [
+                  "결정",
+                  "정리(내리기)한 세션은 예전처럼 쉬는 중으로 가요. 휴면은 정리 여부와 관계없이 휴면이에요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "상태 배지 · 캔버스 상자에 멈춤 · 휴면 글자",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>StateBadge.tsx</code> · <code>NodeBox.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "대시보드 섹션 · 머리 숫자에 멈춤 · 휴면",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "워크트리 패널 필터 칩에 멈춤 · 휴면",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-5",
+              "title": "캔버스 상단 숫자에 멈춤 · 휴면",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run lint</code>(경고만) · <code>bunx vitest run</code> 677개 통과",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "SOT 맵이 없는 작업이라 D1은 고칠 근거가 없었어요.",
+        "<code>/code-review low</code> 지적 없음, 타입체크 · 린트 · 테스트 677개 통과.",
+        "PR 없음 — 아직 커밋하지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "Esc로 멈춘 세션이 '작업 중'에 계속 남지 않고, 멈춘 즉시 '멈춤'으로 보여야 해요.",
+      "state": "confirmed",
+      "basis": "사용자 요청: \"고치는건 A로하고\""
+    },
+    {
+      "text": "2시간 넘게 손대지 않은 세션은 내 차례 · 작업 중과 섞이지 않고 '휴면'으로 따로 보여서, 지금 볼 세션만 눈에 들어와야 해요.",
+      "state": "confirmed",
+      "basis": "[[R1-Q1]] [[R1-Q2]]",
+      "was": [
+        "오래 손대지 않은 세션은 내 차례 · 작업 중과 섞이지 않고 '오래됨'으로 따로 보여서, 지금 볼 세션만 눈에 들어와야 해요."
+      ]
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "grill",
+      "stop": "이유 확인 라운드",
+      "why": "사용자가 질문을 주고받지 말고 구현을 진행하라고 함 ([[R1-Q1]] 메모)"
+    },
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 구현을 진행하고 끝나면 완료로 표시하라고 함 ([[R1-Q1]] 메모)"
+    }
+  ],
+  "pruned": "2026-11-17"
+}

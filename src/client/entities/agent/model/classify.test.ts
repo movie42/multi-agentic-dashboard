@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { agentCard } from "../../../../../test/fixtures";
-import { awaitsUser, foldWorkers, groupAgents } from "./classify";
+import { displayStateOf, foldWorkers, groupAgents } from "./classify";
 
-describe("awaitsUser", () => {
+describe("displayStateOf", () => {
   it.each([
-    ["working", false, false],
-    ["idle", false, false],
-    ["idle", true, true],
-    ["done", false, true],
-    ["blocked", false, true],
-    ["waiting", false, true],
-  ] as const)("%s interrupted=%s → %s", (state, interrupted, expected) => {
-    expect(awaitsUser(agentCard({ state, interrupted }))).toBe(expected);
+    [{ state: "working", dormant: false, interrupted: false }, "working"],
+    [{ state: "blocked", dormant: true, interrupted: false }, "blocked"],
+    [{ state: "waiting", dormant: true, interrupted: false }, "waiting"],
+    [{ state: "idle", dormant: false, interrupted: true }, "paused"],
+    [{ state: "idle", dormant: true, interrupted: true }, "dormant"],
+    [{ state: "done", dormant: true, interrupted: false }, "dormant"],
+    [{ state: "done", dormant: false, interrupted: false }, "done"],
+  ] as const)("%o → %s", (fields, expected) => {
+    expect(displayStateOf(agentCard(fields))).toBe(expected);
   });
 });
 
@@ -33,15 +34,30 @@ describe("groupAgents", () => {
       agentCard({ id: "plain", state: "done", stateSince: 0 }),
       agentCard({ id: "blocked-new", state: "blocked", stateSince: 50 }),
       agentCard({ id: "blocked-old", state: "waiting", stateSince: 10 }),
-      agentCard({ id: "interrupted", state: "idle", interrupted: true, stateSince: 5 }),
     ];
     expect(groupAgents(agents, () => false).needsMe.map((a) => a.id)).toEqual([
       "blocked-old",
       "blocked-new",
-      "interrupted",
       "unread",
       "plain",
     ]);
+  });
+
+  it("keeps paused and dormant sessions out of needsMe, but never a blocked one", () => {
+    const groups = groupAgents(
+      [
+        agentCard({ id: "paused", state: "idle", interrupted: true }),
+        agentCard({ id: "old-done", state: "done", dormant: true }),
+        agentCard({ id: "old-paused", state: "idle", interrupted: true, dormant: true }),
+        agentCard({ id: "old-blocked", state: "blocked", dormant: true }),
+        agentCard({ id: "paused-dismissed", state: "idle", interrupted: true }),
+      ],
+      (agent) => agent.id === "paused-dismissed",
+    );
+    expect(groups.needsMe.map((a) => a.id)).toEqual(["old-blocked"]);
+    expect(groups.paused.map((a) => a.id)).toEqual(["paused"]);
+    expect(groups.dormant.map((a) => a.id).sort()).toEqual(["old-done", "old-paused"]);
+    expect(groups.resting.map((a) => a.id)).toEqual(["paused-dismissed"]);
   });
 
   it("orders working by oldest state with null last, resting by most recent update", () => {

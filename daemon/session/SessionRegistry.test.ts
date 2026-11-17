@@ -125,6 +125,25 @@ describe("SessionRegistry", () => {
     expect(registry.get("s1")?.status).toBe("working");
   });
 
+  it("turns idle and interrupted when Esc stops a running turn, and clears it on the next prompt", async () => {
+    const { registry, ptys } = setup();
+    registry.launch({ cwd: "/repo", prompt: "count" });
+    registry.signal("s1", { event: "UserPromptSubmit" });
+    registry.write("s1", "\x1b");
+    ptys[0]?.emitData("  381\r\n  \u23bf\x1b[2CInterrupted\x1b[1C\u00b7\x1b[1CWhat should Claude do instead?\r\n");
+    await vi.waitFor(() => expect(registry.get("s1")).toMatchObject({ status: "idle", interrupted: true }));
+    registry.signal("s1", { event: "UserPromptSubmit" });
+    expect(registry.get("s1")).toMatchObject({ status: "working", interrupted: false });
+  });
+
+  it("ignores an Interrupted line the agent prints without Esc", async () => {
+    const { registry, ptys } = setup();
+    registry.launch({ cwd: "/repo", prompt: "explain" });
+    ptys[0]?.emitData("  \u23bf  Interrupted · What should Claude do instead?\r\n");
+    await registry.screen("s1");
+    expect(registry.get("s1")).toMatchObject({ status: "working", interrupted: false });
+  });
+
   it("recognises the trust question through terminal control codes", () => {
     expect(asksForTrust("\x1b[2K\x1b[1G ❯ Yes,\x1b[1CI\x1b[1Ctrust\x1b[1Cthis\x1b[1Cfolder")).toBe(true);
     expect(asksForTrust("hello")).toBe(false);

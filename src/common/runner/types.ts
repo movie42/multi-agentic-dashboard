@@ -14,6 +14,8 @@ export interface RunnerSession {
   cwd: string;
   kind: RunnerSessionKind;
   status: RunnerStatus;
+  /** The last turn was stopped with Esc; cleared by the next prompt. */
+  interrupted: boolean;
   prompted: boolean;
   startedAt: number;
   updatedAt: number;

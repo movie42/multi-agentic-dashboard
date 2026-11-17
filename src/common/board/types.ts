@@ -29,6 +29,8 @@ export interface AgentCard {
   toolName: string | null;
   backgroundRunning: boolean;
   interrupted: boolean;
+  /** Not working or blocked, and untouched for longer than the server's dormant window. */
+  dormant: boolean;
   stateSince: number | null;
   updatedAt: number | null;
   unread: boolean;

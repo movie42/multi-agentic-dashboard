@@ -19,6 +19,7 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
+import { displayStateOf } from "@/client/entities/agent";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
 import { draftFromSelection } from "../model/templateDraft";
@@ -266,10 +267,13 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
     if (panelCollapsed) writePanelPref([]);
   };
 
+  const states = agents.map(displayStateOf);
   const counts = {
     sessions: agents.length,
-    myTurn: agents.filter((agent) => agent.state === "done" || agent.state === "blocked" || agent.state === "waiting").length,
-    working: agents.filter((agent) => agent.state === "working").length,
+    myTurn: states.filter((state) => state === "done" || state === "blocked" || state === "waiting").length,
+    working: states.filter((state) => state === "working").length,
+    paused: states.filter((state) => state === "paused").length,
+    dormant: states.filter((state) => state === "dormant").length,
   };
 
   return (
@@ -362,6 +366,8 @@ export function ProjectCanvas({ repo, worktrees, agents, mode, now, header, rend
             <div className="pointer-events-auto">{header}</div>
             <p className="text-[12px] text-muted">
               세션 {counts.sessions} · <span className="text-ask">내 차례 {counts.myTurn}</span> · <span className="text-now">작업 중 {counts.working}</span>
+              {counts.paused > 0 && <> · <span className="text-accent">멈춤 {counts.paused}</span></>}
+              {counts.dormant > 0 && <> · <span className="text-faint">휴면 {counts.dormant}</span></>}
               {connecting && <span className="ml-2 font-semibold text-fg">잇기 모드 · 상자에서 상자로 끌어요 (Esc로 끄기)</span>}
             </p>
           </div>

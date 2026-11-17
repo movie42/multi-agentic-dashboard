@@ -8,6 +8,7 @@ function session(overrides: Partial<RunnerSession>): RunnerSession {
     cwd: "/repo",
     kind: "claude",
     status: "idle",
+    interrupted: false,
     prompted: true,
     startedAt: 10,
     updatedAt: 10,

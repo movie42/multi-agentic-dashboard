@@ -71,11 +71,13 @@ function currentStepIndex(steps: WorkflowStep[]): number {
   return firstWaiting >= 0 ? firstWaiting : steps.length - 1;
 }
 
-type PanelFilter = "needsMe" | "working";
+type PanelFilter = "needsMe" | "working" | "paused" | "dormant";
 
 const FILTER_OPTIONS: { key: PanelFilter; label: string; tone: string }[] = [
   { key: "needsMe", label: "내 차례", tone: "text-ask" },
   { key: "working", label: "작업 중", tone: "text-now" },
+  { key: "paused", label: "멈춤", tone: "text-accent" },
+  { key: "dormant", label: "휴면", tone: "text-faint" },
 ];
 
 export function WorktreePanel({
@@ -103,6 +105,8 @@ export function WorktreePanel({
   const sessions = useSessionOrder(worktree.worktreeId, [
     ...groups.needsMe,
     ...groups.working,
+    ...groups.paused,
+    ...groups.dormant,
     ...groups.resting,
   ]);
   const all = sessions.ordered;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentCard, buildWorktreeSummary, stateOf, worktreeName, worktreeOfCwd } from "./boardCards";
+import { buildAgentCard, buildWorktreeSummary, isDormant, stateOf, worktreeName, worktreeOfCwd } from "./boardCards";
 import { boardWorktree, runnerSession } from "./boardFixtures";
 
 const flow = { current: [], other: [] };
@@ -67,6 +67,7 @@ describe("buildAgentCard", () => {
       bookmarks: new Map([["abc", bookmark]]),
       artifacts: [],
       subagents: [],
+      now: 30,
     });
     expect(card).toMatchObject({
       id: "abc",
@@ -78,5 +79,20 @@ describe("buildAgentCard", () => {
       worktreeId: "/w",
       session: { id: "abc", title: "Title", bookmark },
     });
+  });
+});
+
+describe("isDormant", () => {
+  const hours = (n: number) => n * 60 * 60 * 1000;
+
+  it("puts a finished or interrupted session to sleep after two hours untouched", () => {
+    expect(isDormant(runnerSession({ status: "idle", updatedAt: 0 }), hours(2) + 1)).toBe(true);
+    expect(isDormant(runnerSession({ status: "idle", interrupted: true, updatedAt: 0 }), hours(2) + 1)).toBe(true);
+    expect(isDormant(runnerSession({ status: "idle", updatedAt: 0 }), hours(2))).toBe(false);
+  });
+
+  it("never puts a working or blocked session to sleep", () => {
+    expect(isDormant(runnerSession({ status: "working", updatedAt: 0 }), hours(9))).toBe(false);
+    expect(isDormant(runnerSession({ status: "waiting", updatedAt: 0 }), hours(9))).toBe(false);
   });
 });

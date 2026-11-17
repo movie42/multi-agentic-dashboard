@@ -1,22 +1,27 @@
-import type { AgentCard } from "@/common/board/types";
+import type { AgentCard, AgentState } from "@/common/board/types";
 
 export interface BoardGroups {
   needsMe: AgentCard[];
   working: AgentCard[];
+  paused: AgentCard[];
+  dormant: AgentCard[];
   resting: AgentCard[];
 }
 
-function urgency(agent: AgentCard): number {
-  if (agent.state === "blocked" || agent.state === "waiting") return 0;
-  if (agent.interrupted) return 1;
-  if (agent.unread) return 2;
-  return 3;
+export type DisplayState = AgentState | "paused" | "dormant";
+
+/** What one session shows as: blocked and working win over dormant, dormant over paused. */
+export function displayStateOf(agent: AgentCard): DisplayState {
+  if (agent.state === "working" || needsInput(agent)) return agent.state;
+  if (agent.dormant) return "dormant";
+  if (agent.interrupted) return "paused";
+  return agent.state;
 }
 
-export function awaitsUser(agent: AgentCard): boolean {
-  if (agent.state === "working") return false;
-  if (agent.state === "idle") return agent.interrupted;
-  return true;
+function urgency(agent: AgentCard): number {
+  if (needsInput(agent)) return 0;
+  if (agent.unread) return 1;
+  return 2;
 }
 
 const byOldestState = (a: AgentCard, b: AgentCard) =>
@@ -28,14 +33,20 @@ export function groupAgents(
   agents: AgentCard[],
   isDismissed: (agent: AgentCard) => boolean,
 ): BoardGroups {
-  const groups: BoardGroups = { needsMe: [], working: [], resting: [] };
+  const groups: BoardGroups = { needsMe: [], working: [], paused: [], dormant: [], resting: [] };
   for (const agent of agents) {
-    if (agent.state === "working") groups.working.push(agent);
-    else if (awaitsUser(agent) && !isDismissed(agent)) groups.needsMe.push(agent);
-    else groups.resting.push(agent);
+    const state = displayStateOf(agent);
+    if (state === "working") groups.working.push(agent);
+    else if (state === "dormant") groups.dormant.push(agent);
+    else if (isDismissed(agent)) groups.resting.push(agent);
+    else if (state === "paused") groups.paused.push(agent);
+    else if (state === "idle") groups.resting.push(agent);
+    else groups.needsMe.push(agent);
   }
   groups.needsMe.sort((a, b) => urgency(a) - urgency(b) || byOldestState(a, b));
   groups.working.sort(byOldestState);
+  groups.paused.sort(byRecentUpdate);
+  groups.dormant.sort(byRecentUpdate);
   groups.resting.sort(byRecentUpdate);
   return groups;
 }

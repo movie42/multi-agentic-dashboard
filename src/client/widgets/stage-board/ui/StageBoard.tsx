@@ -70,7 +70,7 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
     const own = agents.filter((agent) => agent.worktreeId === worktree.worktreeId);
     const groups = groupAgents(own, isDismissed);
     const replyAgent =
-      [...groups.needsMe, ...groups.working, ...groups.resting].find((agent) => agent.terminalHandle) ?? null;
+      [...groups.needsMe, ...groups.working, ...groups.paused, ...groups.dormant, ...groups.resting].find((agent) => agent.terminalHandle) ?? null;
     const base = {
       worktreeId: worktree.worktreeId,
       repo: worktree.repo,

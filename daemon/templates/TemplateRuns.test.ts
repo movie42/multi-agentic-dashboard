@@ -9,6 +9,7 @@ function session(id: string, cwd: string): RunnerSession {
     cwd,
     kind: "claude",
     status: "idle",
+    interrupted: false,
     prompted: true,
     startedAt: 0,
     updatedAt: 0,
