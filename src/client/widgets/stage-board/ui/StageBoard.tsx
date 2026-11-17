@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
-import { buildSteps, currentStep } from "@/common/workflow/steps";
+import { buildSteps, currentStep, roundDocOf } from "@/common/workflow/steps";
 import type { StepKey, WorkflowMode, WorkflowStep } from "@/common/workflow/types";
 import { StateBadge } from "@/client/entities/agent";
 import { groupAgents } from "@/client/entities/agent";
@@ -42,6 +42,7 @@ interface StageRow {
   title: string | null;
   steps: WorkflowStep[] | null;
   current: WorkflowStep | null;
+  roundDoc: string | null;
   needsMe: number;
   working: number;
   replyAgent: AgentCard | null;
@@ -53,6 +54,7 @@ interface StageBoardProps {
   modeOfRepo: (repo: string) => WorkflowMode;
   isDismissed: (agent: AgentCard) => boolean;
   onJump: (repo: string, target: string) => void;
+  onOpenDoc: (target: string) => void;
 }
 
 const DOT = {
@@ -61,7 +63,7 @@ const DOT = {
   wait: "shadow-[inset_0_0_0_1.5px_var(--faint)]",
 } as const;
 
-export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump }: StageBoardProps) {
+export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump, onOpenDoc }: StageBoardProps) {
   const rowsByGroup = new Map<StageGroup, StageRow[]>();
   const push = (group: StageGroup, row: StageRow) =>
     rowsByGroup.set(group, [...(rowsByGroup.get(group) ?? []), row]);
@@ -82,7 +84,7 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
 
     if (worktree.flowTasks.length === 0) {
       if (own.length > 0) {
-        push("no-doc", { ...base, id: worktree.worktreeId, title: null, steps: null, current: null });
+        push("no-doc", { ...base, id: worktree.worktreeId, title: null, steps: null, current: null, roundDoc: null });
       }
       continue;
     }
@@ -95,6 +97,7 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
         title: task.title,
         steps,
         current,
+        roundDoc: roundDocOf(task),
       });
     }
   }
@@ -123,7 +126,7 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
             </div>
             <ul className="min-w-0">
               {rows.map((row) => (
-                <StageRowView key={row.id} row={row} onJump={onJump} />
+                <StageRowView key={row.id} row={row} onJump={onJump} onOpenDoc={onOpenDoc} />
               ))}
             </ul>
           </section>
@@ -136,9 +139,10 @@ export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump 
 interface StageRowViewProps {
   row: StageRow;
   onJump: (repo: string, target: string) => void;
+  onOpenDoc: (target: string) => void;
 }
 
-function StageRowView({ row, onJump }: StageRowViewProps) {
+function StageRowView({ row, onJump, onOpenDoc }: StageRowViewProps) {
   const [replying, setReplying] = useState(false);
   const replyAgent = row.replyAgent;
   const terminalHandle = replyAgent?.terminalHandle ?? null;
@@ -175,6 +179,16 @@ function StageRowView({ row, onJump }: StageRowViewProps) {
             }`}
           >
             답장
+          </button>
+        )}
+        {row.roundDoc && (
+          <button
+            type="button"
+            onClick={() => row.roundDoc && onOpenDoc(row.roundDoc)}
+            title="답을 기다리는 질문 라운드의 문서를 열어요"
+            className="shrink-0 rounded-full px-3 py-1 text-[12px] leading-5 font-semibold text-ask shadow-[inset_0_0_0_1px_var(--hair)] hover:text-fg"
+          >
+            문서 열기
           </button>
         )}
         <button

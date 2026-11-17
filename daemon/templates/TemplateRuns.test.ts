@@ -133,6 +133,21 @@ describe("TemplateRuns", () => {
     expect(runs.list()[0]).toMatchObject({ current: "build", trips: { r5: 1 } });
   });
 
+  it("tells the next card that a person picked the route, without the judge's unsure answer", async () => {
+    const { runs, launched } = setup();
+    const run = expand(runs);
+    runs.start(run.id);
+    await runs.onStop("s1", "ok");
+    await runs.onStop("s1", "built");
+    await runs.onStop("s2", "verified");
+    await runs.onStop("s3", "잘 모르겠어요");
+    runs.continue(run.id, "r4");
+    const prompt = launched.at(-1)?.prompt ?? "";
+    expect(prompt).toContain("사람이 '리뷰' 카드 다음으로 '통과' 길을 골랐어요.");
+    expect(prompt).not.toContain("카드가 '통과' 길을 골랐어요");
+    expect(prompt).not.toContain("answer of s3");
+  });
+
   it("stops after bouncing the same route MAX_TRIPS times until a person continues", async () => {
     const { runs } = setup();
     const run = expand(runs);

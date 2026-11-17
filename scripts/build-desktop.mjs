@@ -69,6 +69,20 @@ writeFileSync(
   JSON.stringify({ name: "agent-control", productName: "Agent Control", version: pkg.version, main: "main.mjs" }, null, 2),
 );
 
+const git = (args) => {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim() || null;
+  } catch (error) {
+    console.warn("[build-desktop] git", args.join(" "), error.message);
+    return null;
+  }
+};
+const commit = git(["rev-parse", "HEAD"]);
+if (commit) {
+  const branch = git(["symbolic-ref", "--short", "-q", "HEAD"]);
+  writeFileSync(path.join(stage, "server", "build-info.json"), JSON.stringify({ commit, branch, builtAt: Date.now() }, null, 2));
+}
+
 const daemonEntry = path.join(root, "daemon", "main.ts");
 if (!existsSync(daemonEntry)) throw new Error(`missing ${daemonEntry}`);
 if (Number(process.versions.node.split(".")[0]) < 24) {

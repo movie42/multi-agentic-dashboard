@@ -18,6 +18,7 @@ export interface FlowTaskLocation {
   domainDir: string;
   prdExists: boolean;
   pageIndex: string | null;
+  grillPage: string | null;
   mtimeMs: number;
 }
 
@@ -38,7 +39,7 @@ function checklistItems(stage: FlowStageJson | null | undefined): ChecklistItem[
 }
 
 export function summarizeFlowTask(json: FlowTaskJson, location: FlowTaskLocation): FlowTaskSummary {
-  const { domain, domainDir, prdExists, pageIndex, mtimeMs } = location;
+  const { domain, domainDir, prdExists, pageIndex, grillPage, mtimeMs } = location;
   const stages = json.stages ?? {};
   const grillStage = stages.grill;
   const questions = (grillStage?.rounds ?? []).flatMap((round) => round.questions ?? []);
@@ -55,6 +56,7 @@ export function summarizeFlowTask(json: FlowTaskJson, location: FlowTaskLocation
     domain,
     branch: json.branch ?? null,
     pageIndex,
+    grillPage,
     prdExists: prdExists || linksPrd || Boolean(stages.plan),
     grill: grillStage
       ? { open: questions.filter((question) => !question.decision).length, total: questions.length }

@@ -1,0 +1,202 @@
+{
+  "id": "terminal-menu-detect",
+  "title": "터미널에만 뜨는 선택 창을 카드에서 못 고르는 문제",
+  "type": "버그 수정",
+  "branch": "feat/build-apply",
+  "links": [
+    {
+      "label": "PR",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/18"
+    }
+  ],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료",
+      "conclusion": [
+        "<code>/model fable</code>의 전환 확인 창처럼 알림 훅 없이 터미널에만 뜨는 선택 창이 카드의 고르기 버튼으로 안 잡혔어요.",
+        "데몬이 알림 훅과 'trust this folder' 문구일 때만 세션을 입력 대기로 바꿨기 때문이에요.",
+        "이제 데몬이 쉬는 세션에 출력이 올 때마다 화면에서 선택 목록을 찾아, 있으면 입력 대기로 바꾸고 사라지면 쉬는 중으로 되돌려요.",
+        "입력창에 여러 줄을 치는 중이거나, 대화 내용에 목록 모양 글이 있고 아래에 빈 입력창이 있으면 목록으로 보지 않아요.",
+        "진짜 Claude Code 2.1.326을 띄워 <code>/model</code> 선택 창이 뜨면 입력 대기, Esc로 닫으면 쉬는 중이 되는 것을 확인했어요. <code>/model fable</code>의 확인 창 자체는 기본 모델 설정을 바꾸는 명령이라 띄워 보지 않았어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 재현",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "쉬는 세션 화면에 선택 목록이 떠도 상태가 그대로인 것을 테스트로 재현",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/menuWait.test.ts</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>daemon/session/menuWait.test.ts</code>"
+                ],
+                [
+                  "실패 커밋",
+                  "<code>9fe26a7</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>npx vitest run daemon/session/menuWait.test.ts</code>가 'expected idle to be waiting'으로 실패",
+              "done": true,
+              "by": "inferred"
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 수정",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "화면에서 선택 목록을 읽는 함수 <code>terminalMenu</code>를 데몬과 같이 쓰는 자리로 옮기고, 입력창을 목록으로 잘못 읽는 두 경우를 거름",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/terminal/menu.ts</code> · <code>src/common/terminal/menu.test.ts</code> · <code>src/client/features/answer-terminal-menu/lib/terminalMenu.ts</code> · <code>src/client/features/answer-terminal-menu/ui/TerminalMenuControls.tsx</code> · <code>src/client/features/answer-terminal-menu/lib/terminalMenu.test.ts</code>"
+                ]
+              ],
+              "by": "inferred"
+            },
+            {
+              "id": "P2-2",
+              "title": "데몬이 쉬는 세션에 출력이 올 때마다 화면을 읽어, 목록이 있으면 입력 대기로 · 사라지면 쉬는 중으로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/status.ts</code> · <code>daemon/session/SessionRegistry.ts</code>"
+                ],
+                [
+                  "결정",
+                  "쉬는 세션만 봐요. 일하는 중에 뜨는 권한 창은 알림 훅이 이미 알려 주고, 일하는 중 출력에는 목록 모양 글이 섞이기 쉬워요."
+                ],
+                [
+                  "결정",
+                  "훅이 상태를 바꾸면 '목록 때문에 대기 중' 표시를 지워요. 훅이 만든 입력 대기를 목록이 사라졌다고 풀지 않게요."
+                ]
+              ],
+              "by": "inferred"
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bun run test</code> · <code>npx tsc --noEmit</code> · <code>bun run lint</code> 통과, 실제 세션에 <code>/model fable</code>을 보내 입력 대기로 바뀌는지 확인",
+              "done": true,
+              "by": "inferred"
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "코드 리뷰 지적 3건 중 1건을 고쳤고, tsc · lint(오류 0) · 테스트 750개가 통과했어요.",
+        "새 PR 없이, 이 브랜치에 이미 열려 있는 PR 18번에 푸시로 넣었어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "SOT 맵이 없는 작업이에요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "서버 · 기획에 요청할 것이 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "지적 3건 중 '훅이 만든 입력 대기를 목록 닫힘이 풀어 버리는 경우'를 고쳤어요. '목록 아래에 빈 ❯ 줄이 있는 진짜 목록'은 실제 화면(신뢰 창 · 모델 선택 창)에서 입력창이 목록으로 바뀌는 것을 확인해 그대로 뒀어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "tsc 통과 · lint 오류 0 · 테스트 750개 통과."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "사용자가 PR에 넣으라고 해서 열려 있는 PR 18번에 푸시했어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "터미널에만 그려지는 선택 창이 뜨면, 어떤 명령이 띄웠든 카드에서 바로 고를 수 있다.",
+      "state": "guess",
+      "basis": "사용자 요청 2026-11-17"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 원인과 고치는 방법 A를 채팅에서 보고 \"수정해줘\"라고 함"
+    }
+  ],
+  "base": "594cd28",
+  "pruned": "2026-11-17"
+}

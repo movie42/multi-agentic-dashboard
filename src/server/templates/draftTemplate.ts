@@ -20,7 +20,7 @@ const RULES = `You turn a one-line description of a Claude Code workflow into a 
 - continueFrom: true sends the prompt into the previous card's session instead of opening a new one (keeps its memory). Never true right after a judge card.
 - pauseAfter: true stops after the card so a person confirms before the next card (plan approval, before opening a PR).
 - check: a shell command run in the worktree after each turn; the card moves on only when it exits 0. Use null unless the description names one.
-- model: null, "sonnet", "opus" or "haiku". effort: null, "low", "medium", "high" or "xhigh". Use null unless there is a reason.
+- model: null, "fable", "opus", "sonnet" or "haiku". effort: null, "low", "medium", "high" or "xhigh". Use null unless there is a reason.
 - The dashboard puts the task description at the top of every prompt, so a prompt must not start with a slash command. Name a skill in words instead ("flow 스킬로 …").
 - Write name, titles, prompts and labels in Korean. Keys are short lowercase ASCII words.
 - When one of the existing templates is close to the description, start from it and change only what the description asks.`;

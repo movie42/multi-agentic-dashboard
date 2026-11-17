@@ -1,6 +1,7 @@
 import { mkdir, stat } from "node:fs/promises";
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
+import type { DaemonInfo } from "../src/common/appStatus/types.ts";
 import { CONDUCTOR_SCOPE_KINDS, GRANT_BUNDLES, LINK_KINDS, type ConductorLaunch } from "../src/common/orchestration/types.ts";
 import {
   RUNNER_HOOK_EVENTS,
@@ -35,6 +36,7 @@ export interface RunnerServerOptions {
   allowedOrigins: readonly string[];
   /** Where a conductor opened outside any project runs; created on first use. */
   appConductorFolder: string;
+  info?: () => DaemonInfo;
   readAnswer?: (body: unknown) => Promise<string | null>;
 }
 
@@ -173,6 +175,7 @@ export function createRunnerServer({
   port,
   allowedOrigins,
   appConductorFolder,
+  info,
   readAnswer = lastAnswerOf,
 }: RunnerServerOptions): RunnerServer {
   const sockets = new WebSocketServer({ noServer: true });
@@ -314,6 +317,11 @@ export function createRunnerServer({
         const reply = await handleMcpMessage(id, await readBody(request), toolDeps);
         if (reply) respond(response, undefined, 200, reply);
         else response.writeHead(202).end();
+        return;
+      }
+
+      if (url.pathname === "/info" && request.method === "GET") {
+        respond(response, origin, 200, { ok: true, info: info?.() ?? { commit: null, pid: process.pid, startedAt: null } });
         return;
       }
 

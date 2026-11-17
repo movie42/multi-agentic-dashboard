@@ -51,6 +51,13 @@ afterEach(async () => {
 });
 
 describe("runner server", () => {
+  it("tells which commit and process it runs as", async () => {
+    const { runner } = setup();
+    await listen(runner);
+    const body = await (await fetch(`${BASE}/info`)).json();
+    expect(body).toEqual({ ok: true, info: { commit: null, pid: process.pid, startedAt: null } });
+  });
+
   it("returns the visible rows of a session's screen", async () => {
     const { runner, emit } = setup();
     await listen(runner);

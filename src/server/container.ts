@@ -51,6 +51,8 @@ import { ConductorActions } from "./orchestration/conductorActions";
 import { createWorkflowServices, type WorkflowServices } from "./workflow/services";
 import { createWorktreeWizardServices, type WorktreeWizardServices } from "./worktreeWizard/services";
 import { draftTemplate } from "./templates/draftTemplate";
+import { createAppStatusService, type AppStatusService } from "./appStatus/service";
+import { proposeCommands, reviseCommands } from "./projects/commandAgent";
 
 export interface Services {
   conductors: ConductorActions;
@@ -83,6 +85,8 @@ export interface Services {
   worktrees: WorktreeActions;
   worktreeWizard: WorktreeWizardServices;
   draftTemplate: typeof draftTemplate;
+  appStatus: AppStatusService;
+  commandAgent: { propose: typeof proposeCommands; revise: typeof reviseCommands };
   todos: TodoStore;
   todoLaunches: TodoLaunchAttacher;
   todoAgent: TodoAgent;
@@ -193,6 +197,8 @@ function createServices(): Services {
     worktrees,
     worktreeWizard: createWorktreeWizardServices(),
     draftTemplate,
+    appStatus: createAppStatusService(runner),
+    commandAgent: { propose: proposeCommands, revise: reviseCommands },
     todos,
     todoLaunches: new TodoLaunchAttacher(todos),
     todoAgent: new TodoAgent({

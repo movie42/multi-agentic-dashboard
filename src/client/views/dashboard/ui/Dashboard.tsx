@@ -10,7 +10,7 @@ import type {
   ProjectSummary,
   WorktreeSummary,
 } from "@/common/board/types";
-import { buildSteps } from "@/common/workflow/steps";
+import { buildSteps, roundDocOf } from "@/common/workflow/steps";
 import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
@@ -19,6 +19,7 @@ import { AgentCardView, requestJump, type CardProgress, type CardSurface, type C
 import { foldWorkers, groupAgents, needsInput, type FoldedAgents } from "@/client/entities/agent";
 import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
+import { ProjectCommandHost } from "@/client/features/run-project-command";
 import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
 import { usePendingLaunchStore } from "@/client/features/launch-agent";
@@ -294,6 +295,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       taskId: task.taskId,
       title: task.title,
       steps: buildSteps(modeOfRepo(worktree.repo), task, worktree.pullRequest),
+      roundDoc: roundDocOf(task),
     };
   };
 
@@ -436,6 +438,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         onSelectWorktree={prefs.selectWorktree}
         onOpenSessions={prefs.openSessions}
       />
+      <ProjectCommandHost />
       <ProjectSidebar
         projects={board.projects}
         countsByRepo={countsByRepo}
@@ -570,6 +573,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                 modeOfRepo={modeOfRepo}
                 isDismissed={dismissed.isDismissed}
                 onJump={(repo, worktreeId) => jumpTo(repo, [worktreeId], worktreeId)}
+                onOpenDoc={(target) => void runAction({ type: "open-artifact", target })}
               />
             ) : (
               <>

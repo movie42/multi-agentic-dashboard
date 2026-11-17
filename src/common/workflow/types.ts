@@ -6,6 +6,7 @@ export interface FlowTaskSummary {
   domain: string;
   branch: string | null;
   pageIndex: string | null;
+  grillPage: string | null;
   prdExists: boolean;
   grill: { open: number; total: number } | null;
   plan: FlowStageStatus | null;

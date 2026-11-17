@@ -29,6 +29,8 @@ export interface CardProgress {
   taskId: string;
   title: string;
   steps: WorkflowStep[];
+  /** The page to open while a question round waits for answers. */
+  roundDoc: string | null;
 }
 
 /** "card" draws its own tinted box; "flush" sits flat on a host that already frames it, such as a side panel. */
@@ -310,8 +312,20 @@ export function AgentCardView({
 
       {progress && (
         <div className="flex flex-col gap-1.5">
-          <p className="truncate text-[12px] text-muted">
-            <span className="font-mono">{progress.taskId}</span> · {progress.title}
+          <p className="flex min-w-0 items-baseline gap-2 text-[12px] text-muted">
+            <span className="min-w-0 truncate">
+              <span className="font-mono">{progress.taskId}</span> · {progress.title}
+            </span>
+            {progress.roundDoc && (
+              <button
+                type="button"
+                onClick={() => progress.roundDoc && openUrl(progress.roundDoc)}
+                title="답을 기다리는 질문 라운드의 문서를 열어요"
+                className="ml-auto shrink-0 font-semibold text-ask underline decoration-faint underline-offset-[3px] hover:decoration-current"
+              >
+                문서 열기
+              </button>
+            )}
           </p>
           <Stepper steps={progress.steps} size="compact" />
         </div>

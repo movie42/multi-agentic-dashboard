@@ -4,7 +4,7 @@ import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits
 
 export const MAX_PROMPT = 8000;
 export const MAX_CLOSE_TERMINALS = 50;
-export const MODEL_CHOICES = ["default", "opus", "sonnet", "haiku"] as const;
+export const MODEL_CHOICES = ["default", "fable", "opus", "sonnet", "haiku"] as const;
 export type ModelChoice = (typeof MODEL_CHOICES)[number];
 /** Keys a terminal-only menu (folder trust, a picker) is answered with. */
 export const TERMINAL_KEYS = ["up", "down", "enter", "escape"] as const;
@@ -63,6 +63,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
     link: z.object({ from: z.string().min(1), kind: z.enum(LINK_KINDS) }).optional(),
   }),
   z.object({ type: z.literal("open-terminal"), worktreePath: absolutePath }),
+  z.object({ type: z.literal("run-project-command"), worktreePath: absolutePath, projectPath: absolutePath, name: z.string().min(1) }),
   z.object({
     type: z.literal("launch-conductor"),
     /** Null when it is opened outside any project (the 전체 view). */

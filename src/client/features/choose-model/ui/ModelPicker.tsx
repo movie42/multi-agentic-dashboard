@@ -9,6 +9,7 @@ import { Spinner } from "@/client/shared/ui/Spinner";
 
 const MODEL_LABEL: Record<ModelChoice, string> = {
   default: "기본값",
+  fable: "fable",
   opus: "opus",
   sonnet: "sonnet",
   haiku: "haiku",
