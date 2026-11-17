@@ -156,7 +156,7 @@ interface SidePanelProps {
 
 const HEADING = "text-[11px] font-semibold tracking-[0.08em] text-muted";
 const FOOT_BUTTON =
-  "inline-flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-[13px] font-semibold shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint";
+  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold text-muted shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint hover:text-fg";
 
 /** Answer the selected session in place, see its lines, one line, or every line of the project. */
 export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, onEditRun }: SidePanelProps) {
@@ -165,9 +165,10 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
   const routeRun = routeEdge ? graph.runs.find((run) => run.id === routeEdge.runId) : undefined;
   const agent = view.kind === "agent" ? view.agent : null;
   const agentRun = agent ? runOfNode(graph.runs, agent.id) : null;
+  const agentLinks = agent ? links.filter((edge) => edge.from === agent.id || edge.to === agent.id) : [];
   return (
     <div data-scroll className="flex h-full flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-4">
+      <div className={`min-h-0 flex-1 overflow-y-auto ${agent ? "" : "px-5 pt-4 pb-4"}`}>
         {view.kind === "all" && (
           <section className="flex flex-col gap-3">
             <p className={HEADING}>이 프로젝트의 연결 · 규칙</p>
@@ -192,13 +193,10 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
         {view.kind === "run" && <RunPanel key={view.run.id} run={view.run} focusKey={view.cardKey} onEdit={onEditRun} />}
         {view.kind === "empty" && <p className="pt-10 text-center text-[14px] text-muted">상자를 누르면 여기서 답할 수 있어요.</p>}
         {agent && (
-          <div className="flex flex-col gap-5">
-            <p className="truncate text-[12px] text-muted">
-              {agent.repo} / <span className="font-semibold text-fg">{agent.worktreeName}</span>
-            </p>
+          <div className="flex flex-col">
             {renderCard(agent)}
             {agentRun && (
-              <div className="border-t border-hair pt-4">
+              <div className="border-t border-hair px-4 pt-4 pb-4">
                 <RunPanel
                   key={agentRun.id}
                   run={agentRun}
@@ -207,22 +205,29 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
                 />
               </div>
             )}
-            <section className="flex flex-col gap-2 border-t border-hair pt-4">
-              <p className={HEADING}>연결</p>
-              <ConnectionList graph={graph} edges={links.filter((edge) => edge.from === agent.id || edge.to === agent.id)} focusId={agent.id} onAction={onAction} />
-            </section>
+            {agentLinks.length > 0 && (
+              <section className="flex flex-col gap-2 border-t border-hair px-4 pt-4 pb-4">
+                <p className={HEADING}>연결</p>
+                <ConnectionList graph={graph} edges={agentLinks} focusId={agent.id} onAction={onAction} />
+              </section>
+            )}
           </div>
         )}
       </div>
       {agent && (
-        <div className="flex gap-2 border-t border-hair px-5 py-3">
+        <div className="flex justify-end gap-1.5 border-t border-hair px-4 py-2">
           <button type="button" onClick={() => onOpenWorktree(agent.worktreeId)} className={FOOT_BUTTON}>
             {ACTION_ICONS.worktree}
             워크트리 열기
           </button>
-          <button type="button" onClick={() => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath })} className={FOOT_BUTTON}>
+          <button
+            type="button"
+            onClick={() => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath })}
+            title="이 워크트리에 셸 터미널을 새 탭으로 열어요"
+            className={FOOT_BUTTON}
+          >
             {ACTION_ICONS.terminal}
-            터미널
+            셸 터미널
           </button>
         </div>
       )}

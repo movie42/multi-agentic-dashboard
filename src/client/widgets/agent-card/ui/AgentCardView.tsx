@@ -30,6 +30,14 @@ export interface CardProgress {
   steps: WorkflowStep[];
 }
 
+/** "card" draws its own tinted box; "flush" sits flat on a host that already frames it, such as a side panel. */
+export type CardSurface = "card" | "flush";
+
+const SURFACE = {
+  card: { box: "rounded-[10px] bg-tint p-5", bar: "-mx-5 bg-tint px-5" },
+  flush: { box: "bg-bg px-4", bar: "-mx-4 bg-bg px-4" },
+} as const;
+
 const TITLE_TEXT = "text-[16px] leading-snug font-bold tracking-[-0.01em]";
 
 const VIEW_TABS: { key: CardView; label: string }[] = [
@@ -90,6 +98,7 @@ interface AgentCardViewProps {
   worktreePr: PullRequestInfo | null;
   dismissed: boolean;
   chatLayout: ChatLayout;
+  surface?: CardSurface;
   onToggleDismiss: () => void;
   onAction: (action: ActionRequest) => Promise<void>;
 }
@@ -101,6 +110,7 @@ export function AgentCardView({
   worktreePr,
   dismissed,
   chatLayout,
+  surface = "card",
   onToggleDismiss,
   onAction,
 }: AgentCardViewProps) {
@@ -130,6 +140,7 @@ export function AgentCardView({
   const pullRequests = collectPullRequests(agent, worktreePr);
   const files = agent.artifacts.filter((artifact) => artifact.kind !== "pr");
   const showWorktree = agent.worktreeName !== agent.branch;
+  const look = SURFACE[surface];
   const hasComposer = Boolean(terminalHandle) && !isShell;
   const fallbackTitle = agent.prompt?.replace(/\s+/g, " ").slice(0, 80) ?? (agent.agentType === "shell" ? "터미널" : "제목 없음");
   const bookmark = agent.session
@@ -161,14 +172,14 @@ export function AgentCardView({
       data-card
       data-card-id={agent.id}
       tabIndex={0}
-      className={`flex flex-col gap-4 rounded-[10px] bg-tint p-5 outline-none focus-visible:shadow-[0_0_0_2px_var(--fg)] ${
+      className={`flex flex-col gap-4 ${look.box} outline-none focus-visible:shadow-[0_0_0_2px_var(--fg)] ${
         chatLayout === "page" ? "scroll-mt-[calc(var(--strip-h,0px)+var(--tabs-h,0px)+1rem)] pt-3 pb-0" : "scroll-mt-6"
       }`}
     >
       <header
         className={`flex flex-col gap-2 ${
           chatLayout === "page"
-            ? "sticky top-[calc(var(--strip-h,0px)+var(--tabs-h,0px))] z-10 -mx-5 -mt-3 bg-tint px-5 pt-3 pb-3 shadow-[0_12px_16px_-12px_var(--hair)]"
+            ? `sticky top-[calc(var(--strip-h,0px)+var(--tabs-h,0px))] z-10 -mt-3 pt-3 pb-3 shadow-[0_12px_16px_-12px_var(--hair)] ${look.bar}`
             : ""
         }`}
       >
@@ -373,7 +384,7 @@ export function AgentCardView({
       {terminalHandle && !isShell && view !== "terminal" && (
         <div
           className={`flex flex-col gap-1.5 ${
-            chatLayout === "page" ? "sticky bottom-0 z-10 -mx-5 bg-tint px-5 pt-3 pb-4 shadow-[0_-12px_16px_-12px_var(--hair)]" : ""
+            chatLayout === "page" ? `sticky bottom-0 z-10 pt-3 pb-4 shadow-[0_-12px_16px_-12px_var(--hair)] ${look.bar}` : ""
           }`}
         >
           <QuickReply

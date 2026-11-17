@@ -15,7 +15,7 @@ import type { FeatureSummary, WorkflowMode } from "@/common/workflow/types";
 import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
-import { AgentCardView, requestJump, type CardProgress, type ChatLayout } from "@/client/widgets/agent-card";
+import { AgentCardView, requestJump, type CardProgress, type CardSurface, type ChatLayout } from "@/client/widgets/agent-card";
 import { foldWorkers, groupAgents, needsInput, type FoldedAgents } from "@/client/entities/agent";
 import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
@@ -257,7 +257,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     };
   };
 
-  const renderCard = (agent: AgentCard, withProgress: boolean, chatLayout: ChatLayout) => (
+  const renderCard = (agent: AgentCard, withProgress: boolean, chatLayout: ChatLayout, surface: CardSurface = "card") => (
     <AgentCardView
       key={agent.id}
       agent={agent}
@@ -268,6 +268,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       worktreePr={worktreeById.get(agent.worktreeId)?.pullRequest ?? null}
       dismissed={dismissed.isDismissed(agent)}
       chatLayout={chatLayout}
+      surface={surface}
       onToggleDismiss={() =>
         dismissed.isDismissed(agent)
           ? dismissed.restore(agent)
@@ -279,6 +280,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
 
   const withProgressCard = (agent: AgentCard) => renderCard(agent, true, "box");
   const projectViewCard = (agent: AgentCard) => renderCard(agent, false, "page");
+  const canvasPanelCard = (agent: AgentCard) => renderCard(agent, false, "page", "flush");
 
   const focused = new Set(focusKeys.filter((repo) => projectByRepo.has(repo)));
   const toggleFocus = (repo: string) =>
@@ -579,6 +581,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             now={now}
             isDismissed={dismissed.isDismissed}
             renderCard={projectViewCard}
+            renderPanelCard={canvasPanelCard}
             expandedId={jump?.targets[0] ?? null}
             onAction={runAction}
             focused={focused.has(selectedRepo)}
@@ -612,6 +615,8 @@ interface ProjectViewProps {
   now: number;
   isDismissed: (agent: AgentCard) => boolean;
   renderCard: (agent: AgentCard) => React.ReactNode;
+  /** The session card drawn in the canvas side panel, where the panel itself is the card's edge. */
+  renderPanelCard: (agent: AgentCard) => React.ReactNode;
   expandedId: string | null;
   onAction: (action: ActionRequest) => Promise<void>;
   focused: boolean;
@@ -630,6 +635,7 @@ function ProjectView({
   now,
   isDismissed,
   renderCard,
+  renderPanelCard,
   expandedId,
   onAction,
   focused,
@@ -703,7 +709,7 @@ function ProjectView({
             <FocusToggle active={focused} onToggle={onToggleFocus} />
           </div>
         }
-        renderCard={renderCard}
+        renderCard={renderPanelCard}
         onAction={onAction}
         onOpenWorktree={onOpenWorktree}
         renderPanel={renderPanel}
