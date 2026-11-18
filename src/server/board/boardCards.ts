@@ -88,10 +88,12 @@ export interface AgentCardInput {
   bookmarks: ReadonlyMap<string, SessionBookmark>;
   artifacts: Artifact[];
   subagents: SubagentRun[];
+  /** The name a person gave this terminal; only shells take one. */
+  alias?: string | null;
   now: number;
 }
 
-export function buildAgentCard({ session, worktree, prompt, lastMessage, sessionRef, bookmarks, artifacts, subagents, now }: AgentCardInput): AgentCard {
+export function buildAgentCard({ session, worktree, prompt, lastMessage, sessionRef, bookmarks, artifacts, subagents, alias = null, now }: AgentCardInput): AgentCard {
   return {
     id: session.id,
     worktreeId: worktree.path,
@@ -102,7 +104,7 @@ export function buildAgentCard({ session, worktree, prompt, lastMessage, session
     agentType: session.kind,
     state: stateOf(session),
     prompt,
-    title: null,
+    title: session.kind === "shell" ? alias : null,
     session: sessionRef ? { ...sessionRef, bookmark: bookmarks.get(sessionRef.id) ?? null } : null,
     lastMessage,
     toolName: null,
@@ -122,6 +124,7 @@ export function buildAgentCard({ session, worktree, prompt, lastMessage, session
     permission: session.permission,
     orchestration: session.orchestration,
     subagents,
+    shell: session.shell ?? null,
   };
 }
 

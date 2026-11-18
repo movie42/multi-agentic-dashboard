@@ -1,6 +1,7 @@
 import { conductorInstructions, MCP_SERVER_NAME } from "../orchestration/conductorMcp.ts";
 import { judgeInstructions } from "../templates/judgeMcp.ts";
 import { hookSettings, type StatusLineScript } from "./hookSettings.ts";
+import { isZsh } from "./shellIntegration.ts";
 import type { Command, CommandRequest } from "./SessionRegistry.ts";
 
 export interface CommandEnvironment {
@@ -15,6 +16,8 @@ export interface CommandEnvironment {
    * for it on every new session.
    */
   attachmentDirs?: readonly string[];
+  /** zsh startup files that add command marks; `user` is the ZDOTDIR the person's own files live in. */
+  zshIntegration?: { dir: string; user: string };
 }
 
 export function mcpUrl(baseUrl: string, sessionId: string): string {
@@ -46,7 +49,11 @@ function modelArgs(request: CommandRequest): string[] {
 }
 
 export function commandFor(request: CommandRequest, environment: CommandEnvironment): Command {
-  if (request.kind === "shell") return { file: environment.shell, args: ["-l"] };
+  if (request.kind === "shell") {
+    const integration = environment.zshIntegration;
+    const env = integration && isZsh(environment.shell) ? { ZDOTDIR: integration.dir, AC_USER_ZDOTDIR: integration.user } : undefined;
+    return { file: environment.shell, args: ["-l"], ...(env ? { env } : {}) };
+  }
   const identity = request.resumeSessionId ? ["--resume", request.resumeSessionId] : ["--session-id", request.id];
   const prompt = request.prompt ? ["--", request.prompt] : [];
   return {

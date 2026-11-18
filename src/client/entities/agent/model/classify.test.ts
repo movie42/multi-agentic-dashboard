@@ -17,15 +17,24 @@ describe("displayStateOf", () => {
 });
 
 describe("groupAgents", () => {
-  it("splits by state and honors dismissal", () => {
+  it("splits by state and honors a hand-set rest mark", () => {
     const working = agentCard({ id: "w", state: "working" });
     const done = agentCard({ id: "d", state: "done" });
     const dismissed = agentCard({ id: "x", state: "done" });
     const idle = agentCard({ id: "i", state: "idle" });
-    const groups = groupAgents([working, done, dismissed, idle], (agent) => agent.id === "x");
+    const groups = groupAgents([working, done, dismissed, idle], (agent) => (agent.id === "x" ? "idle" : null));
     expect(groups.working.map((a) => a.id)).toEqual(["w"]);
     expect(groups.needsMe.map((a) => a.id)).toEqual(["d"]);
     expect(groups.resting.map((a) => a.id).sort()).toEqual(["i", "x"]);
+  });
+
+  it("sends a session marked 잠자는 중 to dormant, even a blocked one", () => {
+    const groups = groupAgents(
+      [agentCard({ id: "done", state: "done" }), agentCard({ id: "blocked", state: "blocked" })],
+      () => "dormant",
+    );
+    expect(groups.needsMe).toEqual([]);
+    expect(groups.dormant.map((a) => a.id).sort()).toEqual(["blocked", "done"]);
   });
 
   it("orders needsMe by urgency then oldest state", () => {
@@ -35,7 +44,7 @@ describe("groupAgents", () => {
       agentCard({ id: "blocked-new", state: "blocked", stateSince: 50 }),
       agentCard({ id: "blocked-old", state: "waiting", stateSince: 10 }),
     ];
-    expect(groupAgents(agents, () => false).needsMe.map((a) => a.id)).toEqual([
+    expect(groupAgents(agents, () => null).needsMe.map((a) => a.id)).toEqual([
       "blocked-old",
       "blocked-new",
       "unread",
@@ -52,7 +61,7 @@ describe("groupAgents", () => {
         agentCard({ id: "old-blocked", state: "blocked", dormant: true }),
         agentCard({ id: "paused-dismissed", state: "idle", interrupted: true }),
       ],
-      (agent) => agent.id === "paused-dismissed",
+      (agent) => (agent.id === "paused-dismissed" ? "idle" : null),
     );
     expect(groups.needsMe.map((a) => a.id)).toEqual(["old-blocked"]);
     expect(groups.paused.map((a) => a.id)).toEqual(["paused"]);
@@ -69,7 +78,7 @@ describe("groupAgents", () => {
         agentCard({ id: "r-old", state: "idle", updatedAt: 1 }),
         agentCard({ id: "r-new", state: "idle", updatedAt: 9 }),
       ],
-      () => false,
+      () => null,
     );
     expect(groups.working.map((a) => a.id)).toEqual(["w-1", "w-2", "w-null"]);
     expect(groups.resting.map((a) => a.id)).toEqual(["r-new", "r-old"]);

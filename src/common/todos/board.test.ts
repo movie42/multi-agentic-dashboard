@@ -30,6 +30,11 @@ function card(id: string, statusId: string): TodoCard {
     agentMovedAt: null,
     doneSuggestedAt: null,
     pendingLaunch: null,
+    links: [],
+    ignoredSessionIds: [],
+    doneAt: null,
+    archivedAt: null,
+    origin: null,
     createdAt: 0,
     updatedAt: 0,
   };

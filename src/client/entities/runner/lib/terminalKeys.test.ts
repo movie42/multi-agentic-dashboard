@@ -37,4 +37,11 @@ describe("macTerminalSequence", () => {
     expect(macTerminalSequence(press("c", { metaKey: true }))).toBeNull();
     expect(macTerminalSequence(press("ArrowLeft", { ctrlKey: true }))).toBeNull();
   });
+
+  it("sends Ctrl+letter from the physical key, so it works with the Korean input source on", () => {
+    expect(macTerminalSequence(press("ㅁ", { ctrlKey: true, code: "KeyA" }))).toBe("\x01");
+    expect(macTerminalSequence(press("Process", { ctrlKey: true, code: "KeyK" }))).toBe("\x0b");
+    expect(macTerminalSequence(press("c", { ctrlKey: true, code: "KeyC" }))).toBe("\x03");
+    expect(macTerminalSequence(press("A", { ctrlKey: true, shiftKey: true, code: "KeyA" }))).toBeNull();
+  });
 });

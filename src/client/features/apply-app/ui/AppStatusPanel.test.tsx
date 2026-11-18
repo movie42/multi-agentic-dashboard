@@ -8,10 +8,11 @@ import { AppStatusPanel } from "./AppStatusPanel";
 const fresh: AppStatus = {
   repoPath: "/repo",
   checkout: { path: "/repo", branch: "main", commit: "aaaaaaa1", mainCommit: "aaaaaaa1", behind: 0 },
-  app: { kind: "built", commit: "aaaaaaa1", branch: "main", builtAt: 1 },
+  app: { kind: "built", commit: "aaaaaaa1", branch: "main", builtAt: 1, installedCommit: null },
   daemon: { kind: "running", commit: "aaaaaaa1", startedAt: 1 },
   workingSessions: 0,
   restart: { kind: "idle" },
+  build: { kind: "none" },
 };
 
 function serve(status: AppStatus, after: AppStatus = status) {
@@ -46,7 +47,7 @@ describe("AppStatusPanel", () => {
     const fetchMock = serve({
       ...fresh,
       checkout: { ...fresh.checkout, branch: "feat/x", behind: 2 },
-      app: { kind: "built", commit: "bbbbbbb2", branch: "feat/x", builtAt: 1 },
+      app: { kind: "built", commit: "bbbbbbb2", branch: "feat/x", builtAt: 1, installedCommit: null },
     });
     renderPanel();
     expect(await screen.findByText("코드가 어긋나요")).toBeTruthy();

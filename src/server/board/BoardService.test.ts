@@ -48,6 +48,7 @@ function setup(overrides: Partial<BoardServiceOptions> = {}) {
             { path: "/w-child", branch: "feat/y", isMain: false },
           ],
     meta: async () => new Map([["/w-child", { displayName: "Child", parentPath: "/w", reference: "COMP-7" }]]),
+    terminalAliases: async () => new Map([["sh", "dev server"], ["s1", "ignored for claude"]]),
     runnerSessions,
     workflow: {
       git,
@@ -101,7 +102,8 @@ describe("BoardService.load", () => {
       ["s2", "/w", "blocked", "s2", "claude"],
       ["sh", "/w-child", "idle", "sh", "shell"],
     ]);
-    expect(snapshot.agents[0]).toMatchObject({ prompt: "do it", session: { id: "s1", title: "Title" } });
+    expect(snapshot.agents[0]).toMatchObject({ prompt: "do it", title: null, session: { id: "s1", title: "Title" } });
+    expect(snapshot.agents.find((agent) => agent.id === "sh")?.title).toBe("dev server");
     expect(snapshot.agents[0]?.artifacts.map((artifact) => artifact.target)).toEqual(["/w/report.md"]);
     expect(snapshot.agents[1]).toMatchObject({ session: null, lastMessage: null });
   });

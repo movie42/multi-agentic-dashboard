@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 import type { ActionRequest } from "@/common/actions/schema";
 import { agentCard } from "../../../../../test/fixtures";
 import { AgentList } from "./AgentList";
+import { useRowSelection } from "../model/rowSelection";
 
 vi.mock("@/client/features/bookmark-session", () => ({ BookmarkMark: () => null, bookmarkTarget: () => null }));
 
@@ -54,5 +56,45 @@ describe("AgentList context menu", () => {
     openMenuOn("첫 세션");
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("AgentList rest marks", () => {
+  function setupPickable() {
+    const agents = [
+      agentCard({ id: "p", state: "done", stateSince: 1, prompt: "첫째" }),
+      agentCard({ id: "q", state: "blocked", stateSince: 2, prompt: "둘째" }),
+      agentCard({ id: "r", state: "working", stateSince: 3, prompt: "셋째" }),
+    ];
+    render(<AgentList agents={agents} now={0} showRepo={false} renderCard={() => null} selectionPool={agents} />);
+  }
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    useStoredListStore.setState({ lists: {} });
+    useRowSelection.setState({ ids: [] });
+  });
+
+  it("puts one session to 쉬는 중 from its own menu and back", async () => {
+    setupPickable();
+    openMenuOn("첫째");
+    await userEvent.click(screen.getByRole("menuitem", { name: "쉬는 중으로 바꾸기" }));
+    expect(screen.getAllByText("쉬는 중")).toHaveLength(1);
+    openMenuOn("첫째");
+    await userEvent.click(screen.getByRole("menuitem", { name: "원래 상태로 되돌리기" }));
+    expect(screen.queryByText("쉬는 중")).toBeNull();
+  });
+
+  it("marks every ⌘-picked session 잠자는 중 at once, skipping a working one", async () => {
+    setupPickable();
+    fireEvent.click(screen.getByText("첫째"), { metaKey: true });
+    fireEvent.click(screen.getByText("둘째"), { shiftKey: true });
+    fireEvent.click(screen.getByText("셋째"), { metaKey: true });
+    openMenuOn("둘째");
+    expect(screen.getByText("고른 세션 3개")).toBeTruthy();
+    await userEvent.click(screen.getByRole("menuitem", { name: /잠자는 중으로 바꾸기/ }));
+    expect(screen.getAllByText("잠자는 중")).toHaveLength(2);
+    expect(screen.getByText("에이전트 작업 중")).toBeTruthy();
+    expect(useRowSelection.getState().ids).toEqual([]);
   });
 });

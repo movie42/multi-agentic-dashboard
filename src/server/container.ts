@@ -9,7 +9,8 @@ type IntentDiffServices = ReturnType<typeof createIntentDiffServices>;
 import { BoardService } from "./board/BoardService";
 import { listWorktrees } from "./projects/gitWorktrees";
 import { OrcaImport } from "./projects/importFromOrca";
-import { ORCA_BIN, PROJECTS_FILE, WORKTREE_META_FILE } from "./projects/paths";
+import { ORCA_BIN, PROJECTS_FILE, TERMINAL_ALIAS_FILE, WORKTREE_META_FILE } from "./projects/paths";
+import { TerminalAliases } from "./runner/TerminalAliases";
 import { ProjectRegistry, type Project } from "./projects/ProjectRegistry";
 import { WorktreeActions } from "./projects/WorktreeActions";
 import { WorktreeMeta } from "./projects/WorktreeMeta";
@@ -38,7 +39,9 @@ import { FlowAnswerStore } from "./docs/FlowAnswerStore";
 import { ErrorLog } from "./shared/errorLog";
 import { TODO_FILE } from "./todos/paths";
 import { TodoAgent } from "./todos/TodoAgent";
+import { TodoJiraImporter } from "./todos/TodoJiraImporter";
 import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
+import { TodoLinker } from "./todos/TodoLinker";
 import { TodoStore } from "./todos/TodoStore";
 import { UsageReader } from "./usage/UsageReader";
 import { DevPortReader } from "./devPorts/readDevPorts";
@@ -64,6 +67,7 @@ export interface Services {
   chat: TranscriptTailReader<ActivityStep>;
   conversation: TranscriptTailReader<ConversationTurn>;
   bookmarks: BookmarkStore;
+  terminalAliases: TerminalAliases;
   askStore: AskStore;
   askRunner: AskRunner;
   snapshotLog: SnapshotLog;
@@ -90,6 +94,8 @@ export interface Services {
   commandAgent: { propose: typeof proposeCommands; revise: typeof reviseCommands };
   todos: TodoStore;
   todoLaunches: TodoLaunchAttacher;
+  todoLinker: TodoLinker;
+  todoJira: TodoJiraImporter;
   todoAgent: TodoAgent;
   usage: UsageReader;
   devPorts: DevPortReader;
@@ -137,6 +143,7 @@ function createServices(): Services {
   };
   const projects = new ProjectRegistry(PROJECTS_FILE, warn);
   const worktreeMeta = new WorktreeMeta(WORKTREE_META_FILE, warn);
+  const terminalAliases = new TerminalAliases(TERMINAL_ALIAS_FILE, warn);
   const orcaImport = new OrcaImport({ bin: ORCA_BIN, execFile: nodeExecFile, projects, meta: worktreeMeta, warn });
   const sessionTranscripts = new SessionTranscripts(PROJECTS_DIR, warn);
   const worktreesOf = (project: Project) => listWorktrees(nodeExecFile, project, warn);
@@ -153,6 +160,7 @@ function createServices(): Services {
     projects: () => projects.list(),
     worktreesOf,
     meta: () => worktreeMeta.read(),
+    terminalAliases: () => terminalAliases.read(),
     runnerSessions: async () => {
       const [sessions, live] = await Promise.all([
         runner.list(),
@@ -163,7 +171,8 @@ function createServices(): Services {
           },
         ),
       ]);
-      return sessions.map((session) => ({ ...session, conversationId: live.get(session.id) ?? session.conversationId ?? null }));
+      // The hook's session_id moves on /clear right away; Claude Code rewrites <pid>.json only at the next prompt.
+      return sessions.map((session) => ({ ...session, conversationId: session.conversationId ?? live.get(session.id) ?? null }));
     },
     workflow,
     sessions: {
@@ -189,6 +198,7 @@ function createServices(): Services {
     chat: new TranscriptTailReader(transcriptOf, { parse: chatItemsOf, enough: CHAT_LIMIT }),
     conversation: new TranscriptTailReader(transcriptOf, { parse: turnsOf, enough: TURN_LIMIT }),
     bookmarks,
+    terminalAliases,
     ...intentDiff,
     workflow,
     board,
@@ -203,6 +213,8 @@ function createServices(): Services {
     commandAgent: { propose: proposeCommands, revise: reviseCommands },
     todos,
     todoLaunches: new TodoLaunchAttacher(todos),
+    todoLinker: new TodoLinker(todos, () => sessionIndex.list()),
+    todoJira: new TodoJiraImporter(todos, workflow.jira, warn),
     todoAgent: new TodoAgent({
       loadBoard: () => board.load(),
       listSessions: () => sessionIndex.list(),

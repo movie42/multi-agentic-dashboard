@@ -18,7 +18,11 @@ const STDERR_TAIL = 4000;
 export const DEFAULT_PROJECTS_DIR = process.env.CLAUDE_PROJECTS_DIR ?? path.join(homedir(), ".claude", "projects");
 export const DEFAULT_ASK_TIMEOUT_MS = 10 * 60_000;
 
+const ASK_MODEL = process.env.ASK_MODEL ?? "sonnet";
+
 const COMMON_ARGS = [
+  "--model",
+  ASK_MODEL,
   "--tools",
   "Read,Grep,Glob",
   "--strict-mcp-config",

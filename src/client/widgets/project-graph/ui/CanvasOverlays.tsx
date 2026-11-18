@@ -29,6 +29,11 @@ const PICK_KINDS: ReadonlyArray<{
     label: "끝나면 다음",
     hint: "앞 세션이 턴을 마치면 뒤 세션에 할 말을 보내요",
   },
+  {
+    kind: "watch",
+    label: "터미널 연결",
+    hint: "뒤 세션이 앞 세션의 터미널 출력을 필요할 때 직접 읽어요",
+  },
 ];
 
 /** Keeps a popover at screen size whatever the canvas zoom is. */
@@ -68,11 +73,12 @@ export function ConnectPicker({
 }: ConnectPickerProps) {
   const [kind, setKind] = useState<LinkKind>("delegate");
   const [prompt, setPrompt] = useState("");
+  const asksPrompt = kind === "delegate" || kind === "next";
   return (
     <ScreenSized at={at} zoom={zoom}>
       <foreignObject
         width={320}
-        height={kind === "report" ? 170 : 240}
+        height={asksPrompt ? 240 : 170}
         className="overflow-visible"
       >
         <div className="flex flex-col gap-2 rounded-[12px] bg-bg p-3 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]">
@@ -96,7 +102,7 @@ export function ConnectPicker({
           <p className="text-[12px] text-muted">
             {PICK_KINDS.find((option) => option.kind === kind)?.hint}
           </p>
-          {kind !== "report" && (
+          {asksPrompt && (
             <textarea
               rows={3}
               autoFocus
@@ -113,7 +119,7 @@ export function ConnectPicker({
               type="button"
               disabled={kind === "delegate" && !prompt.trim()}
               onClick={() =>
-                onPick(kind, kind !== "report" && prompt.trim() ? prompt : null)
+                onPick(kind, asksPrompt && prompt.trim() ? prompt : null)
               }
               className="rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:opacity-30"
             >

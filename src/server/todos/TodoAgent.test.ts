@@ -33,6 +33,11 @@ function boardHolding(sessionId: string): TodoBoard {
         agentMovedAt: null,
         doneSuggestedAt: null,
         pendingLaunch: null,
+        links: [],
+        ignoredSessionIds: [],
+        doneAt: null,
+        archivedAt: null,
+        origin: null,
         createdAt: 0,
         updatedAt: 0,
       },
@@ -322,5 +327,27 @@ describe("TodoAgent", () => {
         message: "x",
       }),
     ).rejects.toThrow("만료");
+  });
+});
+
+describe("TodoAgent archive", () => {
+  it("shows archived cards apart from the board and restores one on request", async () => {
+    const base = boardHolding(S1);
+    const archived = { ...base, cards: base.cards.map((card) => ({ ...card, statusId: "st-done", doneAt: 0, archivedAt: 86_400_000 })) };
+    const todos = memoryTodos(archived);
+    const prompts: string[] = [];
+    const runAgent: RunTodoAgent = vi.fn(async (prompt: string) => {
+      prompts.push(prompt);
+      return reply([{ type: "card-restore", cardId: archived.cards[0]?.id }]);
+    });
+    const agent = new TodoAgent({ loadBoard: async () => ({ agents: [], worktrees: [] }), listSessions: async () => [], todos, runAgent });
+
+    const turn = await agent.send({ conversationId: null, message: "지난번 카드 다시 꺼내 줘" });
+
+    const block = JSON.parse(/<board>([\s\S]*)<\/board>/.exec(prompts[0] ?? "")?.[1] ?? "{}") as { cards: unknown[]; archive: { id: string; archivedAt: string }[] };
+    expect(block.cards).toEqual([]);
+    expect(block.archive[0]).toMatchObject({ id: archived.cards[0]?.id, archivedAt: "1970-01-02" });
+    expect(turn.failures).toEqual([]);
+    expect(todos.board.cards[0]?.archivedAt).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import type { SessionOrchestration } from "@/common/orchestration/types";
-import type { RunnerPermission } from "@/common/runner/types";
+import type { RunnerPermission, ShellState } from "@/common/runner/types";
 import type { SessionRef } from "@/common/sessions/types";
 import type { FeatureSummary, FlowTaskSummary, JiraIssueInfo, PullRequestInfo, WorkflowMode } from "@/common/workflow/types";
 
@@ -46,6 +46,8 @@ export interface AgentCard {
   orchestration: SessionOrchestration | null;
   /** Subagents (Task tool) this session has running right now. */
   subagents: SubagentRun[];
+  /** A shell session's running command, last exit and open ports; absent for Claude sessions. */
+  shell?: ShellState | null;
 }
 
 export interface SubagentRun {

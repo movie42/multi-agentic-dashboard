@@ -26,6 +26,7 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("close-terminals"), terminalHandles: z.array(z.string()).min(1).max(MAX_CLOSE_TERMINALS) }),
   z.object({ type: z.literal("resume-session"), sessionId, cwd: absolutePath, title: z.string() }),
   z.object({ type: z.literal("rename-session"), sessionId, title }),
+  z.object({ type: z.literal("rename-terminal"), terminalHandle: z.string().min(1), title }),
   z.object({
     type: z.literal("bookmark-session"),
     sessionId,

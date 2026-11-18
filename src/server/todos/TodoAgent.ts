@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import type { AgentCard, BoardSnapshot, WorktreeSummary } from "@/common/board/types";
-import { TodoRuleError } from "@/common/todos/board";
+import { archivedCards, boardCards, TodoRuleError } from "@/common/todos/board";
 import {
   AGENT_OP_TYPES,
   describeAgentOp,
@@ -28,16 +28,20 @@ const MAX_CONVERSATIONS = 10;
 const MAX_OPS = 30;
 const TEXT_LIMIT = 600;
 const MEMO_PREVIEW = 400;
+const MAX_ARCHIVE = 200;
+const ARCHIVE_MEMO_PREVIEW = 160;
 
 const RULES = `You are the to-do assistant inside the Agent Control dashboard. You talk with the user in Korean and change their to-do board for them: create cards, edit a card's title, memo, status, Jira links, project or worktree, attach or detach Claude Code sessions, and delete cards. What you put in "ops" is applied to the board right away and shown to the user as a list of changes.
-- Every message carries the current board in <board>: statuses (with what each means), and every card with its id, title, statusId, memo preview, Jira links, project, worktree and session ids. The first message also lists the open sessions no card holds yet. There may be none.
+- Every message carries the current board in <board>: statuses (with what each means), and every card on the board with its id, title, statusId, memo preview, Jira links, other links (Slack, Notion, Figma, PR), project, worktree and session ids. The first message also lists the open sessions no card holds yet. There may be none.
+- <board> also carries "archive": cards that sat in the last status for a day and left the board. They are kept, not deleted. When the user asks about past or finished work ("지난주에 한 거", "그 지라 끝났었나"), look in the archive first and answer from it; bring a card back with "card-restore" only when the user asks.
 - Change only what the user asked for. When the request is ambiguous, leave "ops" empty and ask one question in "reply". Delete a card only when the user clearly asks to delete it.
 - Past sessions are not shown up front. To find them, put keywords in "search" (try Korean and English variants, Jira keys, branch or project names). The dashboard answers in the next message with matching sessions, newest first. While "search" is not empty, "ops" is ignored; return the ops in the response where "search" is empty. You get at most ${MAX_SEARCH_ROUNDS} searches per user message.
 - A search result is not a match just because it contains a keyword. Keep only sessions really about what the user asked.
 - Use only session ids you were shown. A session belongs to one card; attaching it to a card detaches it from any other.
 - Each op has a "type" and only the fields that type takes; leave the other fields out:
   - "card-create": title, optional memo, statusId, sessionIds, jiraUrls. Project and worktree come from the sessions unless you set repo or worktreePath.
-  - "card-update": cardId and only the fields to change among title, memo, jiraUrls (the full list after the change), repo, worktreePath. A memo you send replaces the whole memo, so keep what should stay.
+  - "card-update": cardId and only the fields to change among title, memo, jiraUrls (the full list after the change), linkUrls (the full list of non-Jira links after the change: Slack, Notion, Figma, PR or any other address), repo, worktreePath. A memo you send replaces the whole memo, so keep what should stay.
+  - "card-restore": cardId of an archived card; it goes back onto the board.
   - "card-move": cardId, statusId.
   - "card-delete": cardId.
   - "session-attach" / "session-detach": cardId, sessionId.
@@ -66,6 +70,7 @@ const SCHEMA = JSON.stringify({
           sessionId: { type: "string" },
           sessionIds: { type: "array", items: { type: "string" } },
           jiraUrls: { type: "array", items: { type: "string" } },
+          linkUrls: { type: "array", items: { type: "string" } },
           repo: { type: ["string", "null"] },
           worktreePath: { type: ["string", "null"] },
         },
@@ -249,17 +254,31 @@ function boardBlock(board: TodoBoard): Record<string, unknown> {
       name,
       description,
     })),
-    cards: board.cards.map((card) => ({
+    cards: boardCards(board).map((card) => ({
       id: card.id,
       title: card.title,
       statusId: card.statusId,
       memo: clip(card.memo || null, MEMO_PREVIEW),
       jiraUrls: card.jira.map((jira) => jira.url),
+      linkUrls: card.links.map((link) => link.url),
       repo: card.repo,
       worktreePath: card.worktreePath,
       sessionIds: card.sessionIds,
       hidden: card.hidden,
     })),
+    archive: archivedCards(board)
+      .slice(0, MAX_ARCHIVE)
+      .map((card) => ({
+        id: card.id,
+        title: card.title,
+        archivedAt: card.archivedAt === null ? null : new Date(card.archivedAt).toISOString().slice(0, 10),
+        memo: clip(card.memo || null, ARCHIVE_MEMO_PREVIEW),
+        jiraKeys: card.jira.map((jira) => jira.key),
+        linkUrls: card.links.map((link) => link.url),
+        repo: card.repo,
+        worktreePath: card.worktreePath,
+        sessionIds: card.sessionIds,
+      })),
   };
 }
 

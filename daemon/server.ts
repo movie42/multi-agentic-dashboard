@@ -50,6 +50,9 @@ const SUBMIT_DELAY_MS = 300;
 const SESSION_PATH = /^\/sessions\/([^/]+)$/;
 const INPUT_PATH = /^\/sessions\/([^/]+)\/input$/;
 const SCREEN_PATH = /^\/sessions\/([^/]+)\/screen$/;
+const LOG_PATH = /^\/sessions\/([^/]+)\/log$/;
+const DEFAULT_LOG_LINES = 200;
+const MAX_LOG_LINES = 5000;
 const TERMINAL_PATH = /^\/sessions\/([^/]+)\/terminal$/;
 const SESSION_ID = /^[A-Za-z0-9-]{1,64}$/;
 const HOOK_PATH = /^\/hooks\/([^/]+)\/([A-Za-z]+)$/;
@@ -556,6 +559,17 @@ export function createRunnerServer({
         const screenId = decodeURIComponent(screen[1] ?? "");
         const lines = screenId === DICTATION_HANDLE ? await dictation.screen() : await registry.screen(screenId);
         respond(response, origin, lines ? 200 : 404, lines ? { ok: true, lines } : { ok: false, error: "세션이 없어요." });
+        return;
+      }
+
+      // Plain text so a linked Claude session can read a watched terminal with one curl.
+      const log = LOG_PATH.exec(url.pathname);
+      if (log && request.method === "GET") {
+        const asked = Number(url.searchParams.get("lines"));
+        const lines = Number.isInteger(asked) && asked > 0 ? Math.min(asked, MAX_LOG_LINES) : DEFAULT_LOG_LINES;
+        const text = await registry.log(decodeURIComponent(log[1] ?? ""), lines);
+        response.writeHead(text === null ? 404 : 200, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end(text === null ? "세션이 없어요.\n" : `${text}\n`);
         return;
       }
 

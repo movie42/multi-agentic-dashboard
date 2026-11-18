@@ -4,7 +4,7 @@ import { RUNNER_PORT } from "@/common/runner/types";
 import type { RunnerClient } from "@/server/runner/RunnerClient";
 import { RUNNER_BASE_URL } from "@/server/runner/spawnDaemon";
 import { DaemonRestarter, stopDaemonOnPort } from "./DaemonRestarter";
-import { agentControlRepo, readBranchStatus, readBuildInfo, readDaemonSide } from "./readAppStatus";
+import { agentControlRepo, readBranchStatus, readBuildInfo, readBuildJob, readDaemonSide, readRunningBuildInfo, queueBuildJob } from "./readAppStatus";
 
 const PROMPT_WAIT_MS = 5000;
 const PROMPT_POLL_MS = 200;
@@ -43,20 +43,32 @@ export function createAppStatusService(runner: RunnerClient): AppStatusService {
   });
   return {
     restarter,
-    buildApp: () => runInShell(runner, agentControlRepo(), APP_BUILD_COMMAND),
+    async buildApp() {
+      const repoPath = agentControlRepo();
+      if ((await readBuildJob(repoPath)).kind === "running") throw new Error("이미 빌드가 진행 중이에요");
+      await queueBuildJob(repoPath);
+      return runInShell(runner, repoPath, APP_BUILD_COMMAND);
+    },
     runInShell: (cwd, command) => runInShell(runner, cwd, command),
     branchStatus: (worktreePath) => readBranchStatus(worktreePath),
     async read() {
       const repoPath = agentControlRepo();
-      const [checkout, build, daemon] = await Promise.all([readBranchStatus(repoPath), readBuildInfo(), readDaemonSide(RUNNER_BASE_URL)]);
+      const [checkout, running, installed, daemon, build] = await Promise.all([
+        readBranchStatus(repoPath),
+        readRunningBuildInfo(),
+        readBuildInfo(),
+        readDaemonSide(RUNNER_BASE_URL),
+        readBuildJob(repoPath),
+      ]);
       const working = daemon.kind === "running" ? await workingCount().catch(() => 0) : 0;
       return {
         repoPath,
         checkout,
-        app: build ? { kind: "built", ...build } : { kind: "dev" },
+        app: running ? { kind: "built", ...running, installedCommit: installed?.commit ?? null } : { kind: "dev" },
         daemon,
         workingSessions: working,
         restart: restarter.state(),
+        build,
       };
     },
   };

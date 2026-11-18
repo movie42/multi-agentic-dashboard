@@ -61,6 +61,15 @@ export const runnerSessionSchema = z.object({
     .nullable()
     .catch(null),
   orchestration: orchestrationSchema.nullable().catch(null),
+  shell: z
+    .object({
+      integrated: z.boolean(),
+      running: z.object({ command: z.string(), since: z.number() }).nullable(),
+      lastExit: z.object({ command: z.string(), code: z.number(), at: z.number() }).nullable(),
+      ports: z.array(z.number()),
+    })
+    .nullable()
+    .catch(null),
 });
 
 export const runnerResponseSchema = z.object({

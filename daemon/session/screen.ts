@@ -26,3 +26,17 @@ export const createHeadlessScreen: CreateScreen = (cols, rows) => {
     dispose: () => terminal.dispose(),
   };
 };
+
+/** Replays raw terminal output into a throwaway terminal and returns the last `maxLines` lines as plain text. */
+export function renderLog(data: string, cols: number, maxLines: number): Promise<string> {
+  const terminal = new headless.Terminal({ cols, rows: 24, scrollback: Math.max(maxLines, 24), allowProposedApi: true });
+  return new Promise((resolve) => {
+    terminal.write(data, () => {
+      const buffer = terminal.buffer.active;
+      const lines = Array.from({ length: buffer.length }, (_, row) => buffer.getLine(row)?.translateToString(true) ?? "");
+      while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+      terminal.dispose();
+      resolve(lines.slice(-maxLines).join("\n"));
+    });
+  });
+}

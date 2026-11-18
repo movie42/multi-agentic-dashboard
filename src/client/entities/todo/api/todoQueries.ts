@@ -2,16 +2,53 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { moveCard } from "@/common/todos/board";
 import type { TodoAgentResponse, TodoAgentTurn } from "@/common/todos/agentTurn";
 import type { TodoOp } from "@/common/todos/ops";
-import type { TodoBoard, TodoResponse } from "@/common/todos/types";
+import type { TodoBoard, TodoJiraImportResponse, TodoJiraStatuses, TodoJiraStatusResponse, TodoResponse } from "@/common/todos/types";
 import { readJson } from "@/client/shared/api/json";
 import { toastError } from "@/client/shared/model/toastStore";
 
 export const TODO_POLL_MS = 4000;
+const JIRA_STATUS_POLL_MS = 60_000;
 
 export const todoKeys = {
   all: ["todos"] as const,
   board: () => [...todoKeys.all, "board"] as const,
+  jiraStatuses: () => [...todoKeys.all, "jira-statuses"] as const,
 };
+
+async function fetchJiraStatuses(signal: AbortSignal): Promise<TodoJiraStatuses> {
+  const response = await fetch("/api/todos/jira", { cache: "no-store", signal });
+  const payload = await readJson<TodoJiraStatusResponse>(response);
+  if (!payload.ok) throw new Error(payload.error);
+  return payload.statuses;
+}
+
+export function todoJiraStatusQueryOptions() {
+  return queryOptions({
+    queryKey: todoKeys.jiraStatuses(),
+    queryFn: ({ signal }) => fetchJiraStatuses(signal),
+    refetchInterval: JIRA_STATUS_POLL_MS,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+/** Imports the acli user's open Jira issues as cards; resolves to how many were added, or null after a toast. */
+export function useJiraImport() {
+  const queryClient = useQueryClient();
+  return async (): Promise<{ added: number; total: number } | null> => {
+    try {
+      const response = await fetch("/api/todos/jira", { method: "POST" });
+      const payload = await readJson<TodoJiraImportResponse>(response);
+      if (!payload.ok) throw new Error(payload.error);
+      queryClient.setQueryData<TodoBoard>(todoKeys.board(), payload.board);
+      void queryClient.invalidateQueries({ queryKey: todoKeys.jiraStatuses() });
+      return { added: payload.added, total: payload.total };
+    } catch (error) {
+      toastError("todos", error, { step: "jira import" });
+      return null;
+    }
+  };
+}
 
 async function fetchTodoBoard(signal: AbortSignal): Promise<TodoBoard> {
   const response = await fetch("/api/todos", { cache: "no-store", signal });

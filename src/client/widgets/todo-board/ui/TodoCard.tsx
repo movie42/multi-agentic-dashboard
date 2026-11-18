@@ -1,8 +1,9 @@
 "use client";
 
-import type { TodoCard as TodoCardData, TodoStatus } from "@/common/todos/types";
+import type { TodoCard as TodoCardData, TodoJiraStatuses, TodoStatus } from "@/common/todos/types";
 import { StateBadge } from "@/client/entities/agent";
 import { AGENT_MARK_MS, CARD_DRAG_TYPE, type StatusTone, TONE_CHIP } from "../model/kinds";
+import { type CardContext, pullRequestLabel } from "../model/cardContext";
 import type { SessionLookup } from "../model/sessions";
 
 interface TodoCardProps {
@@ -11,20 +12,26 @@ interface TodoCardProps {
   tone: StatusTone;
   now: number;
   sessionOf: SessionLookup;
+  context: CardContext;
+  jiraStatuses: TodoJiraStatuses;
   onOpen: (cardId: string) => void;
 }
+
+const STOP = (event: React.MouseEvent<HTMLAnchorElement>) => event.stopPropagation();
 
 function memoLead(memo: string): string {
   const line = memo.split("\n").find((each) => each.trim()) ?? "";
   return line.replace(/^[#>\-*\s]+/, "").trim();
 }
 
-export function TodoCard({ card, status, tone, now, sessionOf, onOpen }: TodoCardProps) {
+export function TodoCard({ card, status, tone, now, sessionOf, context, jiraStatuses, onOpen }: TodoCardProps) {
   const sessions = card.sessionIds.map(sessionOf);
   const live = sessions.filter((session) => session.agent !== null);
   const closed = sessions.length - live.length;
   const agentMoved = card.agentMovedAt !== null && now - card.agentMovedAt < AGENT_MARK_MS;
   const lead = memoLead(card.memo);
+  const { pullRequest, flowTasks, worktree } = context;
+  const flow = flowTasks[0];
 
   return (
     <div
@@ -52,7 +59,9 @@ export function TodoCard({ card, status, tone, now, sessionOf, onOpen }: TodoCar
       {lead && <p className="line-clamp-1 text-[12px] text-muted">{lead}</p>}
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-none font-semibold">
         {status && <span className={`rounded-full px-2 py-1 ${TONE_CHIP[tone]}`}>{status.name}</span>}
-        {card.repo && <span className="rounded-full bg-tint px-2 py-1 text-muted">{card.repo}</span>}
+        {card.repo && (
+          <span className="rounded-full bg-tint px-2 py-1 text-muted">{worktree && !worktree.isMain ? `${card.repo} · ${worktree.name}` : card.repo}</span>
+        )}
         {card.jira.map((jira) => (
           <a
             key={jira.key}
@@ -60,12 +69,31 @@ export function TodoCard({ card, status, tone, now, sessionOf, onOpen }: TodoCar
             target="_blank"
             rel="noreferrer"
             draggable={false}
-            onClick={(event: React.MouseEvent<HTMLAnchorElement>) => event.stopPropagation()}
-            className="rounded-full bg-tint-2 px-2 py-1 font-mono text-fg hover:underline"
+            onClick={STOP}
+            className="rounded-full bg-tint-2 px-2 py-1 text-fg hover:underline"
           >
-            {jira.key}
+            <span className="font-mono">{jira.key}</span>
+            {jiraStatuses[jira.key] && <span className="ml-1 font-normal text-muted">{jiraStatuses[jira.key]}</span>}
           </a>
         ))}
+        {pullRequest && (
+          <a
+            href={pullRequest.url}
+            target="_blank"
+            rel="noreferrer"
+            draggable={false}
+            onClick={STOP}
+            className={`rounded-full px-2 py-1 shadow-[inset_0_0_0_1px_var(--hair)] hover:underline ${pullRequest.state === "MERGED" ? "text-done" : "text-fg"}`}
+          >
+            {pullRequestLabel(pullRequest)}
+          </a>
+        )}
+        {flow && (
+          <span className="rounded-full bg-tint px-2 py-1 font-normal text-muted" title={flow.task.title}>
+            {`flow · ${flow.step ?? "완료"}`}
+          </span>
+        )}
+        {card.links.length > 0 && <span className="font-normal text-muted">{`링크 ${card.links.length}`}</span>}
         {agentMoved && <span className="rounded-full px-2 py-1 text-focus shadow-[inset_0_0_0_1px_var(--focus)]">에이전트가 옮김</span>}
         {card.doneSuggestedAt !== null && tone !== "last" && <span className="rounded-full bg-done/15 px-2 py-1 text-done">끝으로 옮겨도 될 것 같아요</span>}
         {card.hidden && <span className="text-muted">숨김</span>}

@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/board/types";
-import { StateBadge } from "@/client/entities/agent";
+import { restChoices, StateBadge, useRestOverrides } from "@/client/entities/agent";
 import { requestTerminal, useTerminalRequest } from "@/client/entities/runner";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 import { QuickReply } from "@/client/features/quick-reply";
 import { BookmarkMark, bookmarkTarget } from "@/client/features/bookmark-session";
-import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
+import { useRowSelection } from "../model/rowSelection";
 
 interface AgentListProps {
   agents: AgentCard[];
@@ -22,6 +23,8 @@ interface AgentListProps {
   workersOf?: (agent: AgentCard) => AgentCard[];
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
   onAction?: (action: ActionRequest) => Promise<void>;
+  /** Every session a ⌘/Shift-click pick can reach, across the lists on the page; picking is off without it. */
+  selectionPool?: AgentCard[];
 }
 
 const SESSION_DRAG_TYPE = "application/x-agent-control-session";
@@ -42,7 +45,17 @@ export function AgentList({
   workersOf,
   onReorder,
   onAction,
+  selectionPool,
 }: AgentListProps) {
+  const clearPicks = useRowSelection((state) => state.clear);
+  useEffect(() => {
+    if (!selectionPool) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") clearPicks();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectionPool, clearPicks]);
   const listHandles = agents
     .flatMap((agent) => [agent, ...(workersOf?.(agent) ?? [])])
     .flatMap((agent) => (agent.terminalHandle ? [agent.terminalHandle] : []));
@@ -61,6 +74,7 @@ export function AgentList({
           onReorder={onReorder}
           onAction={onAction}
           listHandles={listHandles}
+          selectionPool={selectionPool}
         />
       ))}
     </ul>
@@ -78,6 +92,7 @@ interface AgentRowProps {
   onReorder?: (draggedId: string, targetId: string, placeAfter: boolean) => void;
   onAction?: (action: ActionRequest) => Promise<void>;
   listHandles: string[];
+  selectionPool?: AgentCard[];
 }
 
 type MenuState = { at: MenuPoint; confirmingCloseAll: boolean };
@@ -93,9 +108,33 @@ function AgentRow({
   onReorder,
   onAction,
   listHandles,
+  selectionPool,
 }: AgentRowProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const closeMenu = () => setMenu(null);
+  const rest = useRestOverrides();
+  const pickedIds = useRowSelection((state) => state.ids);
+  const togglePick = useRowSelection((state) => state.toggle);
+  const clearPicks = useRowSelection((state) => state.clear);
+  const picked = selectionPool !== undefined && pickedIds.includes(agent.id);
+  const pickedAgents = picked ? selectionPool.filter((candidate) => pickedIds.includes(candidate.id)) : [];
+  const bulk = pickedAgents.length > 1 ? pickedAgents : null;
+  const restMenu = (targets: AgentCard[]) => {
+    const settable = targets.filter((target) => target.state !== "working").length;
+    return restChoices(targets, rest.restOf).map((choice) => (
+      <MenuItem
+        key={choice.kind ?? "clear"}
+        hint={targets.length > 1 ? `${settable}개` : undefined}
+        onSelect={() => {
+          closeMenu();
+          rest.setRest(targets, choice.kind);
+          if (targets.length > 1) clearPicks();
+        }}
+      >
+        {choice.label}
+      </MenuItem>
+    ));
+  };
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const terminalRequest = useTerminalRequest(agent.terminalHandle);
   const [seenTerminalRequest, setSeenTerminalRequest] = useState(terminalRequest);
@@ -145,7 +184,9 @@ function AgentRow({
           event.preventDefault();
           setMenu({ at: { x: event.clientX, y: event.clientY }, confirmingCloseAll: false });
         }}
-        className={`group flex items-center gap-2 hover:bg-tint ${menu ? "bg-tint" : ""} ${dragging ? "opacity-40" : ""}`}
+        className={`group flex items-center gap-2 hover:bg-tint ${menu || picked ? "bg-tint" : ""} ${
+          picked ? "shadow-[inset_3px_0_0_var(--fg)]" : ""
+        } ${dragging ? "opacity-40" : ""}`}
       >
         {onReorder && (
           <span
@@ -170,7 +211,17 @@ function AgentRow({
         <button
           type="button"
           aria-expanded={expanded}
-          onClick={() => setExpanded(!expanded)}
+          aria-pressed={selectionPool ? picked : undefined}
+          title={selectionPool ? "⌘ 또는 Shift를 누른 채 클릭하면 여러 세션을 골라 오른쪽 클릭으로 한 번에 바꿀 수 있어요" : undefined}
+          onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+            if (selectionPool && (event.metaKey || event.ctrlKey || event.shiftKey)) {
+              event.preventDefault();
+              togglePick(agent.id);
+              return;
+            }
+            if (selectionPool) clearPicks();
+            setExpanded(!expanded);
+          }}
           className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left text-[14px]"
         >
           <StateBadge agent={agent} />
@@ -182,7 +233,9 @@ function AgentRow({
           )}
           {agent.unread && <span className="size-2 shrink-0 rounded-full bg-accent" title="새 결과" />}
           <span className="min-w-0 flex-1 truncate text-muted">
-            {agent.session?.title && <span className="font-semibold text-fg">{agent.session.title} · </span>}
+            {(agent.session?.title ?? agent.title) && (
+              <span className="font-semibold text-fg">{agent.session?.title ?? agent.title} · </span>
+            )}
             {parseMessage(agent.lastMessage)?.lead ?? agent.prompt}
           </span>
           {workers.length > 0 && (
@@ -231,8 +284,23 @@ function AgentRow({
           </button>
         )}
       </div>
-      {menu && (
-        <ContextMenu at={menu.at} label={`${agent.session?.title ?? agent.worktreeName} 세션 메뉴`} onClose={closeMenu}>
+      {menu && bulk && (
+        <ContextMenu at={menu.at} label={`고른 세션 ${bulk.length}개 메뉴`} onClose={closeMenu}>
+          <MenuHeading>고른 세션 {bulk.length}개</MenuHeading>
+          {restMenu(bulk)}
+          <MenuSeparator />
+          <MenuItem
+            onSelect={() => {
+              closeMenu();
+              clearPicks();
+            }}
+          >
+            고르기 해제
+          </MenuItem>
+        </ContextMenu>
+      )}
+      {menu && !bulk && (
+        <ContextMenu at={menu.at} label={`${agent.session?.title ?? agent.title ?? agent.worktreeName} 세션 메뉴`} onClose={closeMenu}>
           {menu.confirmingCloseAll && onAction ? (
             <div className="flex flex-col gap-2 p-2">
               <p>이 목록의 세션 {listHandles.length}개를 닫을까요?</p>
@@ -290,6 +358,8 @@ function AgentRow({
                   프로젝트 화면에서 열기
                 </MenuItem>
               )}
+              {restChoices([agent], rest.restOf).length > 0 && <MenuSeparator />}
+              {restMenu([agent])}
               {onAction && (terminalHandle || listHandles.length > 0) && <MenuSeparator />}
               {terminalHandle && onAction && (
                 <MenuItem

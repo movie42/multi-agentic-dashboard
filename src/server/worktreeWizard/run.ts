@@ -7,7 +7,7 @@ import type { WizardOrigin, WizardTurn, WorktreePlan } from "@/common/worktreeWi
 
 const execFileAsync = promisify(execFile);
 const TIMEOUT_MS = 3 * 60_000;
-const MODEL = process.env.WORKTREE_WIZARD_MODEL ?? "sonnet";
+const MODEL = process.env.WORKTREE_WIZARD_MODEL ?? "haiku";
 
 const DASHBOARD_RULES = `You are running inside the Agent Control dashboard, not a terminal.
 - Never run commands and never create anything. The dashboard creates the worktree after the user confirms your plan.

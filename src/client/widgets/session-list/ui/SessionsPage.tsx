@@ -199,7 +199,7 @@ export function SessionsPage({ onAction }: SessionsPageProps) {
                     {badge.label}
                   </span>
                   <SessionTitle
-                    sessionId={session.sessionId}
+                    target={{ kind: "session", sessionId: session.sessionId }}
                     title={session.titleSource === "none" ? null : session.title}
                     titleSource={session.titleSource}
                     fallback={session.title}

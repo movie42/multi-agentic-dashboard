@@ -1,0 +1,341 @@
+{
+  "id": "todo-hub",
+  "title": "할일 칸반을 허브로 — 지라 가져오기 · 세션 자동 연결 · 링크 · 아카이브",
+  "type": "기능 수정",
+  "branch": "main",
+  "links": [
+    {
+      "label": "슬랙 스레드 · 칸반 작당모의",
+      "url": "https://paycrux.slack.com/archives/C08C2K5FT3J/p1794470289567169"
+    }
+  ],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "지라는 이미 OAuth로 로그인된 acli로 읽어요. 토큰 입력 칸은 만들지 않았어요. 최근 14일 안에 갱신된, 나에게 할당된 열린 이슈를 처음 상태에 카드로 가져와요. 할일 화면을 열 때 10분마다, 그리고 [지라 가져오기] 버튼으로 돌아요.",
+        "지라 키로 워크트리(브랜치 · 이름)를 찾아 카드에 이어 주고, 그 워크트리에서 연 세션과 브랜치에 키가 들어간 세션을 카드에 자동으로 붙여요. 사용자가 뗀 세션은 다시 붙이지 않아요.",
+        "카드 상세는 세션을 '열린 세션'과 '지난 세션'으로 나눠 보여 줘요.",
+        "카드의 워크트리에 걸린 flow 작업과 PR을 카드 상세와 카드 앞면에 보여 주고, flow 문서는 앱의 문서 보기로 열어요.",
+        "슬랙 · 노션 · 피그마 · PR 링크를 카드에 붙일 수 있어요. 붙여 넣은 주소의 종류는 자동으로 판단해요.",
+        "끝 상태로 옮긴 지 하루가 지난 카드는 아카이브로 가고, 보드 위 '아카이브' 목록에서 찾아보고 되돌릴 수 있어요.",
+        "할일 에이전트는 아카이브 카드까지 읽고, 요청하면 찾아서 알려 주거나 보드로 되돌려요.",
+        "Won't Do(안 하기로 한 일) 상태는 추가하지 않았어요. 필요하면 워크플로 편집에서 상태를 더하면 돼요.",
+        "실제 보드에서 확인했어요: 지라 카드 15개가 들어오고, 하루 넘게 끝 상태였던 카드 15개가 아카이브로 갔고, 워크트리 · 지라 키로 세션 83개가 카드에 붙었어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 카드 데이터와 규칙",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "카드에 링크 · 뗀 세션 · 끝난 시각 · 아카이브 시각 · 가져온 곳을 더하고 이전 파일을 읽게 함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/types.ts</code> <code>src/common/todos/schema.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "schema의 transform으로 이전 필드 채우기(autoMovedAt처럼)"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "링크 종류 판단(슬랙 · 노션 · 피그마 · PR · 기타)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/links.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>parseJiraUrl</code> (src/common/todos/jira.ts)"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "op 추가: card-update links, card-restore, 세션 떼기 기록, 끝 상태 진입 시각",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/ops.ts</code> <code>src/common/todos/board.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "아카이브 규칙과 자동 연결 규칙(순수 함수)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/linking.ts</code>"
+                ],
+                [
+                  "결정",
+                  "아카이브에서 되돌린 카드는 끝 직전 상태 중 칸이 보이는 상태로 가요. 기본 보드에서는 리뷰 칸이 숨겨져 있어서 진행 중으로 가요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 규칙 단위 테스트 통과",
+              "done": true,
+              "rows": [
+                [
+                  "명령",
+                  "<code>bun run test src/common/todos</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 서버",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "acli로 할당된 이슈 검색과 카드 가져오기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/workflow/JiraInfo.ts</code> <code>src/server/todos/TodoJiraImport.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "JiraInfo의 acli 실행 · 사이트 주소"
+                ],
+                [
+                  "결정",
+                  "acli 검색은 최근 14일 안에 갱신된 열린 이슈만 가져와요. 조건 없이 가져오면 열린 할당 이슈가 126개라 보드가 묻혀요. 오래 묵은 이슈도 갱신되면 그때 들어와요."
+                ],
+                [
+                  "결정",
+                  "제목이나 워크트리 경로에 지라 키가 이미 들어간 카드가 있으면 새 카드를 만들지 않고 그 카드에 지라 칩을 붙여요. 실제 보드에서 중복 2건(COMP-608 · COMP-609)이 생겨 찾은 규칙이에요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "보드를 읽을 때마다 워크트리 · 세션 자동 연결과 아카이브 정리",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/todos/TodoLinker.ts</code> <code>app/api/board/route.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>TodoLaunchAttacher.observe</code>"
+                ],
+                [
+                  "결정",
+                  "세션 자동 연결은 카드의 워크트리가 메인 워크트리가 아닐 때만 그 폴더의 세션을 붙여요. 메인 워크트리는 여러 일이 섞여 있어서예요. 지난 세션 목록은 2분에 한 번만 다시 읽어요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "할일 API가 지라 상태를 함께 주고, 가져오기 경로를 엶",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/todos/route.ts</code> <code>app/api/todos/jira/route.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 서버 단위 테스트 · typecheck",
+              "done": true,
+              "rows": [
+                [
+                  "명령",
+                  "<code>bun run test src/server/todos</code> · <code>bunx tsc --noEmit</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "카드 앞면: 지라 상태 · PR · flow 칩",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/ui/TodoCard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "카드 상세: 링크 묶음 · flow 문서 · PR · 열린 세션 / 지난 세션",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/ui/TodoCardDetail.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "문서 보기 feature <code>view-doc</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "보드 머리: 지라 가져오기 버튼 · 아카이브 목록",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>TodoBoardPage.tsx</code> <code>TodoArchive.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: 화면 테스트 · Dock 앱 재설치 후 확인",
+              "done": true,
+              "rows": [
+                [
+                  "명령",
+                  "<code>bun run test src/client/widgets/todo-board</code> · <code>bun run desktop</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 할일 에이전트",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "에이전트가 아카이브 · 링크를 읽고 되돌리기 · 링크 붙이기를 할 수 있게 함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/todos/TodoAgent.ts</code> <code>src/common/todos/agentTurn.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 에이전트 테스트 · 전체 typecheck · lint · test",
+              "done": true,
+              "rows": [
+                [
+                  "명령",
+                  "<code>bun run test</code> · <code>bun run lint</code>"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "now",
+      "summary": "PR 여부 확인 대기",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "SOT 맵 · 계산 행이 없는 작업이에요"
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "SOT 맵 · 계산 행이 없는 작업이에요"
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review low: 자동 지라 가져오기의 거부 처리 누락 1건을 고침. 보드 경로의 연결 순서 지적은 의도한 동작이라 그대로 둠"
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "typecheck · lint · test 789개 통과. 남은 오류는 다른 세션이 작업 중인 appStatus · health 파일뿐"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "앱이 과도기라 세션 · 워크트리 · 지라 · flow 문서 · 슬랙이 따로 놀아요. 할일 카드 하나에 모두 이어서, 할 일을 놓치지 않게 하는 것이 목적이에요.",
+      "state": "confirmed",
+      "basis": "사용자 요청 11/18"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "질문을 주고받지 말고 구현까지 진행하라는 사용자 지시(메모리 flow-implement-dont-grill)"
+    }
+  ]
+}

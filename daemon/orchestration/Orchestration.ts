@@ -25,6 +25,8 @@ export interface OrchestrationDeps {
   onChange: () => void;
   /** Every worktree folder of a project right now; a plain folder project is just itself. */
   worktreesOf?: (project: string) => Promise<string[]>;
+  /** Address a session can curl to read another session's terminal output as plain text. */
+  logUrl?: (id: string) => string;
   now?: () => number;
   newId?: () => string;
 }
@@ -121,6 +123,15 @@ export function revisedText(from: RunnerSession, prompt: string): string {
   return `[Agent Control] 세션 ${from.id} (${from.cwd})이 맡긴 일을 고쳤어요. 앞서 받은 내용 대신 아래 내용으로 이어서 해 주세요.\n\n${prompt.trim()}`;
 }
 
+export function watchText(from: RunnerSession, logUrl: string): string {
+  return [
+    `[Agent Control] 터미널 세션 ${from.id} (${from.cwd})을 이 세션에 연결했어요.`,
+    "사람이 에러나 로그, 터미널 출력을 말하면 붙여 넣기를 기다리지 말고 아래 명령으로 최근 출력을 직접 읽어 보세요. lines 값으로 줄 수를 정해요.",
+    `curl -s '${logUrl}?lines=200'`,
+    "지금은 이 안내를 받았다고 한 줄로만 답해 주세요.",
+  ].join("\n");
+}
+
 export function nextText(from: RunnerSession, prompt: string | null, answer: string | null): string {
   const lead = prompt?.trim() || "앞 세션이 끝났어요. 이어서 맡은 일을 시작해 주세요.";
   const result = answer?.trim() ? `\n\n앞 세션(${from.id})의 마지막 답:\n${answer.trim()}` : "";
@@ -137,7 +148,13 @@ export class Orchestration {
   #deps: Required<OrchestrationDeps>;
 
   constructor(deps: OrchestrationDeps) {
-    this.#deps = { now: Date.now, newId: () => crypto.randomUUID(), worktreesOf: async (project) => [project], ...deps };
+    this.#deps = {
+      now: Date.now,
+      newId: () => crypto.randomUUID(),
+      worktreesOf: async (project) => [project],
+      logUrl: (id) => `http://127.0.0.1/sessions/${id}/log`,
+      ...deps,
+    };
   }
 
   load(saved: SavedOrchestration): void {
@@ -320,6 +337,7 @@ export class Orchestration {
       this.connect(to, from, "report");
       this.deliver(to, delegateText(delegator, prompt), link.id);
     }
+    if (kind === "watch" && !existing && delegator) this.deliver(to, watchText(delegator, this.#deps.logUrl(from)), null);
     return link;
   }
 
@@ -337,7 +355,7 @@ export class Orchestration {
    */
   edit(linkId: string, prompt: string | null): boolean {
     const link = this.#links.find((item) => item.id === linkId);
-    if (!link || link.kind === "report") return false;
+    if (!link || link.kind === "report" || link.kind === "watch") return false;
     const text = prompt?.trim() ? prompt : null;
     if (link.kind === "delegate" && !text) return false;
     if (text === link.prompt) return true;
@@ -380,7 +398,7 @@ export class Orchestration {
       const fedBy = this.#links.find((link) => link.id === this.#fedBy.get(id)) ?? null;
       this.#fedBy.delete(id);
       this.#links
-        .filter((link) => link.from === id && link.kind !== "delegate" && !link.paused)
+        .filter((link) => (link.kind === "report" || link.kind === "next") && link.from === id && !link.paused)
         .forEach((link) => this.#fire(link, from, answer, fedBy));
     }
     this.flush(id);

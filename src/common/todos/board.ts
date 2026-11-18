@@ -23,6 +23,7 @@ export function defaultBoard(): TodoBoard {
       hidden: status.id === "st-review",
     })),
     cards: [],
+    sync: { jiraImportedAt: null },
   };
 }
 
@@ -47,7 +48,34 @@ export function firstStatusOfColumn(board: TodoBoard, column: TodoColumn): TodoS
 }
 
 export function cardsOfColumn(board: TodoBoard, column: TodoColumn): TodoCard[] {
-  return board.cards.filter((card) => column.statusIds.includes(card.statusId));
+  return board.cards.filter((card) => card.archivedAt === null && column.statusIds.includes(card.statusId));
+}
+
+export function boardCards(board: TodoBoard): TodoCard[] {
+  return board.cards.filter((card) => card.archivedAt === null);
+}
+
+export function archivedCards(board: TodoBoard): TodoCard[] {
+  return board.cards.filter((card) => card.archivedAt !== null).sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+}
+
+/** Done state is kept apart from statusId so the archive day survives a rename or reorder of statuses. */
+export function doneAtFor(board: TodoBoard, card: TodoCard, statusId: string, now: number): number | null {
+  if (board.statuses.at(-1)?.id !== statusId) return null;
+  return card.statusId === statusId ? (card.doneAt ?? now) : now;
+}
+
+/**
+ * Brings an archived card back to the latest status before the last whose column is shown, so it is visible on the
+ * board and does not archive again tomorrow.
+ */
+export function restoreCard(board: TodoBoard, cardId: string, now: number): TodoBoard {
+  const card = requireCard(board, cardId);
+  if (card.archivedAt === null) fail("아카이브에 있는 카드가 아니에요");
+  const candidates = board.statuses.slice(0, -1).reverse();
+  const shown = candidates.find((status) => columnOfStatus(board, status.id)?.hidden === false);
+  const statusId = (shown ?? candidates[0])?.id ?? card.statusId;
+  return updateCard(board, cardId, { archivedAt: null, statusId, doneAt: doneAtFor(board, card, statusId, now) }, now);
 }
 
 function requireCard(board: TodoBoard, cardId: string): TodoCard {
@@ -85,6 +113,7 @@ export function moveCard(board: TodoBoard, cardId: string, statusId: string, now
   const moved: TodoCard = {
     ...card,
     statusId,
+    doneAt: doneAtFor(board, card, statusId, now),
     agentMovedAt: source === "agent" ? now : null,
     doneSuggestedAt: null,
     updatedAt: now,
@@ -151,7 +180,9 @@ export function deleteStatus(board: TodoBoard, statusId: string, moveTo: string 
       .map((status) => ({ ...status, next: status.next.filter((id) => id !== statusId) })),
     columns: board.columns.map((column) => ({ ...column, statusIds: column.statusIds.filter((id) => id !== statusId) })),
     cards: board.cards.map((card) =>
-      card.statusId === statusId && moveTo ? { ...card, statusId: moveTo, agentMovedAt: null, doneSuggestedAt: null, updatedAt: now } : card,
+      card.statusId === statusId && moveTo
+        ? { ...card, statusId: moveTo, doneAt: doneAtFor(board, card, moveTo, now), agentMovedAt: null, doneSuggestedAt: null, updatedAt: now }
+        : card,
     ),
   };
 }

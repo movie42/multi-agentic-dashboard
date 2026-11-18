@@ -12,7 +12,7 @@ import { RouteEditor } from "./RouteEditor";
 import { RunPanel } from "./RunPanel";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
-const LINK_TEXT = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음" } as const;
+const LINK_TEXT = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음", watch: "터미널 연결" } as const;
 
 const PILL =
   "shrink-0 rounded-full px-2.5 py-1 text-[11px] leading-none font-semibold shadow-[inset_0_0_0_1px_var(--hair)] hover:bg-tint";
@@ -106,7 +106,7 @@ export function ConnectionList({ graph, edges, focusId, editing = false, onActio
   return (
     <ul className="flex flex-col gap-3">
       {edges.map((edge) => {
-        const kind = edge.kind === "delegate" || edge.kind === "report" || edge.kind === "next" ? edge.kind : null;
+        const kind = edge.kind === "delegate" || edge.kind === "report" || edge.kind === "next" || edge.kind === "watch" ? edge.kind : null;
         if (!kind || !edge.linkId) return null;
         const linkId = edge.linkId;
         const outgoing = edge.from === focusId;
@@ -129,7 +129,7 @@ export function ConnectionList({ graph, edges, focusId, editing = false, onActio
                 끊기
               </button>
             </div>
-            {kind !== "report" && <LinkPrompt edge={{ ...edge, kind, linkId }} startOpen={editing} onAction={onAction} />}
+            {(kind === "delegate" || kind === "next") && <LinkPrompt edge={{ ...edge, kind, linkId }} startOpen={editing} onAction={onAction} />}
           </li>
         );
       })}
@@ -193,7 +193,7 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
         {view.kind === "run" && <RunPanel key={view.run.id} run={view.run} focusKey={view.cardKey} onEdit={onEditRun} />}
         {view.kind === "empty" && <p className="pt-10 text-center text-[14px] text-muted">상자를 누르면 여기서 답할 수 있어요.</p>}
         {agent && (
-          <div className="flex flex-col">
+          <div className="flex min-h-full flex-col">
             {renderCard(agent)}
             {agentRun && (
               <div className="border-t border-hair px-4 pt-4 pb-4">

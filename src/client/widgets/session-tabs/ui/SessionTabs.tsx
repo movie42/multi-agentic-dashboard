@@ -16,7 +16,7 @@ type DropEdge = "before" | "after";
 
 export function tabTitle(agent: AgentCard): string {
   if (agent.session?.title) return agent.session.title;
-  if (agent.agentType === "shell") return "터미널";
+  if (agent.agentType === "shell") return agent.title ?? "터미널";
   const lead = agent.prompt ?? parseMessage(agent.lastMessage)?.lead ?? null;
   return lead ? lead.replace(/\s+/g, " ").slice(0, 40) : "새 세션";
 }

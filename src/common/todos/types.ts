@@ -19,6 +19,15 @@ export interface TodoJira {
   url: string;
 }
 
+export type TodoLinkKind = "slack" | "notion" | "figma" | "github-pr" | "other";
+
+export interface TodoLink {
+  kind: TodoLinkKind;
+  url: string;
+}
+
+export type TodoCardOrigin = "jira" | null;
+
 export interface TodoPendingLaunch {
   worktreePath: string;
   at: number;
@@ -30,15 +39,27 @@ export interface TodoCard {
   memo: string;
   statusId: string;
   jira: TodoJira[];
+  links: TodoLink[];
   sessionIds: string[];
+  /** Sessions the user detached; auto-linking never attaches them to this card again. */
+  ignoredSessionIds: string[];
   repo: string | null;
   worktreePath: string | null;
   hidden: boolean;
   agentMovedAt: number | null;
   doneSuggestedAt: number | null;
   pendingLaunch: TodoPendingLaunch | null;
+  /** When the card entered the last status; cleared when it leaves. */
+  doneAt: number | null;
+  /** Set a day after `doneAt`; archived cards leave the board and show in the archive list. */
+  archivedAt: number | null;
+  origin: TodoCardOrigin;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface TodoSync {
+  jiraImportedAt: number | null;
 }
 
 export interface TodoBoard {
@@ -46,10 +67,20 @@ export interface TodoBoard {
   statuses: TodoStatus[];
   columns: TodoColumn[];
   cards: TodoCard[];
+  sync: TodoSync;
 }
 
 export type TodoMoveSource = "user" | "agent";
 
+/** Jira status names by issue key, read through acli; a key still loading is absent. */
+export type TodoJiraStatuses = Record<string, string>;
+
 export type TodoResponse =
   | { ok: true; board: TodoBoard; createdId?: string }
   | { ok: false; error: string };
+
+export type TodoJiraImportResponse =
+  | { ok: true; added: number; total: number; board: TodoBoard }
+  | { ok: false; error: string };
+
+export type TodoJiraStatusResponse = { ok: true; statuses: TodoJiraStatuses } | { ok: false; error: string };

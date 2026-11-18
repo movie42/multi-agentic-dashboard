@@ -4,16 +4,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
-import { firstStatusOfColumn } from "@/common/todos/board";
+import { archivedCards, boardCards, firstStatusOfColumn, statusOf } from "@/common/todos/board";
 import type { TodoBoard, TodoCard, TodoColumn as TodoColumnData } from "@/common/todos/types";
 import { sessionListQueryOptions } from "@/client/entities/session";
-import { todoBoardQueryOptions, useTodoOp } from "@/client/entities/todo";
+import { todoBoardQueryOptions, todoJiraStatusQueryOptions, useJiraImport, useTodoOp } from "@/client/entities/todo";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { errorMessage } from "@/client/shared/model/errorMessage";
-import { NO_PROJECT } from "../model/kinds";
+import { PendingButton } from "@/client/shared/ui/PendingButton";
+import { cardContext, type ModeOf } from "../model/cardContext";
+import { NO_PROJECT, statusTone } from "../model/kinds";
 import { sessionLookup } from "../model/sessions";
 import type { ColumnMenuActions } from "./ColumnMenu";
 import { TodoAgentDialog } from "./TodoAgentDialog";
+import { TodoArchive } from "./TodoArchive";
+import { TodoCard as TodoCardView } from "./TodoCard";
 import { TodoCardDetail } from "./TodoCardDetail";
 import { TodoColumn } from "./TodoColumn";
 import { WorkflowEditor } from "./WorkflowEditor";
@@ -23,6 +27,7 @@ interface TodoBoardPageProps {
   agents: AgentCard[];
   worktrees: WorktreeSummary[];
   now: number;
+  modeOf: ModeOf;
   onAction: (action: ActionRequest) => Promise<void>;
   onJumpToAgent: (agent: AgentCard) => void;
 }
@@ -35,9 +40,18 @@ function matchesProject(card: TodoCard, project: string): boolean {
   return card.repo === project;
 }
 
-export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpToAgent }: TodoBoardPageProps) {
+function importNote(result: { added: number; total: number }): string {
+  if (result.total === 0) return "최근 2주 안에 움직인, 나에게 할당된 지라 이슈가 없어요";
+  return result.added === 0 ? `지라 이슈 ${result.total}개 모두 이미 카드가 있어요` : `지라 이슈로 새 카드 ${result.added}개를 만들었어요`;
+}
+
+export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction, onJumpToAgent }: TodoBoardPageProps) {
   const boardQuery = useQuery(todoBoardQueryOptions());
+  const jiraQuery = useQuery(todoJiraStatusQueryOptions());
   const { run } = useTodoOp();
+  const importJira = useJiraImport();
+  const [importResult, setImportResult] = useState<string | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
   const [projectKeys, writeProject] = useStoredList("agent-control:todo-project");
   const project = projectKeys[0] ?? "";
   const [openCardId, setOpenCardId] = useState<string | null>(null);
@@ -105,7 +119,27 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
     setColumnDraft(null);
   };
 
-  const cardCount = board.cards.filter(visible).length;
+  const cardCount = boardCards(board).filter(visible).length;
+  const archiveCount = archivedCards(board).length;
+  const jiraStatuses = jiraQuery.data ?? {};
+  const contextOf = (card: TodoCard) => cardContext(card, worktrees, modeOf);
+  const renderCard = (card: TodoCard) => (
+    <TodoCardView
+      card={card}
+      status={statusOf(board, card.statusId)}
+      tone={statusTone(board, card.statusId)}
+      now={now}
+      sessionOf={sessionOf}
+      context={contextOf(card)}
+      jiraStatuses={jiraStatuses}
+      onOpen={setOpenCardId}
+    />
+  );
+  const runImport = async () => {
+    const result = await importJira();
+    setImportResult(result ? importNote(result) : null);
+  };
+  const importedAt = board.sync.jiraImportedAt;
   const heldSessions = new Set(board.cards.flatMap((card) => card.sessionIds));
   const openSessionCount = [...liveSessions].filter((id) => !heldSessions.has(id)).length;
 
@@ -115,6 +149,9 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
         <h1 className="text-[36px] leading-[1.15] font-bold tracking-[-0.025em]">할일</h1>
         <p className="mt-2.5 text-[13px] text-muted">
           카드 {cardCount} · 상태 {board.statuses.length} · 칸 {board.columns.length}
+          {importedAt !== null &&
+            ` · 지라 ${new Date(importedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}에 확인`}
+          {importResult && ` · ${importResult}`}
         </p>
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <select
@@ -131,6 +168,12 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
               </option>
             ))}
           </select>
+          <PendingButton onRun={runImport} pendingLabel="지라 읽는 중" className={PILL}>
+            지라 가져오기
+          </PendingButton>
+          <button type="button" onClick={() => setShowArchive(true)} className={PILL}>
+            {`아카이브 ${archiveCount}`}
+          </button>
           <button type="button" onClick={() => setEditingWorkflow(true)} className={PILL}>
             워크플로
           </button>
@@ -171,9 +214,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
             board={board}
             column={column}
             visible={visible}
-            now={now}
-            sessionOf={sessionOf}
-            onOpen={setOpenCardId}
+            renderCard={renderCard}
             onDropCard={dropCard}
             onAddCard={addCard}
             menu={menu}
@@ -213,10 +254,23 @@ export function TodoBoardPage({ repos, agents, worktrees, now, onAction, onJumpT
           repos={filterRepos}
           worktrees={worktrees}
           sessionOf={sessionOf}
+          context={contextOf(openCard)}
+          jiraStatuses={jiraStatuses}
           onRun={run}
           onAction={onAction}
           onJumpToAgent={onJumpToAgent}
           onClose={() => setOpenCardId(null)}
+        />
+      )}
+      {showArchive && (
+        <TodoArchive
+          board={board}
+          onOpen={(cardId) => {
+            setShowArchive(false);
+            setOpenCardId(cardId);
+          }}
+          onRun={run}
+          onClose={() => setShowArchive(false)}
         />
       )}
       {talking && <TodoAgentDialog sessionCount={openSessionCount} onClose={() => setTalking(false)} />}

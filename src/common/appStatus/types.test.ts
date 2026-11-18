@@ -4,10 +4,11 @@ import { mismatchOf, projectCommandsRequestSchema, shortSha, type AppStatus } fr
 const base: AppStatus = {
   repoPath: "/repo",
   checkout: { path: "/repo", branch: "main", commit: "aaa", mainCommit: "aaa", behind: 0 },
-  app: { kind: "built", commit: "aaa", branch: "main", builtAt: 1 },
+  app: { kind: "built", commit: "aaa", branch: "main", builtAt: 1, installedCommit: null },
   daemon: { kind: "running", commit: "aaa", startedAt: 1 },
   workingSessions: 0,
   restart: { kind: "idle" },
+  build: { kind: "none" },
 };
 
 describe("mismatchOf", () => {
@@ -16,7 +17,7 @@ describe("mismatchOf", () => {
   });
 
   it("flags an app built from another commit", () => {
-    expect(mismatchOf({ ...base, app: { kind: "built", commit: "bbb", branch: "feat/x", builtAt: 1 } })).toMatchObject({ app: true, any: true });
+    expect(mismatchOf({ ...base, app: { kind: "built", commit: "bbb", branch: "feat/x", builtAt: 1, installedCommit: null } })).toMatchObject({ app: true, any: true });
   });
 
   it("never flags a dev server, which reloads the working tree itself", () => {
@@ -33,7 +34,7 @@ describe("mismatchOf", () => {
     const status: AppStatus = {
       ...base,
       checkout: { ...base.checkout, mainCommit: null, behind: null },
-      app: { kind: "built", commit: "bbb", branch: null, builtAt: 1 },
+      app: { kind: "built", commit: "bbb", branch: null, builtAt: 1, installedCommit: null },
       daemon: { kind: "running", commit: "ccc", startedAt: 1 },
     };
     expect(mismatchOf(status).any).toBe(false);

@@ -27,7 +27,9 @@ const cardSchema = z.object({
   memo: z.string(),
   statusId: z.string(),
   jira: z.array(z.object({ key: z.string(), url: z.string() })),
+  links: z.array(z.object({ kind: z.enum(["slack", "notion", "figma", "github-pr", "other"]), url: z.string() })).default([]),
   sessionIds: z.array(z.string()),
+  ignoredSessionIds: z.array(z.string()).default([]),
   repo: z.string().nullable(),
   worktreePath: z.string().nullable(),
   hidden: z.boolean(),
@@ -35,6 +37,9 @@ const cardSchema = z.object({
   autoMovedAt: z.number().nullable().optional(),
   doneSuggestedAt: z.number().nullable().default(null),
   pendingLaunch: z.object({ worktreePath: z.string(), at: z.number() }).nullable(),
+  doneAt: z.number().nullable().optional(),
+  archivedAt: z.number().nullable().default(null),
+  origin: z.enum(["jira"]).nullable().default(null),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -49,9 +54,11 @@ export const todoBoardSchema = z
     statuses: z.array(statusSchema).min(2),
     columns: z.array(columnSchema).min(1),
     cards: z.array(cardSchema),
+    sync: z.object({ jiraImportedAt: z.number().nullable() }).default({ jiraImportedAt: null }),
   })
   .transform((raw): TodoBoard => {
     const ids = raw.statuses.map((status) => status.id);
+    const lastId = ids.at(-1);
     const statuses: TodoStatus[] = raw.statuses.map((status, index) => ({
       id: status.id,
       name: status.name,
@@ -62,6 +69,12 @@ export const todoBoardSchema = z
       version: 1,
       statuses,
       columns: raw.columns,
-      cards: raw.cards.map(({ autoMovedAt, agentMovedAt, ...card }) => ({ ...card, agentMovedAt: agentMovedAt ?? autoMovedAt ?? null })),
+      cards: raw.cards.map(({ autoMovedAt, agentMovedAt, doneAt, ...card }) => ({
+        ...card,
+        agentMovedAt: agentMovedAt ?? autoMovedAt ?? null,
+        // Cards already done before doneAt existed start their archive day from their last update.
+        doneAt: doneAt !== undefined ? doneAt : card.statusId === lastId ? card.updatedAt : null,
+      })),
+      sync: raw.sync,
     };
   });

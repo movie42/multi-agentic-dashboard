@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { OrchestrationLink } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
 import { useDocViewerStore } from "@/client/features/view-doc";
-import { ProjectCanvas } from "./ProjectCanvas";
+import { useStoredListStore } from "@/client/shared/lib/storedListStore";
+import { ProjectCanvas, type CanvasPanel } from "./ProjectCanvas";
+
+const activeContent = (panel: CanvasPanel) => panel.tabs.find((tab) => tab.id === panel.activeId)?.content;
 
 function worktree(path: string, isMain = false): WorktreeSummary {
   return {
@@ -59,7 +62,14 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), els
         renderPanel={(panel) => (
           <div>
             <button type="button" aria-label="오른쪽 패널 접기" onClick={panel.onCollapse} />
-            {panel.content}
+            <div role="tablist">
+              {panel.tabs.map((tab) => (
+                <button key={tab.id} type="button" role="tab" aria-selected={tab.id === panel.activeId} onClick={() => panel.onActivate(tab.id)}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {activeContent(panel)}
           </div>
         )}
       />
@@ -73,6 +83,10 @@ beforeAll(() => {
 });
 
 describe("ProjectCanvas", () => {
+  afterEach(() => {
+    for (const key of Object.keys(localStorage)) if (key.startsWith("agent-control:panel-tabs:")) localStorage.removeItem(key);
+  });
+
   it("opens without a conductor and shows every worktree frame", () => {
     renderCanvas([agentCard({ id: "s1", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "결제 API" })]);
     expect(screen.getByText("결제 API")).toBeTruthy();
@@ -93,6 +107,25 @@ describe("ProjectCanvas", () => {
     fireEvent.pointerDown(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
     fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
     expect(screen.getByTestId("card").textContent).toBe("일꾼");
+  });
+
+  it("stacks each clicked session as its own panel tab and switches between them", () => {
+    renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "에이전트" }),
+      agentCard({ id: "t", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "터미널" }),
+    ]);
+    const click = (id: string) => {
+      const box = document.querySelector(`[data-node="${id}"]`)!;
+      fireEvent.pointerDown(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    };
+    click("a");
+    click("t");
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["에이전트", "터미널"]);
+    expect(screen.getByTestId("card").textContent).toBe("터미널");
+    fireEvent.click(screen.getByRole("tab", { name: "에이전트" }));
+    expect(screen.getByTestId("card").textContent).toBe("에이전트");
+    expect(JSON.parse(localStorage.getItem("agent-control:panel-tabs:shop")!)).toEqual(["a", "t"]);
   });
 
   it("resizes a session box from its corner and keeps the size", () => {
@@ -130,7 +163,7 @@ describe("ProjectCanvas", () => {
           renderCard={() => null}
           onAction={vi.fn(async () => {})}
           onOpenWorktree={() => {}}
-          renderPanel={(panel) => panel.content}
+          renderPanel={activeContent}
         />
       </QueryClientProvider>,
     );
@@ -159,7 +192,7 @@ describe("ProjectCanvas", () => {
     const client = new QueryClient();
     render(
       <QueryClientProvider client={client}>
-        <ProjectCanvas scope={{ kind: "project", repo: "shop" }} worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenElsewhere={() => {}} modeOf={() => "personal"} now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={(panel) => panel.content} />
+        <ProjectCanvas scope={{ kind: "project", repo: "shop" }} worktrees={[worktree("/p/shop", true), worktree("/p/shop-a")]} agents={[]} everyAgent={[]} onOpenElsewhere={() => {}} modeOf={() => "personal"} now={0} header={null} renderCard={() => null} onAction={vi.fn(async () => {})} onOpenWorktree={onOpenWorktree} renderPanel={activeContent} />
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
@@ -234,7 +267,7 @@ describe("ProjectCanvas", () => {
           renderCard={() => null}
           onAction={onAction}
           onOpenWorktree={() => {}}
-          renderPanel={(panel) => panel.content}
+          renderPanel={activeContent}
         />
       </QueryClientProvider>,
     );
@@ -282,6 +315,40 @@ describe("ProjectCanvas", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "세션 2개 닫기 (2개)" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "한 번 더 누르면 2개를 닫아요" }));
     expect(onAction).toHaveBeenCalledWith({ type: "close-terminals", terminalHandles: ["ta", "tb"] });
+  });
+
+  it("puts every selected session to sleep at once from the right-click menu", () => {
+    window.localStorage.removeItem("agent-control:dismissed");
+    useStoredListStore.setState((state) => ({ lists: { ...state.lists, "agent-control:dismissed": [] } }));
+    renderCanvas([
+      agentCard({ id: "ra", worktreeId: "/p/shop-a", title: "첫째", state: "done", stateSince: 1 }),
+      agentCard({ id: "rb", worktreeId: "/p/shop-a", title: "둘째", state: "blocked", stateSince: 2 }),
+    ]);
+    const click = (text: string, shiftKey: boolean) => {
+      const box = screen.getByText(text);
+      fireEvent.pointerDown(box, { button: 0, pointerId: 1, shiftKey });
+      fireEvent.pointerUp(box, { button: 0, pointerId: 1, shiftKey });
+    };
+    click("첫째", false);
+    click("둘째", true);
+    const sleeping = () => screen.queryAllByText("잠자는 중").length;
+    const before = sleeping();
+    fireEvent.contextMenu(screen.getByText("둘째"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "잠자는 중으로 바꾸기 (2개)" }));
+    expect(sleeping()).toBe(before + 2);
+    fireEvent.contextMenu(screen.getByText("둘째"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "원래 상태로 되돌리기 (2개)" }));
+    expect(sleeping()).toBe(before);
+  });
+
+  it("names a shell terminal from its right-click menu", () => {
+    const onAction = renderCanvas([agentCard({ id: "sh", worktreeId: "/p/shop-a", title: null, agentType: "shell", terminalHandle: "t-sh" })]);
+    fireEvent.contextMenu(screen.getByText("터미널"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "별칭 지정" }));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "dev 서버" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onAction).toHaveBeenCalledWith({ type: "rename-terminal", terminalHandle: "t-sh", title: "dev 서버" });
   });
 
   it("acts on a box outside the selection by itself", () => {

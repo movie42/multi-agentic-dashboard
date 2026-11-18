@@ -56,8 +56,10 @@ export async function POST(request: Request) {
       await execFileAsync("open", [await resolveTarget(body.target)]);
     } else if (body.type === "close-terminal") {
       await runner.close(body.terminalHandle);
+      await services().terminalAliases.forget([body.terminalHandle]);
     } else if (body.type === "close-terminals") {
       const results = await Promise.allSettled(body.terminalHandles.map((handle) => runner.close(handle)));
+      await services().terminalAliases.forget(body.terminalHandles.filter((_, index) => results[index]?.status === "fulfilled"));
       const failed = results.filter((result) => result.status === "rejected").length;
       if (failed > 0) throw new Error(`세션 ${body.terminalHandles.length}개 중 ${failed}개를 닫지 못했어요`);
     } else if (body.type === "answer-permission") {
@@ -108,6 +110,8 @@ export async function POST(request: Request) {
       await worktrees.rename(body.worktreePath, body.name);
     } else if (body.type === "import-project") {
       await services().projects.add(body.path);
+    } else if (body.type === "rename-terminal") {
+      await services().terminalAliases.rename(body.terminalHandle, body.title.replace(/\s+/g, " ").trim());
     } else if (body.type === "rename-session") {
       await services().sessionTitles.rename(body.sessionId, body.title.trim());
     } else if (body.type === "bookmark-session") {

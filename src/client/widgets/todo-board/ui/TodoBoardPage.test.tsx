@@ -22,6 +22,7 @@ function fakeServer(input: RequestInfo | URL, init?: RequestInit): Promise<Respo
     return Promise.resolve(new Response(JSON.stringify({ ok: true, board, createdId: result.createdId })));
   }
   if (url === "/api/todos") return Promise.resolve(new Response(JSON.stringify({ ok: true, board })));
+  if (url === "/api/todos/jira" && !init?.method) return Promise.resolve(new Response(JSON.stringify({ ok: true, statuses: { "AB-1": "진행 중" } })));
   return Promise.resolve(new Response(JSON.stringify({ ok: false, error: "unexpected" })));
 }
 
@@ -29,7 +30,7 @@ function renderPage() {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} onAction={async () => undefined} onJumpToAgent={() => undefined} />
+      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} modeOf={() => "company"} onAction={async () => undefined} onJumpToAgent={() => undefined} />
     </QueryClientProvider>,
   );
 }
@@ -171,7 +172,7 @@ describe("TodoBoardPage sessions", () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <TodoBoardPage repos={[]} agents={[agent]} worktrees={[]} now={1} onAction={onAction} onJumpToAgent={onJump} />
+        <TodoBoardPage repos={[]} agents={[agent]} worktrees={[]} now={1} modeOf={() => "company"} onAction={onAction} onJumpToAgent={onJump} />
       </QueryClientProvider>,
     );
     await user.click(await screen.findByRole("button", { name: "세션 카드" }));
@@ -179,5 +180,42 @@ describe("TodoBoardPage sessions", () => {
     expect(onJump).toHaveBeenCalledWith(agent);
     expect(onAction).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+describe("TodoBoardPage hub", () => {
+  beforeEach(() => {
+    board = defaultBoard();
+    posted = [];
+    vi.stubGlobal("fetch", vi.fn(fakeServer));
+  });
+
+  it("files a pasted Slack address as a link and a Jira address as a Jira chip with its status", async () => {
+    board = applyTodoOp(board, { type: "card-create", title: "링크 카드" }, { now: 1, newId: () => "c1" }).board;
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "링크 카드" }));
+    const input = within(screen.getByRole("dialog")).getByRole("textbox", { name: "지라 · 링크 주소" });
+    await user.type(input, "https://x.slack.com/archives/C1/p2{Enter}");
+    await user.type(input, "https://x.atlassian.net/browse/AB-1{Enter}");
+    await waitFor(() => expect(posted.at(-1)).toMatchObject({ type: "card-update", jiraUrls: ["https://x.atlassian.net/browse/AB-1"] }));
+    expect(posted).toContainEqual({ type: "card-update", cardId: "c1", linkUrls: ["https://x.slack.com/archives/C1/p2"] });
+    const dialog = screen.getByRole("dialog");
+    await waitFor(() => expect(within(dialog).getByText("진행 중")).toBeTruthy());
+    expect(within(dialog).getByText("#C1")).toBeTruthy();
+  });
+
+  it("keeps archived cards off the board and restores them from the archive list", async () => {
+    board = applyTodoOp(board, { type: "card-create", title: "지난 일", statusId: "st-done" }, { now: 1, newId: () => "c1" }).board;
+    board = { ...board, cards: board.cards.map((card) => ({ ...card, archivedAt: 2 })) };
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "아카이브 1" }));
+    expect(screen.queryByRole("region", { name: "끝" }) && within(column("끝")).queryByRole("button", { name: "지난 일" })).toBeNull();
+    await user.type(screen.getByRole("textbox", { name: "아카이브 검색" }), "지난");
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "되돌리기" }));
+    await waitFor(() => expect(posted).toContainEqual({ type: "card-restore", cardId: "c1" }));
+    await user.keyboard("{Escape}");
+    expect(await within(column("진행 중")).findByRole("button", { name: "지난 일" })).toBeTruthy();
   });
 });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SESSION_ID } from "../sessions/limits";
 import {
+  restoreCard,
   createColumn,
   createStatus,
   deleteColumn,
@@ -17,8 +18,9 @@ import {
   updateStatus,
 } from "./board";
 import { parseJiraUrl } from "./jira";
+import { parseCardLink } from "./links";
 import { TODO_DESCRIPTION_LIMIT, TODO_MEMO_LIMIT, TODO_NAME_LIMIT, TODO_TITLE_LIMIT } from "./schema";
-import type { TodoBoard, TodoCard, TodoJira } from "./types";
+import type { TodoBoard, TodoCard, TodoJira, TodoLink } from "./types";
 
 const id = z.string().min(1).max(100);
 const absolutePath = z.string().refine((value) => value.startsWith("/"), "absolute path required");
@@ -49,9 +51,11 @@ export const todoOpSchema = z.discriminatedUnion("type", [
     title: title.optional(),
     memo: z.string().max(TODO_MEMO_LIMIT).optional(),
     jiraUrls: z.array(z.string().max(2000)).max(20).optional(),
+    linkUrls: z.array(z.string().max(2000)).max(30).optional(),
     repo: z.string().nullable().optional(),
     worktreePath: absolutePath.nullable().optional(),
   }),
+  z.object({ type: z.literal("card-restore"), cardId: id }),
   z.object({ type: z.literal("card-move"), cardId: id, statusId: id, source: z.enum(["user", "agent"]).optional() }),
   z.object({ type: z.literal("card-suggest-done"), cardId: id }),
   z.object({ type: z.literal("card-delete"), cardId: id }),
@@ -100,6 +104,18 @@ function parseJiraUrls(urls: readonly string[]): TodoJira[] {
     .filter((jira, index, all) => all.findIndex((each) => each.key === jira.key) === index);
 }
 
+function parseLinkUrls(urls: readonly string[]): TodoLink[] {
+  return urls
+    .filter((url) => url.trim())
+    .map((url) => {
+      const parsed = parseCardLink(url);
+      if (!parsed) fail(`링크 주소가 아니에요: ${url}`);
+      if (parsed.type === "jira") fail(`지라 이슈는 지라 칸에 붙여 주세요: ${url}`);
+      return parsed.link;
+    })
+    .filter((link, index, all) => all.findIndex((each) => each.url === link.url) === index);
+}
+
 function fail(message: string): never {
   throw new TodoRuleError(message);
 }
@@ -121,13 +137,18 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
         memo: op.memo ?? "",
         statusId,
         jira: [],
+        links: [],
         sessionIds,
+        ignoredSessionIds: [],
         repo: op.repo ?? null,
         worktreePath: op.worktreePath ?? null,
         hidden: false,
         agentMovedAt: null,
         doneSuggestedAt: null,
         pendingLaunch: null,
+        doneAt: board.statuses.at(-1)?.id === statusId ? now : null,
+        archivedAt: null,
+        origin: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -139,11 +160,14 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
         ...(op.title !== undefined && { title: op.title.trim() }),
         ...(op.memo !== undefined && { memo: op.memo }),
         ...(op.jiraUrls !== undefined && { jira: parseJiraUrls(op.jiraUrls) }),
+        ...(op.linkUrls !== undefined && { links: parseLinkUrls(op.linkUrls) }),
         ...(op.repo !== undefined && { repo: op.repo }),
         ...(op.worktreePath !== undefined && { worktreePath: op.worktreePath }),
       };
       return { board: updateCard(board, op.cardId, patch, now) };
     }
+    case "card-restore":
+      return { board: restoreCard(board, op.cardId, now) };
     case "card-move":
       return { board: moveCard(board, op.cardId, op.statusId, now, op.source ?? "user") };
     case "card-suggest-done":
@@ -162,16 +186,29 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
       const target = cardOf(board, op.cardId);
       const cards = board.cards.map((card) =>
         card.id === target.id
-          ? card.sessionIds.includes(op.sessionId)
-            ? card
-            : { ...card, sessionIds: [...card.sessionIds, op.sessionId], updatedAt: now }
+          ? {
+              ...card,
+              sessionIds: card.sessionIds.includes(op.sessionId) ? card.sessionIds : [...card.sessionIds, op.sessionId],
+              ignoredSessionIds: card.ignoredSessionIds.filter((each) => each !== op.sessionId),
+              updatedAt: now,
+            }
           : detachSessions(card, [op.sessionId], now),
       );
       return { board: { ...board, cards } };
     }
     case "session-detach": {
       const card = cardOf(board, op.cardId);
-      return { board: updateCard(board, card.id, { sessionIds: card.sessionIds.filter((each) => each !== op.sessionId) }, now) };
+      return {
+        board: updateCard(
+          board,
+          card.id,
+          {
+            sessionIds: card.sessionIds.filter((each) => each !== op.sessionId),
+            ignoredSessionIds: [...new Set([...card.ignoredSessionIds, op.sessionId])],
+          },
+          now,
+        ),
+      };
     }
     case "status-create": {
       const statusId = newId();

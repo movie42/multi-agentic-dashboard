@@ -5,7 +5,7 @@ import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { buildSteps, currentStep, roundDocOf } from "@/common/workflow/steps";
 import type { StepKey, WorkflowMode, WorkflowStep } from "@/common/workflow/types";
 import { StateBadge } from "@/client/entities/agent";
-import { groupAgents } from "@/client/entities/agent";
+import { groupAgents, type RestOf } from "@/client/entities/agent";
 import { QuickReply } from "@/client/features/quick-reply";
 import { Stepper } from "@/client/entities/workflow";
 
@@ -52,7 +52,7 @@ interface StageBoardProps {
   worktrees: WorktreeSummary[];
   agents: AgentCard[];
   modeOfRepo: (repo: string) => WorkflowMode;
-  isDismissed: (agent: AgentCard) => boolean;
+  restOf: RestOf;
   onJump: (repo: string, target: string) => void;
   onOpenDoc: (target: string) => void;
 }
@@ -63,14 +63,14 @@ const DOT = {
   wait: "shadow-[inset_0_0_0_1.5px_var(--faint)]",
 } as const;
 
-export function StageBoard({ worktrees, agents, modeOfRepo, isDismissed, onJump, onOpenDoc }: StageBoardProps) {
+export function StageBoard({ worktrees, agents, modeOfRepo, restOf, onJump, onOpenDoc }: StageBoardProps) {
   const rowsByGroup = new Map<StageGroup, StageRow[]>();
   const push = (group: StageGroup, row: StageRow) =>
     rowsByGroup.set(group, [...(rowsByGroup.get(group) ?? []), row]);
 
   for (const worktree of worktrees) {
     const own = agents.filter((agent) => agent.worktreeId === worktree.worktreeId);
-    const groups = groupAgents(own, isDismissed);
+    const groups = groupAgents(own, restOf);
     const replyAgent =
       [...groups.needsMe, ...groups.working, ...groups.paused, ...groups.dormant, ...groups.resting].find((agent) => agent.terminalHandle) ?? null;
     const base = {

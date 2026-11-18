@@ -270,3 +270,24 @@ describe("Orchestration rules", () => {
     expect(sent[0]?.text).toContain("/elsewhere/feat-x");
   });
 });
+
+describe("watch lines", () => {
+  it("tells the reader once how to read the terminal, and never fires on the terminal's stops", () => {
+    const { orchestration, sent, sessions, runTurn } = setup(["sh", "a"]);
+    sessions.set("sh", session("sh", { kind: "shell" }));
+    orchestration.connect("sh", "a", "watch");
+    orchestration.connect("sh", "a", "watch");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.id).toBe("a");
+    expect(sent[0]?.text).toContain("curl -s 'http://127.0.0.1/sessions/sh/log?lines=200'");
+    runTurn("a", "받았어요");
+    orchestration.onStop("sh", null);
+    expect(sent).toHaveLength(1);
+  });
+
+  it("has no text to edit", () => {
+    const { orchestration } = setup(["sh", "a"]);
+    const link = orchestration.connect("sh", "a", "watch");
+    expect(orchestration.edit(link!.id, "x")).toBe(false);
+  });
+});

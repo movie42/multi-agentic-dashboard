@@ -19,7 +19,7 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
-import { displayStateOf } from "@/client/entities/agent";
+import { displayStateOf, useRestOverrides } from "@/client/entities/agent";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
 import { draftFromSelection } from "../model/templateDraft";
@@ -31,11 +31,24 @@ import { SidePanel, type PanelView } from "./SidePanel";
 
 
 const PANEL_PREF = "agent-control:canvas-panel";
+/** Session tabs stay per canvas, so each project keeps the sessions opened on it. */
+const tabsPref = (key: string) => `agent-control:panel-tabs:${key}`;
+const SELECTION_TAB = "selection";
+const EMPTY_TAB = "empty";
 
-/** The right panel the host draws around the session view: its first tab, before any document tabs. */
-export interface CanvasPanel {
+export interface CanvasPanelTab {
+  id: string;
   label: string;
   content: React.ReactNode;
+  closable: boolean;
+}
+
+/** The right panel the host draws around the session view: its tabs before any document tabs. */
+export interface CanvasPanel {
+  tabs: CanvasPanelTab[];
+  activeId: string;
+  onActivate: (id: string) => void;
+  onClose: (id: string) => void;
   onCollapse: () => void;
 }
 
@@ -106,6 +119,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const positions = resolvePositions(auto.positions, canvas.positions);
   const anchors = resolvePositions(auto.anchors, canvas.positions);
 
+  const rest = useRestOverrides();
   const [selected, setSelected] = useState<string[]>([]);
   const [edgeId, setEdgeId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -118,6 +132,9 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean; run?: TemplateRun } | null>(null);
   const [panelPref, writePanelPref] = useStoredList(PANEL_PREF);
   const panelCollapsed = panelPref.includes("collapsed");
+  const [storedTabs, writeTabs] = useStoredList(tabsPref(canvasKey(scope)));
+  /** The lead tab last brought forward: a session id, or the current selection. */
+  const [focus, setFocus] = useState(SELECTION_TAB);
   const docTabCount = useDocViewerStore((state) => state.tabs.length);
   /** Picking something on the canvas brings its tab forward over any open document. */
   const showLead = () => useDocViewerStore.getState().activate(null);
@@ -130,6 +147,11 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const liveSelected = selected.filter((id) => graph.nodes.has(id) || graph.reserved.has(id));
   const selectedSessions = liveSelected.filter((id) => graph.nodes.has(id));
   const selectedEdge = graph.edges.find((edge) => edge.id === edgeId) ?? null;
+  const sessionTabs = storedTabs.filter((id) => graph.nodes.has(id));
+  const openSessionTab = (id: string) => {
+    if (!sessionTabs.includes(id)) writeTabs([...sessionTabs, id]);
+    setFocus(id);
+  };
 
   const select = (ids: string[], additive: boolean) => {
     setMenu(null);
@@ -137,12 +159,15 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
     setShowAllLinks(false);
     setPending(null);
     if (ids.length > 0) showLead();
-    if (!additive) {
-      setSelected(ids);
-      return;
-    }
-    const toggled = ids.length === 1 && liveSelected.includes(ids[0]!) ? liveSelected.filter((id) => id !== ids[0]) : [...new Set([...liveSelected, ...ids])];
-    setSelected(toggled);
+    const next = !additive
+      ? ids
+      : ids.length === 1 && liveSelected.includes(ids[0]!)
+        ? liveSelected.filter((id) => id !== ids[0])
+        : [...new Set([...liveSelected, ...ids])];
+    setSelected(next);
+    const only = next.length === 1 ? next[0]! : null;
+    if (only !== null && graph.nodes.has(only)) openSessionTab(only);
+    else if (next.length > 0) setFocus(SELECTION_TAB);
   };
 
   const groupSelected = () => {
@@ -194,7 +219,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   /** Same box: pin the end to the side it was dropped on. Another box: the line now runs there instead. */
   const moveEnd = async (edge: GraphEdge, end: "from" | "to", nodeId: string, side: Side) => {
     const linkId = edge.linkId;
-    if (!linkId || (edge.kind !== "delegate" && edge.kind !== "report" && edge.kind !== "next")) return;
+    if (!linkId || edge.kind === "fork" || edge.kind === "overlap") return;
     if (nodeId === edge[end]) {
       save((current) => setEdgeEnd(current, linkId, end, side));
       return;
@@ -236,6 +261,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         onOpenDoc: openDoc,
         onEditLink: (edgeId: string) => {
           showLead();
+          setFocus(SELECTION_TAB);
           setSelected([]);
           setShowAllLinks(false);
           setEdgeId(edgeId);
@@ -247,23 +273,73 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         onExpandTemplate: () => {
           if (menu.target.kind === "cluster") setTemplateFor({ clusterId: menu.target.id, at: menu.at });
         },
+        rest,
         onSaveAsTemplate: (chosen) => setEditing({ template: draftFromSelection(crypto.randomUUID(), chosen, graph.edges, nodeTitle), isNew: true }),
       })
     : null;
 
   const reservedPick = liveSelected.length === 1 ? graph.reserved.get(liveSelected[0]!) : undefined;
-  const agentPick = liveSelected.length === 1 ? graph.nodes.get(liveSelected[0]!) : undefined;
-  const view: PanelView = showAllLinks
+  /** What the canvas selection shows when it is not one session; a single session gets its own tab instead. */
+  const selectionView: PanelView | null = showAllLinks
     ? { kind: "all" }
     : selectedEdge
       ? { kind: "edge", edge: selectedEdge }
       : reservedPick
         ? { kind: "run", run: reservedPick.run, cardKey: reservedPick.card.key }
-        : agentPick
-        ? { kind: "agent", agent: agentPick.agent }
         : liveSelected.length > 1
           ? { kind: "many", count: liveSelected.length }
-          : { kind: "empty" };
+          : null;
+  const activeId =
+    focus === SELECTION_TAB && selectionView
+      ? SELECTION_TAB
+      : sessionTabs.includes(focus)
+        ? focus
+        : selectionView
+          ? SELECTION_TAB
+          : (sessionTabs.at(-1) ?? EMPTY_TAB);
+
+  const clearSelection = () => {
+    setSelected([]);
+    setEdgeId(null);
+    setShowAllLinks(false);
+  };
+  const sidePanel = (view: PanelView) => (
+    <SidePanel
+      graph={graph}
+      view={view}
+      renderCard={renderCard}
+      onAction={onAction}
+      onOpenWorktree={onOpenWorktree}
+      onEditRun={(run) => setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run })}
+    />
+  );
+  const leadTabs: CanvasPanelTab[] = [
+    ...sessionTabs.flatMap((id): CanvasPanelTab[] => {
+      const agent = graph.nodes.get(id)?.agent;
+      return agent ? [{ id, label: nodeTitle(agent), content: sidePanel({ kind: "agent", agent }), closable: true }] : [];
+    }),
+    ...(selectionView ? [{ id: SELECTION_TAB, label: panelLabel(selectionView), content: sidePanel(selectionView), closable: true }] : []),
+    ...(sessionTabs.length === 0 && !selectionView ? [{ id: EMPTY_TAB, label: panelLabel({ kind: "empty" }), content: sidePanel({ kind: "empty" }), closable: false }] : []),
+  ];
+  const activateTab = (id: string) => {
+    if (id === SELECTION_TAB || id === EMPTY_TAB) {
+      setFocus(SELECTION_TAB);
+      return;
+    }
+    setFocus(id);
+    setSelected([id]);
+    setEdgeId(null);
+    setShowAllLinks(false);
+    setPending(null);
+  };
+  const closeTab = (id: string) => {
+    if (id === SELECTION_TAB) {
+      clearSelection();
+      return;
+    }
+    writeTabs(sessionTabs.filter((other) => other !== id));
+    if (liveSelected.includes(id)) setSelected([]);
+  };
 
   const conductorCluster = conductorFor ? graph.clusters.find((cluster) => cluster.id === conductorFor.clusterId) ?? null : null;
   const templateCluster = templateFor ? graph.clusters.find((cluster) => cluster.id === templateFor.clusterId) ?? null : null;
@@ -274,7 +350,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
     if (panelCollapsed) writePanelPref([]);
   };
 
-  const states = agents.map(displayStateOf);
+  const states = agents.map((agent) => displayStateOf(agent, rest.restOf));
   const counts = {
     sessions: agents.length,
     myTurn: states.filter((state) => state === "done" || state === "blocked" || state === "waiting").length,
@@ -350,6 +426,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           onOpenNode={openNode}
           onSelectEdge={(edge: GraphEdge) => {
             showLead();
+            setFocus(SELECTION_TAB);
             setSelected([]);
             setShowAllLinks(false);
             setEdgeId(edge.id);
@@ -397,7 +474,10 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
             onToggleWorktreeLines={() => setShowWorktreeLines((value) => !value)}
             onToggleConnect={() => setConnecting((value) => !value)}
             onToggleRules={() => {
-              if (!showAllLinks) showLead();
+              if (!showAllLinks) {
+                showLead();
+                setFocus(SELECTION_TAB);
+              }
               setShowAllLinks(!showAllLinks);
             }}
             onGroup={groupSelected}
@@ -413,23 +493,16 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           className="flex h-full w-9 shrink-0 flex-col items-center gap-2 border-l border-hair bg-bg pt-4 text-[12px] font-semibold text-muted hover:bg-tint hover:text-fg"
         >
           <span aria-hidden>«</span>
-          {view.kind === "agent" && <span className="size-2 rounded-full bg-ask" />}
+          {sessionTabs.includes(activeId) && <span className="size-2 rounded-full bg-ask" />}
           {docTabCount > 0 && <span title={`열린 문서 ${docTabCount}개`}>{docTabCount}</span>}
         </button>
       ) : (
         renderPanel({
-          label: panelLabel(view),
+          tabs: leadTabs,
+          activeId,
+          onActivate: activateTab,
+          onClose: closeTab,
           onCollapse: () => writePanelPref(["collapsed"]),
-          content: (
-            <SidePanel
-              graph={graph}
-              view={view}
-              renderCard={renderCard}
-              onAction={onAction}
-              onOpenWorktree={onOpenWorktree}
-              onEditRun={(run) => setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run })}
-            />
-          ),
         })
       )}
     </div>

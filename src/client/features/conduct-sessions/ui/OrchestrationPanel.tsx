@@ -6,7 +6,7 @@ import type { Conductor, OrchestrationLink, ProjectRequest, SessionOrchestration
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { GRANT_LABEL, SCOPE_LABEL } from "./ConductorLauncher";
-const LINK_LABEL: Record<OrchestrationLink["kind"], string> = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음" };
+const LINK_LABEL: Record<OrchestrationLink["kind"], string> = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음", watch: "터미널 연결" };
 
 const PRIMARY =
   "cursor-pointer rounded-full bg-fg px-3.5 py-1 text-[12px] leading-5 font-semibold text-bg hover:opacity-85 disabled:cursor-default disabled:opacity-30";

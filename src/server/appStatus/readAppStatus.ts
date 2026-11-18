@@ -1,7 +1,7 @@
 import "server-only";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { AppBuildInfo, BranchStatus, DaemonInfo, DaemonSide } from "@/common/appStatus/types";
+import type { AppBuildInfo, AppBuildJob, AppBuildPhase, BranchStatus, DaemonInfo, DaemonSide } from "@/common/appStatus/types";
 import { isMissingPath, nodeExecFile, type ExecFileFn } from "@/server/shared/ports";
 
 const MAIN_BRANCHES = ["main", "master"];
@@ -55,6 +55,67 @@ export async function readBuildInfo(file = path.join(process.cwd(), "build-info.
   } catch (error) {
     if (!isMissingPath(error)) console.warn("[app-status] build-info.json unreadable", error);
     return null;
+  }
+}
+
+let startupBuildInfo: Promise<AppBuildInfo | null> | null = null;
+
+// The installer replaces the bundle under a running server, so build-info.json on disk can be newer
+// than the code this process runs. The first read stands for the running build.
+export function readRunningBuildInfo(): Promise<AppBuildInfo | null> {
+  startupBuildInfo ??= readBuildInfo();
+  return startupBuildInfo;
+}
+
+const BUILD_PHASES: readonly AppBuildPhase[] = ["building", "installing", "relaunching"];
+
+function isPhase(value: unknown): value is AppBuildPhase {
+  return BUILD_PHASES.some((phase) => phase === value);
+}
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error instanceof Error && "code" in error && error.code === "EPERM";
+  }
+}
+
+// The button writes a record without a pid before the shell starts the script; give the shell this
+// long to replace it before calling the job stopped.
+const QUEUED_GRACE_MS = 30_000;
+
+// Reads what scripts/apply-app.mjs records; a job whose process is gone without a result was cut off.
+export function buildJobOf(value: unknown, isAlive: (pid: number) => boolean = processAlive, now = Date.now()): AppBuildJob {
+  if (!isRecord(value) || !isPhase(value.phase) || typeof value.startedAt !== "number") return { kind: "none" };
+  const commit = typeof value.commit === "string" ? value.commit : null;
+  const finishedAt = typeof value.finishedAt === "number" ? value.finishedAt : value.startedAt;
+  if (value.result === "done") return { kind: "done", commit, finishedAt };
+  if (value.result === "failed") {
+    const message = typeof value.message === "string" ? value.message : "알 수 없는 오류";
+    return { kind: "failed", phase: value.phase, commit, message, finishedAt };
+  }
+  const alive = typeof value.pid === "number" ? isAlive(value.pid) : now - value.startedAt < QUEUED_GRACE_MS;
+  return { kind: alive ? "running" : "stopped", phase: value.phase, commit, startedAt: value.startedAt };
+}
+
+export function buildJobFile(repoPath: string): string {
+  return path.join(repoPath, "dist", "app-build.json");
+}
+
+export async function queueBuildJob(repoPath: string): Promise<void> {
+  const file = buildJobFile(repoPath);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify({ phase: "building", startedAt: Date.now() }, null, 2));
+}
+
+export async function readBuildJob(repoPath: string): Promise<AppBuildJob> {
+  try {
+    return buildJobOf(JSON.parse(await readFile(buildJobFile(repoPath), "utf8")));
+  } catch (error) {
+    if (!isMissingPath(error)) console.warn("[app-status] app-build.json unreadable", error);
+    return { kind: "none" };
   }
 }
 

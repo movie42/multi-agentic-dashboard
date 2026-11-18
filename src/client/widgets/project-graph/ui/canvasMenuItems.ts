@@ -2,6 +2,7 @@ import { MAX_CLOSE_TERMINALS, type ActionRequest } from "@/common/actions/schema
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import { requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
+import { restChoices, type RestOverrides } from "@/client/entities/agent";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
 import type { ProjectGraph } from "../model/graph";
@@ -27,6 +28,8 @@ export interface MenuContext {
   onLaunchConductor: (worktreeId: string) => void;
   onExpandTemplate: () => void;
   onSaveAsTemplate: (agents: AgentCard[]) => void;
+  /** A person's 쉬는 중 / 잠자는 중 marks. */
+  rest: RestOverrides;
 }
 
 export interface MenuContent {
@@ -87,8 +90,17 @@ function sessionsItems(agents: AgentCard[], context: MenuContext, label: string,
   const grouped = ids.filter((id) => groupOf(canvas, id));
   const closable = agents.filter((agent) => agent.terminalHandle);
   const many = agents.length > 1;
+  const settable = agents.filter((agent) => agent.state !== "working").length;
+  const restItems = restChoices(agents, context.rest.restOf).map(
+    (choice): MenuItem => ({
+      key: `rest:${choice.kind ?? "clear"}`,
+      label: many ? `${choice.label} (${settable}개)` : choice.label,
+      run: () => context.rest.setRest(agents, choice.kind),
+    }),
+  );
   return compact([
     withDocs && docsItem(agents, worktreesOf(graph, agents), context.onOpenDoc),
+    ...restItems,
     many && { label: `${label} 고르기`, run: () => context.select(ids) },
     {
       label: many ? `${label} 그룹으로 묶기` : "그룹으로 묶기",
@@ -140,9 +152,15 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       return { title: `고른 세션 ${selection.length}개`, rename: null, items: sessionsItems(selection, context, `세션 ${selection.length}개`) };
     }
     const sessionId = agent.session?.id ?? null;
+    const terminalHandle = agent.agentType === "shell" ? agent.terminalHandle : null;
+    const rename: MenuRename | null = sessionId
+      ? { label: "이름 바꾸기", value: nodeTitle(agent), onSave: (title) => void onAction({ type: "rename-session", sessionId, title }) }
+      : terminalHandle
+        ? { label: "별칭 지정", value: agent.title ?? "", onSave: (title) => void onAction({ type: "rename-terminal", terminalHandle, title }) }
+        : null;
     return {
       title: nodeTitle(agent),
-      rename: sessionId ? { label: "이름 바꾸기", value: nodeTitle(agent), onSave: (title) => void onAction({ type: "rename-session", sessionId, title }) } : null,
+      rename,
       items: [
         { label: "패널에서 열기", run: () => context.select([agent.id]) },
         { label: "다른 세션과 잇기", run: () => context.onConnectFrom(agent.id) },

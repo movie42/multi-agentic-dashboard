@@ -21,6 +21,31 @@ export function siteOfAuthStatus(stdout: string): string | null {
   return host.startsWith("http") ? host.replace(/\/$/, "") : `https://${host}`;
 }
 
+const searchSchema = z.array(
+  z.looseObject({
+    key: z.string(),
+    fields: z.looseObject({ summary: z.string().nullish(), status: z.looseObject({ name: z.string() }).nullish() }),
+  }),
+);
+
+export interface AssignedIssue {
+  key: string;
+  summary: string;
+  status: string | null;
+}
+
+/** Only recently touched issues: an open-but-idle backlog (often 100+ issues waiting on a deploy) would bury the board. */
+export const ASSIGNED_JQL = "assignee = currentUser() AND statusCategory != Done AND updated >= -14d ORDER BY updated DESC";
+const ASSIGNED_LIMIT = 100;
+
+export function issuesOfSearch(stdout: string): AssignedIssue[] {
+  return searchSchema.parse(JSON.parse(stdout)).map((issue) => ({
+    key: issue.key,
+    summary: issue.fields.summary?.trim() || issue.key,
+    status: issue.fields.status?.name ?? null,
+  }));
+}
+
 export function statusOfIssueView(stdout: string): string {
   return issueViewSchema.parse(JSON.parse(stdout)).fields.status.name;
 }
@@ -74,7 +99,25 @@ export class JiraInfo {
     this.forced = new Set(this.statuses.keys());
   }
 
-  private siteUrl(): Promise<string | null> {
+  /** Issues assigned to the signed-in acli user that are not done yet; their statuses also fill the status cache. */
+  async searchAssigned(): Promise<AssignedIssue[]> {
+    const { stdout } = await this.execFile(
+      "acli",
+      ["jira", "workitem", "search", "--jql", ASSIGNED_JQL, "--fields", "key,summary,status", "--limit", String(ASSIGNED_LIMIT), "--json"],
+      { timeout: 30_000 },
+    );
+    const issues = issuesOfSearch(stdout);
+    issues.forEach((issue) => this.statuses.set(issue.key, { status: issue.status }));
+    return issues;
+  }
+
+  /** Cached status for an issue key, refreshing in the background; null while loading or unknown. */
+  statusOf(key: string): string | null {
+    const issue = this.getIssue(key);
+    return issue.kind === "found" ? issue.status : null;
+  }
+
+  siteUrl(): Promise<string | null> {
     this.site ??= this.execFile("acli", ["jira", "auth", "status"], { timeout: 10_000 }).then(
       ({ stdout }) => {
         this.resolvedSite = siteOfAuthStatus(stdout);

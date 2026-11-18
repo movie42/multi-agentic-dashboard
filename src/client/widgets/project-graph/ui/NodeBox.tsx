@@ -1,7 +1,16 @@
 "use client";
 
 import type { AgentCard } from "@/common/board/types";
-import { displayStateOf, permissionModeLabel, type DisplayState } from "@/client/entities/agent";
+import {
+  displayStateOf,
+  permissionModeLabel,
+  shellStatusLabel,
+  shellStatusOf,
+  useRestOverrides,
+  type DisplayState,
+  type RestOf,
+  type ShellStatus,
+} from "@/client/entities/agent";
 import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
 import type { ConductorScopeKind } from "@/common/orchestration/types";
 import type { GraphNode } from "../model/graph";
@@ -23,8 +32,22 @@ export function nodeTitle(agent: AgentCard): string {
 
 const SCOPE_TAG: Record<ConductorScopeKind, string> = { app: "앱", project: "프로젝트", worktree: "워크트리" };
 
-function stateOf(agent: AgentCard) {
-  return NODE_STATE[displayStateOf(agent)];
+const SHELL_TONE: Record<ShellStatus["kind"], { tone: string; dot: string }> = {
+  serving: { tone: "border-done text-done", dot: "bg-done animate-pulse" },
+  running: { tone: "border-now text-now", dot: "bg-now animate-pulse" },
+  failed: { tone: "border-accent text-accent", dot: "bg-accent" },
+};
+
+function stateOf(agent: AgentCard, restOf: RestOf) {
+  const shell = shellStatusOf(agent);
+  return shell ? { label: shellStatusLabel(shell), ...SHELL_TONE[shell.kind] } : NODE_STATE[displayStateOf(agent, restOf)];
+}
+
+/** A shell's last line is the command it is running or last ran. */
+function detailOf(agent: AgentCard): string {
+  const command = agent.shell?.running?.command ?? agent.shell?.lastExit?.command;
+  if (command) return `$ ${command}`;
+  return plainMessage(agent.lastMessage) || agent.worktreeName;
 }
 
 interface NodeBoxProps {
@@ -43,7 +66,8 @@ interface NodeBoxProps {
 /** One session on the canvas: state, elapsed time, title and the last message line. */
 export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roomy = false }: NodeBoxProps) {
   const { agent, outside } = node;
-  const state = stateOf(agent);
+  const { restOf } = useRestOverrides();
+  const state = stateOf(agent, restOf);
   const conductor = agent.orchestration?.conductor ?? null;
   const hasMeta = Boolean(agent.model || agent.effort || agent.permissionMode || agent.contextPercent !== null);
   return (
@@ -75,7 +99,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
         </p>
       ) : (
         <p className={`text-[12px] text-muted ${roomy ? "min-h-0 flex-1 overflow-hidden leading-relaxed break-words whitespace-pre-line" : "truncate"}`}>
-          {plainMessage(agent.lastMessage) || agent.worktreeName}
+          {detailOf(agent)}
         </p>
       )}
       {hasMeta && (

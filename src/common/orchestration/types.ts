@@ -1,8 +1,9 @@
 /**
  * A line between two runner sessions. `delegate` only records who handed the work out;
  * `report` and `next` fire when the `from` session finishes a turn (its Stop hook).
+ * `watch` lets the `to` session read the `from` terminal's output on demand; it never fires.
  */
-export const LINK_KINDS = ["delegate", "report", "next"] as const;
+export const LINK_KINDS = ["delegate", "report", "next", "watch"] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
 export interface OrchestrationLink {

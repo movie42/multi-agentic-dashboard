@@ -20,7 +20,15 @@ export interface AgentSessionFact {
   updatedAt: number | null;
 }
 
-export const AGENT_OP_TYPES = ["card-create", "card-update", "card-move", "card-delete", "session-attach", "session-detach"] as const;
+export const AGENT_OP_TYPES = [
+  "card-create",
+  "card-update",
+  "card-restore",
+  "card-move",
+  "card-delete",
+  "session-attach",
+  "session-detach",
+] as const;
 
 export type AgentOp = Extract<TodoOp, { type: (typeof AGENT_OP_TYPES)[number] }>;
 
@@ -158,6 +166,7 @@ export function describeAgentOp(board: TodoBoard, op: AgentOp, sessionTitle: (id
         op.title !== undefined && `제목 → ${quoted(op.title.trim())}`,
         op.memo !== undefined && "메모",
         op.jiraUrls !== undefined && "지라",
+        op.linkUrls !== undefined && "링크",
         op.repo !== undefined && `프로젝트 → ${op.repo ?? "없음"}`,
         op.worktreePath !== undefined && `워크트리 → ${op.worktreePath ?? "없음"}`,
       ].filter((field): field is string => typeof field === "string");
@@ -169,6 +178,8 @@ export function describeAgentOp(board: TodoBoard, op: AgentOp, sessionTitle: (id
     }
     case "card-delete":
       return `${cardTitle(op.cardId)} 삭제`;
+    case "card-restore":
+      return `${cardTitle(op.cardId)} 아카이브에서 되돌림`;
     case "session-attach":
       return `${cardTitle(op.cardId)}에 세션 ${quoted(sessionTitle(op.sessionId))} 붙임`;
     case "session-detach":

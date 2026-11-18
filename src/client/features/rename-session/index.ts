@@ -1,1 +1,1 @@
-export { SessionTitle } from "./ui/SessionTitle";
+export { SessionTitle, type RenameTarget } from "./ui/SessionTitle";

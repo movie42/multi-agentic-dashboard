@@ -7,6 +7,7 @@ import pty from "node-pty";
 import { APP_CONDUCTOR_FOLDER } from "../src/common/orchestration/types.ts";
 import { RUNNER_PORT, RUNNER_USAGE_FILE, type RunnerSession, type RunnerUsage } from "../src/common/runner/types.ts";
 import { DEFAULT_ALLOWED_ORIGINS } from "./guard.ts";
+import { writeZshIntegration } from "./session/shellIntegration.ts";
 import { Orchestration, ORCHESTRATION_FILE, parseSavedOrchestration } from "./orchestration/Orchestration.ts";
 import { projectWorktreeLister } from "./orchestration/projectWorktrees.ts";
 import { createRunnerServer, pasteOf } from "./server.ts";
@@ -107,15 +108,30 @@ function sessionEnv(): Record<string, string> {
 
 const relay: { onChange: () => void } = { onChange: () => {} };
 
+const zshIntegrationDir = path.join(dataDir, "shell-integration", "zsh");
+const zshIntegration = await writeZshIntegration(zshIntegrationDir).then(
+  () => {
+    const own = sessionEnv().ZDOTDIR;
+    return { dir: zshIntegrationDir, user: own && own !== zshIntegrationDir ? own : homedir() };
+  },
+  (error: unknown) => {
+    console.warn("[runner] zsh integration not written; shells will not report commands", error);
+    return undefined;
+  },
+);
+
 const registry = new SessionRegistry({
   spawn: (file, args, options) => pty.spawn(file, args, { name: "xterm-256color", ...options }),
-  commandFor: (request) => commandFor(request, { claude: command, shell, baseUrl, statusLine, attachmentDirs }),
+  commandFor: (request) => commandFor(request, { claude: command, shell, baseUrl, statusLine, attachmentDirs, zshIntegration }),
   env: sessionEnv(),
   onChange: () => relay.onChange(),
   onUsage: (usage) => {
     saveUsage(usage).catch((error: unknown) => console.error("[runner] usage save failed", error));
   },
 });
+
+const SHELL_PORTS_MS = 4000;
+setInterval(() => void registry.refreshShellPorts(), SHELL_PORTS_MS).unref();
 
 const orchestration = new Orchestration({
   get: (id) => registry.get(id),
@@ -125,6 +141,7 @@ const orchestration = new Orchestration({
   },
   onChange: () => relay.onChange(),
   worktreesOf: projectWorktreeLister(),
+  logUrl: (id) => `http://127.0.0.1:${port}/sessions/${encodeURIComponent(id)}/log`,
 });
 orchestration.load(parseSavedOrchestration(await readSaved(orchestrationFile, "orchestration")));
 

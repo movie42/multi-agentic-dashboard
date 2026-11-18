@@ -36,7 +36,7 @@ import { useKeyboardNav } from "@/client/shared/lib/useKeyboardNav";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useBoard } from "../model/useBoard";
 import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
-import { useDismissed } from "@/client/entities/agent";
+import { useRestOverrides, type RestOf } from "@/client/entities/agent";
 import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
 import { ProjectCanvas, type CanvasPanel, type CanvasScope } from "@/client/widgets/project-graph";
@@ -189,7 +189,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const board = boardQuery.data ?? null;
   const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
   const prefs = useWorkspacePrefs();
-  const dismissed = useDismissed();
+  const rest = useRestOverrides();
   const hasDocTabs = useDocViewerStore((state) => state.tabs.length > 0);
   const treeShown = useFileExplorerStore((state) => state.treeOpen && state.root !== null);
   const docOpen = hasDocTabs || treeShown;
@@ -258,7 +258,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   };
 
   const folded = foldWorkers(board?.agents ?? []);
-  const needsMeCount = groupAgents(folded.top, dismissed.isDismissed).needsMe
+  const needsMeCount = groupAgents(folded.top, rest.restOf).needsMe
     .length;
   const jumpToAgent = (agent: AgentCard) => {
     requestJump(agent.id);
@@ -308,14 +308,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         withProgress ? progressOf(worktreeById.get(agent.worktreeId)) : null
       }
       worktreePr={worktreeById.get(agent.worktreeId)?.pullRequest ?? null}
-      dismissed={dismissed.isDismissed(agent)}
+      rest={rest.restOf(agent)}
       chatLayout={chatLayout}
       surface={surface}
-      onToggleDismiss={() =>
-        dismissed.isDismissed(agent)
-          ? dismissed.restore(agent)
-          : dismissed.dismiss(agent)
-      }
+      onRest={(kind) => rest.setRest([agent], kind)}
       onAction={runAction}
     />
   );
@@ -343,7 +339,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     );
   const focusGroups = groupAgents(
     foldWorkers(focusedAgents).top,
-    dismissed.isDismissed,
+    rest.restOf,
   );
 
   const needle = query.trim().toLowerCase();
@@ -360,9 +356,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       )
     : focusedWorktrees;
   const visibleFold = foldWorkers(visibleAgents);
-  const visibleGroups = groupAgents(visibleFold.top, dismissed.isDismissed);
+  const visibleGroups = groupAgents(visibleFold.top, rest.restOf);
 
-  const allGroups = groupAgents(folded.top, dismissed.isDismissed);
+  const allGroups = groupAgents(folded.top, rest.restOf);
   const inputAgents = folded.top.filter(needsInput);
   const countsByRepo = new Map<string, ProjectCounts>();
   const bump = (repo: string, key: keyof ProjectCounts) => {
@@ -473,6 +469,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             agents={board.agents}
             worktrees={board.worktrees}
             now={board.fetchedAt}
+            modeOf={modeOfRepo}
             onAction={runAction}
             onJumpToAgent={jumpToAgent}
           />
@@ -571,7 +568,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                 worktrees={visibleWorktrees}
                 agents={visibleAgents}
                 modeOfRepo={modeOfRepo}
-                isDismissed={dismissed.isDismissed}
+                restOf={rest.restOf}
                 onJump={(repo, worktreeId) => jumpTo(repo, [worktreeId], worktreeId)}
                 onOpenDoc={(target) => void runAction({ type: "open-artifact", target })}
               />
@@ -597,6 +594,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                       onJump={jumpToAgent}
                       workersOf={visibleFold.workersOf}
                       onAction={runAction}
+                      selectionPool={visibleFold.top}
                     />
                   )}
                 </Section>
@@ -617,6 +615,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
                       onJump={jumpToAgent}
                       workersOf={visibleFold.workersOf}
                       onAction={runAction}
+                      selectionPool={visibleFold.top}
                     />
                   </Section>
                 ))}
@@ -637,7 +636,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
             )}
             mode={modeOfRepo(selectedRepo)}
             now={now}
-            isDismissed={dismissed.isDismissed}
+            restOf={rest.restOf}
             renderCard={projectViewCard}
             renderPanelCard={canvasPanelCard}
             expandedId={jump?.targets[0] ?? null}
@@ -673,7 +672,7 @@ interface ProjectViewProps {
   agents: FoldedAgents;
   mode: WorkflowMode;
   now: number;
-  isDismissed: (agent: AgentCard) => boolean;
+  restOf: RestOf;
   renderCard: (agent: AgentCard) => React.ReactNode;
   /** The session card drawn in the canvas side panel, where the panel itself is the card's edge. */
   renderPanelCard: (agent: AgentCard) => React.ReactNode;
@@ -695,7 +694,7 @@ function ProjectView({
   agents,
   mode,
   now,
-  isDismissed,
+  restOf,
   renderCard,
   renderPanelCard,
   expandedId,
@@ -725,7 +724,7 @@ function ProjectView({
       mode={mode}
       groups={groupAgents(
         agents.top.filter((agent) => agent.worktreeId === worktree.worktreeId),
-        isDismissed,
+        restOf,
       )}
       renderAgents={(listed, onReorder, needsMeIds) => (
         <SessionTabs
@@ -734,7 +733,7 @@ function ProjectView({
           needsMeIds={
             new Set([
               ...needsMeIds,
-              ...groupAgents(listed.flatMap(agents.workersOf), isDismissed).needsMe.map((agent) => agent.id),
+              ...groupAgents(listed.flatMap(agents.workersOf), restOf).needsMe.map((agent) => agent.id),
             ])
           }
           focusId={expandedId}

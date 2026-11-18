@@ -9,7 +9,9 @@ export async function GET() {
     const board = await services().board.load();
     void services()
       .todoLaunches.observe(board)
-      .catch((error: unknown) => reportWarning("todos", error, { step: "attach launched session" }));
+      .catch((error: unknown) => reportWarning("todos", error, { step: "attach launched session" }))
+      .then(() => services().todoLinker.observe(board))
+      .catch((error: unknown) => reportWarning("todos", error, { step: "link sessions and archive" }));
     return Response.json({ ok: true, board } satisfies BoardResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

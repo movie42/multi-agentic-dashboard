@@ -4,11 +4,13 @@ import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { columnOfStatus } from "@/common/todos/board";
-import { parseJiraUrl } from "@/common/todos/jira";
+import { LINK_LABEL, linkCaption, parseCardLink } from "@/common/todos/links";
 import type { TodoOp } from "@/common/todos/ops";
 import { TODO_TITLE_LIMIT } from "@/common/todos/schema";
-import type { TodoBoard, TodoCard } from "@/common/todos/types";
+import type { TodoBoard, TodoCard, TodoJiraStatuses } from "@/common/todos/types";
 import { StateBadge } from "@/client/entities/agent";
+import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
+import { type CardContext, pullRequestLabel } from "../model/cardContext";
 import type { RunTodoOp } from "../model/run";
 import type { SessionLookup, TodoSessionView } from "../model/sessions";
 import { MemoEditor } from "./MemoEditor";
@@ -21,6 +23,8 @@ interface TodoCardDetailProps {
   repos: string[];
   worktrees: WorktreeSummary[];
   sessionOf: SessionLookup;
+  context: CardContext;
+  jiraStatuses: TodoJiraStatuses;
   onRun: RunTodoOp;
   onAction: (action: ActionRequest) => Promise<void>;
   onJumpToAgent: (agent: AgentCard) => void;
@@ -29,6 +33,9 @@ interface TodoCardDetailProps {
 
 const FIELD_LABEL = "text-[11px] font-semibold text-muted";
 const SELECT = "rounded-md bg-tint px-2 py-1.5 text-[13px] outline-none";
+const CHIP = "flex items-center gap-1 rounded-full bg-tint-2 py-1 pr-1.5 pl-2.5 text-[12px] font-semibold";
+const QUIET_LINK = "text-muted underline decoration-faint underline-offset-[3px] hover:text-fg";
+const PAST_PREVIEW = 5;
 
 function resumeAction(session: TodoSessionView): ActionRequest | null {
   const { summary } = session;
@@ -36,10 +43,23 @@ function resumeAction(session: TodoSessionView): ActionRequest | null {
   return null;
 }
 
-export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun, onAction, onJumpToAgent, onClose }: TodoCardDetailProps) {
+export function TodoCardDetail({
+  board,
+  card,
+  repos,
+  worktrees,
+  sessionOf,
+  context,
+  jiraStatuses,
+  onRun,
+  onAction,
+  onJumpToAgent,
+  onClose,
+}: TodoCardDetailProps) {
   const [title, setTitle] = useState(card.title);
-  const [jiraDraft, setJiraDraft] = useState("");
-  const [jiraError, setJiraError] = useState<string | null>(null);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [showAllPast, setShowAllPast] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const update = (patch: Omit<Extract<TodoOp, { type: "card-update" }>, "type" | "cardId">) =>
     onRun({ type: "card-update", cardId: card.id, ...patch });
@@ -50,20 +70,27 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
     else setTitle(card.title);
   };
 
-  const addJira = () => {
-    const parsed = parseJiraUrl(jiraDraft);
+  const addLink = () => {
+    const parsed = parseCardLink(linkDraft);
     if (!parsed) {
-      setJiraError("지라 이슈 주소를 붙여 넣어 주세요 (…/browse/ABC-123)");
+      setLinkError("주소를 붙여 넣어 주세요 (https://…)");
       return;
     }
-    setJiraError(null);
-    setJiraDraft("");
-    void update({ jiraUrls: [...card.jira.map((jira) => jira.url), parsed.url] });
+    setLinkError(null);
+    setLinkDraft("");
+    if (parsed.type === "jira") void update({ jiraUrls: [...card.jira.map((jira) => jira.url), parsed.jira.url] });
+    else void update({ linkUrls: [...card.links.map((link) => link.url), parsed.link.url] });
   };
 
   const worktreeChoices = worktrees.filter((worktree) => !card.repo || worktree.repo === card.repo);
   const sessions = card.sessionIds.map(sessionOf);
+  const openSessions = sessions.filter((session) => session.agent !== null);
+  const pastSessions = sessions
+    .filter((session) => session.agent === null)
+    .sort((a, b) => (b.summary?.updatedAt ?? 0) - (a.summary?.updatedAt ?? 0));
+  const shownPast = showAllPast ? pastSessions : pastSessions.slice(0, PAST_PREVIEW);
   const lastStatus = board.statuses.at(-1);
+  const { pullRequest, flowTasks } = context;
 
   const launch = async () => {
     if (!card.worktreePath) return;
@@ -89,6 +116,19 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
           ×
         </button>
       </div>
+
+      {card.archivedAt !== null && (
+        <div className="flex items-center gap-3 rounded-[10px] bg-tint px-4 py-2.5 text-[13px]">
+          <span className="flex-1">{`아카이브된 카드예요 · ${new Date(card.archivedAt).toLocaleDateString("ko-KR")}`}</span>
+          <button
+            type="button"
+            onClick={() => void onRun({ type: "card-restore", cardId: card.id })}
+            className="rounded-md bg-fg px-3 py-1 font-semibold text-bg"
+          >
+            보드로 되돌리기
+          </button>
+        </div>
+      )}
 
       {card.doneSuggestedAt !== null && lastStatus && card.statusId !== lastStatus.id && (
         <div className="flex items-center gap-3 rounded-[10px] bg-done/10 px-4 py-2.5 text-[13px]">
@@ -169,12 +209,13 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
       </section>
 
       <section className="flex flex-col gap-1.5">
-        <span className={FIELD_LABEL}>지라</span>
+        <span className={FIELD_LABEL}>지라 · 링크</span>
         <div className="flex flex-wrap items-center gap-2">
           {card.jira.map((jira) => (
-            <span key={jira.key} className="flex items-center gap-1 rounded-full bg-tint-2 py-1 pr-1.5 pl-2.5 text-[12px] font-semibold">
-              <a href={jira.url} target="_blank" rel="noreferrer" className="font-mono hover:underline">
-                {jira.key}
+            <span key={jira.key} className={CHIP}>
+              <a href={jira.url} target="_blank" rel="noreferrer" className="hover:underline">
+                <span className="font-mono">{jira.key}</span>
+                {jiraStatuses[jira.key] && <span className="ml-1 font-normal text-muted">{jiraStatuses[jira.key]}</span>}
               </a>
               <button
                 type="button"
@@ -186,68 +227,139 @@ export function TodoCardDetail({ board, card, repos, worktrees, sessionOf, onRun
               </button>
             </span>
           ))}
+          {card.links.map((link) => (
+            <span key={link.url} className={CHIP}>
+              <a href={link.url} target="_blank" rel="noreferrer" className="hover:underline" title={link.url}>
+                <span className="text-muted">{LINK_LABEL[link.kind]}</span> {linkCaption(link)}
+              </a>
+              <button
+                type="button"
+                aria-label={`${linkCaption(link)} 떼기`}
+                onClick={() => void update({ linkUrls: card.links.filter((each) => each.url !== link.url).map((each) => each.url) })}
+                className="px-1 text-muted hover:text-fg"
+              >
+                ×
+              </button>
+            </span>
+          ))}
           <input
-            aria-label="지라 이슈 URL"
-            value={jiraDraft}
-            placeholder="지라 이슈 URL 붙여넣기"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setJiraDraft(event.target.value)}
+            aria-label="지라 · 링크 주소"
+            value={linkDraft}
+            placeholder="지라 · 슬랙 · 노션 · 피그마 · PR 주소 붙여넣기"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLinkDraft(event.target.value)}
             onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-              if (event.key === "Enter" && !event.nativeEvent.isComposing && jiraDraft.trim()) addJira();
+              if (event.key === "Enter" && !event.nativeEvent.isComposing && linkDraft.trim()) addLink();
             }}
             className="min-w-56 flex-1 rounded-full bg-tint px-3 py-1.5 text-[13px] outline-none placeholder:text-muted focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
           />
         </div>
-        {jiraError && <p className="text-[12px] text-accent">{jiraError}</p>}
+        {linkError && <p className="text-[12px] text-accent">{linkError}</p>}
       </section>
+
+      {(flowTasks.length > 0 || pullRequest) && (
+        <section className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>작업 문서 · PR</span>
+          <ul className="flex flex-col gap-1.5">
+            {flowTasks.map(({ task, step }) => (
+              <li key={`${task.domain}/${task.taskId}`} className="flex items-center gap-2 text-[13px]">
+                <span className="text-[11px] font-semibold text-muted">flow</span>
+                <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                <span className="shrink-0 text-[12px] text-muted">{step ?? "완료"}</span>
+                {task.pageIndex && (
+                  <button
+                    type="button"
+                    onClick={() => task.pageIndex && void onAction({ type: "open-artifact", target: task.pageIndex })}
+                    className={`flex shrink-0 items-center gap-1 ${QUIET_LINK}`}
+                  >
+                    {ACTION_ICONS.doc}
+                    문서 열기
+                  </button>
+                )}
+              </li>
+            ))}
+            {pullRequest && (
+              <li className="flex items-center gap-2 text-[13px]">
+                <span className="text-[11px] font-semibold text-muted">PR</span>
+                <a href={pullRequest.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">
+                  {pullRequestLabel(pullRequest)}
+                </a>
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
 
       <section className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>세션</span>
         {sessions.length === 0 && (
-          <p className="text-[13px] text-muted">붙은 세션이 없어요. 에이전트 카드나 지난 세션에서 ‘할일에 붙이기’를 누르세요.</p>
+          <p className="text-[13px] text-muted">
+            붙은 세션이 없어요. 카드의 워크트리나 지라 키로 연 세션은 자동으로 붙고, 에이전트 카드나 지난 세션에서 ‘할일에 붙이기’로도 붙일 수 있어요.
+          </p>
         )}
-        <ul className="flex flex-col gap-1.5">
-          {sessions.map((session) => {
-            const { agent } = session;
-            const resume = agent ? null : resumeAction(session);
-            return (
-              <li key={session.id} className="flex items-center gap-2 text-[13px]">
-                {session.agent ? <StateBadge agent={session.agent} /> : <span className="text-[11px] text-muted">닫힘</span>}
-                <span className="min-w-0 flex-1 truncate">{session.title}</span>
-                {agent ? (
+        {openSessions.length > 0 && (
+          <>
+            <span className="text-[11px] text-muted">{`열린 세션 ${openSessions.length}`}</span>
+            <ul className="flex flex-col gap-1.5">
+              {openSessions.map((session) => (
+                <li key={session.id} className="flex items-center gap-2 text-[13px]">
+                  {session.agent && <StateBadge agent={session.agent} />}
+                  <span className="min-w-0 flex-1 truncate">{session.title}</span>
                   <button
                     type="button"
                     onClick={() => {
+                      if (!session.agent) return;
                       onClose();
-                      onJumpToAgent(agent);
+                      onJumpToAgent(session.agent);
                     }}
-                    className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg"
+                    className={QUIET_LINK}
                   >
                     에이전트로 이동
                   </button>
-                ) : (
-                  <PendingButton
-                    disabled={!resume}
-                    title={resume ? undefined : "세션 폴더가 없어 다시 열 수 없어요"}
-                    onRun={async () => {
-                      if (resume) await onAction(resume);
-                    }}
-                    pendingLabel="여는 중"
-                    className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg disabled:no-underline disabled:opacity-40"
-                  >
-                    다시 열기
-                  </PendingButton>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void onRun({ type: "session-detach", cardId: card.id, sessionId: session.id })}
-                  className="text-muted hover:text-fg"
-                >
-                  떼기
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  <button type="button" onClick={() => void onRun({ type: "session-detach", cardId: card.id, sessionId: session.id })} className="text-muted hover:text-fg">
+                    떼기
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {pastSessions.length > 0 && (
+          <>
+            <span className="mt-1 text-[11px] text-muted">{`지난 세션 ${pastSessions.length}`}</span>
+            <ul className="flex flex-col gap-1.5">
+              {shownPast.map((session) => {
+                const resume = resumeAction(session);
+                return (
+                  <li key={session.id} className="flex items-center gap-2 text-[13px]">
+                    <span className="w-14 shrink-0 text-[11px] text-muted">
+                      {session.summary ? new Date(session.summary.updatedAt).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" }) : "닫힘"}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{session.title}</span>
+                    <PendingButton
+                      disabled={!resume}
+                      title={resume ? undefined : "세션 폴더가 없어 다시 열 수 없어요"}
+                      onRun={async () => {
+                        if (resume) await onAction(resume);
+                      }}
+                      pendingLabel="여는 중"
+                      className={`${QUIET_LINK} disabled:no-underline disabled:opacity-40`}
+                    >
+                      다시 열기
+                    </PendingButton>
+                    <button type="button" onClick={() => void onRun({ type: "session-detach", cardId: card.id, sessionId: session.id })} className="text-muted hover:text-fg">
+                      떼기
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {pastSessions.length > PAST_PREVIEW && (
+              <button type="button" onClick={() => setShowAllPast((current) => !current)} className={`self-start text-[12px] ${QUIET_LINK}`}>
+                {showAllPast ? "접기" : `지난 세션 모두 보기 (${pastSessions.length})`}
+              </button>
+            )}
+          </>
+        )}
         {card.worktreePath && (
           <PendingButton
             onRun={launch}

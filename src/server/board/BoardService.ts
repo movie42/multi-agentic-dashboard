@@ -29,6 +29,7 @@ export interface BoardServiceOptions {
   projects: () => Promise<Project[]>;
   worktreesOf: (project: Project) => Promise<GitWorktree[]>;
   meta: () => Promise<ReadonlyMap<string, WorktreeMetaEntry>>;
+  terminalAliases: () => Promise<ReadonlyMap<string, string>>;
   runnerSessions: () => Promise<RunnerSession[]>;
   workflow: Pick<WorkflowServices, "flowDocs" | "featureDocs"> & {
     git: Pick<GitInfo, "getPullRequest" | "detectMode">;
@@ -61,7 +62,7 @@ export class BoardService {
   async load(): Promise<BoardSnapshot> {
     const { workflow, warn } = this.options;
     await this.options.prepare();
-    const [registered, meta, runnerSessions, bookmarks] = await Promise.all([
+    const [registered, meta, runnerSessions, bookmarks, aliases] = await Promise.all([
       this.options.projects(),
       this.options.meta(),
       this.options.runnerSessions().catch((error: unknown) => {
@@ -71,6 +72,10 @@ export class BoardService {
       this.options.sessions.readBookmarks().catch((error: unknown) => {
         warn("board", error, { step: "bookmarks" });
         return new Map<string, SessionBookmark>();
+      }),
+      this.options.terminalAliases().catch((error: unknown) => {
+        warn("board", error, { step: "terminal aliases" });
+        return new Map<string, string>();
       }),
     ]);
 
@@ -113,7 +118,7 @@ export class BoardService {
       });
       const agents = await mapSequential(
         [...own].sort((a, b) => a.startedAt - b.startedAt),
-        (session) => this.agentCard(session, worktree, bookmarks),
+        (session) => this.agentCard(session, worktree, bookmarks, aliases),
       );
       return {
         summary,
@@ -151,7 +156,7 @@ export class BoardService {
     }));
     const appConductors = await mapSequential(
       running.filter((session) => session.orchestration?.conductor && !worktreeOfCwd(session.cwd, live)),
-      (session) => this.agentCard(session, appConductorPlace(session.cwd), bookmarks),
+      (session) => this.agentCard(session, appConductorPlace(session.cwd), bookmarks, aliases),
     );
     const agents: AgentCard[] = [...perWorktree.flatMap((entry) => entry.agents), ...appConductors];
 
@@ -169,6 +174,7 @@ export class BoardService {
     session: RunnerSession,
     worktree: BoardWorktree,
     bookmarks: ReadonlyMap<string, SessionBookmark>,
+    aliases: ReadonlyMap<string, string>,
   ): Promise<AgentCard> {
     const { sessions, warn } = this.options;
     const facts =
@@ -200,6 +206,7 @@ export class BoardService {
       lastMessage,
       sessionRef,
       bookmarks,
+      alias: aliases.get(session.id) ?? null,
       artifacts: await this.existing(extractArtifacts(lastMessage, worktree.path)),
     });
   }

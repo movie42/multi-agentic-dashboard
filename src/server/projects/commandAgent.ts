@@ -13,7 +13,7 @@ import { resolveClaudeBin } from "@/server/intentDiff/AskRunner";
 
 const execFileAsync = promisify(execFile);
 const TIMEOUT_MS = 4 * 60_000;
-const MODEL = process.env.COMMAND_AGENT_MODEL ?? "sonnet";
+const MODEL = process.env.COMMAND_AGENT_MODEL ?? "haiku";
 
 const RULES = `You find the shell commands a developer runs to build, run or reinstall the project in the current folder, for buttons on the Agent Control dashboard.
 - Read the project's own files (package.json scripts, lockfiles, Makefile, justfile, eas.json, app.json, Cargo.toml, pyproject.toml, README) with Read, Grep and Glob. Never run anything.

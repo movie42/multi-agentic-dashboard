@@ -8,3 +8,12 @@ exports[`importGraph + readingRanks > ranks types before implementations before 
   "src/types.ts": 0,
 }
 `;
+
+exports[`importGraph + readingRanks ranks types before implementations before screens, cutting cycles 1`] = `
+{
+  "src/Screen.tsx": 3,
+  "src/cycle.ts": 1,
+  "src/impl.ts": 2,
+  "src/types.ts": 0,
+}
+`;

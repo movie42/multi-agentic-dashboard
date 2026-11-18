@@ -28,10 +28,21 @@ const sidebarWidth = () =>
 const CANVAS_MIN = 320;
 const CANVAS_ROOM = 400;
 
-/** What a host puts before the document tabs — the canvas puts its session view there. */
-export interface PanelLead {
+/** One tab a host puts before the document tabs — a session the canvas opened, or its current selection. */
+export interface PanelLeadTab {
+  id: string;
   label: string;
   content: React.ReactNode;
+  closable: boolean;
+}
+
+/** What a host puts before the document tabs — the canvas puts its session tabs there. */
+export interface PanelLead {
+  tabs: PanelLeadTab[];
+  /** Shown whenever no document tab is active. */
+  activeId: string;
+  onActivate: (id: string) => void;
+  onClose: (id: string) => void;
   onCollapse: () => void;
 }
 
@@ -184,19 +195,18 @@ export function DocPanel({ agents, lead }: DocPanelProps) {
             </button>
           )}
           <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
-            {lead && (
-              <div
-                role="tab"
-                aria-selected={active === null}
-                onClick={() => activate(null)}
-                title={lead.label}
-                className={`flex max-w-56 shrink-0 cursor-default items-center rounded-t-md border-x border-t px-3 py-1.5 text-[13px] select-none ${
-                  active === null ? "border-hair bg-bg font-semibold" : "border-transparent text-muted hover:text-fg"
-                }`}
-              >
-                <span className="truncate">{lead.label}</span>
-              </div>
-            )}
+            {lead?.tabs.map((tab) => (
+              <LeadTabButton
+                key={tab.id}
+                tab={tab}
+                active={active === null && tab.id === lead.activeId}
+                onActivate={() => {
+                  activate(null);
+                  lead.onActivate(tab.id);
+                }}
+                onClose={() => lead.onClose(tab.id)}
+              />
+            ))}
             {tabs.map((tab) => (
               <DocTabButton
                 key={tab.target}
@@ -252,7 +262,11 @@ export function DocPanel({ agents, lead }: DocPanelProps) {
           </div>
         </header>
         <div ref={framesRef} className="relative min-h-0 flex-1">
-          {lead && <div className={`absolute inset-0 ${active === null ? "" : "invisible"}`}>{lead.content}</div>}
+          {lead?.tabs.map((tab) => (
+            <div key={tab.id} className={`absolute inset-0 ${active === null && tab.id === lead.activeId ? "" : "invisible"}`}>
+              {tab.content}
+            </div>
+          ))}
           {!lead && tabs.length === 0 && <p className="px-5 py-8 text-[13px] text-muted">트리에서 파일을 고르면 여기에 열려요.</p>}
           {tabs.map((tab) =>
             tab.kind === "file" ? (
@@ -276,5 +290,44 @@ export function DocPanel({ agents, lead }: DocPanelProps) {
         </div>
       </div>
     </aside>
+  );
+}
+
+interface LeadTabButtonProps {
+  tab: PanelLeadTab;
+  active: boolean;
+  onActivate: () => void;
+  onClose: () => void;
+}
+
+function LeadTabButton({ tab, active, onActivate, onClose }: LeadTabButtonProps) {
+  return (
+    <div
+      role="tab"
+      aria-selected={active}
+      onClick={onActivate}
+      onAuxClick={(event: React.MouseEvent<HTMLDivElement>) => {
+        if (event.button === 1 && tab.closable) onClose();
+      }}
+      title={tab.label}
+      className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-t-md border-x border-t px-3 py-1.5 text-[13px] select-none ${
+        active ? "border-hair bg-bg font-semibold" : "border-transparent text-muted hover:text-fg"
+      }`}
+    >
+      <span className="truncate">{tab.label}</span>
+      {tab.closable && (
+        <button
+          type="button"
+          aria-label={`${tab.label} 닫기`}
+          onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+            event.stopPropagation();
+            onClose();
+          }}
+          className="rounded px-1 leading-none text-muted opacity-0 group-hover:opacity-100 group-aria-selected:opacity-100 hover:bg-tint-2 hover:text-fg"
+        >
+          ×
+        </button>
+      )}
+    </div>
   );
 }

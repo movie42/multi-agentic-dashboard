@@ -14,12 +14,16 @@ import {
 } from "./permissions.ts";
 import type { RestoreRequest } from "./restore.ts";
 import { terminalMenu } from "../../src/common/terminal/menu.ts";
-import { createHeadlessScreen, type CreateScreen, type Screen } from "./screen.ts";
+import { createHeadlessScreen, renderLog, type CreateScreen, type Screen } from "./screen.ts";
 import type { StatusLineReport } from "./statusLine.ts";
 import { permissionModeOnScreen } from "./permissionMode.ts";
 import { nextStatus, type StatusSignal } from "./status.ts";
+import { readShellMarks } from "./shellIntegration.ts";
+import { portsUnder, type ReadCommand } from "./shellPorts.ts";
 
 export interface PtyProcess {
+  /** The spawned process id; dev servers a shell starts are found under it. */
+  readonly pid?: number;
   onData(listener: (data: string) => void): void;
   onExit(listener: (event: { exitCode: number }) => void): void;
   write(data: string): void;
@@ -61,6 +65,8 @@ export interface CommandRequest {
 export interface Command {
   file: string;
   args: string[];
+  /** Added on top of the registry's environment for this process. */
+  env?: Record<string, string>;
 }
 
 export interface RegistryOptions {
@@ -89,6 +95,7 @@ interface Entry {
   session: RunnerSession;
   pty: PtyProcess;
   screen: Screen;
+  cols: number;
   chunks: string[];
   chunkSize: number;
   listeners: Set<TerminalListener>;
@@ -96,6 +103,8 @@ interface Entry {
   interruptWatchUntil: number;
   menuOpen: boolean;
   modeCheck: ReturnType<typeof setTimeout> | null;
+  /** The start of a shell mark cut off at the end of the last output chunk. */
+  markCarry: string;
 }
 
 const DEFAULT_SCROLLBACK = 256 * 1024;
@@ -181,7 +190,7 @@ export class SessionRegistry {
       cwd,
       cols: INITIAL_COLS,
       rows: INITIAL_ROWS,
-      env: this.#options.env,
+      env: { ...this.#options.env, ...command.env },
     });
     const entry: Entry = {
       session: {
@@ -201,10 +210,12 @@ export class SessionRegistry {
         conversationId: null,
         permission: null,
         orchestration: null,
+        shell: kind === "shell" ? { integrated: false, running: null, lastExit: null, ports: [] } : null,
       },
       hooked: false,
       pty,
       screen: this.#options.createScreen(INITIAL_COLS, INITIAL_ROWS),
+      cols: INITIAL_COLS,
       chunks: [],
       chunkSize: 0,
       listeners: new Set(),
@@ -212,12 +223,14 @@ export class SessionRegistry {
       interruptWatchUntil: 0,
       menuOpen: false,
       modeCheck: null,
+      markCarry: "",
     };
     this.#entries.set(id, entry);
     pty.onData((data) => this.#append(entry, data));
     pty.onExit(({ exitCode }) => {
       if (this.#entries.get(id) !== entry) return;
-      entry.session = { ...entry.session, exitCode };
+      const shell = entry.session.shell;
+      entry.session = { ...entry.session, exitCode, shell: shell ? { ...shell, running: null, ports: [] } : shell };
       this.#releasePermission(entry, {});
       this.#apply(entry, { event: "exit" });
       entry.listeners.forEach((listener) => listener.exit(exitCode));
@@ -259,6 +272,12 @@ export class SessionRegistry {
     return entry ? entry.screen.lines() : null;
   }
 
+  /** The session's retained output as plain text, last `maxLines` lines. */
+  async log(id: string, maxLines: number): Promise<string | null> {
+    const entry = this.#entries.get(id);
+    return entry ? renderLog(trimChunks(entry.chunks, this.#options.scrollbackLimit).join(""), entry.cols, maxLines) : null;
+  }
+
   write(id: string, data: string): void {
     const entry = this.#entries.get(id);
     if (!entry || entry.session.status === "exited") return;
@@ -274,6 +293,7 @@ export class SessionRegistry {
     if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 2 || rows < 2) return;
     entry.pty.resize(cols, rows);
     entry.screen.resize(cols, rows);
+    entry.cols = cols;
   }
 
   signal(id: string, signal: StatusSignal): boolean {
@@ -360,6 +380,7 @@ export class SessionRegistry {
     }
     entry.screen.write(data);
     entry.listeners.forEach((listener) => listener.output(data));
+    if (entry.session.kind === "shell") this.#readMarks(entry, data);
     if (entry.session.kind === "claude" && !entry.hooked && asksForTrust(trimChunks(entry.chunks, TRUST_WINDOW).join(""))) {
       this.#apply(entry, { event: "trust-prompt" });
     }
@@ -401,6 +422,53 @@ export class SessionRegistry {
     if (entry.session.status !== "working" || !lines.some((line) => INTERRUPTED_LINE.test(line))) return;
     entry.interruptWatchUntil = 0;
     this.#apply(entry, { event: "interrupt" });
+  }
+
+  /**
+   * Looks up the ports under every shell that is running a command. A dev server keeps listening after
+   * it prints its banner, so this is polled rather than read once.
+   */
+  async refreshShellPorts(read?: ReadCommand): Promise<void> {
+    const busy = [...this.#entries.values()].filter(
+      (entry) => entry.session.shell?.running && entry.pty.pid !== undefined && entry.session.status !== "exited",
+    );
+    const idleWithPorts = [...this.#entries.values()].filter((entry) => !entry.session.shell?.running && (entry.session.shell?.ports.length ?? 0) > 0);
+    idleWithPorts.forEach((entry) => this.#updateShell(entry, { ports: [] }));
+    if (busy.length === 0) return;
+    const found = await portsUnder(busy.flatMap((entry) => (entry.pty.pid === undefined ? [] : [entry.pty.pid])), read).catch((error: unknown) => {
+      console.warn("[runner] shell port lookup failed", error);
+      return null;
+    });
+    if (!found) return;
+    busy.forEach((entry) => {
+      const ports = (entry.pty.pid !== undefined ? found.get(entry.pty.pid) : undefined) ?? [];
+      if (this.#entries.get(entry.session.id) !== entry || !entry.session.shell?.running) return;
+      if (ports.join(",") !== entry.session.shell.ports.join(",")) this.#updateShell(entry, { ports });
+    });
+  }
+
+  #readMarks(entry: Entry, data: string): void {
+    if (!entry.markCarry && !data.includes("\x1b")) return;
+    const { marks, carry } = readShellMarks(entry.markCarry, data);
+    entry.markCarry = carry;
+    const now = this.#options.now();
+    marks.forEach((mark) => {
+      const shell = entry.session.shell;
+      if (!shell) return;
+      if (mark.kind === "ready") this.#updateShell(entry, { integrated: true });
+      else if (mark.kind === "start") this.#updateShell(entry, { integrated: true, running: { command: mark.command, since: now }, ports: [] }, now);
+      else {
+        const command = shell.running?.command ?? shell.lastExit?.command ?? "";
+        this.#updateShell(entry, { integrated: true, running: null, lastExit: { command, code: mark.code, at: now }, ports: [] }, now);
+      }
+    });
+  }
+
+  #updateShell(entry: Entry, patch: Partial<NonNullable<RunnerSession["shell"]>>, updatedAt?: number): void {
+    const shell = entry.session.shell;
+    if (!shell) return;
+    entry.session = { ...entry.session, shell: { ...shell, ...patch }, ...(updatedAt === undefined ? {} : { updatedAt }) };
+    this.#changed();
   }
 
   #releasePermission(entry: Entry, output: PermissionHookOutput): void {

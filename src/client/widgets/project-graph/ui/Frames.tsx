@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { StepStatus, WorkflowStep } from "@/common/workflow/types";
-import { displayStateOf } from "@/client/entities/agent";
+import { displayStateOf, useRestOverrides } from "@/client/entities/agent";
 import { DevPortBadges } from "@/client/entities/dev-ports";
 import { WorktreeCommandButtons } from "@/client/features/run-project-command";
 import type { UserGroup } from "../model/canvasState";
@@ -137,7 +137,8 @@ interface ProjectFrameProps {
 
 /** A project on the all-projects canvas, wrapped around its worktree frames; dragging its header moves all of them. */
 export function ProjectFrame({ repo, rect, agents, worktrees, onOpen }: ProjectFrameProps) {
-  const states = agents.map(displayStateOf);
+  const { restOf } = useRestOverrides();
+  const states = agents.map((agent) => displayStateOf(agent, restOf));
   const myTurn = states.filter((state) => state === "done" || state === "blocked" || state === "waiting").length;
   const working = states.filter((state) => state === "working").length;
   return (

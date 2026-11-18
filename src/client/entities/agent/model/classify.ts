@@ -1,4 +1,5 @@
 import type { AgentCard, AgentState } from "@/common/board/types";
+import type { RestOf } from "./useRestOverrides";
 
 export interface BoardGroups {
   needsMe: AgentCard[];
@@ -10,9 +11,17 @@ export interface BoardGroups {
 
 export type DisplayState = AgentState | "paused" | "dormant";
 
-/** What one session shows as: blocked and working win over dormant, dormant over paused. */
-export function displayStateOf(agent: AgentCard): DisplayState {
-  if (agent.state === "working" || needsInput(agent)) return agent.state;
+const NO_REST: RestOf = () => null;
+
+/**
+ * What one session shows as: working wins over everything, a person's 쉬는 중 / 잠자는 중 mark over
+ * what the session reports, blocked over dormant, dormant over paused.
+ */
+export function displayStateOf(agent: AgentCard, restOf: RestOf = NO_REST): DisplayState {
+  if (agent.state === "working") return "working";
+  const rest = restOf(agent);
+  if (rest) return rest;
+  if (needsInput(agent)) return agent.state;
   if (agent.dormant) return "dormant";
   if (agent.interrupted) return "paused";
   return agent.state;
@@ -29,16 +38,12 @@ const byOldestState = (a: AgentCard, b: AgentCard) =>
 
 const byRecentUpdate = (a: AgentCard, b: AgentCard) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
 
-export function groupAgents(
-  agents: AgentCard[],
-  isDismissed: (agent: AgentCard) => boolean,
-): BoardGroups {
+export function groupAgents(agents: AgentCard[], restOf: RestOf): BoardGroups {
   const groups: BoardGroups = { needsMe: [], working: [], paused: [], dormant: [], resting: [] };
   for (const agent of agents) {
-    const state = displayStateOf(agent);
+    const state = displayStateOf(agent, restOf);
     if (state === "working") groups.working.push(agent);
     else if (state === "dormant") groups.dormant.push(agent);
-    else if (isDismissed(agent)) groups.resting.push(agent);
     else if (state === "paused") groups.paused.push(agent);
     else if (state === "idle") groups.resting.push(agent);
     else groups.needsMe.push(agent);

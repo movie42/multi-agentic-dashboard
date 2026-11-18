@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHeadlessScreen } from "./screen.ts";
+import { createHeadlessScreen, renderLog } from "./screen.ts";
 
 describe("createHeadlessScreen", () => {
   it("replays control codes into the visible rows", async () => {
@@ -14,5 +14,13 @@ describe("createHeadlessScreen", () => {
     screen.resize(20, 5);
     await expect(screen.lines()).resolves.toHaveLength(5);
     screen.dispose();
+  });
+});
+
+describe("renderLog", () => {
+  it("returns the last lines as plain text, scrollback included", async () => {
+    const output = Array.from({ length: 40 }, (_, index) => `\x1b[32mline ${index}\x1b[0m`).join("\r\n");
+    const text = await renderLog(output, 20, 3);
+    expect(text).toBe("line 37\nline 38\nline 39");
   });
 });

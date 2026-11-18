@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, Artifact } from "@/common/board/types";
 import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
@@ -18,11 +18,13 @@ import { OrchestrationPanel } from "@/client/features/conduct-sessions";
 import { EffortPicker } from "@/client/features/choose-effort";
 import { ModelPicker } from "@/client/features/choose-model";
 import { AttachToTodo } from "@/client/features/attach-to-todo";
+import { WatchTerminal } from "@/client/features/watch-terminal";
 import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bookmark-session";
 import { QuickReply } from "@/client/features/quick-reply";
 import { SessionTitle } from "@/client/features/rename-session";
 import { Stepper } from "@/client/entities/workflow";
-import { PermissionModeBadge, StateBadge } from "@/client/entities/agent";
+import { PermissionModeBadge, restChoices, StateBadge, type RestKind } from "@/client/entities/agent";
+import { ContextMenu, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { RunnerTerminal, TerminalTail, useTerminalRequest } from "@/client/entities/runner";
 
 export interface CardProgress {
@@ -38,8 +40,18 @@ export type CardSurface = "card" | "flush";
 
 const SURFACE = {
   card: { box: "rounded-[10px] bg-tint p-5", bar: "-mx-5 bg-tint px-5" },
-  flush: { box: "bg-bg px-4", bar: "-mx-4 bg-bg px-4" },
+  flush: { box: "flex-1 bg-bg px-4", bar: "-mx-4 bg-bg px-4" },
 } as const;
+
+/**
+ * A flush card fills its host panel, so the terminal takes exactly the height left under the header;
+ * a guessed height overflows the panel and lets it scroll the first lines under the sticky header.
+ */
+function terminalBoxClass(chatLayout: ChatLayout, surface: CardSurface): string {
+  if (chatLayout === "box") return "h-[420px]";
+  if (surface === "flush") return "relative mb-4 min-h-[420px] flex-1";
+  return "h-[calc(100dvh-var(--strip-h,0px)-var(--tabs-h,0px)-8rem)] min-h-[420px] pb-4";
+}
 
 const TITLE_TEXT = "text-[16px] leading-snug font-bold tracking-[-0.01em]";
 
@@ -94,15 +106,59 @@ function collectPullRequests(agent: AgentCard, worktreePr: PullRequestInfo | nul
   return chips;
 }
 
+interface RestButtonProps {
+  agent: AgentCard;
+  rest: RestKind | null;
+  onRest: (kind: RestKind | null) => void;
+}
+
+function RestButton({ agent, rest, onRest }: RestButtonProps) {
+  const [menuAt, setMenuAt] = useState<MenuPoint | null>(null);
+  const choices = restChoices([agent], () => rest);
+  if (choices.length === 0) return null;
+  return (
+    <>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          setMenuAt({ x: box.left, y: box.bottom + 4 });
+        }}
+        className={ACTION_PILL}
+        title="이 세션을 쉬는 중이나 잠자는 중으로 바꿔요. 세션 상태가 바뀌면 풀려요"
+      >
+        {rest ? "되돌리기" : "정리"}
+      </button>
+      {menuAt && (
+        <ContextMenu at={menuAt} label="세션 상태 바꾸기" onClose={() => setMenuAt(null)}>
+          {choices.map((choice) => (
+            <MenuItem
+              key={choice.kind ?? "clear"}
+              onSelect={() => {
+                setMenuAt(null);
+                onRest(choice.kind);
+              }}
+            >
+              {choice.label}
+            </MenuItem>
+          ))}
+        </ContextMenu>
+      )}
+    </>
+  );
+}
+
 interface AgentCardViewProps {
   agent: AgentCard;
   now: number;
   progress: CardProgress | null;
   worktreePr: PullRequestInfo | null;
-  dismissed: boolean;
+  /** The 쉬는 중 / 잠자는 중 mark a person set on this session, if any. */
+  rest: RestKind | null;
   chatLayout: ChatLayout;
   surface?: CardSurface;
-  onToggleDismiss: () => void;
+  onRest: (kind: RestKind | null) => void;
   onAction: (action: ActionRequest) => Promise<void>;
 }
 
@@ -111,10 +167,10 @@ export function AgentCardView({
   now,
   progress,
   worktreePr,
-  dismissed,
+  rest,
   chatLayout,
   surface = "card",
-  onToggleDismiss,
+  onRest,
   onAction,
 }: AgentCardViewProps) {
   const terminalHandle = agent.terminalHandle;
@@ -191,9 +247,18 @@ export function AgentCardView({
           {agent.session ? (
             <SessionTitle
               key={agent.session.id}
-              sessionId={agent.session.id}
+              target={{ kind: "session", sessionId: agent.session.id }}
               title={agent.session.title}
               titleSource={agent.session.titleSource}
+              fallback={fallbackTitle}
+              textClassName={TITLE_TEXT}
+            />
+          ) : isShell && terminalHandle ? (
+            <SessionTitle
+              key={terminalHandle}
+              target={{ kind: "terminal", terminalHandle }}
+              title={agent.title}
+              titleSource={agent.title ? "custom" : "none"}
               fallback={fallbackTitle}
               textClassName={TITLE_TEXT}
             />
@@ -205,16 +270,7 @@ export function AgentCardView({
             {formatElapsed(agent.stateSince, now)}
             {agent.state === "working" ? " 경과" : " 전"}
           </span>
-          {agent.state !== "working" && (
-            <button
-              type="button"
-              onClick={onToggleDismiss}
-              className={ACTION_PILL}
-              title={dismissed ? "내 차례로 되돌리기" : "처리했으니 내 차례에서 내리기"}
-            >
-              {dismissed ? "되돌리기" : "정리"}
-            </button>
-          )}
+          <RestButton agent={agent} rest={rest} onRest={onRest} />
           {agent.session && (
             <AttachToTodo
               target={{
@@ -225,6 +281,7 @@ export function AgentCardView({
               }}
             />
           )}
+          {isShell && <WatchTerminal agent={agent} />}
           {bookmark ? (
             <BookmarkStar target={bookmark} />
           ) : (
@@ -354,19 +411,15 @@ export function AgentCardView({
       {view === "history" && agent.session && <TurnList key={`conversation-${agent.session.id}`} sessionId={agent.session.id} />}
 
       {view === "terminal" && terminalHandle && (
-        <div
-          className={
-            chatLayout === "page"
-              ? "h-[calc(100dvh-var(--strip-h,0px)-var(--tabs-h,0px)-8rem)] min-h-[420px] pb-4"
-              : "h-[420px]"
-          }
-        >
-          <RunnerTerminal
-            key={terminalHandle}
-            sessionId={terminalHandle}
-            cwd={agent.worktreePath}
-            onOpenLink={(target) => void openUrl(target)}
-          />
+        <div className={terminalBoxClass(chatLayout, surface)}>
+          <div className={surface === "flush" && chatLayout === "page" ? "absolute inset-0" : "h-full"}>
+            <RunnerTerminal
+              key={terminalHandle}
+              sessionId={terminalHandle}
+              cwd={agent.worktreePath}
+              onOpenLink={(target) => void openUrl(target)}
+            />
+          </div>
         </div>
       )}
 

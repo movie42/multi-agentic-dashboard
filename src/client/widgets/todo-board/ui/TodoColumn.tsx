@@ -1,26 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { cardsOfColumn, firstStatusOfColumn, statusOf } from "@/common/todos/board";
+import { Fragment, useState } from "react";
+import { cardsOfColumn, firstStatusOfColumn } from "@/common/todos/board";
 import type { TodoBoard, TodoCard as TodoCardData, TodoColumn as TodoColumnData } from "@/common/todos/types";
-import { CARD_DRAG_TYPE, statusTone } from "../model/kinds";
-import type { SessionLookup } from "../model/sessions";
+import { CARD_DRAG_TYPE } from "../model/kinds";
 import { ColumnMenu, type ColumnMenuActions } from "./ColumnMenu";
-import { TodoCard } from "./TodoCard";
 
 interface TodoColumnProps {
   board: TodoBoard;
   column: TodoColumnData;
   visible: (card: TodoCardData) => boolean;
-  now: number;
-  sessionOf: SessionLookup;
-  onOpen: (cardId: string) => void;
+  renderCard: (card: TodoCardData) => React.ReactNode;
   onDropCard: (cardId: string, column: TodoColumnData) => void;
   onAddCard: (title: string, column: TodoColumnData) => void;
   menu: ColumnMenuActions;
 }
 
-export function TodoColumn({ board, column, visible, now, sessionOf, onOpen, onDropCard, onAddCard, menu }: TodoColumnProps) {
+export function TodoColumn({ board, column, visible, renderCard, onDropCard, onAddCard, menu }: TodoColumnProps) {
   const [over, setOver] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
@@ -64,7 +60,7 @@ export function TodoColumn({ board, column, visible, now, sessionOf, onOpen, onD
       </header>
       {!droppable && <p className="px-1 text-[12px] text-muted">담은 상태가 없어요. ⋯에서 상태를 고르세요.</p>}
       {shown.map((card) => (
-        <TodoCard key={card.id} card={card} status={statusOf(board, card.statusId)} tone={statusTone(board, card.statusId)} now={now} sessionOf={sessionOf} onOpen={onOpen} />
+        <Fragment key={card.id}>{renderCard(card)}</Fragment>
       ))}
       {hidden.length > 0 && (
         <button
@@ -77,7 +73,7 @@ export function TodoColumn({ board, column, visible, now, sessionOf, onOpen, onD
       )}
       {showHidden &&
         hidden.map((card) => (
-          <TodoCard key={card.id} card={card} status={statusOf(board, card.statusId)} tone={statusTone(board, card.statusId)} now={now} sessionOf={sessionOf} onOpen={onOpen} />
+          <Fragment key={card.id}>{renderCard(card)}</Fragment>
         ))}
       {droppable &&
         (draft === null ? (

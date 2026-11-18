@@ -2,12 +2,16 @@ import { connection } from "next/server";
 import { TodoRuleError } from "@/common/todos/board";
 import { todoOpSchema } from "@/common/todos/ops";
 import type { TodoResponse } from "@/common/todos/types";
-import { services } from "@/server/container";
+import { reportWarning, services } from "@/server/container";
 
 export async function GET() {
   await connection();
   try {
-    return Response.json({ ok: true, board: await services().todos.read() } satisfies TodoResponse);
+    void services()
+      .todoJira.runIfDue()
+      .catch((error: unknown) => reportWarning("todos", error, { step: "auto jira import" }));
+    const board = await services().todos.read();
+    return Response.json({ ok: true, board } satisfies TodoResponse);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[todos]", message);

@@ -37,6 +37,19 @@ export interface RunnerSession {
   permission: RunnerPermission | null;
   /** Filled by the daemon's orchestration store; null from older daemons. */
   orchestration: SessionOrchestration | null;
+  /** What a shell session is doing; null for Claude sessions and from older daemons. */
+  shell?: ShellState | null;
+}
+
+export interface ShellState {
+  /** False when the shell has no command marks (not zsh, or started before the daemon added them). */
+  integrated: boolean;
+  /** The command line running now; null at the prompt. */
+  running: { command: string; since: number } | null;
+  /** The last command that finished. */
+  lastExit: { command: string; code: number; at: number } | null;
+  /** Ports the running command's processes listen on. */
+  ports: number[];
 }
 
 export type RunnerPermissionSuggestion = Record<string, unknown>;

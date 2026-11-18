@@ -55,7 +55,20 @@ export type DaemonRestartState =
   | { kind: "restarting" }
   | { kind: "failed"; message: string };
 
-export type AppSide = { kind: "built"; commit: string; branch: string | null; builtAt: number } | { kind: "dev" };
+// commit is the build this server started from; installedCommit is what ~/Applications holds now.
+// They differ when a new build was installed but the running app was never restarted.
+export type AppSide =
+  | { kind: "built"; commit: string; branch: string | null; builtAt: number; installedCommit: string | null }
+  | { kind: "dev" };
+
+export type AppBuildPhase = "building" | "installing" | "relaunching";
+
+export type AppBuildJob =
+  | { kind: "none" }
+  | { kind: "running"; phase: AppBuildPhase; commit: string | null; startedAt: number }
+  | { kind: "stopped"; phase: AppBuildPhase; commit: string | null; startedAt: number }
+  | { kind: "failed"; phase: AppBuildPhase; commit: string | null; message: string; finishedAt: number }
+  | { kind: "done"; commit: string | null; finishedAt: number };
 
 export type DaemonSide = { kind: "running"; commit: string | null; startedAt: number | null } | { kind: "down" };
 
@@ -66,6 +79,7 @@ export interface AppStatus {
   daemon: DaemonSide;
   workingSessions: number;
   restart: DaemonRestartState;
+  build: AppBuildJob;
 }
 
 export interface AppMismatch {
@@ -85,7 +99,7 @@ export function shortSha(commit: string | null): string {
   return commit ? commit.slice(0, 7) : "알 수 없음";
 }
 
-export const APP_BUILD_COMMAND = 'bun run desktop && open "$HOME/Applications/Agent Control.app"';
+export const APP_BUILD_COMMAND = "node scripts/apply-app.mjs";
 
 export const appStatusActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("build-app") }),
