@@ -25,6 +25,11 @@ export interface RunnerSession {
   /** Effort level from Claude Code's status line input; null before the first report or on a model without effort. */
   effort: string | null;
   /**
+   * Claude Code's permission mode (`default`, `acceptEdits`, `plan`, `auto`, `bypassPermissions`, …),
+   * from the launch flag, hook payloads and the mode line under the prompt box; null for shells.
+   */
+  permissionMode: string | null;
+  /**
    * The Claude Code session the terminal is on now, from hook payloads. It moves away from `id`
    * when `/resume` or `/clear` is run inside the terminal; null until the first hook arrives.
    */

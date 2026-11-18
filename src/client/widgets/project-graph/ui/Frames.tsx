@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { StepStatus, WorkflowStep } from "@/common/workflow/types";
 import { displayStateOf } from "@/client/entities/agent";
+import { DevPortBadges } from "@/client/entities/dev-ports";
 import { WorktreeCommandButtons } from "@/client/features/run-project-command";
 import type { UserGroup } from "../model/canvasState";
 import { CLUSTER_HEAD, GROUP_HEAD, PROJECT_HEAD, type Rect } from "../model/layout";
@@ -54,6 +55,7 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
           )}
           {pr && <span className="shrink-0 font-semibold text-pr">PR #{pr.number}</span>}
           <span className="ml-auto shrink-0 text-muted">세션 {sessions}</span>
+          <DevPortBadges worktreePath={worktree.path} />
           <WorktreeCommandButtons worktree={worktree} />
           {roundDoc && (
             <button

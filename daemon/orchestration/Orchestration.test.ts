@@ -16,6 +16,7 @@ function session(id: string, overrides: Partial<RunnerSession> = {}): RunnerSess
     model: null,
     contextPercent: null,
     effort: null,
+    permissionMode: null,
     conversationId: null,
     permission: null,
     orchestration: null,

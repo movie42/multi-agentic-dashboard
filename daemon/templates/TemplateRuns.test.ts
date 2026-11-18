@@ -17,6 +17,7 @@ function session(id: string, cwd: string): RunnerSession {
     model: null,
     contextPercent: null,
     effort: null,
+    permissionMode: null,
     conversationId: null,
     permission: null,
     orchestration: null,

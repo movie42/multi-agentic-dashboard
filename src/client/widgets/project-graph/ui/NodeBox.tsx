@@ -1,7 +1,7 @@
 "use client";
 
 import type { AgentCard } from "@/common/board/types";
-import { displayStateOf, type DisplayState } from "@/client/entities/agent";
+import { displayStateOf, permissionModeLabel, type DisplayState } from "@/client/entities/agent";
 import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
 import type { ConductorScopeKind } from "@/common/orchestration/types";
 import type { GraphNode } from "../model/graph";
@@ -45,7 +45,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
   const { agent, outside } = node;
   const state = stateOf(agent);
   const conductor = agent.orchestration?.conductor ?? null;
-  const hasMeta = Boolean(agent.model || agent.effort || agent.contextPercent !== null);
+  const hasMeta = Boolean(agent.model || agent.effort || agent.permissionMode || agent.contextPercent !== null);
   return (
     <div
       className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] px-3 py-2.5 select-none ${state.tone} ${
@@ -80,7 +80,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
       )}
       {hasMeta && (
         <p data-node-meta className="mt-auto truncate text-[11px] leading-none font-medium text-focus tabular-nums">
-          {[agent.model, agent.effort, agent.contextPercent !== null ? `컨텍스트 ${agent.contextPercent}%` : null]
+          {[agent.model, agent.effort, permissionModeLabel(agent.permissionMode), agent.contextPercent !== null ? `컨텍스트 ${agent.contextPercent}%` : null]
             .filter(Boolean)
             .join(" · ")}
         </p>

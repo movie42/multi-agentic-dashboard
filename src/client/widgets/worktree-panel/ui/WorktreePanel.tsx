@@ -15,6 +15,7 @@ import type {
   WorkflowStep,
 } from "@/common/workflow/types";
 import type { BoardGroups } from "@/client/entities/agent";
+import { DevPortBadges } from "@/client/entities/dev-ports";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
 import { useWorktreeMenuRequest } from "@/client/entities/workspace";
@@ -336,6 +337,7 @@ export function WorktreePanel({
           {worktree.branch && worktree.branch !== worktree.name && (
             <span className="font-mono break-all text-muted">{worktree.branch}</span>
           )}
+          <DevPortBadges worktreePath={worktree.path} />
           {pr.kind === "found" && (
             <button
               type="button"

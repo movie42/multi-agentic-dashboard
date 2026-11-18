@@ -118,6 +118,7 @@ export function buildAgentCard({ session, worktree, prompt, lastMessage, session
     model: session.model,
     contextPercent: session.contextPercent,
     effort: session.effort,
+    permissionMode: session.permissionMode,
     permission: session.permission,
     orchestration: session.orchestration,
     subagents,

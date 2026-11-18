@@ -22,7 +22,7 @@ import { BookmarkMemo, BookmarkStar, bookmarkTarget } from "@/client/features/bo
 import { QuickReply } from "@/client/features/quick-reply";
 import { SessionTitle } from "@/client/features/rename-session";
 import { Stepper } from "@/client/entities/workflow";
-import { StateBadge } from "@/client/entities/agent";
+import { PermissionModeBadge, StateBadge } from "@/client/entities/agent";
 import { RunnerTerminal, TerminalTail, useTerminalRequest } from "@/client/entities/runner";
 
 export interface CardProgress {
@@ -361,7 +361,12 @@ export function AgentCardView({
               : "h-[420px]"
           }
         >
-          <RunnerTerminal key={terminalHandle} sessionId={terminalHandle} />
+          <RunnerTerminal
+            key={terminalHandle}
+            sessionId={terminalHandle}
+            cwd={agent.worktreePath}
+            onOpenLink={(target) => void openUrl(target)}
+          />
         </div>
       )}
 
@@ -414,6 +419,7 @@ export function AgentCardView({
               <ModelPicker terminalHandle={terminalHandle} model={agent.model} />
               <EffortPicker terminalHandle={terminalHandle} effort={agent.effort} />
             </span>
+            <PermissionModeBadge mode={agent.permissionMode} />
             {agent.contextPercent !== null && (
               <span
                 data-context-percent

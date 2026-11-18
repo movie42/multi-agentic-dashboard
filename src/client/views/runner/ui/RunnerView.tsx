@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { RunnerSession, RunnerStatus } from "@/common/runner/types";
 import { closeSession, launchSession, RunnerTerminal, useRunnerSessions } from "@/client/entities/runner";
+import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { PendingButton } from "@/client/shared/ui/PendingButton";
 
@@ -19,6 +20,10 @@ const STATUS_DOT: Record<RunnerStatus, string> = {
   waiting: "bg-ask",
   exited: "bg-faint",
 };
+
+function openLink(target: string): void {
+  postAction({ type: "open-artifact", target }).catch((error: unknown) => toastError("action", error, { type: "open-artifact" }));
+}
 
 function folderName(cwd: string): string {
   return cwd.split("/").filter(Boolean).at(-1) ?? cwd;
@@ -110,7 +115,7 @@ export function RunnerView() {
       </aside>
       <section className="min-h-0">
         {selected ? (
-          <RunnerTerminal key={selected.id} sessionId={selected.id} />
+          <RunnerTerminal key={selected.id} sessionId={selected.id} cwd={selected.cwd} onOpenLink={openLink} />
         ) : (
           <p className="text-[14px] text-muted">왼쪽에서 폴더를 넣고 claude를 띄워 주세요.</p>
         )}

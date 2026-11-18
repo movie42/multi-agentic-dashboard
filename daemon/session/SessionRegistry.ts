@@ -16,6 +16,7 @@ import type { RestoreRequest } from "./restore.ts";
 import { terminalMenu } from "../../src/common/terminal/menu.ts";
 import { createHeadlessScreen, type CreateScreen, type Screen } from "./screen.ts";
 import type { StatusLineReport } from "./statusLine.ts";
+import { permissionModeOnScreen } from "./permissionMode.ts";
 import { nextStatus, type StatusSignal } from "./status.ts";
 
 export interface PtyProcess {
@@ -94,6 +95,7 @@ interface Entry {
   held: HeldPermission | null;
   interruptWatchUntil: number;
   menuOpen: boolean;
+  modeCheck: ReturnType<typeof setTimeout> | null;
 }
 
 const DEFAULT_SCROLLBACK = 256 * 1024;
@@ -105,6 +107,7 @@ const TRUST_WINDOW = 4096;
 // Claude Code fires no Stop hook when Esc interrupts a turn; its only trace is this line on screen.
 const INTERRUPTED_LINE = /^\s*⎿\s+Interrupted\b/;
 const INTERRUPT_WATCH_MS = 5000;
+const MODE_CHECK_MS = 300;
 const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
 
 export function asksForTrust(output: string): boolean {
@@ -194,6 +197,7 @@ export class SessionRegistry {
         model: running?.session.model ?? null,
         contextPercent: null,
         effort: running?.session.effort ?? null,
+        permissionMode: claude && !askPermissions ? "bypassPermissions" : null,
         conversationId: null,
         permission: null,
         orchestration: null,
@@ -207,6 +211,7 @@ export class SessionRegistry {
       held: null,
       interruptWatchUntil: 0,
       menuOpen: false,
+      modeCheck: null,
     };
     this.#entries.set(id, entry);
     pty.onData((data) => this.#append(entry, data));
@@ -280,6 +285,7 @@ export class SessionRegistry {
       entry.session = { ...entry.session, conversationId: signal.conversationId };
       this.#changed();
     }
+    if (signal.permissionMode) this.#setPermissionMode(entry, signal.permissionMode);
     this.#apply(entry, signal);
     return true;
   }
@@ -332,6 +338,7 @@ export class SessionRegistry {
     const entry = this.#entries.get(id);
     if (!entry) return false;
     this.#releasePermission(entry, {});
+    if (entry.modeCheck) clearTimeout(entry.modeCheck);
     if (entry.session.status !== "exited") entry.pty.kill();
     entry.screen.dispose();
     this.#entries.delete(id);
@@ -358,6 +365,22 @@ export class SessionRegistry {
     }
     if (entry.interruptWatchUntil > this.#options.now()) void this.#checkInterrupt(entry);
     if (entry.session.kind === "claude" && (entry.session.status === "idle" || entry.menuOpen)) void this.#checkMenu(entry);
+    if (entry.session.kind === "claude" && !entry.modeCheck) {
+      entry.modeCheck = setTimeout(() => void this.#checkMode(entry), MODE_CHECK_MS);
+      entry.modeCheck.unref?.();
+    }
+  }
+
+  async #checkMode(entry: Entry): Promise<void> {
+    const mode = permissionModeOnScreen(await entry.screen.lines());
+    entry.modeCheck = null;
+    if (mode && this.#entries.get(entry.session.id) === entry) this.#setPermissionMode(entry, mode);
+  }
+
+  #setPermissionMode(entry: Entry, mode: string): void {
+    if (mode === entry.session.permissionMode) return;
+    entry.session = { ...entry.session, permissionMode: mode };
+    this.#changed();
   }
 
   async #checkMenu(entry: Entry): Promise<void> {

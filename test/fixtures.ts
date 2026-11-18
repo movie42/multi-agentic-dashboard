@@ -29,6 +29,7 @@ export function agentCard(overrides: Partial<AgentCard> = {}): AgentCard {
     model: null,
     contextPercent: null,
     effort: null,
+    permissionMode: null,
     permission: null,
     orchestration: null,
     ...overrides,

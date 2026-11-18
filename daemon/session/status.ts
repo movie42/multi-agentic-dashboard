@@ -5,6 +5,8 @@ export interface StatusSignal {
   notificationType?: string | null;
   /** `session_id` from the hook payload: the Claude Code session the terminal is on now. */
   conversationId?: string | null;
+  /** `permission_mode` from the hook payload. */
+  permissionMode?: string | null;
 }
 
 export function nextStatus(current: RunnerStatus, signal: StatusSignal): RunnerStatus {

@@ -41,6 +41,7 @@ import { TodoAgent } from "./todos/TodoAgent";
 import { TodoLaunchAttacher } from "./todos/TodoLaunchAttacher";
 import { TodoStore } from "./todos/TodoStore";
 import { UsageReader } from "./usage/UsageReader";
+import { DevPortReader } from "./devPorts/readDevPorts";
 import { readCommit, readCommitDiff } from "./gitGraph/readCommit";
 import { GRAPH_PAGE, readGraph } from "./gitGraph/readGraph";
 import { MergedReader } from "./gitGraph/readMerged";
@@ -91,6 +92,7 @@ export interface Services {
   todoLaunches: TodoLaunchAttacher;
   todoAgent: TodoAgent;
   usage: UsageReader;
+  devPorts: DevPortReader;
   docs: DocServer;
   files: FileBrowser;
   flowAnswers: FlowAnswerStore;
@@ -207,6 +209,7 @@ function createServices(): Services {
       todos,
     }),
     usage: new UsageReader(),
+    devPorts: new DevPortReader(nodeExecFile),
     docs,
     files: new FileBrowser({
       worktreePaths: (options) => board.worktreePaths(options),

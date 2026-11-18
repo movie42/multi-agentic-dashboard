@@ -6,7 +6,7 @@ import type { BoardWorktree } from "./boardCards";
 export const PROJECT: Project = { path: "/w", name: "repo", kind: "git" };
 
 export function runnerSession(overrides: Partial<RunnerSession> = {}): RunnerSession {
-  return { id: "s1", cwd: "/w", kind: "claude", status: "working", interrupted: false, prompted: true, startedAt: 10, updatedAt: 20, exitCode: null, model: null, contextPercent: null, effort: null, conversationId: null, permission: null, orchestration: null, ...overrides };
+  return { id: "s1", cwd: "/w", kind: "claude", status: "working", interrupted: false, prompted: true, startedAt: 10, updatedAt: 20, exitCode: null, model: null, contextPercent: null, effort: null, permissionMode: null, conversationId: null, permission: null, orchestration: null, ...overrides };
 }
 
 export function boardWorktree(overrides: Partial<BoardWorktree> = {}): BoardWorktree {
