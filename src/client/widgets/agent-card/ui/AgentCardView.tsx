@@ -448,6 +448,7 @@ export function AgentCardView({
             key={agent.permission.id}
             terminalHandle={terminalHandle}
             permission={agent.permission}
+            sessionId={agent.session?.id ?? null}
             delegable={agent.parentId !== null}
           />
         </div>

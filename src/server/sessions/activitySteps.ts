@@ -1,7 +1,7 @@
 import path from "node:path";
 import { z } from "zod";
 import { ASK_USER_QUESTION, questionsOf } from "@/common/runner/questions";
-import type { ActivityStep } from "@/common/sessions/types";
+import type { ActivityStep, ToolDocument } from "@/common/sessions/types";
 import { parseJson } from "@/server/shared/fallback";
 
 export const STEP_LIMIT = 40;
@@ -19,6 +19,28 @@ interface StepOptions {
   localCommands: boolean;
   /** Draw AskUserQuestion and ExitPlanMode as their own rows instead of one-line tool rows. */
   richTools: boolean;
+}
+
+const MARKDOWN_FILE = /\.(md|mdx|markdown)$/i;
+
+/** Tracks markdown files written in the session so a later Edit can show the whole file, not just the patch. */
+function documentOf(name: string, input: Record<string, unknown> | undefined, files: Map<string, string>, limit: number): ToolDocument | null {
+  const file = stringField(input, "file_path");
+  if (!file || !MARKDOWN_FILE.test(file)) return null;
+  if (name === "Write") {
+    const content = typeof input?.content === "string" ? input.content : null;
+    if (content === null) return null;
+    files.set(file, content);
+  } else if (name === "Edit") {
+    const known = files.get(file);
+    const before = typeof input?.old_string === "string" ? input.old_string : null;
+    const after = typeof input?.new_string === "string" ? input.new_string : null;
+    if (known === undefined || !before || after === null || !known.includes(before)) return null;
+    files.set(file, input?.replace_all === true ? known.split(before).join(after) : known.replace(before, () => after));
+  } else {
+    return null;
+  }
+  return { path: file, content: clip(files.get(file) ?? "", limit) };
 }
 
 const EXIT_PLAN_MODE = "ExitPlanMode";
@@ -187,6 +209,7 @@ export function chatItemsOf(lines: string[]): ActivityStep[] {
 function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
   const steps: ActivityStep[] = [];
   const tools = new Map<string, PendingStep>();
+  const files = new Map<string, string>();
 
   for (const raw of lines) {
     const line = parseLine(raw);
@@ -228,6 +251,7 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
             name: block.name,
             summary: summaryOf(block.name, block.input, line.cwd),
             detail: options.detailOf(block.input),
+            document: options.richTools ? documentOf(block.name, block.input, files, options.textChars) : null,
             status: "running",
           };
           tools.set(block.id, step);

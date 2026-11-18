@@ -7,6 +7,8 @@ import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { Markdown } from "@/client/shared/ui/Markdown";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
+import { asksAboutPr } from "../model/prDraft";
+import { PrDraftPreview } from "./PrDraftPreview";
 
 type SendResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
 
@@ -228,11 +230,13 @@ function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) 
 
 interface QuestionPromptProps extends PromptBodyProps {
   questions: RunnerQuestion[];
+  sessionId: string | null;
 }
 
-function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromptProps) {
+function QuestionPrompt({ terminalHandle, permission, questions, sessionId }: QuestionPromptProps) {
   const { status, send, locked } = useSend(terminalHandle, permission.id);
   const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [peeked, setPeeked] = useState<Record<string, string>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
   const instant = questions.length === 1 && !questions[0]?.multiSelect;
 
@@ -270,10 +274,18 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
     if (own) submit({ [question.question]: own });
   };
 
+  const peek = (question: RunnerQuestion, label: string) => setPeeked((previous) => ({ ...previous, [question.question]: label }));
+
   return (
     <>
+      {sessionId && asksAboutPr(questions) && <PrDraftPreview sessionId={sessionId} />}
       {questions.map((question) => {
         const selected = picked[question.question] ?? [];
+        const peekLabel = peeked[question.question] ?? selected[0];
+        const preview =
+          question.options.find((option) => option.label === peekLabel && option.preview)?.preview ??
+          question.options.find((option) => option.preview)?.preview ??
+          null;
         return (
           <div key={question.question} className="flex flex-col gap-2">
             <div className="flex flex-col gap-1">
@@ -294,6 +306,8 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
                     disabled={locked}
                     aria-pressed={question.multiSelect || !instant ? on : undefined}
                     onClick={() => pick(question, option.label)}
+                    onMouseEnter={option.preview ? () => peek(question, option.label) : undefined}
+                    onFocus={option.preview ? () => peek(question, option.label) : undefined}
                     className={`flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] leading-snug disabled:cursor-default disabled:opacity-40 ${
                       on ? "bg-fg text-bg" : "bg-bg shadow-[inset_0_0_0_1px_var(--hair)] hover:shadow-[inset_0_0_0_1.5px_var(--fg)]"
                     }`}
@@ -306,6 +320,11 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
                   </button>
                 );
               })}
+              {preview && (
+                <pre className="max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap">
+                  {preview}
+                </pre>
+              )}
               <div className="flex items-center gap-1.5">
                 <input
                   type="text"
@@ -346,16 +365,18 @@ function QuestionPrompt({ terminalHandle, permission, questions }: QuestionPromp
 interface PermissionPromptProps {
   terminalHandle: string;
   permission: RunnerPermission;
+  /** Claude session id, used to find the PR body draft a "create this PR?" question refers to. */
+  sessionId?: string | null;
   /** The session was handed out by a conductor, so this kind of request can be delegated to it. */
   delegable?: boolean;
 }
 
-export function PermissionPrompt({ terminalHandle, permission, delegable = false }: PermissionPromptProps) {
+export function PermissionPrompt({ terminalHandle, permission, sessionId = null, delegable = false }: PermissionPromptProps) {
   const questions = questionsOf(permission);
   return (
     <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
       {questions.length > 0 ? (
-        <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} />
+        <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} sessionId={sessionId} />
       ) : (
         <ToolPrompt terminalHandle={terminalHandle} permission={permission} delegable={delegable} />
       )}

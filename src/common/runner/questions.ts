@@ -5,6 +5,8 @@ export const ASK_USER_QUESTION = "AskUserQuestion";
 export interface RunnerQuestionOption {
   label: string;
   description?: string;
+  /** Mockup or snippet shown beside the option (AskUserQuestion `preview`). */
+  preview?: string;
 }
 
 export interface RunnerQuestion {

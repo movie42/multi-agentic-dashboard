@@ -41,6 +41,20 @@ describe("chatItemsOf", () => {
     expect(chat[2]).toMatchObject({ kind: "tool", name: "Read", detail: JSON.stringify({ file_path: "/repo/a.ts", limit: 20 }, null, 2) });
   });
 
+  it("keeps a markdown file whole across Write and Edit", () => {
+    const use = (id: string, name: string, input: Record<string, unknown>) =>
+      JSON.stringify({ type: "assistant", uuid: id, message: { content: [{ type: "tool_use", id, name, input }] } });
+    const file = "/repo/.pr-body.tmp.md";
+    const chat = chatItemsOf([
+      use("w1", "Write", { file_path: file, content: "## 변경사항\n- a" }),
+      use("e1", "Edit", { file_path: file, old_string: "- a", new_string: "- b" }),
+      use("w2", "Write", { file_path: "/repo/a.ts", content: "x" }),
+    ]);
+    expect(chat[0]).toMatchObject({ document: { path: file, content: "## 변경사항\n- a" } });
+    expect(chat[1]).toMatchObject({ document: { path: file, content: "## 변경사항\n- b" } });
+    expect(chat[2]).toMatchObject({ document: null });
+  });
+
   it("shows a command as it is", () => {
     expect(inputDetail({ command: "git status", description: "x" })).toBe("git status");
     expect(inputDetail({})).toBeNull();

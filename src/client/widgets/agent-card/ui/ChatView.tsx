@@ -173,9 +173,15 @@ function ToolRow({ step }: ToolRowProps) {
         <summary className="flex cursor-pointer list-none items-baseline gap-2 rounded-md px-2 py-0.5 font-mono text-[12px] hover:bg-tint-2">
           {line}
         </summary>
-        <pre className="mx-2 mt-1 mb-2 max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap">
-          {step.detail}
-        </pre>
+        {step.document ? (
+          <div className="mx-2 mt-1 mb-2 max-h-96 overflow-auto rounded-lg bg-tint-2 px-3 py-2">
+            <Markdown text={step.document.content} />
+          </div>
+        ) : (
+          <pre className="mx-2 mt-1 mb-2 max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap">
+            {step.detail}
+          </pre>
+        )}
       </details>
     </li>
   );

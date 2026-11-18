@@ -47,11 +47,26 @@ export type ActivityStep =
   | { kind: "text"; id: string; at: number | null; text: string }
   /** Output Claude Code printed itself — a local slash command or a `!` shell command — not the model. */
   | { kind: "output"; id: string; at: number | null; text: string; error: boolean }
-  | { kind: "tool"; id: string; at: number | null; name: string; summary: string | null; detail: string | null; status: ToolStatus }
+  | {
+      kind: "tool";
+      id: string;
+      at: number | null;
+      name: string;
+      summary: string | null;
+      detail: string | null;
+      /** A markdown file as it stood after this Write/Edit, so the chat can render it instead of raw JSON. */
+      document: ToolDocument | null;
+      status: ToolStatus;
+    }
   /** An AskUserQuestion call with the answers the user picked, null until they answer. */
   | { kind: "question"; id: string; at: number | null; questions: RunnerQuestion[]; answers: Record<string, string> | null; status: ToolStatus }
   /** An ExitPlanMode call: the plan Claude asked to approve, and the user's reply when they rejected it. */
   | { kind: "plan"; id: string; at: number | null; plan: string; status: ToolStatus; feedback: string | null };
+
+export interface ToolDocument {
+  path: string;
+  content: string;
+}
 
 export type ActivityResponse =
   | { ok: true; steps: ActivityStep[]; updatedAt: number }
