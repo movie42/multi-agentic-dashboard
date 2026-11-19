@@ -31,6 +31,7 @@ const HEREDOC_TARGET = /(?:>|\btee\s+(?:-a\s+)?)\s*(['"]?)([^\s'";&|<>]+\.(?:md|
 function heredocDocuments(command: string): ToolDocument[] {
   const lines = command.split("\n");
   const documents: ToolDocument[] = [];
+  // eslint-disable-next-line no-restricted-syntax -- heredoc position loop skips past each body
   for (let index = 0; index < lines.length; index += 1) {
     const header = lines[index] ?? "";
     const start = header.match(HEREDOC_START);
