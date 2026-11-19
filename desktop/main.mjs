@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { app, BrowserWindow, dialog, globalShortcut, shell, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, shell, utilityProcess } from "electron";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -149,6 +149,7 @@ function createWindow() {
     minHeight: 600,
     title: "Agent Control",
     show: false,
+    webPreferences: { preload: path.join(import.meta.dirname, "preload.cjs") },
   });
   guardContents(mainWindow.webContents);
   // The default menu's Reload (Cmd+R) would reload the whole board; let the page reload an open
@@ -180,6 +181,41 @@ function focusFirstCard() {
     )
     .catch((error) => console.warn("[agent-control] focus card", error));
 }
+
+function revealWindow() {
+  if (!mainWindow) return createWindow();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  app.focus({ steal: true });
+  mainWindow.focus();
+}
+
+// Held so a notification is not garbage-collected before its click arrives, and so a newer one
+// for the same session replaces the old one instead of stacking.
+const notifications = new Map();
+
+function showAgentNotification(payload) {
+  if (!payload || typeof payload.id !== "string" || typeof payload.title !== "string") return;
+  if (!Notification.isSupported()) return;
+  const { id } = payload;
+  notifications.get(id)?.close();
+  const notification = new Notification({ title: payload.title, body: typeof payload.body === "string" ? payload.body : "" });
+  notification.on("click", () => {
+    notifications.delete(id);
+    revealWindow();
+    mainWindow?.webContents.send("agent-control:open-agent", id);
+  });
+  notification.on("close", () => {
+    if (notifications.get(id) === notification) notifications.delete(id);
+  });
+  notifications.set(id, notification);
+  notification.show();
+}
+
+ipcMain.on("agent-control:notify", (event, payload) => {
+  if (event.sender !== mainWindow?.webContents) return;
+  showAgentNotification(payload);
+});
 
 function toggleWindow() {
   if (!mainWindow) {

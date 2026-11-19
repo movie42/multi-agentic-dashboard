@@ -67,6 +67,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   strictness,
   { files: testFiles, rules: { "@typescript-eslint/consistent-type-assertions": "off", "no-restricted-syntax": "off" } },
+  { files: ["**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
   restrict(["src/server/**"], [{ group: ["@/client", "@/client/*"], message: "Server code cannot import client code." }]),
   restrict(
     ["src/common/**"],

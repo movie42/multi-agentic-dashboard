@@ -62,6 +62,7 @@ for (const file of readdirSync(path.join(root, runtimeDir))) {
   }
 }
 cpSync(path.join(root, "desktop", "main.mjs"), path.join(stage, "main.mjs"));
+cpSync(path.join(root, "desktop", "preload.cjs"), path.join(stage, "preload.cjs"));
 
 const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 writeFileSync(
@@ -108,4 +109,9 @@ const [appPath] = await packager({
   appCategoryType: "public.app-category.developer-tools",
 });
 
-console.log(`built ${path.join(appPath, "Agent Control.app")}`);
+const appBundle = path.join(appPath, "Agent Control.app");
+// The packaged binary keeps Electron's linker signature (identifier "Electron"), and macOS refuses
+// notifications whose signing identifier does not match the bundle id. Ad-hoc re-signing fixes it.
+execFileSync("codesign", ["--force", "--deep", "--sign", "-", appBundle]);
+
+console.log(`built ${appBundle}`);
