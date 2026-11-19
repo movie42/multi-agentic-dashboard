@@ -21,6 +21,17 @@ describe("stepsOf", () => {
 });
 
 describe("chatItemsOf", () => {
+  it("keeps a prompt sent as pasted text", () => {
+    const chat = chatItemsOf([
+      JSON.stringify({
+        type: "user",
+        uuid: "u1",
+        message: { content: '\n\n<pasted_content id="a1b2">\n반품시켜 줘\n</pasted_content id="a1b2">\n' },
+      }),
+    ]);
+    expect(chat).toMatchObject([{ kind: "prompt", text: "반품시켜 줘" }]);
+  });
+
   it("keeps answers whole and shows each tool's input", () => {
     const long = "가".repeat(900);
     const chat = chatItemsOf([
@@ -53,6 +64,21 @@ describe("chatItemsOf", () => {
     expect(chat[0]).toMatchObject({ document: { path: file, content: "## 변경사항\n- a" } });
     expect(chat[1]).toMatchObject({ document: { path: file, content: "## 변경사항\n- b" } });
     expect(chat[2]).toMatchObject({ document: null });
+  });
+
+  it("reads a markdown file a shell heredoc writes", () => {
+    const bash = (id: string, command: string) =>
+      JSON.stringify({ type: "assistant", uuid: id, message: { content: [{ type: "tool_use", id, name: "Bash", input: { command } }] } });
+    const chat = chatItemsOf([
+      bash("b1", "cat > .pr-body.tmp.md <<'EOF'\n## 변경사항\n\n- a\nEOF\necho ok"),
+      bash("b2", 'cat <<EOF > "/r/notes.md"\nx\nEOF'),
+      bash("b3", "cat > a.ts <<'EOF'\nx\nEOF"),
+      bash("b4", "git status"),
+    ]);
+    expect(chat[0]).toMatchObject({ document: { path: ".pr-body.tmp.md", content: "## 변경사항\n\n- a" } });
+    expect(chat[1]).toMatchObject({ document: { path: "/r/notes.md", content: "x" } });
+    expect(chat[2]).toMatchObject({ document: null });
+    expect(chat[3]).toMatchObject({ document: null });
   });
 
   it("shows a command as it is", () => {

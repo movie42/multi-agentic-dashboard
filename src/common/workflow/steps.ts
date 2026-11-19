@@ -120,6 +120,20 @@ export function roundDocOf(task: FlowTaskSummary | null | undefined): string | n
   return task.grillPage ?? task.pageIndex;
 }
 
+export interface FlowDocLink {
+  label: string;
+  target: string;
+}
+
+/** The pages a flow task opens with: its overview and, once it has one, its question round page. */
+export function flowDocsOf(task: FlowTaskSummary | null | undefined): FlowDocLink[] {
+  if (!task) return [];
+  const docs: FlowDocLink[] = [];
+  if (task.pageIndex) docs.push({ label: "개요 페이지", target: task.pageIndex });
+  if (task.grillPage) docs.push({ label: "질문 라운드", target: task.grillPage });
+  return docs;
+}
+
 export function currentStep(steps: WorkflowStep[]): WorkflowStep | null {
   const active = steps.find((step) => step.status === "ask" || step.status === "now");
   if (active) return active;

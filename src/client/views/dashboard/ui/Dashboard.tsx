@@ -43,6 +43,7 @@ import { ProjectCanvas, type CanvasPanel, type CanvasScope } from "@/client/widg
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel, QuickOpen } from "@/client/widgets/doc-panel";
 import { useFileExplorerStore } from "@/client/features/browse-files";
+import { PromptColorSync } from "@/client/features/customize-prompt-color";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { paneWidth } from "@/client/shared/lib/paneWidth";
 
@@ -435,6 +436,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         onOpenSessions={prefs.openSessions}
       />
       <ProjectCommandHost />
+      <PromptColorSync />
       <ProjectSidebar
         projects={board.projects}
         countsByRepo={countsByRepo}

@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { flowTask } from "../../../test/fixtures";
-import { buildSteps, currentStep, roundDocOf } from "./steps";
+import { buildSteps, currentStep, flowDocsOf, roundDocOf } from "./steps";
+
+describe("flowDocsOf", () => {
+  it("lists the overview and the question page that exist", () => {
+    expect(flowDocsOf(flowTask({ pageIndex: "/w/docs/d/t/index.html", grillPage: "/w/docs/d/t/02-grill.html" }))).toEqual([
+      { label: "개요 페이지", target: "/w/docs/d/t/index.html" },
+      { label: "질문 라운드", target: "/w/docs/d/t/02-grill.html" },
+    ]);
+  });
+
+  it("skips pages that do not exist and handles no task", () => {
+    expect(flowDocsOf(flowTask({ pageIndex: null, grillPage: null }))).toEqual([]);
+    expect(flowDocsOf(flowTask({ pageIndex: "/w/docs/d/t/index.html" }))).toHaveLength(1);
+    expect(flowDocsOf(null)).toEqual([]);
+  });
+});
 
 const summarize = (steps: ReturnType<typeof buildSteps>) =>
   steps.map((step) => `${step.key}:${step.status}${step.detail ? `(${step.detail})` : ""}`);

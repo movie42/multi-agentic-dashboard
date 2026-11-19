@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ASK_USER_QUESTION, questionsOf } from "@/common/runner/questions";
 import type { ActivityStep, ToolDocument } from "@/common/sessions/types";
 import { parseJson } from "@/server/shared/fallback";
+import { unwrapPasted } from "./transcriptText";
 
 export const STEP_LIMIT = 40;
 export const CHAT_LIMIT = 300;
@@ -23,8 +24,37 @@ interface StepOptions {
 
 const MARKDOWN_FILE = /\.(md|mdx|markdown)$/i;
 
+const HEREDOC_START = /<<-?\s*(['"]?)([\w.-]+)\1/;
+const HEREDOC_TARGET = /(?:>|\btee\s+(?:-a\s+)?)\s*(['"]?)([^\s'";&|<>]+\.(?:md|mdx|markdown))\1/i;
+
+/** Markdown files a shell command writes with a heredoc, such as `cat > .pr-body.tmp.md <<'EOF'` — how skills write PR bodies. */
+function heredocDocuments(command: string): ToolDocument[] {
+  const lines = command.split("\n");
+  const documents: ToolDocument[] = [];
+  // eslint-disable-next-line no-restricted-syntax -- heredoc position loop skips past each body
+  for (let index = 0; index < lines.length; index += 1) {
+    const header = lines[index] ?? "";
+    const start = header.match(HEREDOC_START);
+    const target = header.match(HEREDOC_TARGET);
+    if (!start?.[2]) continue;
+    const delimiter = start[2];
+    const end = lines.findIndex((line, at) => at > index && line.trim() === delimiter);
+    if (end === -1) break;
+    if (target?.[2]) documents.push({ path: target[2], content: lines.slice(index + 1, end).join("\n") });
+    index = end;
+  }
+  return documents;
+}
+
 /** Tracks markdown files written in the session so a later Edit can show the whole file, not just the patch. */
 function documentOf(name: string, input: Record<string, unknown> | undefined, files: Map<string, string>, limit: number): ToolDocument | null {
+  if (name === "Bash") {
+    const written = heredocDocuments(stringField(input, "command") ?? "");
+    for (const document of written) files.set(document.path, document.content);
+    const shown = written.at(-1);
+    if (!shown) return null;
+    return { path: shown.path, content: clip(shown.content, limit) };
+  }
   const file = stringField(input, "file_path");
   if (!file || !MARKDOWN_FILE.test(file)) return null;
   if (name === "Write") {
@@ -269,8 +299,8 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
         }
       }
       const typed = blocks
-        .filter((block) => block.type === "text" && typeof block.text === "string" && isTypedPrompt(block.text))
-        .map((block) => block.text?.trim() ?? "")
+        .flatMap((block) => (block.type === "text" && block.text ? [unwrapPasted(block.text).trim()] : []))
+        .filter(isTypedPrompt)
         .join("\n");
       if (typed) {
         // A new prompt means any tool still waiting for a result was cut off by the user.

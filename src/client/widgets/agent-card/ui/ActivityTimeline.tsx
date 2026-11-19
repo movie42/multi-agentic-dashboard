@@ -43,8 +43,8 @@ function StepRow({ step }: StepRowProps) {
   }
   if (step.kind === "prompt") {
     return (
-      <li className="shrink-0 rounded-lg bg-tint px-3 py-2 text-[13px] leading-relaxed">
-        <span className="mr-2 text-[11px] font-semibold text-muted">사용자</span>
+      <li className="shrink-0 rounded-lg bg-prompt px-3 py-2 text-[13px] leading-relaxed text-prompt-ink">
+        <span className="mr-2 text-[11px] font-semibold opacity-75">사용자</span>
         <span className="line-clamp-3 whitespace-pre-wrap">{step.text}</span>
       </li>
     );

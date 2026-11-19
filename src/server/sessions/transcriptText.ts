@@ -33,8 +33,15 @@ function commandPrompt(text: string): string | null {
   return args ? `${name} ${args}` : name;
 }
 
+// Claude Code wraps text pasted into the prompt as `<pasted_content id="…">…</pasted_content id="…">`.
+const PASTED = /<pasted_content id="([^"]*)">([\s\S]*?)<\/pasted_content id="\1">/g;
+
+export function unwrapPasted(text: string): string {
+  return text.replace(PASTED, (_, _id: string, body: string) => body.trim());
+}
+
 export function humanPrompt(text: string): string | null {
-  const trimmed = text.trim();
+  const trimmed = unwrapPasted(text).trim();
   const command = commandPrompt(trimmed);
   if (command) return HOUSEKEEPING_COMMAND.test(command) ? null : command;
   if (/^<(local-command|system-reminder|bash-|task-notification|command-)/.test(trimmed)) return null;
