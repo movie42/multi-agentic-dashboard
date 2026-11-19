@@ -16,6 +16,8 @@
   --hair: #e2e7ee;
   --tint: #f5f7fa;
   --tint-2: #edf1f6;
+  --prompt: #800020;
+  --prompt-ink: #ffffff;
   /* Terminal palette: Tango Light, the light theme Orca ships as "Builtin Tango Light". */
   --term-bg: #ffffff;
   --term-fg: #2e3436;
@@ -52,6 +54,8 @@
     --hair: #232c38;
     --tint: #12161c;
     --tint-2: #1a212b;
+    --prompt: #6e1a2e;
+    --prompt-ink: #f7e9ec;
     --st-pr: #a371f7;
     --focus: #2bb5ae;
     /* Terminal palette: Ghostty's default dark, the dark theme Orca ships as "Ghostty Default Style Dark". */
@@ -96,6 +100,9 @@
   --color-hair: var(--hair);
   --color-tint: var(--tint);
   --color-tint-2: var(--tint-2);
+  /* --prompt-custom / --prompt-ink-custom are set on <html> when the user picks their own colours. */
+  --color-prompt: var(--prompt-custom, var(--prompt));
+  --color-prompt-ink: var(--prompt-ink-custom, var(--prompt-ink));
   --color-term-bg: var(--term-bg);
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;

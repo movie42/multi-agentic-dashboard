@@ -290,7 +290,7 @@ function ChatRow({ step, copyable }: ChatRowProps) {
   if (step.kind === "prompt") {
     return (
       <li className="flex justify-end py-1">
-        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-tint-2 px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap">
+        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-prompt px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap text-prompt-ink">
           {step.text}
         </p>
       </li>

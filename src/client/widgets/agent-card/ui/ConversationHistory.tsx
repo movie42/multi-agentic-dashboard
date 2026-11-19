@@ -25,7 +25,7 @@ function TurnRow({ turn }: TurnRowProps) {
           {turn.at && <span className="shrink-0 text-[12px] text-faint tabular-nums">{formatClock(turn.at)}</span>}
         </summary>
         <div className="mt-1 mb-2 flex flex-col gap-2 border-l-2 border-hair pl-3">
-          <p className="rounded-lg bg-tint-2 px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap">{turn.prompt}</p>
+          <p className="rounded-lg bg-prompt px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap text-prompt-ink">{turn.prompt}</p>
           {turn.answer ? (
             <>
               <div ref={answerRef}>

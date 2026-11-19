@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
+import { flowDocsOf } from "@/common/workflow/steps";
 import type { StepStatus, WorkflowStep } from "@/common/workflow/types";
 import { displayStateOf, useRestOverrides } from "@/client/entities/agent";
 import { DevPortBadges } from "@/client/entities/dev-ports";
+import { gitGraphHref } from "@/client/entities/git-graph";
 import { WorktreeCommandButtons } from "@/client/features/run-project-command";
+import { ContextMenu, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import type { UserGroup } from "../model/canvasState";
 import { CLUSTER_HEAD, GROUP_HEAD, PROJECT_HEAD, type Rect } from "../model/layout";
 
@@ -30,31 +34,77 @@ interface ClusterFrameProps {
   onOpenDoc: (target: string) => void;
 }
 
+const stopPropagation = (event: React.SyntheticEvent) => event.stopPropagation();
+
 /** A worktree as a dashed frame; dragging its header moves every session in it. */
 export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, empty, onOpen, onOpenDoc }: ClusterFrameProps) {
+  const [flowMenu, setFlowMenu] = useState<MenuPoint | null>(null);
   const current = steps?.findIndex((step) => step.status === "now" || step.status === "ask") ?? -1;
   const pr = worktree.pullRequest.kind === "found" ? worktree.pullRequest : null;
+  const flowDocs = flowDocsOf(worktree.flowTasks[0]);
+  const openFlow = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const [only] = flowDocs;
+    if (flowDocs.length === 1 && only) {
+      onOpenDoc(only.target);
+      return;
+    }
+    setFlowMenu({ x: event.clientX, y: event.clientY });
+  };
+  const flowStatus = (
+    <>
+      {steps && steps.length > 0 && (
+        <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
+          {steps.map((step) => (
+            <span key={step.key} className={`size-1.5 rounded-full ${STEP_DOT[step.status]}`} />
+          ))}
+        </span>
+      )}
+      {steps && current >= 0 && (
+        <span className="shrink-0 text-muted">
+          {current + 1}/{steps.length} {steps[current]?.label}
+        </span>
+      )}
+    </>
+  );
   return (
     <g>
       <rect data-cluster={id} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={14} strokeDasharray="6 5" strokeWidth={1.3} className="fill-tint/40 stroke-faint" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={CLUSTER_HEAD}>
         <div data-drag="cluster" data-id={id} className="flex h-full cursor-grab items-center gap-2 px-4 text-[12px] leading-none select-none active:cursor-grabbing">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-muted">{worktree.isMain ? "MAIN" : "WORKTREE"}</span>
+          <button
+            type="button"
+            onClick={() => window.open(gitGraphHref(worktree.path), "_blank", "noopener")}
+            title="깃 그래프에서 커밋 흐름 보기"
+            className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-muted underline decoration-faint underline-offset-[3px] hover:decoration-current"
+          >
+            {worktree.isMain ? "MAIN" : "WORKTREE"}
+          </button>
           <span className="truncate font-bold">{worktree.name}</span>
-          {steps && steps.length > 0 && (
-            <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
-              {steps.map((step) => (
-                <span key={step.key} className={`size-1.5 rounded-full ${STEP_DOT[step.status]}`} />
-              ))}
-            </span>
+          {flowDocs.length > 0 ? (
+            <button
+              type="button"
+              onClick={openFlow}
+              title={flowDocs.length === 1 ? "연결된 flow 문서 열기" : "연결된 flow 문서 고르기"}
+              className="flex shrink-0 items-center gap-2 underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              {flowStatus}
+            </button>
+          ) : (
+            flowStatus
           )}
-          {steps && current >= 0 && (
-            <span className="shrink-0 text-muted">
-              {current + 1}/{steps.length} {steps[current]?.label}
-            </span>
+          {pr && (
+            <button
+              type="button"
+              onClick={() => onOpenDoc(pr.url)}
+              title="PR 열기"
+              className="shrink-0 font-semibold text-pr underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            >
+              PR #{pr.number}
+            </button>
           )}
-          {pr && <span className="shrink-0 font-semibold text-pr">PR #{pr.number}</span>}
-          <span className="ml-auto shrink-0 text-muted">세션 {sessions}</span>
+          <button type="button" onClick={onOpen} className="ml-auto shrink-0 text-muted underline decoration-faint underline-offset-[3px] hover:decoration-current">
+            세션 {sessions}
+          </button>
           <DevPortBadges worktreePath={worktree.path} />
           <WorktreeCommandButtons worktree={worktree} />
           {roundDoc && (
@@ -77,6 +127,26 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
           <p className="px-4 text-[12px] text-muted">열린 세션이 없어요</p>
         </foreignObject>
       )}
+      {flowMenu &&
+        createPortal(
+          // Portaled to <body> so the menu is not clipped by the SVG; React events still bubble through the portal, so the canvas never sees them.
+          <div onPointerDown={stopPropagation} onClick={stopPropagation}>
+            <ContextMenu at={flowMenu} label="연결된 flow 문서" onClose={() => setFlowMenu(null)} widthClass="w-56">
+              {flowDocs.map((doc) => (
+                <MenuItem
+                  key={doc.target}
+                  onSelect={() => {
+                    setFlowMenu(null);
+                    onOpenDoc(doc.target);
+                  }}
+                >
+                  {doc.label}
+                </MenuItem>
+              ))}
+            </ContextMenu>
+          </div>,
+          document.body,
+        )}
     </g>
   );
 }
