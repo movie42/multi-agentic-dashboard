@@ -1,5 +1,5 @@
 import "server-only";
-import { APP_BUILD_COMMAND, type AppStatus, type BranchStatus } from "@/common/appStatus/types";
+import { APP_BUILD_COMMAND, type AppBuildInfo, type AppStatus, type BranchStatus } from "@/common/appStatus/types";
 import { RUNNER_PORT } from "@/common/runner/types";
 import type { RunnerClient } from "@/server/runner/RunnerClient";
 import { RUNNER_BASE_URL } from "@/server/runner/spawnDaemon";
@@ -29,6 +29,7 @@ export interface AppStatusService {
   buildApp: () => Promise<string>;
   runInShell: (cwd: string, command: string) => Promise<string>;
   branchStatus: (worktreePath: string) => Promise<BranchStatus>;
+  runningBuild: () => Promise<AppBuildInfo | null>;
 }
 
 export function createAppStatusService(runner: RunnerClient): AppStatusService {
@@ -51,6 +52,7 @@ export function createAppStatusService(runner: RunnerClient): AppStatusService {
     },
     runInShell: (cwd, command) => runInShell(runner, cwd, command),
     branchStatus: (worktreePath) => readBranchStatus(worktreePath),
+    runningBuild: () => readRunningBuildInfo(),
     async read() {
       const repoPath = agentControlRepo();
       const [checkout, running, installed, daemon, build] = await Promise.all([

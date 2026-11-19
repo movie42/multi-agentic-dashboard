@@ -58,13 +58,13 @@ export async function readBuildInfo(file = path.join(process.cwd(), "build-info.
   }
 }
 
-let startupBuildInfo: Promise<AppBuildInfo | null> | null = null;
+const startupBuild: { info: Promise<AppBuildInfo | null> | null } = { info: null };
 
 // The installer replaces the bundle under a running server, so build-info.json on disk can be newer
 // than the code this process runs. The first read stands for the running build.
 export function readRunningBuildInfo(): Promise<AppBuildInfo | null> {
-  startupBuildInfo ??= readBuildInfo();
-  return startupBuildInfo;
+  startupBuild.info ??= readBuildInfo();
+  return startupBuild.info;
 }
 
 const BUILD_PHASES: readonly AppBuildPhase[] = ["building", "installing", "relaunching"];

@@ -49,10 +49,11 @@ function heredocDocuments(command: string): ToolDocument[] {
 /** Tracks markdown files written in the session so a later Edit can show the whole file, not just the patch. */
 function documentOf(name: string, input: Record<string, unknown> | undefined, files: Map<string, string>, limit: number): ToolDocument | null {
   if (name === "Bash") {
-    const written = heredocDocuments(stringField(input, "command") ?? "").at(-1);
-    if (!written) return null;
-    files.set(written.path, written.content);
-    return { path: written.path, content: clip(written.content, limit) };
+    const written = heredocDocuments(stringField(input, "command") ?? "");
+    for (const document of written) files.set(document.path, document.content);
+    const shown = written.at(-1);
+    if (!shown) return null;
+    return { path: shown.path, content: clip(shown.content, limit) };
   }
   const file = stringField(input, "file_path");
   if (!file || !MARKDOWN_FILE.test(file)) return null;
