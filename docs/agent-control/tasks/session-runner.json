@@ -47,10 +47,6 @@
                 [
                   "파일",
                   "<code>daemon/session/status.ts</code> · <code>daemon/session/status.test.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "데이터 변환은 순수 함수, 상태와 I/O는 클래스 — refactor-architecture 작업의 원칙"
                 ]
               ]
             },
@@ -62,10 +58,6 @@
                 [
                   "파일",
                   "<code>daemon/session/SessionRegistry.ts</code> · 테스트"
-                ],
-                [
-                  "재사용",
-                  "pty 생성은 주입받는 포트로 둔다 — <code>src/server/shared/ports.ts</code>의 ExecFileFn 주입 패턴"
                 ],
                 [
                   "결정",
@@ -81,10 +73,6 @@
                 [
                   "파일",
                   "<code>daemon/server.ts</code> · <code>daemon/main.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "출처 검사는 <code>src/server/security/origin.ts</code>의 로컬 호스트 판정 방식을 따른다"
                 ],
                 [
                   "결정",
@@ -110,13 +98,7 @@
             {
               "id": "P1-V",
               "title": "검증: bun run test 통과, bun run daemon 후 curl로 세션을 띄우고 목록에 나오는지 확인",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "단위 테스트 17개 통과. curl로 세션을 띄우면 목록에 나오고, 다른 출처 요청은 403, 없는 폴더는 400."
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -133,10 +115,6 @@
                 [
                   "파일",
                   "<code>daemon/session/hookSettings.ts</code> · 테스트"
-                ],
-                [
-                  "재사용",
-                  "<code>scripts/install-permission-hook.mjs</code>가 쓰는 type: http 훅 형식"
                 ],
                 [
                   "결정",
@@ -165,10 +143,6 @@
               "done": true,
               "rows": [
                 [
-                  "결과",
-                  "이 저장소에서 실제 claude에 프롬프트를 보내자 상태가 idle → working → idle로 바뀌었다."
-                ],
-                [
                   "결정",
                   "데몬을 claude 세션 안에서 띄우면 CLAUDE_CODE_CHILD_SESSION이 상속돼 트랜스크립트 저장이 꺼지므로, 세션 환경에서 이 변수를 지운다."
                 ]
@@ -189,10 +163,6 @@
                 [
                   "파일",
                   "<code>src/client/entities/runner/api/*</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>src/client/entities/terminal/api/terminalQuery.ts</code>의 queryOptions 구성. 목록은 폴링 대신 데몬의 이벤트 소켓으로 갱신"
                 ]
               ]
             },
@@ -219,32 +189,24 @@
                 [
                   "파일",
                   "<code>app/runner/page.tsx</code> · <code>src/client/views/runner/*</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>app/graph</code> · <code>src/client/views/graph</code>처럼 경로 하나에 view 하나"
                 ]
               ]
             },
             {
               "id": "P3-V",
               "title": "검증: 브라우저에서 세션을 띄워 터미널에 입력하고, 새로고침 뒤에도 출력이 이어지고, 상태 표시가 바뀌는지 확인. 타입 검사와 bun run test 통과",
-              "done": true,
-              "rows": [
-                [
-                  "결과",
-                  "헤드리스 브라우저에서 이 저장소로 세션을 띄워 터미널에 입력하자 답이 왔고, 상태가 작업 중에서 입력 기다림으로 돌아왔다. 새로고침 뒤에도 이전 출력이 다시 그려졌다. tsc · eslint 통과, 전체 테스트 447개 통과."
-                ]
-              ]
+              "done": true
             }
           ]
         }
       ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "타입 검사 · 린트 · 테스트가 통과했어요(2026-11-19). 코드 리뷰와 화면 확인은 이 정리에서 하지 않았어요. PR 없음."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -253,27 +215,56 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 screen 단계가 없어 바꿀 SOT 근거가 없어요."
+                ]
+              ]
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행이나 서버 · 기획 요청을 따로 정리하지 않았어요. 사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+                ]
+              ]
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "이 정리에서 코드 리뷰를 돌리지 않았어요. 사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+                ]
+              ]
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음 — 이 정리에서 PR을 새로 만들지 않았어요."
+                ]
+              ]
             }
           ]
         },
@@ -301,5 +292,13 @@
       "state": "confirmed",
       "basis": "대화에서 합의한 단계 구분"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "05 완료의 코드 리뷰 · 화면 확인",
+      "why": "사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+    }
+  ],
+  "pruned": "2026-11-19"
 }

@@ -29,10 +29,6 @@
                 [
                   "파일",
                   "<code>package.json</code> · <code>bun.lock</code>"
-                ],
-                [
-                  "패턴",
-                  "bun add (저장소가 bun.lock 사용)"
                 ]
               ]
             },
@@ -56,14 +52,6 @@
                 [
                   "파일",
                   "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>moveWorktree</code> · <code>ordered</code> · <code>renderPanel</code>"
-                ],
-                [
-                  "패턴",
-                  "PointerSensor는 4px 이상 움직여야 시작(클릭·우클릭 메뉴 보존), KeyboardSensor 추가, 측정은 MeasuringStrategy.Always"
                 ]
               ]
             },
@@ -75,10 +63,6 @@
                 [
                   "파일",
                   "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>reordering</code> · <code>setReordering</code>"
                 ]
               ]
             },
@@ -90,10 +74,6 @@
                 [
                   "파일",
                   "<code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "제목 줄과 같은 글꼴·아이콘, 그림자로 떠 있는 느낌"
                 ],
                 [
                   "결정",
@@ -121,10 +101,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/worktree-panel/ui/WorktreePanel.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "setNodeRef는 section, setActivatorNodeRef와 listeners는 h3"
                 ]
               ]
             },
@@ -278,9 +254,11 @@
       ]
     },
     "done": {
-      "status": "ask",
-      "summary": "PR 여부 확인 대기",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "타입 검사 · 린트 · 테스트가 통과했어요(2026-11-19). 코드 리뷰와 화면 확인은 이 정리에서 하지 않았어요. PR 없음."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -333,7 +311,14 @@
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음 — 이 정리에서 PR을 새로 만들지 않았어요."
+                ]
+              ]
             }
           ]
         },
@@ -352,5 +337,13 @@
       "basis": "사용자 요청 (2026-11-13 대화)"
     }
   ],
-  "base": "7f91711"
+  "base": "7f91711",
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "05 완료의 코드 리뷰 · 화면 확인",
+      "why": "사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+    }
+  ],
+  "pruned": "2026-11-19"
 }

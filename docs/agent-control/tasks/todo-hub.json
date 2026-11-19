@@ -38,10 +38,6 @@
                 [
                   "파일",
                   "<code>src/common/todos/types.ts</code> <code>src/common/todos/schema.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "schema의 transform으로 이전 필드 채우기(autoMovedAt처럼)"
                 ]
               ]
             },
@@ -53,10 +49,6 @@
                 [
                   "파일",
                   "<code>src/common/todos/links.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>parseJiraUrl</code> (src/common/todos/jira.ts)"
                 ]
               ]
             },
@@ -89,13 +81,7 @@
             {
               "id": "P1-V",
               "title": "검증: 규칙 단위 테스트 통과",
-              "done": true,
-              "rows": [
-                [
-                  "명령",
-                  "<code>bun run test src/common/todos</code>"
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -112,10 +98,6 @@
                 [
                   "파일",
                   "<code>src/server/workflow/JiraInfo.ts</code> <code>src/server/todos/TodoJiraImport.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "JiraInfo의 acli 실행 · 사이트 주소"
                 ],
                 [
                   "결정",
@@ -137,10 +119,6 @@
                   "<code>src/server/todos/TodoLinker.ts</code> <code>app/api/board/route.ts</code>"
                 ],
                 [
-                  "패턴",
-                  "<code>TodoLaunchAttacher.observe</code>"
-                ],
-                [
                   "결정",
                   "세션 자동 연결은 카드의 워크트리가 메인 워크트리가 아닐 때만 그 폴더의 세션을 붙여요. 메인 워크트리는 여러 일이 섞여 있어서예요. 지난 세션 목록은 2분에 한 번만 다시 읽어요."
                 ]
@@ -160,13 +138,7 @@
             {
               "id": "P2-V",
               "title": "검증: 서버 단위 테스트 · typecheck",
-              "done": true,
-              "rows": [
-                [
-                  "명령",
-                  "<code>bun run test src/server/todos</code> · <code>bunx tsc --noEmit</code>"
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -194,10 +166,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/todo-board/ui/TodoCardDetail.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "문서 보기 feature <code>view-doc</code>"
                 ]
               ]
             },
@@ -215,13 +183,7 @@
             {
               "id": "P3-V",
               "title": "검증: 화면 테스트 · Dock 앱 재설치 후 확인",
-              "done": true,
-              "rows": [
-                [
-                  "명령",
-                  "<code>bun run test src/client/widgets/todo-board</code> · <code>bun run desktop</code>"
-                ]
-              ]
+              "done": true
             }
           ]
         },
@@ -244,22 +206,18 @@
             {
               "id": "P4-V",
               "title": "검증: 에이전트 테스트 · 전체 typecheck · lint · test",
-              "done": true,
-              "rows": [
-                [
-                  "명령",
-                  "<code>bun run test</code> · <code>bun run lint</code>"
-                ]
-              ]
+              "done": true
             }
           ]
         }
       ]
     },
     "done": {
-      "status": "now",
-      "summary": "PR 여부 확인 대기",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "타입 검사 · 린트 · 테스트가 통과했어요(2026-11-19). 코드 리뷰와 화면 확인은 이 정리에서 하지 않았어요. PR 없음."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -312,7 +270,14 @@
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음 — 이 정리에서 PR을 새로 만들지 않았어요."
+                ]
+              ]
             }
           ]
         },
@@ -336,6 +301,12 @@
       "stage": "tasks",
       "stop": "계획 승인",
       "why": "질문을 주고받지 말고 구현까지 진행하라는 사용자 지시(메모리 flow-implement-dont-grill)"
+    },
+    {
+      "stage": "done",
+      "stop": "05 완료의 코드 리뷰 · 화면 확인",
+      "why": "사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
     }
-  ]
+  ],
+  "pruned": "2026-11-19"
 }

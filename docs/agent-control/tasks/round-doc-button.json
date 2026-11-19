@@ -33,10 +33,6 @@
                 [
                   "파일",
                   "<code>src/common/workflow/types.ts</code> · <code>src/server/workflow/flowTasks.ts</code> · <code>src/server/workflow/FlowDocReader.ts</code> · <code>src/server/workflow/flowTasks.test.ts</code> · <code>src/server/workflow/FlowDocReader.test.ts</code> · <code>test/fixtures.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>pageIndex</code>와 같은 방식 — <code>&lt;domain&gt;/&lt;task&gt;/02-grill.html</code>이 있으면 경로, 없으면 null"
                 ]
               ]
             },
@@ -48,18 +44,13 @@
                 [
                   "파일",
                   "<code>src/common/workflow/steps.ts</code> · <code>src/common/workflow/steps.test.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>grillStep</code>과 같은 조건(<code>grill.open &gt; 0</code>) — grillPage ?? pageIndex, 라운드가 없으면 null"
                 ]
               ]
             },
             {
               "id": "P1-V",
               "title": "검증: <code>bun run test</code>로 FlowDocReader · steps 테스트 통과",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
         },
@@ -78,10 +69,6 @@
                   "<code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code> · <code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
                 ],
                 [
-                  "재사용",
-                  "<code>onAction({ type: \"open-artifact\" })</code> — Dashboard가 <code>openInPanel</code>로 패널에 연다"
-                ],
-                [
                   "결정",
                   "카드에서는 open-artifact 액션을 보내고, Dashboard가 openInPanel로 패널에 열어요. 카드에 store를 직접 붙이지 않았어요."
                 ]
@@ -95,14 +82,6 @@
                 [
                   "파일",
                   "<code>src/client/widgets/project-graph/ui/Frames.tsx</code> · <code>src/client/widgets/project-graph/ui/CanvasStage.tsx</code> · <code>src/client/widgets/project-graph/ui/ProjectCanvas.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "ProjectCanvas의 기존 열기 처리(<code>openInPanel</code>, 실패 시 open-artifact)"
-                ],
-                [
-                  "패턴",
-                  "'워크트리 열기' 버튼과 같은 밑줄 버튼"
                 ]
               ]
             },
@@ -114,20 +93,89 @@
                 [
                   "파일",
                   "<code>src/client/widgets/stage-board/ui/StageBoard.tsx</code>"
-                ],
-                [
-                  "패턴",
-                  "'답장' · '이동 →'과 같은 둥근 버튼, 그 사이에"
                 ]
               ]
             },
             {
               "id": "P2-V",
               "title": "검증: <code>bunx tsc --noEmit</code> · <code>bun run lint</code> · <code>bun run test</code> 통과",
-              "done": true,
-              "rows": []
+              "done": true
             }
           ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "타입 검사 · 린트 · 테스트가 통과했어요(2026-11-19). 코드 리뷰와 화면 확인은 이 정리에서 하지 않았어요. PR 없음."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 screen 단계가 없어 바꿀 SOT 근거가 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행이나 서버 · 기획 요청을 따로 정리하지 않았어요. 사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "이 정리에서 코드 리뷰를 돌리지 않았어요. 사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "by": "inferred"
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "by": "inferred",
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음 — 이 정리에서 PR을 새로 만들지 않았어요."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
         }
       ]
     }
@@ -138,5 +186,13 @@
       "state": "guess",
       "basis": "사용자 요청 2026-11-17"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "done",
+      "stop": "05 완료의 코드 리뷰 · 화면 확인",
+      "why": "사용자가 2026-11-19 채팅에서 '구현 안 된 것도 검증 안 된 것도 없다, 전부 체크하고 완료 처리'라고 지시했어요."
+    }
+  ],
+  "pruned": "2026-11-19"
 }
