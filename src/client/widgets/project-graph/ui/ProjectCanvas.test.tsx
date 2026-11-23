@@ -196,6 +196,7 @@ describe("ProjectCanvas", () => {
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
+    fireEvent.click(screen.getByRole("menuitem", { name: /^만들기/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "지휘자" }));
     expect(screen.getByText(/이 워크트리와 하위 워크트리/)).toBeTruthy();
     expect(onOpenWorktree).not.toHaveBeenCalled();
@@ -272,6 +273,7 @@ describe("ProjectCanvas", () => {
       </QueryClientProvider>,
     );
     fireEvent.contextMenu(document.querySelectorAll("[data-cluster]")[1]!, { clientX: 20, clientY: 20 });
+    fireEvent.click(screen.getByRole("menuitem", { name: /^열기/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "문서 열기 (2)" }));
     expect(screen.getByRole("menuitem", { name: /결제\s*flow · pay/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("menuitem", { name: /pay · 03-tasks/ }));
@@ -334,9 +336,11 @@ describe("ProjectCanvas", () => {
     const sleeping = () => screen.queryAllByText("잠자는 중").length;
     const before = sleeping();
     fireEvent.contextMenu(screen.getByText("둘째"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^상태 바꾸기/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "잠자는 중으로 바꾸기 (2개)" }));
     expect(sleeping()).toBe(before + 2);
     fireEvent.contextMenu(screen.getByText("둘째"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^상태 바꾸기/ }));
     fireEvent.click(screen.getByRole("menuitem", { name: "원래 상태로 되돌리기 (2개)" }));
     expect(sleeping()).toBe(before);
   });

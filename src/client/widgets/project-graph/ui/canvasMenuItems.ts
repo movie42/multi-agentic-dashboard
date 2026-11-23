@@ -8,7 +8,7 @@ import type { TemplateRun } from "@/common/templates/types";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
 import type { ProjectGraph } from "../model/graph";
-import type { MenuItem, MenuRename } from "./CanvasMenu";
+import type { MenuGroup, MenuItem, MenuRename } from "./CanvasMenu";
 import type { MenuTarget } from "./CanvasStage";
 import { nodeTitle } from "./NodeBox";
 
@@ -37,8 +37,8 @@ export interface MenuContext {
 }
 
 /**
- * Every canvas menu lists its items in the same order of sections, separated by a line: open, create,
- * session state, arrange, then the destructive ones last.
+ * Every canvas menu has the same first level, in the same order: open, create, session state, arrange,
+ * then the destructive ones last. Each opens its items to the side.
  */
 export interface MenuContent {
   /** Names the menu for screen readers; not drawn. */
@@ -46,7 +46,7 @@ export interface MenuContent {
   /** Drawn on top only when the menu acts on more than the right-clicked thing ("고른 세션 2개"). */
   heading?: string;
   rename: MenuRename | null;
-  sections: MenuItem[][];
+  groups: MenuGroup[];
 }
 
 type Entry = MenuItem | null | false;
@@ -61,8 +61,14 @@ interface Sections {
   danger?: Entry[];
 }
 
-function sectioned({ open = [], create = [], state = [], arrange = [], danger = [] }: Sections): MenuItem[][] {
-  return [open, create, state, arrange, danger].map(compact).filter((section) => section.length > 0);
+function sectioned({ open = [], create = [], state = [], arrange = [], danger = [] }: Sections): MenuGroup[] {
+  return [
+    { label: "열기", items: compact(open) },
+    { label: "만들기", items: compact(create) },
+    { label: "상태 바꾸기", items: compact(state) },
+    { label: "정리", items: compact(arrange) },
+    { label: "닫기·지우기", items: compact(danger) },
+  ].filter((group) => group.items.length > 0);
 }
 
 function closeSessions(agents: AgentCard[], onAction: MenuContext["onAction"]): void {
@@ -174,7 +180,7 @@ function selectionMenu(selection: AgentCard[], context: MenuContext, extra: Sect
     title: `고른 세션 ${selection.length}개`,
     heading: `고른 세션 ${selection.length}개`,
     rename: null,
-    sections: sectioned({
+    groups: sectioned({
       open: [docsItem(selection, worktreesOf(context.graph, selection), context.onOpenDoc), ...(extra.open ?? [])],
       state: sessions.state,
       arrange: [...sessions.arrange, ...(extra.arrange ?? [])],
@@ -192,7 +198,7 @@ function reservedMenu(id: string, context: MenuContext): MenuContent | null {
   return {
     title: `예약 카드 · ${card.title}`,
     rename: null,
-    sections: sectioned({
+    groups: sectioned({
       open: [{ label: "패널에서 열기", run: () => context.select([id]) }],
       arrange: [{ label: "흐름 고치기", run: () => context.onEditRun(run) }],
       danger: [
@@ -224,7 +230,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     return {
       title: nodeTitle(agent),
       rename,
-      sections: sectioned({
+      groups: sectioned({
         open: [
           { label: "패널에서 열기", run: () => context.select([agent.id]) },
           docsItem([agent], worktreesOf(graph, [agent]), context.onOpenDoc),
@@ -251,7 +257,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     return {
       title: `워크트리 · ${worktree.name}`,
       rename: worktree.isMain ? null : { label: "이름 바꾸기", value: worktree.name, onSave: (name) => void onAction({ type: "rename-worktree", worktreePath: worktree.path, name }) },
-      sections: sectioned({
+      groups: sectioned({
         open: [
           { label: "워크트리 열기", run: () => context.onOpenWorktree(worktree.worktreeId) },
           docsItem(sessions, [worktree], context.onOpenDoc),
@@ -280,7 +286,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     return {
       title: `그룹 · ${group.name}`,
       rename: { label: "이름 바꾸기", value: group.name, onSave: (name) => save((current) => renameGroup(current, group.id, name)) },
-      sections: sectioned({
+      groups: sectioned({
         arrange: [
           { label: `안의 세션 ${members.length}개 고르기`, run: () => context.select(members.map((member) => member.id)) },
           { label: "그룹 풀기", run: () => save((current) => ungroup(current, group.id)) },
@@ -306,7 +312,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       { label: "자동 정리", run: context.onTidy },
     ];
     if (selection.length > 0) return selectionMenu(selection, context, { arrange: canvasItems });
-    return { title: "캔버스", rename: null, sections: sectioned({ arrange: canvasItems }) };
+    return { title: "캔버스", rename: null, groups: sectioned({ arrange: canvasItems }) };
   }
 
   const edge = graph.edges.find((entry) => entry.id === target.id);
@@ -315,7 +321,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
   return {
     title: "연결",
     rename: null,
-    sections: sectioned({
+    groups: sectioned({
       arrange: [
         (edge.kind === "delegate" || edge.kind === "next") && { label: "내용 고치기", run: () => context.onEditLink(edge.id) },
         edge.paused && { label: "다시 켜기", run: () => void onAction({ type: "resume-link", linkId }) },

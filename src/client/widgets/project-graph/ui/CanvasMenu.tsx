@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ContextMenu, MenuHeading, MenuItem as MenuRow, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 
@@ -19,6 +19,12 @@ export interface MenuItem {
   key?: string;
 }
 
+/** One first-level entry; its items open to the side. A group with one item shows that item in place. */
+export interface MenuGroup {
+  label: string;
+  items: MenuItem[];
+}
+
 export interface MenuRename {
   label: string;
   value: string;
@@ -30,13 +36,20 @@ interface CanvasMenuProps {
   at: MenuPoint;
   title: string;
   heading?: string;
-  sections: MenuItem[][];
+  groups: MenuGroup[];
   rename: MenuRename | null;
   onClose: () => void;
 }
 
-/** The right-click menu on a box, frame or line: the app's shared context menu, one line between sections. */
-export function CanvasMenu({ at, title, heading, sections, rename, onClose }: CanvasMenuProps) {
+const MENU_W = 240;
+const PANEL =
+  "absolute top-0 z-10 flex w-60 flex-col rounded-[12px] bg-bg p-1.5 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]";
+
+/** The right-click menu on a box, frame or line: the app's shared context menu, groups first and their items to the side. */
+export function CanvasMenu({ at, title, heading, groups, rename, onClose }: CanvasMenuProps) {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // Near the right edge the second level opens to the left instead.
+  const flip = typeof window !== "undefined" && at.x + MENU_W * 2 > window.innerWidth;
   const [asking, setAsking] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [submenu, setSubmenu] = useState<MenuItem | null>(null);
@@ -68,7 +81,7 @@ export function CanvasMenu({ at, title, heading, sections, rename, onClose }: Ca
 
   // Portaled so the menu keeps screen size at any zoom and is not clipped by the canvas.
   return createPortal(
-    <ContextMenu at={at} label={`${title} 메뉴`} onClose={onClose} widthClass="w-60 max-h-[calc(100dvh-16px)] overflow-y-auto">
+    <ContextMenu at={at} label={`${title} 메뉴`} onClose={onClose} widthClass="w-60">
       {submenu ? (
         <>
           <button type="button" onClick={() => setSubmenu(null)} className="truncate px-2.5 pt-1 pb-1.5 text-left text-[11px] font-semibold text-muted hover:text-fg">
@@ -93,12 +106,25 @@ export function CanvasMenu({ at, title, heading, sections, rename, onClose }: Ca
           ) : (
             rename && <MenuRow onSelect={() => setRenaming(true)}>{rename.label}</MenuRow>
           )}
-          {sections.map((section, index) => (
-            <Fragment key={section[0]?.key ?? section[0]?.label ?? index}>
-              {(index > 0 || rename) && <MenuSeparator />}
-              {section.map(row)}
-            </Fragment>
-          ))}
+          {rename && groups.length > 0 && <MenuSeparator />}
+          {groups.map((group) =>
+            group.items.length === 1 ? (
+              <div key={group.label} className="flex flex-col" onMouseEnter={() => setOpenGroup(null)}>
+                {row(group.items[0]!)}
+              </div>
+            ) : (
+              <div key={group.label} className="relative flex flex-col" onMouseEnter={() => setOpenGroup(group.label)}>
+                <MenuRow hint="›" onSelect={() => setOpenGroup(openGroup === group.label ? null : group.label)}>
+                  <span className={openGroup === group.label ? "font-semibold" : ""}>{group.label}</span>
+                </MenuRow>
+                {openGroup === group.label && (
+                  <div role="menu" aria-label={group.label} className={`${PANEL} ${flip ? "right-full mr-1.5" : "left-full ml-1.5"}`}>
+                    {group.items.map(row)}
+                  </div>
+                )}
+              </div>
+            ),
+          )}
         </>
       )}
     </ContextMenu>,

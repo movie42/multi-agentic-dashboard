@@ -82,7 +82,7 @@ describe("menuFor", () => {
     const onEditRun = vi.fn();
     const menu = menuFor({ kind: "node", id: reservedId("r1", "b") }, context({ onEditRun }));
     expect(menu?.title).toBe("예약 카드 · 리뷰");
-    const items = menu?.sections.flat() ?? [];
+    const items = menu?.groups.flatMap((group) => group.items) ?? [];
     expect(labels(items)).toContain("흐름 고치기");
     items.find((item) => item.label === "흐름 고치기")?.run();
     expect(onEditRun).toHaveBeenCalledWith(run);
@@ -95,23 +95,23 @@ describe("menuFor", () => {
     ["a reserved card", { kind: "node", id: reservedId("r1", "b") }, []],
   ];
 
-  it.each(targets)("keeps the destructive items of %s together in the last section", (_, target, selected) => {
-    const sections = menuFor(target, context({ selected }))?.sections ?? [];
-    expect(sections.length).toBeGreaterThan(1);
-    expect(sections.every((section) => section.length > 0)).toBe(true);
-    const dangerAt = sections.findIndex((section) => section.some((item) => item.danger));
-    expect(dangerAt).toBe(sections.length - 1);
-    expect(sections.at(-1)?.every((item) => item.danger)).toBe(true);
+  it.each(targets)("keeps the destructive items of %s together in the last group", (_, target, selected) => {
+    const groups = menuFor(target, context({ selected }))?.groups ?? [];
+    expect(groups.length).toBeGreaterThan(1);
+    expect(groups.every((group) => group.items.length > 0)).toBe(true);
+    expect(groups.findIndex((group) => group.items.some((item) => item.danger))).toBe(groups.length - 1);
+    expect(groups.at(-1)).toMatchObject({ label: "닫기·지우기" });
+    expect(groups.at(-1)?.items.every((item) => item.danger)).toBe(true);
   });
 
-  it("opens before it creates, and leaves selection and grouping after the session states", () => {
-    const sections = menuFor({ kind: "node", id: "s1" }, context())?.sections ?? [];
-    expect(sections.map(labels)).toEqual([
-      ["패널에서 열기", "워크트리 열기", "셸 터미널"],
-      ["다른 세션과 잇기"],
-      ["쉬는 중으로 바꾸기", "잠자는 중으로 바꾸기"],
-      ["그룹으로 묶기", "템플릿으로 저장"],
-      ["세션 닫기"],
+  it("groups a session menu into open, create, state, arrange and close, in that order", () => {
+    const groups = menuFor({ kind: "node", id: "s1" }, context())?.groups ?? [];
+    expect(groups.map((group) => [group.label, labels(group.items)])).toEqual([
+      ["열기", ["패널에서 열기", "워크트리 열기", "셸 터미널"]],
+      ["만들기", ["다른 세션과 잇기"]],
+      ["상태 바꾸기", ["쉬는 중으로 바꾸기", "잠자는 중으로 바꾸기"]],
+      ["정리", ["그룹으로 묶기", "템플릿으로 저장"]],
+      ["닫기·지우기", ["세션 닫기"]],
     ]);
   });
 });
