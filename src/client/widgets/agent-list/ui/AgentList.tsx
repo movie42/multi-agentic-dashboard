@@ -9,7 +9,8 @@ import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
 import { QuickReply } from "@/client/features/quick-reply";
 import { BookmarkMark, bookmarkTarget } from "@/client/features/bookmark-session";
-import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ContextMenu, MenuHeading, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { MenuGroups } from "@/client/shared/ui/MenuGroups";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { useRowSelection } from "../model/rowSelection";
 
@@ -287,16 +288,26 @@ function AgentRow({
       {menu && bulk && (
         <ContextMenu at={menu.at} label={`고른 세션 ${bulk.length}개 메뉴`} onClose={closeMenu}>
           <MenuHeading>고른 세션 {bulk.length}개</MenuHeading>
-          {restMenu(bulk)}
-          <MenuSeparator />
-          <MenuItem
-            onSelect={() => {
-              closeMenu();
-              clearPicks();
-            }}
-          >
-            고르기 해제
-          </MenuItem>
+          <MenuGroups
+            at={menu.at}
+            groups={[
+              { label: "상태 바꾸기", items: restMenu(bulk) },
+              {
+                label: "정리",
+                items: [
+                  <MenuItem
+                    key="clear"
+                    onSelect={() => {
+                      closeMenu();
+                      clearPicks();
+                    }}
+                  >
+                    고르기 해제
+                  </MenuItem>,
+                ],
+              },
+            ]}
+          />
         </ContextMenu>
       )}
       {menu && !bulk && (
@@ -319,69 +330,86 @@ function AgentRow({
               </div>
             </div>
           ) : (
-            <>
-              <MenuItem
-                onSelect={() => {
-                  closeMenu();
-                  setExpanded(!expanded);
-                }}
-              >
-                {expanded ? "접기" : "펼치기"}
-              </MenuItem>
-              {terminalHandle && !expanded && (
-                <MenuItem
-                  onSelect={() => {
-                    closeMenu();
-                    setReplying(true);
-                  }}
-                >
-                  답장
-                </MenuItem>
-              )}
-              {terminalHandle && onAction && (
-                <MenuItem
-                  onSelect={() => {
-                    closeMenu();
-                    requestTerminal(terminalHandle);
-                  }}
-                >
-                  터미널 열기
-                </MenuItem>
-              )}
-              {onJump && (
-                <MenuItem
-                  onSelect={() => {
-                    closeMenu();
-                    onJump(agent);
-                  }}
-                >
-                  프로젝트 화면에서 열기
-                </MenuItem>
-              )}
-              {restChoices([agent], rest.restOf).length > 0 && <MenuSeparator />}
-              {restMenu([agent])}
-              {onAction && (terminalHandle || listHandles.length > 0) && <MenuSeparator />}
-              {terminalHandle && onAction && (
-                <MenuItem
-                  tone="danger"
-                  onSelect={() => {
-                    closeMenu();
-                    void onAction({ type: "close-terminal", terminalHandle });
-                  }}
-                >
-                  세션 닫기
-                </MenuItem>
-              )}
-              {onAction && listHandles.length > 0 && (
-                <MenuItem
-                  tone="danger"
-                  hint={`${listHandles.length}개`}
-                  onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
-                >
-                  이 목록 세션 모두 닫기
-                </MenuItem>
-              )}
-            </>
+            <MenuGroups
+              at={menu.at}
+              groups={[
+                {
+                  label: "열기",
+                  items: [
+                    <MenuItem
+                      key="expand"
+                      onSelect={() => {
+                        closeMenu();
+                        setExpanded(!expanded);
+                      }}
+                    >
+                      {expanded ? "접기" : "펼치기"}
+                    </MenuItem>,
+                    terminalHandle && !expanded && (
+                      <MenuItem
+                        key="reply"
+                        onSelect={() => {
+                          closeMenu();
+                          setReplying(true);
+                        }}
+                      >
+                        답장
+                      </MenuItem>
+                    ),
+                    terminalHandle && onAction && (
+                      <MenuItem
+                        key="terminal"
+                        onSelect={() => {
+                          closeMenu();
+                          requestTerminal(terminalHandle);
+                        }}
+                      >
+                        터미널 열기
+                      </MenuItem>
+                    ),
+                    onJump && (
+                      <MenuItem
+                        key="jump"
+                        onSelect={() => {
+                          closeMenu();
+                          onJump(agent);
+                        }}
+                      >
+                        프로젝트 화면에서 열기
+                      </MenuItem>
+                    ),
+                  ],
+                },
+                { label: "상태 바꾸기", items: restMenu([agent]) },
+                {
+                  label: "닫기·지우기",
+                  items: [
+                    terminalHandle && onAction && (
+                      <MenuItem
+                        key="close"
+                        tone="danger"
+                        onSelect={() => {
+                          closeMenu();
+                          void onAction({ type: "close-terminal", terminalHandle });
+                        }}
+                      >
+                        세션 닫기
+                      </MenuItem>
+                    ),
+                    onAction && listHandles.length > 0 && (
+                      <MenuItem
+                        key="close-all"
+                        tone="danger"
+                        hint={`${listHandles.length}개`}
+                        onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
+                      >
+                        이 목록 세션 모두 닫기
+                      </MenuItem>
+                    ),
+                  ],
+                },
+              ]}
+            />
           )}
         </ContextMenu>
       )}

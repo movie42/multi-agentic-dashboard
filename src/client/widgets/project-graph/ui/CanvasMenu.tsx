@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ContextMenu, MenuHeading, MenuItem as MenuRow, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { MenuGroups } from "@/client/shared/ui/MenuGroups";
 
 export interface MenuItem {
   label: string;
@@ -41,15 +42,8 @@ interface CanvasMenuProps {
   onClose: () => void;
 }
 
-const MENU_W = 240;
-const PANEL =
-  "absolute top-0 z-10 flex w-60 flex-col rounded-[12px] bg-bg p-1.5 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]";
-
 /** The right-click menu on a box, frame or line: the app's shared context menu, groups first and their items to the side. */
 export function CanvasMenu({ at, title, heading, groups, rename, onClose }: CanvasMenuProps) {
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
-  // Near the right edge the second level opens to the left instead.
-  const flip = typeof window !== "undefined" && at.x + MENU_W * 2 > window.innerWidth;
   const [asking, setAsking] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [submenu, setSubmenu] = useState<MenuItem | null>(null);
@@ -107,24 +101,7 @@ export function CanvasMenu({ at, title, heading, groups, rename, onClose }: Canv
             rename && <MenuRow onSelect={() => setRenaming(true)}>{rename.label}</MenuRow>
           )}
           {rename && groups.length > 0 && <MenuSeparator />}
-          {groups.map((group) =>
-            group.items.length === 1 ? (
-              <div key={group.label} className="flex flex-col" onMouseEnter={() => setOpenGroup(null)}>
-                {row(group.items[0]!)}
-              </div>
-            ) : (
-              <div key={group.label} className="relative flex flex-col" onMouseEnter={() => setOpenGroup(group.label)}>
-                <MenuRow hint="›" onSelect={() => setOpenGroup(openGroup === group.label ? null : group.label)}>
-                  <span className={openGroup === group.label ? "font-semibold" : ""}>{group.label}</span>
-                </MenuRow>
-                {openGroup === group.label && (
-                  <div role="menu" aria-label={group.label} className={`${PANEL} ${flip ? "right-full mr-1.5" : "left-full ml-1.5"}`}>
-                    {group.items.map(row)}
-                  </div>
-                )}
-              </div>
-            ),
-          )}
+          <MenuGroups at={at} groups={groups.map((group) => ({ label: group.label, items: group.items.map(row) }))} />
         </>
       )}
     </ContextMenu>,

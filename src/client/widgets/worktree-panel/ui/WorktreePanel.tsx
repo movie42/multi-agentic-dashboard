@@ -26,7 +26,8 @@ import { RemoveWorktree } from "@/client/features/remove-worktree";
 import { WorktreeNameForm } from "@/client/features/rename-worktree";
 import { useFileExplorerStore } from "@/client/features/browse-files";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
-import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { MenuGroups } from "@/client/shared/ui/MenuGroups";
 import { useScrolledPast } from "../model/useScrolledPast";
 import { useSessionOrder } from "../model/useSessionOrder";
 
@@ -47,8 +48,8 @@ interface WorktreePanelProps {
 
 interface WorktreeAction {
   key: keyof typeof ACTION_ICONS;
-  /** Same order as the canvas menus: open, create, then destructive last. */
-  section: "open" | "create" | "danger";
+  /** Same groups as the canvas menus; `top` sits on the first level by itself. */
+  section: "top" | "open" | "create" | "danger";
   label: string;
   description: string;
   disabled?: boolean;
@@ -56,7 +57,7 @@ interface WorktreeAction {
   run: () => void;
 }
 
-const MENU_WIDTH = 288;
+const MENU_WIDTH = 240;
 
 const STRIP_PX = 32;
 
@@ -121,7 +122,7 @@ export function WorktreePanel({
   const actions: WorktreeAction[] = [
     {
       key: "rename",
-      section: "open",
+      section: "top",
       label: "이름 바꾸기",
       description: "보드에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
       run: () => setEditingName(true),
@@ -392,7 +393,7 @@ export function WorktreePanel({
         </div>
         {removing && <RemoveWorktree worktree={worktree} sessionCount={all.length} onCancel={() => setRemoving(false)} />}
         {menu && (
-          <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-72">
+          <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-60">
             {menu.confirmingCloseAll ? (
               <div className="flex flex-col gap-2 p-2">
                 <p>이 워크트리의 세션 {terminalHandles.length}개를 닫을까요?</p>
@@ -412,44 +413,59 @@ export function WorktreePanel({
               </div>
             ) : (
               <>
-                {actionRows("open")}
+                {actionRows("top")}
                 <MenuSeparator />
-                {actionRows("create")}
-                <MenuSeparator />
-                <MenuHeading>명령</MenuHeading>
-                {commands.map((command) => (
-                  <MenuItem
-                    key={`command:${command.name}`}
-                    description={command.command}
-                    onSelect={() => {
-                      closeMenu();
-                      requestCommandRun(worktree, command);
-                    }}
-                  >
-                    실행: {command.name}
-                  </MenuItem>
-                ))}
-                <MenuItem
-                  description={commands.length > 0 ? "에이전트에게 고쳐 달라고 해요" : "에이전트가 저장소를 읽고 버튼으로 둘 명령을 찾아요"}
-                  onSelect={() => {
-                    closeMenu();
-                    requestCommandManage(worktree, commands.length > 0 ? "edit" : "register");
-                  }}
-                >
-                  {commands.length > 0 ? "명령 수정하기" : "명령 등록하기"}
-                </MenuItem>
-                {(terminalHandles.length > 0 || !worktree.isMain) && <MenuSeparator />}
-                {terminalHandles.length > 0 && (
-                  <MenuItem
-                    tone="danger"
-                    description="기록은 세션 목록에 남아요"
-                    hint={`${terminalHandles.length}개`}
-                    onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
-                  >
-                    세션 모두 닫기
-                  </MenuItem>
-                )}
-                {actionRows("danger")}
+                <MenuGroups
+                  at={menu.at}
+                  groups={[
+                    { label: "열기", items: actionRows("open") },
+                    { label: "만들기", items: actionRows("create") },
+                    {
+                      label: "명령",
+                      items: [
+                        ...commands.map((command) => (
+                          <MenuItem
+                            key={`command:${command.name}`}
+                            description={command.command}
+                            onSelect={() => {
+                              closeMenu();
+                              requestCommandRun(worktree, command);
+                            }}
+                          >
+                            실행: {command.name}
+                          </MenuItem>
+                        )),
+                        <MenuItem
+                          key="command:manage"
+                          description={commands.length > 0 ? "에이전트에게 고쳐 달라고 해요" : "에이전트가 저장소를 읽고 버튼으로 둘 명령을 찾아요"}
+                          onSelect={() => {
+                            closeMenu();
+                            requestCommandManage(worktree, commands.length > 0 ? "edit" : "register");
+                          }}
+                        >
+                          {commands.length > 0 ? "명령 수정하기" : "명령 등록하기"}
+                        </MenuItem>,
+                      ],
+                    },
+                    {
+                      label: "닫기·지우기",
+                      items: [
+                        terminalHandles.length > 0 && (
+                          <MenuItem
+                            key="close-all"
+                            tone="danger"
+                            description="기록은 세션 목록에 남아요"
+                            hint={`${terminalHandles.length}개`}
+                            onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
+                          >
+                            세션 모두 닫기
+                          </MenuItem>
+                        ),
+                        ...actionRows("danger"),
+                      ],
+                    },
+                  ]}
+                />
               </>
             )}
           </ContextMenu>

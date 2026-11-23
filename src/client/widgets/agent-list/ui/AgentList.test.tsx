@@ -33,6 +33,7 @@ describe("AgentList context menu", () => {
   it("closes the right-clicked session without a confirm step", async () => {
     const { onAction } = setup();
     openMenuOn("첫 세션");
+    await userEvent.click(screen.getByRole("menuitem", { name: /^닫기·지우기/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: "세션 닫기" }));
     expect(onAction).toHaveBeenCalledWith({ type: "close-terminal", terminalHandle: "term-a" });
     expect(screen.queryByRole("menu")).toBeNull();
@@ -51,6 +52,7 @@ describe("AgentList context menu", () => {
   it("expands the row from the menu and closes on Escape", async () => {
     setup();
     openMenuOn("첫 세션");
+    await userEvent.click(screen.getByRole("menuitem", { name: /^열기/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: "펼치기" }));
     expect(screen.getByText("card a")).toBeTruthy();
     openMenuOn("첫 세션");
@@ -78,9 +80,11 @@ describe("AgentList rest marks", () => {
   it("puts one session to 쉬는 중 from its own menu and back", async () => {
     setupPickable();
     openMenuOn("첫째");
+    await userEvent.click(screen.getByRole("menuitem", { name: /^상태 바꾸기/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: "쉬는 중으로 바꾸기" }));
     expect(screen.getAllByText("쉬는 중")).toHaveLength(1);
     openMenuOn("첫째");
+    await userEvent.click(screen.getByRole("menuitem", { name: /^상태 바꾸기/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: "원래 상태로 되돌리기" }));
     expect(screen.queryByText("쉬는 중")).toBeNull();
   });
@@ -92,6 +96,7 @@ describe("AgentList rest marks", () => {
     fireEvent.click(screen.getByText("셋째"), { metaKey: true });
     openMenuOn("둘째");
     expect(screen.getByText("고른 세션 3개")).toBeTruthy();
+    await userEvent.click(screen.getByRole("menuitem", { name: /^상태 바꾸기/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: /잠자는 중으로 바꾸기/ }));
     expect(screen.getAllByText("잠자는 중")).toHaveLength(2);
     expect(screen.getByText("에이전트 작업 중")).toBeTruthy();
