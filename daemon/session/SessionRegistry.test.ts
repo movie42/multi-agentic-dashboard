@@ -284,6 +284,17 @@ describe("SessionRegistry", () => {
     expect(registry.get("s1")?.permission).toBeNull();
   });
 
+  it("leaves waiting once the dashboard answers, without waiting for the tool to finish", () => {
+    const { registry } = setup();
+    registry.launch({ cwd: "/repo" });
+    registry.signal("s1", { event: "UserPromptSubmit" });
+    void registry.holdPermission("s1", { toolName: "Bash", toolInput: {}, suggestions: [] });
+    registry.signal("s1", { event: "Notification", notificationType: "permission_prompt" });
+    expect(registry.get("s1")?.status).toBe("waiting");
+    registry.answerPermission("s1", registry.get("s1")?.permission?.id ?? "", { behavior: "allow", suggestionIndex: null });
+    expect(registry.get("s1")?.status).toBe("working");
+  });
+
   it("keeps a held request while a parallel tool finishes, and lets go once the turn ends", async () => {
     const { registry } = setup();
     registry.launch({ cwd: "/repo" });

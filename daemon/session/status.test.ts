@@ -14,6 +14,11 @@ describe("nextStatus", () => {
     expect(nextStatus("working", { event: "Notification", notificationType: "permission_prompt" })).toBe("waiting");
   });
 
+  it("returns to working once a permission is answered from the dashboard", () => {
+    expect(nextStatus("waiting", { event: "permission-answered" })).toBe("working");
+    expect(nextStatus("idle", { event: "permission-answered" })).toBe("idle");
+  });
+
   it("ignores the idle reminder notification", () => {
     expect(nextStatus("idle", { event: "Notification", notificationType: "idle_prompt" })).toBe("idle");
   });

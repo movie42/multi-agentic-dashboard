@@ -346,6 +346,7 @@ export class SessionRegistry {
     const decision = decisionFor(permission, answer);
     if (!decision) return false;
     this.#releasePermission(entry, hookOutput(decision));
+    this.#apply(entry, { event: "permission-answered" });
     return true;
   }
 
