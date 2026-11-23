@@ -3,6 +3,8 @@ import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import { requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
 import { restChoices, type RestOverrides } from "@/client/entities/agent";
+import { controlRun, removeRun } from "@/client/entities/runner";
+import type { TemplateRun } from "@/common/templates/types";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
 import type { ProjectGraph } from "../model/graph";
@@ -28,17 +30,37 @@ export interface MenuContext {
   onLaunchConductor: (worktreeId: string) => void;
   onExpandTemplate: () => void;
   onSaveAsTemplate: (agents: AgentCard[]) => void;
+  /** Open the editor on a template run expanded on this canvas. */
+  onEditRun: (run: TemplateRun) => void;
   /** A person's 쉬는 중 / 잠자는 중 marks. */
   rest: RestOverrides;
 }
 
+/**
+ * Every canvas menu lists its items in the same order of sections, separated by a line: open, create,
+ * session state, arrange, then the destructive ones last.
+ */
 export interface MenuContent {
   title: string;
   rename: MenuRename | null;
-  items: MenuItem[];
+  sections: MenuItem[][];
 }
 
-const compact = (items: Array<MenuItem | null | false>): MenuItem[] => items.filter((item): item is MenuItem => Boolean(item));
+type Entry = MenuItem | null | false;
+
+const compact = (items: Entry[]): MenuItem[] => items.filter((item): item is MenuItem => Boolean(item));
+
+interface Sections {
+  open?: Entry[];
+  create?: Entry[];
+  state?: Entry[];
+  arrange?: Entry[];
+  danger?: Entry[];
+}
+
+function sectioned({ open = [], create = [], state = [], arrange = [], danger = [] }: Sections): MenuItem[][] {
+  return [open, create, state, arrange, danger].map(compact).filter((section) => section.length > 0);
+}
 
 function closeSessions(agents: AgentCard[], onAction: MenuContext["onAction"]): void {
   const handles = agents.flatMap((agent) => (agent.terminalHandle ? [agent.terminalHandle] : []));
@@ -80,9 +102,9 @@ function worktreesOf(graph: ProjectGraph, agents: AgentCard[]): WorktreeSummary[
 
 /**
  * Actions that work on any set of sessions: the right-clicked one, the selection, a group's members,
- * a worktree's sessions. Everything a single session can do that also makes sense for many is here.
+ * a worktree's sessions. `label` names the set ("세션 3개") when there is more than one.
  */
-function sessionsItems(agents: AgentCard[], context: MenuContext, label: string, withDocs = true): MenuItem[] {
+function sessionsSections(agents: AgentCard[], context: MenuContext, label: string): Required<Pick<Sections, "state" | "arrange" | "danger">> {
   const { graph, canvas, save, onAction } = context;
   const ids = agents.map((agent) => agent.id);
   const idSet = new Set(ids);
@@ -91,53 +113,91 @@ function sessionsItems(agents: AgentCard[], context: MenuContext, label: string,
   const closable = agents.filter((agent) => agent.terminalHandle);
   const many = agents.length > 1;
   const settable = agents.filter((agent) => agent.state !== "working").length;
-  const restItems = restChoices(agents, context.rest.restOf).map(
-    (choice): MenuItem => ({
-      key: `rest:${choice.kind ?? "clear"}`,
-      label: many ? `${choice.label} (${settable}개)` : choice.label,
-      run: () => context.rest.setRest(agents, choice.kind),
-    }),
-  );
-  return compact([
-    withDocs && docsItem(agents, worktreesOf(graph, agents), context.onOpenDoc),
-    ...restItems,
-    many && { label: `${label} 고르기`, run: () => context.select(ids) },
-    {
-      label: many ? `${label} 그룹으로 묶기` : "그룹으로 묶기",
-      run: () => {
-        const id = crypto.randomUUID();
-        save((current) => groupNodes(current, ids, id, `그룹 ${current.groups.length + 1}`));
+  return {
+    state: restChoices(agents, context.rest.restOf).map(
+      (choice): MenuItem => ({
+        key: `rest:${choice.kind ?? "clear"}`,
+        label: many ? `${choice.label} (${settable}개)` : choice.label,
+        run: () => context.rest.setRest(agents, choice.kind),
+      }),
+    ),
+    arrange: [
+      many && { label: `${label} 고르기`, run: () => context.select(ids) },
+      {
+        label: many ? `${label} 그룹으로 묶기` : "그룹으로 묶기",
+        run: () => {
+          const id = crypto.randomUUID();
+          save((current) => groupNodes(current, ids, id, `그룹 ${current.groups.length + 1}`));
+        },
       },
-    },
-    grouped.length > 0 && {
-      label: many ? `그룹에서 빼기 (${grouped.length}개)` : `'${groupOf(canvas, ids[0]!)?.name ?? ""}'에서 빼기`,
-      run: () =>
-        save((current) => ({
-          ...current,
-          groups: current.groups
-            .map((group) => ({ ...group, memberIds: group.memberIds.filter((member) => !idSet.has(member)) }))
-            .filter((group) => group.memberIds.length > 0),
-        })),
-    },
-    links.length > 0 && {
-      label: `연결 ${links.length}개 끊기`,
-      danger: true,
-      confirm: `한 번 더 누르면 연결 ${links.length}개를 끊어요`,
-      run: () => links.forEach((edge) => edge.linkId && void onAction({ type: "unlink-sessions", linkId: edge.linkId })),
-    },
-    { label: many ? `${label} 템플릿으로 저장` : "템플릿으로 저장", run: () => context.onSaveAsTemplate(agents) },
-    {
-      label: many ? `${label} 닫기 (${closable.length}개)` : "세션 닫기",
-      danger: true,
-      disabled: closable.length === 0,
-      confirm: many ? `한 번 더 누르면 ${closable.length}개를 닫아요` : "한 번 더 누르면 닫아요",
-      run: () => closeSessions(closable, onAction),
-    },
-  ]);
+      grouped.length > 0 && {
+        label: many ? `그룹에서 빼기 (${grouped.length}개)` : `'${groupOf(canvas, ids[0]!)?.name ?? ""}'에서 빼기`,
+        run: () =>
+          save((current) => ({
+            ...current,
+            groups: current.groups
+              .map((group) => ({ ...group, memberIds: group.memberIds.filter((member) => !idSet.has(member)) }))
+              .filter((group) => group.memberIds.length > 0),
+          })),
+      },
+      { label: many ? `${label} 템플릿으로 저장` : "템플릿으로 저장", run: () => context.onSaveAsTemplate(agents) },
+    ],
+    danger: [
+      links.length > 0 && {
+        label: `연결 ${links.length}개 끊기`,
+        danger: true,
+        confirm: `한 번 더 누르면 연결 ${links.length}개를 끊어요`,
+        run: () => links.forEach((edge) => edge.linkId && void onAction({ type: "unlink-sessions", linkId: edge.linkId })),
+      },
+      {
+        label: many ? `${label} 닫기${closable.length < agents.length ? ` (${closable.length}개)` : ""}` : "세션 닫기",
+        danger: true,
+        disabled: closable.length === 0,
+        confirm: many ? `한 번 더 누르면 ${closable.length}개를 닫아요` : "한 번 더 누르면 닫아요",
+        run: () => closeSessions(closable, onAction),
+      },
+    ],
+  };
 }
 
 function agentsOf(graph: ProjectGraph, ids: string[]): AgentCard[] {
   return ids.flatMap((id) => graph.nodes.get(id)?.agent ?? []);
+}
+
+function selectionMenu(selection: AgentCard[], context: MenuContext, extra: Sections = {}): MenuContent {
+  const label = `세션 ${selection.length}개`;
+  const sessions = sessionsSections(selection, context, label);
+  return {
+    title: `고른 세션 ${selection.length}개`,
+    rename: null,
+    sections: sectioned({
+      open: [docsItem(selection, worktreesOf(context.graph, selection), context.onOpenDoc), ...(extra.open ?? [])],
+      state: sessions.state,
+      arrange: [...sessions.arrange, ...(extra.arrange ?? [])],
+      danger: sessions.danger,
+    }),
+  };
+}
+
+/** A template card that has no session yet: it can only be looked at, edited with its run, or have its run stopped. */
+function reservedMenu(id: string, context: MenuContext): MenuContent | null {
+  const reserved = context.graph.reserved.get(id);
+  if (!reserved) return null;
+  const { run, card } = reserved;
+  const active = run.state === "running" || run.state === "paused";
+  return {
+    title: `예약 카드 · ${card.title}`,
+    rename: null,
+    sections: sectioned({
+      open: [{ label: "패널에서 열기", run: () => context.select([id]) }],
+      arrange: [{ label: "흐름 고치기", run: () => context.onEditRun(run) }],
+      danger: [
+        active
+          ? { label: "흐름 멈추기", danger: true, confirm: `한 번 더 누르면 '${run.name}' 흐름을 멈춰요`, run: () => void controlRun(run.id, { action: "stop" }) }
+          : { label: "흐름 지우기", danger: true, confirm: `한 번 더 누르면 '${run.name}' 흐름을 지워요`, run: () => void removeRun(run.id) },
+      ],
+    }),
+  };
 }
 
 /** What a right-click offers. A click on a selected box acts on the whole selection, like Figma. */
@@ -146,11 +206,9 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
 
   if (target.kind === "node") {
     const agent = graph.nodes.get(target.id)?.agent;
-    if (!agent) return null;
+    if (!agent) return reservedMenu(target.id, context);
     const selection = context.selected.includes(agent.id) && context.selected.length > 1 ? agentsOf(graph, context.selected) : null;
-    if (selection) {
-      return { title: `고른 세션 ${selection.length}개`, rename: null, items: sessionsItems(selection, context, `세션 ${selection.length}개`) };
-    }
+    if (selection) return selectionMenu(selection, context);
     const sessionId = agent.session?.id ?? null;
     const terminalHandle = agent.agentType === "shell" ? agent.terminalHandle : null;
     const rename: MenuRename | null = sessionId
@@ -158,16 +216,20 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       : terminalHandle
         ? { label: "별칭 지정", value: agent.title ?? "", onSave: (title) => void onAction({ type: "rename-terminal", terminalHandle, title }) }
         : null;
+    const sessions = sessionsSections([agent], context, "세션");
     return {
       title: nodeTitle(agent),
       rename,
-      items: [
-        { label: "패널에서 열기", run: () => context.select([agent.id]) },
-        { label: "다른 세션과 잇기", run: () => context.onConnectFrom(agent.id) },
-        { label: "워크트리 열기", run: () => context.onOpenWorktree(agent.worktreeId) },
-        { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath }) },
-        ...sessionsItems([agent], context, "세션"),
-      ],
+      sections: sectioned({
+        open: [
+          { label: "패널에서 열기", run: () => context.select([agent.id]) },
+          docsItem([agent], worktreesOf(graph, [agent]), context.onOpenDoc),
+          { label: "워크트리 열기", run: () => context.onOpenWorktree(agent.worktreeId) },
+          { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath }) },
+        ],
+        create: [{ label: "다른 세션과 잇기", run: () => context.onConnectFrom(agent.id) }],
+        ...sessions,
+      }),
     };
   }
 
@@ -181,22 +243,28 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       context.onOpenWorktree(worktree.worktreeId);
       requestWorktreeAction(worktree.worktreeId, action);
     };
+    const bulk = sessions.length > 0 ? sessionsSections(sessions, context, `세션 ${sessions.length}개`) : null;
     return {
       title: `워크트리 · ${worktree.name}`,
       rename: worktree.isMain ? null : { label: "이름 바꾸기", value: worktree.name, onSave: (name) => void onAction({ type: "rename-worktree", worktreePath: worktree.path, name }) },
-      items: compact([
-        docsItem(sessions, [worktree], context.onOpenDoc),
-        { label: "새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
-        { label: "지휘자", run: () => context.onLaunchConductor(worktree.worktreeId) },
-        { label: "템플릿 펼치기", run: context.onExpandTemplate },
-        { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
-        { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },
-        { label: "깃 그래프", run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener") },
-        { label: "여기서 워크트리 만들기", run: () => inPanel("worktree") },
-        !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") },
-        { label: "워크트리 열기", run: () => context.onOpenWorktree(worktree.worktreeId) },
-        ...(sessions.length > 0 ? sessionsItems(sessions, context, `이 워크트리 세션 ${sessions.length}개`, false) : []),
-      ]),
+      sections: sectioned({
+        open: [
+          { label: "워크트리 열기", run: () => context.onOpenWorktree(worktree.worktreeId) },
+          docsItem(sessions, [worktree], context.onOpenDoc),
+          { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
+          { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },
+          { label: "깃 그래프", run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener") },
+        ],
+        create: [
+          { label: "새 세션", run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }) },
+          { label: "지휘자", run: () => context.onLaunchConductor(worktree.worktreeId) },
+          { label: "템플릿 펼치기", run: context.onExpandTemplate },
+          { label: "여기서 워크트리 만들기", run: () => inPanel("worktree") },
+        ],
+        state: bulk?.state,
+        arrange: bulk?.arrange,
+        danger: [...(bulk?.danger ?? []), !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") }],
+      }),
     };
   }
 
@@ -208,32 +276,33 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     return {
       title: `그룹 · ${group.name}`,
       rename: { label: "이름 바꾸기", value: group.name, onSave: (name) => save((current) => renameGroup(current, group.id, name)) },
-      items: compact([
-        { label: `안의 세션 ${members.length}개 고르기`, run: () => context.select(members.map((member) => member.id)) },
-        { label: "그룹 풀기", run: () => save((current) => ungroup(current, group.id)) },
-        {
-          label: `안의 세션 닫기 (${closable.length}개)`,
-          danger: true,
-          disabled: closable.length === 0,
-          confirm: `한 번 더 누르면 ${closable.length}개를 닫아요`,
-          run: () => closeSessions(closable, onAction),
-        },
-      ]),
+      sections: sectioned({
+        arrange: [
+          { label: `안의 세션 ${members.length}개 고르기`, run: () => context.select(members.map((member) => member.id)) },
+          { label: "그룹 풀기", run: () => save((current) => ungroup(current, group.id)) },
+        ],
+        danger: [
+          {
+            label: `안의 세션 닫기 (${closable.length}개)`,
+            danger: true,
+            disabled: closable.length === 0,
+            confirm: `한 번 더 누르면 ${closable.length}개를 닫아요`,
+            run: () => closeSessions(closable, onAction),
+          },
+        ],
+      }),
     };
   }
 
   if (target.kind === "canvas") {
     const selection = agentsOf(graph, context.selected);
-    return {
-      title: selection.length > 0 ? `고른 세션 ${selection.length}개` : "캔버스",
-      rename: null,
-      items: [
-        ...(selection.length > 0 ? sessionsItems(selection, context, `세션 ${selection.length}개`) : []),
-        { label: "모든 세션 고르기", run: () => context.select([...graph.nodes.keys()]) },
-        ...(selection.length > 0 ? [{ label: "고르기 해제", run: () => context.select([]) }] : []),
-        { label: "자동 정리", run: context.onTidy },
-      ],
-    };
+    const canvasItems: MenuItem[] = [
+      { label: "모든 세션 고르기", run: () => context.select([...graph.nodes.keys()]) },
+      ...(selection.length > 0 ? [{ label: "고르기 해제", run: () => context.select([]) }] : []),
+      { label: "자동 정리", run: context.onTidy },
+    ];
+    if (selection.length > 0) return selectionMenu(selection, context, { arrange: canvasItems });
+    return { title: "캔버스", rename: null, sections: sectioned({ arrange: canvasItems }) };
   }
 
   const edge = graph.edges.find((entry) => entry.id === target.id);
@@ -242,10 +311,12 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
   return {
     title: "연결",
     rename: null,
-    items: [
-      ...(edge.kind === "delegate" || edge.kind === "next" ? [{ label: "내용 고치기", run: () => context.onEditLink(edge.id) }] : []),
-      ...(edge.paused ? [{ label: "다시 켜기", run: () => void onAction({ type: "resume-link", linkId }) }] : []),
-      { label: "끊기", danger: true, run: () => void onAction({ type: "unlink-sessions", linkId }) },
-    ],
+    sections: sectioned({
+      arrange: [
+        (edge.kind === "delegate" || edge.kind === "next") && { label: "내용 고치기", run: () => context.onEditLink(edge.id) },
+        edge.paused && { label: "다시 켜기", run: () => void onAction({ type: "resume-link", linkId }) },
+      ],
+      danger: [{ label: "끊기", danger: true, run: () => void onAction({ type: "unlink-sessions", linkId }) }],
+    }),
   };
 }

@@ -110,6 +110,10 @@ export async function POST(request: Request) {
       await worktrees.rename(body.worktreePath, body.name);
     } else if (body.type === "import-project") {
       await services().projects.add(body.path);
+    } else if (body.type === "remove-project") {
+      await services().projects.remove(body.repo);
+    } else if (body.type === "stop-dev-port") {
+      await services().devPorts.stop(body.pid, body.port);
     } else if (body.type === "rename-terminal") {
       await services().terminalAliases.rename(body.terminalHandle, body.title.replace(/\s+/g, " ").trim());
     } else if (body.type === "rename-session") {

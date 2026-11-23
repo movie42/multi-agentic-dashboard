@@ -118,7 +118,8 @@ interface CanvasStageProps {
     nodeId: string,
     side: Side,
   ) => void;
-  onContextMenu: (target: MenuTarget, at: Point) => void;
+  /** `at` is on the canvas, `screen` in viewport pixels. */
+  onContextMenu: (target: MenuTarget, at: Point, screen: Point) => void;
   onViewportChange: (viewport: Viewport) => void;
   onOpenWorktree: (worktreeId: string) => void;
   onOpenDoc: (target: string) => void;
@@ -647,7 +648,7 @@ export function CanvasStage(props: CanvasStageProps) {
             : { kind: "canvas", id: "" };
     if (target?.closest("[role='menu']")) return;
     event.preventDefault();
-    props.onContextMenu(hit, toWorld(event.clientX, event.clientY));
+    props.onContextMenu(hit, toWorld(event.clientX, event.clientY), { x: event.clientX, y: event.clientY });
   };
 
   const delegatedTo = (id: string) => [

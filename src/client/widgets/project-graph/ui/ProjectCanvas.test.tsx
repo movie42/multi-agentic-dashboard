@@ -312,7 +312,7 @@ describe("ProjectCanvas", () => {
     click("둘째", true);
     fireEvent.contextMenu(screen.getByText("둘째"));
     expect(screen.getByText("고른 세션 2개")).toBeTruthy();
-    fireEvent.click(screen.getByRole("menuitem", { name: "세션 2개 닫기 (2개)" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "세션 2개 닫기" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "한 번 더 누르면 2개를 닫아요" }));
     expect(onAction).toHaveBeenCalledWith({ type: "close-terminals", terminalHandles: ["ta", "tb"] });
   });

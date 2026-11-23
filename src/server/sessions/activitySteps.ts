@@ -101,6 +101,11 @@ const transcriptLineSchema = z.looseObject({
   isSidechain: flag,
   isMeta: flag,
   toolUseResult: z.unknown().optional(),
+  operation: text,
+  attachment: z
+    .looseObject({ type: text, prompt: text, commandMode: text, origin: z.looseObject({ kind: text }).optional().catch(undefined) })
+    .optional()
+    .catch(undefined),
   message: z.looseObject({ content: z.unknown().optional() }).optional().catch(undefined),
 });
 
@@ -236,15 +241,62 @@ export function chatItemsOf(lines: string[]): ActivityStep[] {
   return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true, richTools: true });
 }
 
+interface QueuedMessage {
+  seq: number;
+  at: number | null;
+  text: string;
+}
+
+/**
+ * Claude Code logs its input queue: `enqueue` with the text, `dequeue` (the head starts the next turn)
+ * and `remove` with the text (taken in mid-turn or cleared on cancel). Replaying it leaves what still waits.
+ */
+function replayQueue(queue: QueuedMessage[], line: TranscriptLine, seq: number): QueuedMessage[] {
+  const content = typeof line.content === "string" ? line.content : null;
+  if (line.operation === "enqueue" && content !== null) return [...queue, { seq, at: timeOf(line), text: content }];
+  if (line.operation === "dequeue") return queue.slice(1);
+  if (line.operation === "remove") {
+    const index = queue.findIndex((entry) => entry.text === content);
+    return index === -1 ? queue.slice(1) : queue.filter((_, at) => at !== index);
+  }
+  return queue;
+}
+
+function typedText(raw: string): string | null {
+  const typed = unwrapPasted(raw).trim();
+  return isTypedPrompt(typed) ? typed : null;
+}
+
+function deliveredPrompt(line: TranscriptLine): string | null {
+  const { attachment } = line;
+  if (attachment?.type !== "queued_command" || attachment.commandMode !== "prompt" || !attachment.prompt) return null;
+  if (attachment.origin && attachment.origin.kind !== "human") return null;
+  return typedText(attachment.prompt);
+}
+
 function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
   const steps: ActivityStep[] = [];
   const tools = new Map<string, PendingStep>();
   const files = new Map<string, string>();
+  // eslint-disable-next-line no-restricted-syntax -- the queue is replayed line by line alongside the steps
+  let queue: QueuedMessage[] = [];
+  // eslint-disable-next-line no-restricted-syntax -- counts enqueues so each waiting message keeps a stable id
+  let enqueued = 0;
 
   for (const raw of lines) {
     const line = parseLine(raw);
     if (!line || line.isSidechain || line.isMeta) continue;
     const at = timeOf(line);
+    if (line.type === "queue-operation") {
+      if (options.richTools) queue = replayQueue(queue, line, enqueued);
+      if (line.operation === "enqueue") enqueued += 1;
+      continue;
+    }
+    const delivered = options.richTools ? deliveredPrompt(line) : null;
+    if (delivered) {
+      steps.push({ kind: "prompt", id: `${line.uuid}:queued`, at, text: clip(delivered, options.textChars) });
+      continue;
+    }
     const blocks = blocksOf(line.message?.content ?? (line.type === "system" ? line.content : undefined));
 
     if (options.localCommands && (line.type === "user" || (line.type === "system" && line.subtype === "local_command"))) {
@@ -309,5 +361,9 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
       }
     }
   }
-  return steps.slice(-options.limit);
+  const waiting = queue.flatMap((entry): ActivityStep[] => {
+    const typed = typedText(entry.text);
+    return typed ? [{ kind: "prompt", id: `queued:${entry.seq}`, at: entry.at, text: clip(typed, options.textChars), queued: true }] : [];
+  });
+  return [...steps, ...waiting].slice(-options.limit);
 }

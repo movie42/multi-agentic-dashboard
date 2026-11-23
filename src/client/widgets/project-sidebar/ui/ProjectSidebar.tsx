@@ -8,6 +8,9 @@ import { PromptColorPanel } from "@/client/features/customize-prompt-color";
 import { ImportProject } from "@/client/features/import-project";
 import { UsageMeter } from "@/client/entities/usage";
 import type { WorkspacePrefs } from "@/client/entities/workspace";
+import { useState } from "react";
+import type { MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ProjectMenu } from "./ProjectMenu";
 import { ProjectWorktrees, type WorktreeCounts } from "./ProjectWorktrees";
 
 export interface ProjectCounts {
@@ -136,6 +139,7 @@ export function ProjectSidebar({
   onToggleCollapsed,
 }: ProjectSidebarProps) {
   const [collapsedRepos, writeCollapsedRepos] = useStoredList("agent-control:sidebar-collapsed-repos");
+  const [menu, setMenu] = useState<{ project: ProjectSummary; at: MenuPoint } | null>(null);
   const isOpen = (repo: string) => !collapsedRepos.includes(repo);
   const setOpen = (repo: string, open: boolean) =>
     writeCollapsedRepos(open ? collapsedRepos.filter((item) => item !== repo) : [...collapsedRepos, repo]);
@@ -204,7 +208,13 @@ export function ProjectSidebar({
           const open = isOpen(project.repo) && worktrees.length > 0;
           return (
             <div key={project.repo} className="flex flex-col">
-              <div className="flex items-center gap-1">
+              <div
+                className="flex items-center gap-1"
+                onContextMenu={(event: React.MouseEvent<HTMLDivElement>) => {
+                  event.preventDefault();
+                  setMenu({ project, at: { x: event.clientX, y: event.clientY } });
+                }}
+              >
                 <button
                   type="button"
                   aria-label={`${project.repo} 워크트리 ${open ? "접기" : "펼치기"}`}
@@ -261,6 +271,22 @@ export function ProjectSidebar({
           );
         })}
       </div>
+      {menu && (
+        <ProjectMenu
+          key={menu.project.repo}
+          repo={menu.project.repo}
+          at={menu.at}
+          focused={focused.has(menu.project.repo)}
+          modeLabel={MODE_LABEL[prefs.modeOf(menu.project)]}
+          onOpen={() => prefs.selectRepo(menu.project.repo)}
+          onToggleFocus={() => onToggleFocus(menu.project.repo)}
+          onToggleMode={() => prefs.toggleMode(menu.project)}
+          onRemoved={() => {
+            if (prefs.selectedRepo === menu.project.repo) prefs.selectRepo(null);
+          }}
+          onClose={() => setMenu(null)}
+        />
+      )}
       <ImportProject />
       <AppStatusPanel />
       <PromptColorPanel />

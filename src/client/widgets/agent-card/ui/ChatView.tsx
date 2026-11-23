@@ -287,6 +287,16 @@ function ChatRow({ step, copyable }: ChatRowProps) {
       </li>
     );
   }
+  if (step.kind === "prompt" && step.queued) {
+    return (
+      <li className="flex flex-col items-end gap-1 py-1">
+        <p className="max-w-[85%] rounded-2xl rounded-br-md border border-dashed border-faint px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap text-muted">
+          {step.text}
+        </p>
+        <span className="text-[11px] text-muted">대기 중 · 지금 하는 일이 끝나면 전달돼요</span>
+      </li>
+    );
+  }
   if (step.kind === "prompt") {
     return (
       <li className="flex justify-end py-1">
@@ -309,7 +319,10 @@ interface ChatViewProps {
 
 export function ChatView({ sessionId, working, layout }: ChatViewProps) {
   const chat = useQuery(chatQueryOptions(sessionId));
-  const steps = chat.data ?? null;
+  const isQueued = (step: ActivityStep) => step.kind === "prompt" && step.queued === true;
+  const steps = chat.data?.filter((step) => !isQueued(step)) ?? null;
+  // Claude Code takes queued input as soon as it goes idle, so anything still listed then was pulled back or lost.
+  const queued = working ? (chat.data?.filter(isQueued) ?? []) : [];
   const listRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -325,7 +338,7 @@ export function ChatView({ sessionId, working, layout }: ChatViewProps) {
     if (!list) return;
     const bottom = list.scrollHeight - list.clientHeight;
     if (Math.abs(list.scrollTop - bottom) > 1) list.scrollTop = bottom;
-  }, [steps, working, layout]);
+  }, [chat.data, working, layout]);
 
   useEffect(() => {
     if (layout !== "page") return;
@@ -372,6 +385,13 @@ export function ChatView({ sessionId, working, layout }: ChatViewProps) {
           <span className="size-1.5 animate-pulse rounded-full bg-current" />
           작업 중
         </p>
+      )}
+      {queued.length > 0 && (
+        <ol className="flex flex-col gap-0.5">
+          {queued.map((step) => (
+            <ChatRow key={step.id} step={step} copyable={false} />
+          ))}
+        </ol>
       )}
       <div ref={endRef} aria-hidden className="scroll-mb-40" />
     </div>

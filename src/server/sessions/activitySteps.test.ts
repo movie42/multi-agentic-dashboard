@@ -176,4 +176,34 @@ describe("chatItemsOf questions and plans", () => {
   it("leaves the activity timeline's one-line tool rows as they are", () => {
     expect(stepsOf([ask])).toMatchObject([{ kind: "tool", name: "AskUserQuestion" }]);
   });
+
+  describe("queued messages", () => {
+    const enqueue = (content: string, at: string) => JSON.stringify({ type: "queue-operation", operation: "enqueue", timestamp: at, content });
+    const dequeue = (at: string) => JSON.stringify({ type: "queue-operation", operation: "dequeue", timestamp: at });
+    const absorbed = (content: string, at: string) =>
+      JSON.stringify({ type: "queue-operation", operation: "remove", timestamp: at, content, reason: "absorbed_mid_turn" });
+    const delivered = (prompt: string, at: string, commandMode = "prompt") =>
+      JSON.stringify({ type: "attachment", uuid: `att-${prompt}`, timestamp: at, attachment: { type: "queued_command", prompt, commandMode, origin: { kind: "human" } } });
+
+    it("shows a message typed mid-turn once Claude takes it in", () => {
+      const steps = chatItemsOf([delivered("이것도 해줘", "2026-11-23T02:57:07.258Z")]);
+      expect(steps).toEqual([{ kind: "prompt", id: "att-이것도 해줘:queued", at: Date.parse("2026-11-23T02:57:07.258Z"), text: "이것도 해줘" }]);
+    });
+
+    it("leaves out background task notifications that arrive through the same queue", () => {
+      expect(chatItemsOf([delivered("<task-notification>done</task-notification>", "2026-11-23T02:57:07.258Z", "task-notification")])).toEqual([]);
+    });
+
+    it("lists messages still waiting in the queue at the end, marked as queued", () => {
+      const steps = chatItemsOf([
+        enqueue("첫째", "2026-11-23T02:00:00.000Z"),
+        enqueue("둘째", "2026-11-23T02:00:01.000Z"),
+        enqueue("셋째", "2026-11-23T02:00:02.000Z"),
+        dequeue("2026-11-23T02:00:03.000Z"),
+        absorbed("셋째", "2026-11-23T02:00:04.000Z"),
+        enqueue("<task-notification>x</task-notification>", "2026-11-23T02:00:05.000Z"),
+      ]);
+      expect(steps).toEqual([{ kind: "prompt", id: "queued:1", at: Date.parse("2026-11-23T02:00:01.000Z"), text: "둘째", queued: true }]);
+    });
+  });
 });

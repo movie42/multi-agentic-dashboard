@@ -4,6 +4,7 @@ import { readJson } from "@/client/shared/api/json";
 
 const POLL_MS = 5000;
 const NONE: DevPort[] = [];
+export const DEV_PORTS_KEY = ["dev-ports"] as const;
 
 async function requestDevPorts(signal: AbortSignal): Promise<DevPort[]> {
   const payload = await readJson<DevPortsResponse>(await fetch("/api/dev-ports", { cache: "no-store", signal }));
@@ -14,7 +15,7 @@ async function requestDevPorts(signal: AbortSignal): Promise<DevPort[]> {
 /** Ports something started inside this worktree is listening on, polled. */
 export function useDevPorts(worktreePath: string): DevPort[] {
   const query = useQuery({
-    queryKey: ["dev-ports"],
+    queryKey: DEV_PORTS_KEY,
     queryFn: ({ signal }) =>
       requestDevPorts(signal).catch((error: unknown) => {
         if (!signal.aborted) console.warn("[dev-ports] poll failed", error);

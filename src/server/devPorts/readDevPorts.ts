@@ -54,13 +54,27 @@ export function isDevServer(listener: Listener): boolean {
   return DEV_RUNTIME.test(listener.command) && listener.port < EPHEMERAL_START && listener.port !== RUNNER_PORT;
 }
 
+type KillFn = (pid: number, signal: NodeJS.Signals) => void;
+
 export class DevPortReader {
   #exec: ExecFileFn;
   #cached: { at: number; ports: Promise<DevPort[]> } | null = null;
   #toplevels = new Map<string, string | null>();
 
-  constructor(exec: ExecFileFn = nodeExecFile) {
+  #kill: KillFn;
+
+  constructor(exec: ExecFileFn = nodeExecFile, kill: KillFn = (pid, signal) => process.kill(pid, signal)) {
     this.#exec = exec;
+    this.#kill = kill;
+  }
+
+  /** Ends a dev server, but only one the badge could have shown: a pid freshly seen listening on that port. */
+  async stop(pid: number, port: number): Promise<void> {
+    this.#cached = null;
+    const listening = (await this.read()).some((entry) => entry.pid === pid && entry.port === port);
+    if (!listening) throw new Error(`${port} 포트에서 듣고 있는 개발 서버가 아니에요 (pid ${pid})`);
+    this.#kill(pid, "SIGTERM");
+    this.#cached = null;
   }
 
   read(): Promise<DevPort[]> {

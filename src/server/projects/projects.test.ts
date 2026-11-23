@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -43,6 +43,19 @@ describe("ProjectRegistry", () => {
     await registry.replaceAll([{ path: project.path, name: "app", kind: "git" }]);
     expect(await registry.commandsOf(project.path)).toEqual([{ name: "빌드", command: "bun run build" }]);
     await expect(registry.setCommands(path.join(dir, "nope"), [])).rejects.toThrow("등록된 프로젝트가 아니에요");
+  });
+
+  it("takes a project off the list by name and leaves its folder alone", async () => {
+    const dir = await tempDir();
+    await mkdir(path.join(dir, "app", ".git"), { recursive: true });
+    await mkdir(path.join(dir, "web"), { recursive: true });
+    const registry = new ProjectRegistry(path.join(dir, "projects.json"), vi.fn());
+    await registry.add(path.join(dir, "app"));
+    await registry.add(path.join(dir, "web"));
+    await registry.remove("app");
+    expect((await registry.list()).map((project) => project.name)).toEqual(["web"]);
+    expect((await stat(path.join(dir, "app"))).isDirectory()).toBe(true);
+    await expect(registry.remove("app")).rejects.toThrow("등록된 프로젝트가 아니에요");
   });
 
   it("refuses a path that is missing or not a folder", async () => {

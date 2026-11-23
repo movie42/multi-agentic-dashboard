@@ -47,6 +47,8 @@ interface WorktreePanelProps {
 
 interface WorktreeAction {
   key: keyof typeof ACTION_ICONS;
+  /** Same order as the canvas menus: open, create, then destructive last. */
+  section: "open" | "create" | "danger";
   label: string;
   description: string;
   disabled?: boolean;
@@ -118,53 +120,61 @@ export function WorktreePanel({
     : all;
   const actions: WorktreeAction[] = [
     {
-      key: "session",
-      label: "새 세션",
-      description: "이 워크트리에 빈 에이전트 세션을 띄워요",
-      run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }),
-    },
-    {
-      key: "conductor",
-      label: "지휘자",
-      description: "이 워크트리와 하위 워크트리에 일을 나눠 맡기는 세션을 띄워요",
-      run: () => setLaunchingConductor(true),
+      key: "rename",
+      section: "open",
+      label: "이름 바꾸기",
+      description: "보드에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
+      run: () => setEditingName(true),
     },
     {
       key: "terminal",
+      section: "open",
       label: "셸 터미널",
       description: "이 워크트리에 셸 터미널을 새 탭으로 열어요",
       run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }),
     },
     {
       key: "diff",
+      section: "open",
       label: "변경 읽기",
       description: "갈라진 지점 이후 바뀐 코드를 새 창에서 읽어요",
       run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener"),
     },
     {
       key: "graph",
+      section: "open",
       label: "깃 그래프",
       description: "이 워크트리를 기준으로 커밋 흐름을 새 창에서 봐요",
       run: () => window.open(gitGraphHref(worktree.path), "_blank", "noopener"),
     },
     {
+      key: "session",
+      section: "create",
+      label: "새 세션",
+      description: "이 워크트리에 빈 에이전트 세션을 띄워요",
+      run: () => void onAction({ type: "launch-agent", worktreePath: worktree.path, prompt: "" }),
+    },
+    {
+      key: "conductor",
+      section: "create",
+      label: "지휘자",
+      description: "이 워크트리와 하위 워크트리에 일을 나눠 맡기는 세션을 띄워요",
+      run: () => setLaunchingConductor(true),
+    },
+    {
       key: "worktree",
+      section: "create",
       label: "여기서 워크트리 만들기",
       description: "이 브랜치에서 갈라지는 새 작업 폴더를 만들어요",
       disabled: wizard.busy,
       run: () => wizard.open(),
-    },
-    {
-      key: "rename",
-      label: "이름 바꾸기",
-      description: "보드에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
-      run: () => setEditingName(true),
     },
     ...(worktree.isMain
       ? []
       : [
           {
             key: "remove" as const,
+            section: "danger" as const,
             label: "워크트리 삭제",
             description: "이 워크트리를 지워요. 브랜치는 남아요",
             danger: true,
@@ -172,6 +182,24 @@ export function WorktreePanel({
           },
         ]),
   ];
+  const actionRows = (section: WorktreeAction["section"]) =>
+    actions
+      .filter((action) => action.section === section)
+      .map((action) => (
+        <MenuItem
+          key={action.key}
+          icon={ACTION_ICONS[action.key]}
+          tone={action.danger ? "danger" : "default"}
+          description={action.description}
+          disabled={action.disabled}
+          onSelect={() => {
+            closeMenu();
+            action.run();
+          }}
+        >
+          {action.label}
+        </MenuItem>
+      ));
   useWorktreeMenuRequest(worktree.worktreeId, openMenu, (key) => actions.find((action) => action.key === key && !action.disabled)?.run());
   const open = (target: string) =>
     onAction({ type: "open-artifact", target });
@@ -385,21 +413,9 @@ export function WorktreePanel({
             ) : (
               <>
                 <MenuHeading>{worktree.name} 워크트리에서</MenuHeading>
-                {actions.map((action) => (
-                  <MenuItem
-                    key={action.key}
-                    icon={ACTION_ICONS[action.key]}
-                    tone={action.danger ? "danger" : "default"}
-                    description={action.description}
-                    disabled={action.disabled}
-                    onSelect={() => {
-                      closeMenu();
-                      action.run();
-                    }}
-                  >
-                    {action.label}
-                  </MenuItem>
-                ))}
+                {actionRows("open")}
+                <MenuSeparator />
+                {actionRows("create")}
                 <MenuSeparator />
                 <MenuHeading>명령</MenuHeading>
                 {commands.map((command) => (
@@ -423,19 +439,18 @@ export function WorktreePanel({
                 >
                   {commands.length > 0 ? "명령 수정하기" : "명령 등록하기"}
                 </MenuItem>
+                {(terminalHandles.length > 0 || !worktree.isMain) && <MenuSeparator />}
                 {terminalHandles.length > 0 && (
-                  <>
-                    <MenuSeparator />
-                    <MenuItem
-                      tone="danger"
-                      description="기록은 세션 목록에 남아요"
-                      hint={`${terminalHandles.length}개`}
-                      onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
-                    >
-                      세션 모두 닫기
-                    </MenuItem>
-                  </>
+                  <MenuItem
+                    tone="danger"
+                    description="기록은 세션 목록에 남아요"
+                    hint={`${terminalHandles.length}개`}
+                    onSelect={() => setMenu({ ...menu, confirmingCloseAll: true })}
+                  >
+                    세션 모두 닫기
+                  </MenuItem>
                 )}
+                {actionRows("danger")}
               </>
             )}
           </ContextMenu>

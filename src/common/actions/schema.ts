@@ -90,6 +90,8 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("remove-worktree"), worktreePath: absolutePath, force: z.boolean() }),
   z.object({ type: z.literal("rename-worktree"), worktreePath: absolutePath, name: title }),
   z.object({ type: z.literal("import-project"), path: absolutePath }),
+  z.object({ type: z.literal("remove-project"), repo: z.string().min(1) }),
+  z.object({ type: z.literal("stop-dev-port"), pid: z.number().int().positive(), port: z.number().int().positive() }),
 ]);
 
 export type ActionRequest = z.infer<typeof actionRequestSchema>;

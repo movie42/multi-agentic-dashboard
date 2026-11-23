@@ -126,7 +126,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const [showAllLinks, setShowAllLinks] = useState(false);
   const [pending, setPending] = useState<PendingConnect | null>(null);
   const [stageKey, setStageKey] = useState(0);
-  const [menu, setMenu] = useState<{ target: MenuTarget; at: Point } | null>(null);
+  const [menu, setMenu] = useState<{ target: MenuTarget; at: Point; screen: Point } | null>(null);
   const [conductorFor, setConductorFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [templateFor, setTemplateFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean; run?: TemplateRun } | null>(null);
@@ -248,6 +248,9 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
     return agent ? nodeTitle(agent) : "세션";
   };
 
+  const editRun = (run: TemplateRun) =>
+    setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run });
+
   const menuContent = menu
     ? menuFor(menu.target, {
         graph,
@@ -274,6 +277,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           if (menu.target.kind === "cluster") setTemplateFor({ clusterId: menu.target.id, at: menu.at });
         },
         rest,
+        onEditRun: editRun,
         onSaveAsTemplate: (chosen) => setEditing({ template: draftFromSelection(crypto.randomUUID(), chosen, graph.edges, nodeTitle), isNew: true }),
       })
     : null;
@@ -310,7 +314,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
       renderCard={renderCard}
       onAction={onAction}
       onOpenWorktree={onOpenWorktree}
-      onEditRun={(run) => setEditing({ template: { id: run.templateId, name: run.name, cards: run.cards, routes: run.routes, updatedAt: 0 }, isNew: false, run })}
+      onEditRun={editRun}
     />
   );
   const leadTabs: CanvasPanelTab[] = [
@@ -361,6 +365,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
 
   return (
     <div className="flex h-dvh min-w-0">
+      {menuContent && menu && <CanvasMenu key={`${menu.screen.x}:${menu.screen.y}`} at={menu.screen} {...menuContent} onClose={() => setMenu(null)} />}
       {editing && (
         <TemplateEditor key={editing.run?.id ?? editing.template.id} initial={editing.template} isNew={editing.isNew} run={editing.run} onClose={() => setEditing(null)} />
       )}
@@ -386,7 +391,6 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           roundDocOf={(worktree) => roundDocOf(worktree.flowTasks[0])}
           overlay={(zoom) => (
             <>
-              {menuContent && menu && <CanvasMenu at={menu.at} zoom={zoom} {...menuContent} onClose={() => setMenu(null)} />}
               {conductorFor && conductorCluster && (
                 <ConductorPopover
                   key={conductorFor.clusterId}
@@ -437,7 +441,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           onOpenProject={onOpenProject}
           onConnect={connect}
           onMoveEnd={(edge, end, nodeId, side) => void moveEnd(edge, end, nodeId, side)}
-          onContextMenu={(target, at) => {
+          onContextMenu={(target, at, screen) => {
             setPending(null);
             // Right-clicking a box outside the selection makes it the selection, like Figma.
             if (target.kind === "node" && !liveSelected.includes(target.id)) {
@@ -445,7 +449,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
               setEdgeId(null);
               setShowAllLinks(false);
             }
-            setMenu({ target, at });
+            setMenu({ target, at, screen });
           }}
           onViewportChange={(viewport) => updateCanvas((current) => ({ ...current, viewport }))}
           onOpenWorktree={onOpenWorktree}

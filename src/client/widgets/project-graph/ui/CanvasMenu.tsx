@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import type { Point } from "../model/layout";
+import { Fragment, useState } from "react";
+import { createPortal } from "react-dom";
+import { ContextMenu, MenuHeading, MenuItem as MenuRow, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 
 export interface MenuItem {
   label: string;
@@ -25,18 +26,16 @@ export interface MenuRename {
 }
 
 interface CanvasMenuProps {
-  at: Point;
-  zoom: number;
+  /** Where the pointer was, in screen pixels. */
+  at: MenuPoint;
   title: string;
-  items: MenuItem[];
+  sections: MenuItem[][];
   rename: MenuRename | null;
   onClose: () => void;
 }
 
-const ITEM = "w-full rounded-[6px] px-2.5 py-1.5 text-left text-[13px] hover:bg-tint disabled:opacity-30 disabled:hover:bg-transparent";
-
-/** The right-click menu on a box or frame, kept at screen size like the other popovers. */
-export function CanvasMenu({ at, zoom, title, items, rename, onClose }: CanvasMenuProps) {
+/** The right-click menu on a box, frame or line: the app's shared context menu, one line between sections. */
+export function CanvasMenu({ at, title, sections, rename, onClose }: CanvasMenuProps) {
   const [asking, setAsking] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [submenu, setSubmenu] = useState<MenuItem | null>(null);
@@ -45,8 +44,9 @@ export function CanvasMenu({ at, zoom, title, items, rename, onClose }: CanvasMe
       setSubmenu(item);
       return;
     }
-    if (item.confirm && asking !== item.label) {
-      setAsking(item.label);
+    const key = item.key ?? item.label;
+    if (item.confirm && asking !== key) {
+      setAsking(key);
       return;
     }
     item.run();
@@ -56,38 +56,29 @@ export function CanvasMenu({ at, zoom, title, items, rename, onClose }: CanvasMe
     if (rename && value.trim() && value.trim() !== rename.value) rename.onSave(value.trim());
     onClose();
   };
-  return (
-    <g transform={`translate(${at.x} ${at.y}) scale(${1 / zoom})`}>
-      <foreignObject width={240} height={360} className="overflow-visible">
-        <div
-          role="menu"
-          onContextMenu={(event: React.MouseEvent) => event.preventDefault()}
-          className="flex w-[220px] flex-col rounded-[10px] bg-bg p-1 shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]"
-        >
-          {submenu ? (
-            <button type="button" onClick={() => setSubmenu(null)} className="truncate px-2.5 pt-1.5 pb-1 text-left text-[11px] font-semibold text-muted hover:text-fg">
-              ‹ {submenu.label}
-            </button>
-          ) : (
-            <p className="truncate px-2.5 pt-1.5 pb-1 text-[11px] font-semibold text-muted">{title}</p>
-          )}
-          {submenu?.children ? (
-            <div className="flex max-h-[300px] flex-col overflow-y-auto">
-              {submenu.children.map((item) => (
-                <button
-                  key={item.key ?? item.label}
-                  type="button"
-                  role="menuitem"
-                  title={item.key}
-                  onClick={() => run(item)}
-                  className={`${ITEM} flex flex-col`}
-                >
-                  <span className="truncate">{item.label}</span>
-                  {item.hint && <span className="truncate text-[11px] text-muted">{item.hint}</span>}
-                </button>
-              ))}
-            </div>
-          ) : renaming && rename ? (
+  const row = (item: MenuItem) => {
+    const key = item.key ?? item.label;
+    return (
+      <MenuRow key={key} tone={item.danger ? "danger" : "default"} disabled={item.disabled} description={item.hint} onSelect={() => run(item)}>
+        {asking === key ? <span className="font-semibold">{item.confirm}</span> : item.label}
+      </MenuRow>
+    );
+  };
+
+  // Portaled so the menu keeps screen size at any zoom and is not clipped by the canvas.
+  return createPortal(
+    <ContextMenu at={at} label={`${title} 메뉴`} onClose={onClose} widthClass="w-60 max-h-[calc(100dvh-16px)] overflow-y-auto">
+      {submenu ? (
+        <>
+          <button type="button" onClick={() => setSubmenu(null)} className="truncate px-2.5 pt-1 pb-1.5 text-left text-[11px] font-semibold text-muted hover:text-fg">
+            ‹ {submenu.label}
+          </button>
+          {submenu.children?.map(row)}
+        </>
+      ) : (
+        <>
+          <MenuHeading>{title}</MenuHeading>
+          {renaming && rename ? (
             <input
               autoFocus
               defaultValue={rename.value}
@@ -99,26 +90,17 @@ export function CanvasMenu({ at, zoom, title, items, rename, onClose }: CanvasMe
               className="m-1 rounded-[6px] bg-tint px-2 py-1.5 text-[13px] outline-none"
             />
           ) : (
-            rename && (
-              <button type="button" role="menuitem" onClick={() => setRenaming(true)} className={ITEM}>
-                {rename.label}
-              </button>
-            )
+            rename && <MenuRow onSelect={() => setRenaming(true)}>{rename.label}</MenuRow>
           )}
-          {!submenu && items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              disabled={item.disabled}
-              onClick={() => run(item)}
-              className={`${ITEM} ${item.danger ? "text-accent" : ""} ${asking === item.label ? "bg-accent/10 font-semibold" : ""}`}
-            >
-              {asking === item.label ? item.confirm : item.label}
-            </button>
+          {sections.map((section, index) => (
+            <Fragment key={section[0]?.key ?? section[0]?.label ?? index}>
+              {(index > 0 || rename) && <MenuSeparator />}
+              {section.map(row)}
+            </Fragment>
           ))}
-        </div>
-      </foreignObject>
-    </g>
+        </>
+      )}
+    </ContextMenu>,
+    document.body,
   );
 }

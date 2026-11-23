@@ -82,6 +82,13 @@ export class ProjectRegistry {
     if (!next.projects.some((project) => project.path === projectPath)) throw new Error(`등록된 프로젝트가 아니에요: ${projectPath}`);
   }
 
+  /** Only forgets the project; the folder and its worktrees stay on disk. */
+  async remove(name: string): Promise<void> {
+    const before = await this.list();
+    if (!before.some((project) => project.name === name)) throw new Error(`등록된 프로젝트가 아니에요: ${name}`);
+    await this.file.update((current) => ({ projects: current.projects.filter((project) => project.name !== name) }));
+  }
+
   async add(folder: string): Promise<Project> {
     const target = path.resolve(folder);
     const info = await stat(target).catch((error: unknown) => {
