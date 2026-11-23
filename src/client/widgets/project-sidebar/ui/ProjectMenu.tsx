@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { boardKeys } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
-import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ContextMenu, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { MenuGroups } from "@/client/shared/ui/MenuGroups";
 
 interface ProjectMenuProps {
   repo: string;
@@ -39,8 +41,9 @@ export function ProjectMenu({ repo, at, focused, modeLabel, onOpen, onToggleFocu
     }
   };
 
-  return (
-    <ContextMenu at={at} label={`${repo} 프로젝트 메뉴`} onClose={onClose} widthClass="w-64">
+  // Portaled: the sidebar is position:fixed, so a menu inside it stays under the main area whatever its z-index.
+  return createPortal(
+    <ContextMenu at={at} label={`${repo} 프로젝트 메뉴`} onClose={onClose} widthClass="w-60">
       {confirming ? (
         <div className="flex flex-col gap-2 p-2">
           <p>{repo} 프로젝트를 목록에서 뺄까요?</p>
@@ -53,21 +56,40 @@ export function ProjectMenu({ repo, at, focused, modeLabel, onOpen, onToggleFocu
           </div>
         </div>
       ) : (
-        <>
-          <MenuItem onSelect={pick(onOpen)}>열기</MenuItem>
-          <MenuSeparator />
-          <MenuItem hint="⌘ 클릭" onSelect={pick(onToggleFocus)}>
-            {focused ? "포커스에서 빼기" : "포커스에 넣기"}
-          </MenuItem>
-          <MenuItem description={`지금은 ${modeLabel} 워크플로`} onSelect={pick(onToggleMode)}>
-            워크플로 바꾸기
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem tone="danger" description="폴더는 지우지 않아요" onSelect={() => setConfirming(true)}>
-            프로젝트 목록에서 빼기
-          </MenuItem>
-        </>
+        <MenuGroups
+          at={at}
+          groups={[
+            {
+              label: "열기",
+              items: [
+                <MenuItem key="open" onSelect={pick(onOpen)}>
+                  열기
+                </MenuItem>,
+              ],
+            },
+            {
+              label: "정리",
+              items: [
+                <MenuItem key="focus" hint="⌘ 클릭" onSelect={pick(onToggleFocus)}>
+                  {focused ? "포커스에서 빼기" : "포커스에 넣기"}
+                </MenuItem>,
+                <MenuItem key="mode" description={`지금은 ${modeLabel} 워크플로`} onSelect={pick(onToggleMode)}>
+                  워크플로 바꾸기
+                </MenuItem>,
+              ],
+            },
+            {
+              label: "닫기·지우기",
+              items: [
+                <MenuItem key="remove" tone="danger" description="폴더는 지우지 않아요" onSelect={() => setConfirming(true)}>
+                  프로젝트 목록에서 빼기
+                </MenuItem>,
+              ],
+            },
+          ]}
+        />
       )}
-    </ContextMenu>
+    </ContextMenu>,
+    document.body,
   );
 }
