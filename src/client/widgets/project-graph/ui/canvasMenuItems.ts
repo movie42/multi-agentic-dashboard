@@ -41,7 +41,10 @@ export interface MenuContext {
  * session state, arrange, then the destructive ones last.
  */
 export interface MenuContent {
+  /** Names the menu for screen readers; not drawn. */
   title: string;
+  /** Drawn on top only when the menu acts on more than the right-clicked thing ("고른 세션 2개"). */
+  heading?: string;
   rename: MenuRename | null;
   sections: MenuItem[][];
 }
@@ -169,6 +172,7 @@ function selectionMenu(selection: AgentCard[], context: MenuContext, extra: Sect
   const sessions = sessionsSections(selection, context, label);
   return {
     title: `고른 세션 ${selection.length}개`,
+    heading: `고른 세션 ${selection.length}개`,
     rename: null,
     sections: sectioned({
       open: [docsItem(selection, worktreesOf(context.graph, selection), context.onOpenDoc), ...(extra.open ?? [])],

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { boardKeys } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
-import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 
 interface ProjectMenuProps {
   repo: string;
@@ -41,7 +41,6 @@ export function ProjectMenu({ repo, at, focused, modeLabel, onOpen, onToggleFocu
 
   return (
     <ContextMenu at={at} label={`${repo} 프로젝트 메뉴`} onClose={onClose} widthClass="w-64">
-      <MenuHeading>프로젝트 · {repo}</MenuHeading>
       {confirming ? (
         <div className="flex flex-col gap-2 p-2">
           <p>{repo} 프로젝트를 목록에서 뺄까요?</p>

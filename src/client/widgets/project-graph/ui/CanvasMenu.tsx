@@ -29,13 +29,14 @@ interface CanvasMenuProps {
   /** Where the pointer was, in screen pixels. */
   at: MenuPoint;
   title: string;
+  heading?: string;
   sections: MenuItem[][];
   rename: MenuRename | null;
   onClose: () => void;
 }
 
 /** The right-click menu on a box, frame or line: the app's shared context menu, one line between sections. */
-export function CanvasMenu({ at, title, sections, rename, onClose }: CanvasMenuProps) {
+export function CanvasMenu({ at, title, heading, sections, rename, onClose }: CanvasMenuProps) {
   const [asking, setAsking] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [submenu, setSubmenu] = useState<MenuItem | null>(null);
@@ -77,7 +78,7 @@ export function CanvasMenu({ at, title, sections, rename, onClose }: CanvasMenuP
         </>
       ) : (
         <>
-          <MenuHeading>{title}</MenuHeading>
+          {heading && <MenuHeading>{heading}</MenuHeading>}
           {renaming && rename ? (
             <input
               autoFocus

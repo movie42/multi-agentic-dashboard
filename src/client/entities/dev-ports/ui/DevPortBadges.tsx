@@ -7,7 +7,7 @@ import type { DevPort } from "@/common/devPorts/types";
 import { postAction } from "@/client/shared/api/actions";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { toastError } from "@/client/shared/model/toastStore";
-import { ContextMenu, MenuHeading, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { ContextMenu, MenuItem, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { DEV_PORTS_KEY, useDevPorts } from "../api/devPortsQuery";
 
 const HIDDEN_KEY = "agent-control:hidden-dev-ports";
@@ -68,9 +68,6 @@ export function DevPortBadges({ worktreePath }: DevPortBadgesProps) {
             onPointerDown={(event: React.PointerEvent) => event.stopPropagation()}
           >
             <ContextMenu at={menu.at} label={`:${menu.port.port} 포트 메뉴`} onClose={close}>
-              <MenuHeading>
-                :{menu.port.port} · {menu.port.command} (pid {menu.port.pid})
-              </MenuHeading>
               {menu.confirming ? (
                 <>
                   <MenuItem onSelect={close}>취소</MenuItem>
@@ -112,7 +109,7 @@ export function DevPortBadges({ worktreePath }: DevPortBadgesProps) {
                   >
                     목록에서 지우기
                   </MenuItem>
-                  <MenuItem tone="danger" description="이 포트를 연 프로세스를 끝내요" onSelect={() => setMenu({ ...menu, confirming: true })}>
+                  <MenuItem tone="danger" description={`${menu.port.command} (pid ${menu.port.pid})를 끝내요`} onSelect={() => setMenu({ ...menu, confirming: true })}>
                     서버 끄기
                   </MenuItem>
                 </>

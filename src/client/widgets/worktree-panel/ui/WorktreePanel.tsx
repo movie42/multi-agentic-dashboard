@@ -412,7 +412,6 @@ export function WorktreePanel({
               </div>
             ) : (
               <>
-                <MenuHeading>{worktree.name} 워크트리에서</MenuHeading>
                 {actionRows("open")}
                 <MenuSeparator />
                 {actionRows("create")}
