@@ -52,6 +52,8 @@ function show(agentId: string | null) {
 afterEach(() => {
   vi.unstubAllGlobals();
   document.title = "";
+  localStorage.clear();
+  document.documentElement.removeAttribute("style");
 });
 
 const session = agentCard({ id: "s1", worktreeName: "wt-a", session: { id: "s1", title: "환불 고치기", titleSource: "ai", bookmark: null } });
@@ -87,5 +89,15 @@ describe("SessionWindow", () => {
     expect(vi.mocked(openWindow)).toHaveBeenLastCalledWith("/doc?file=%2Frepo%2Fsrc%2Fa.ts", expect.anything());
     await userEvent.click(screen.getByRole("button", { name: "link" }));
     expect(vi.mocked(postAction)).toHaveBeenCalledWith({ type: "open-artifact", target: "https://example.com" });
+  });
+
+  it("paints the prompt colours picked in the main window", async () => {
+    localStorage.setItem("agent-control:prompt-colors", JSON.stringify(["#112233", "#445566"]));
+    board = { fetchedAt: 0, projects: [], worktrees: [], agents: [session], features: [] };
+    show("s1");
+    await screen.findByText("card s1");
+    const root = document.documentElement.style;
+    expect(root.getPropertyValue("--prompt-custom")).toBe("#112233");
+    expect(root.getPropertyValue("--prompt-ink-custom")).toBe("#445566");
   });
 });

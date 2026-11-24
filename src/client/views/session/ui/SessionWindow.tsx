@@ -10,6 +10,8 @@ import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
 import { openWindow } from "@/client/shared/lib/openWindow";
+import { CanvasColorSync } from "@/client/features/customize-canvas-color";
+import { PromptColorSync } from "@/client/features/customize-prompt-color";
 import { AgentCardView } from "@/client/widgets/agent-card";
 
 const DOC_WINDOW = { width: 1200, height: 960 };
@@ -28,6 +30,16 @@ function Notice({ children }: NoticeProps) {
 
 /** One session filling its own window: chat, terminal and history, answered in place. */
 export function SessionWindow({ agentId }: SessionWindowProps) {
+  return (
+    <>
+      <PromptColorSync />
+      <CanvasColorSync />
+      <SessionWindowBody agentId={agentId} />
+    </>
+  );
+}
+
+function SessionWindowBody({ agentId }: SessionWindowProps) {
   const boardQuery = useQuery(boardQueryOptions());
   const rest = useRestOverrides();
   const board = boardQuery.data;

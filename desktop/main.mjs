@@ -106,7 +106,10 @@ function isInternal(url) {
   return url.startsWith(ORIGIN);
 }
 
-const APP_WINDOW = { minWidth: 900, minHeight: 600 };
+// One identifier across every window lets macOS merge them into one tabbed window (Window → Merge
+// All Windows) and drag a tab back out, as VS Code does.
+const TABBING = { tabbingIdentifier: APP_ID };
+const APP_WINDOW = { ...TABBING, minWidth: 900, minHeight: 600 };
 
 function openHandler({ url }) {
   const pathname = isInternal(url) ? new URL(url).pathname : null;
@@ -121,14 +124,14 @@ function openHandler({ url }) {
   }
   // Size comes from the window.open features of "새 창에서 열기".
   if (pathname === "/session") {
-    return { action: "allow", overrideBrowserWindowOptions: { minWidth: 420, minHeight: 400, title: "세션" } };
+    return { action: "allow", overrideBrowserWindowOptions: { ...TABBING, minWidth: 420, minHeight: 400, title: "세션" } };
   }
   if (pathname === "/" && new URL(url).searchParams.has("repo")) {
     return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, title: "Agent Control" } };
   }
   // Size and position come from the window.open features of a tab dragged out of the doc panel.
   if (pathname === "/doc") {
-    return { action: "allow", overrideBrowserWindowOptions: { minWidth: 480, minHeight: 400, title: "문서" } };
+    return { action: "allow", overrideBrowserWindowOptions: { ...TABBING, minWidth: 480, minHeight: 400, title: "문서" } };
   }
   shell.openExternal(url);
   return { action: "deny" };
@@ -150,10 +153,9 @@ function guardContents(contents) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    ...APP_WINDOW,
     width: 1440,
     height: 960,
-    minWidth: 900,
-    minHeight: 600,
     title: "Agent Control",
     show: false,
     webPreferences: { preload: path.join(import.meta.dirname, "preload.cjs") },
