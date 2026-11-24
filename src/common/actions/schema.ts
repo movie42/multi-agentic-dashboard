@@ -53,8 +53,8 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("a2ui-action"),
     terminalHandle: z.string(),
-    surfaceId: z.string().regex(/^\S+$/),
-    name: z.string().regex(/^\S+$/),
+    surfaceId: z.string().max(128).regex(/^\S+$/),
+    name: z.string().max(128).regex(/^\S+$/),
     context: z.record(z.string(), z.unknown()).refine((value) => JSON.stringify(value).length <= MAX_PROMPT),
   }),
   z.object({ type: z.literal("interrupt-session"), terminalHandle: z.string() }),

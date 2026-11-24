@@ -282,11 +282,11 @@ function deliveredPrompt(line: TranscriptLine): string | null {
   return typedText(attachment.prompt);
 }
 
-/** An `[A2UI action]` reply answers the latest card with that surface id; it is shown on the card, not as a prompt. */
+/** An `[A2UI action]` reply answers the latest unanswered card with that surface id; it is shown on the card, not as a prompt. */
 function claimAction(tools: Map<string, PendingStep>, text: string): boolean {
   const action = parseActionText(text);
   if (!action) return false;
-  const card = [...tools.values()].reverse().find((step) => step.kind === "ui" && step.surfaceId === action.surfaceId);
+  const card = [...tools.values()].reverse().find((step) => step.kind === "ui" && step.surfaceId === action.surfaceId && step.action === null);
   if (card?.kind !== "ui") return false;
   card.action = action;
   return true;

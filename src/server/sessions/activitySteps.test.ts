@@ -229,6 +229,14 @@ describe("chatItemsOf render_ui", () => {
     expect(chat[0]).toMatchObject({ kind: "ui", action: { surfaceId: "pick", name: "choose", context: { plan: "A" } } });
   });
 
+  it("leaves a reply for an already answered card as an ordinary prompt", () => {
+    const reply = (uuid: string, plan: string) =>
+      JSON.stringify({ type: "user", uuid, message: { content: `[A2UI action] surface=pick name=choose\n{"plan":"${plan}"}` } });
+    const chat = chatItemsOf([use({ messages: surface }), result, reply("u3", "A"), reply("u4", "B")]);
+    expect(chat.map((item) => item.kind)).toEqual(["ui", "prompt"]);
+    expect(chat[0]).toMatchObject({ action: { context: { plan: "A" } } });
+  });
+
   it("keeps a broken render_ui call as an ordinary tool row", () => {
     const chat = chatItemsOf([use({ messages: [{ version: "1.0", updateComponents: {} }] })]);
     expect(chat).toMatchObject([{ kind: "tool", name: "mcp__agent-control__render_ui" }]);

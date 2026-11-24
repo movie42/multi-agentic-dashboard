@@ -18,6 +18,7 @@ describe("actionRequestSchema", () => {
     [{ type: "send-prompt", terminalHandle: "t", text: "x".repeat(MAX_PROMPT + 1) }, false],
     [{ type: "a2ui-action", terminalHandle: "t", surfaceId: "pick", name: "choose", context: { plan: "A" } }, true],
     [{ type: "a2ui-action", terminalHandle: "t", surfaceId: "pick me", name: "choose", context: {} }, false],
+    [{ type: "a2ui-action", terminalHandle: "t", surfaceId: "p".repeat(129), name: "choose", context: {} }, false],
     [{ type: "a2ui-action", terminalHandle: "t", surfaceId: "pick", name: "choose", context: { big: "x".repeat(MAX_PROMPT) } }, false],
     [{ type: "launch-agent", worktreePath: "/w", prompt: "" }, true],
     [{ type: "launch-agent", worktreePath: "w", prompt: "" }, false],

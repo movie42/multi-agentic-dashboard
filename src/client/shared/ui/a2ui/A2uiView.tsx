@@ -10,7 +10,9 @@ import { Markdown } from "@/client/shared/ui/Markdown";
 import { appCatalog } from "./catalog";
 import { A2uiLockContext } from "./lock";
 
-type Built = { kind: "ok"; surface: SurfaceModel<ReactComponentImplementation> } | { kind: "error"; message: string };
+type Built =
+  | { kind: "ok"; surface: SurfaceModel<ReactComponentImplementation> }
+  | { kind: "error"; message: string };
 
 interface ChatMarkdownProps {
   markdown: string;
@@ -23,10 +25,11 @@ function ChatMarkdown({ markdown }: ChatMarkdownProps) {
 function build(messages: A2uiMessage[]): Built {
   const processor = new MessageProcessor<ReactComponentImplementation>([appCatalog], undefined, { validationConfig: STRICT_VALIDATION });
   const failure = processErrors(processor, messages);
-  if (failure) return { kind: "error", message: failure };
   const id = surfaceIdOf(messages);
-  const surface = id ? processor.model.surfacesMap.get(id) : undefined;
-  return surface ? { kind: "ok", surface } : { kind: "error", message: "createSurface가 없어요" };
+  const surface = !failure && id ? processor.model.surfacesMap.get(id) : undefined;
+  if (surface) return { kind: "ok", surface };
+  processor.dispose();
+  return { kind: "error", message: failure ?? "createSurface가 없어요" };
 }
 
 interface SurfaceProps {
@@ -41,6 +44,7 @@ function Surface({ messages, onAction, locked }: SurfaceProps) {
   useEffect(() => {
     if (built.kind !== "ok") return;
     const subscription = built.surface.onAction.subscribe((payload) => emit(payload));
+    // No dispose here: Strict Mode runs this cleanup and the effect again on the same processor.
     return () => subscription.unsubscribe();
   }, [built]);
   if (built.kind === "error") return <p className="text-[12px] text-accent">카드를 그리지 못했어요: {built.message}</p>;
