@@ -976,6 +976,17 @@
         "src/client/widgets/project-graph/ui/NodeBox.tsx"
       ],
       "sha": "54c1639"
+    },
+    {
+      "date": "2026-11-24",
+      "text": "사이드바 '캔버스 색'에서 캔버스 배경 · 프로젝트/워크트리 라인·배경 · 카드 배경 색 선택 (세션 상태 색은 제외)",
+      "files": [
+        "app/globals.css",
+        "src/client/widgets/project-graph/ui/Frames.tsx",
+        "src/client/widgets/project-graph/ui/NodeBox.tsx",
+        "src/client/features/customize-canvas-color/ui/CanvasColorPanel.tsx"
+      ],
+      "sha": "83282c7"
     }
   ],
   "skipped": [
