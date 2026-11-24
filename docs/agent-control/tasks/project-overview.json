@@ -987,6 +987,17 @@
         "src/client/features/customize-canvas-color/ui/CanvasColorPanel.tsx"
       ],
       "sha": "83282c7"
+    },
+    {
+      "date": "2026-11-24",
+      "text": "우클릭 → 정리 → 색 바꾸기로 프로젝트·워크트리·카드 개별 라인/배경/글자 색 (data-color-key 스타일시트, 전역 색보다 우선), 전역 패널에 글자 열 추가",
+      "files": [
+        "src/client/widgets/project-graph/ui/canvasMenuItems.ts",
+        "src/client/features/customize-canvas-color/ui/ItemColorEditor.tsx",
+        "src/client/features/customize-canvas-color/model/useItemColors.ts",
+        "app/globals.css"
+      ],
+      "sha": "26ad91d"
     }
   ],
   "skipped": [
