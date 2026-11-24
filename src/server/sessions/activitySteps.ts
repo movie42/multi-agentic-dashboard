@@ -1,5 +1,7 @@
 import path from "node:path";
 import { z } from "zod";
+import { parseActionText } from "@/common/a2ui/actionText";
+import { surfaceIdOf, validateUiMessages } from "@/common/a2ui/messages";
 import { ASK_USER_QUESTION, questionsOf } from "@/common/runner/questions";
 import type { ActivityStep, ToolDocument } from "@/common/sessions/types";
 import { parseJson } from "@/server/shared/fallback";
@@ -74,8 +76,9 @@ function documentOf(name: string, input: Record<string, unknown> | undefined, fi
 }
 
 const EXIT_PLAN_MODE = "ExitPlanMode";
+const RENDER_UI = "mcp__agent-control__render_ui";
 
-type PendingStep = Extract<ActivityStep, { kind: "tool" | "question" | "plan" }>;
+type PendingStep = Extract<ActivityStep, { kind: "tool" | "question" | "plan" | "ui" }>;
 
 const text = z.string().optional().catch(undefined);
 const flag = z.boolean().optional().catch(undefined);
@@ -213,6 +216,11 @@ function richStepOf(block: ContentBlock & { id: string; name: string }, at: numb
     const questions = questionsOf({ toolName: block.name, toolInput: input });
     return questions.length > 0 ? { kind: "question", id: block.id, at, questions, answers: null, status: "running" } : null;
   }
+  if (block.name === RENDER_UI) {
+    const surface = validateUiMessages(input.messages);
+    const surfaceId = surface.ok ? surfaceIdOf(surface.messages) : null;
+    return surface.ok && surfaceId ? { kind: "ui", id: block.id, at, surfaceId, messages: surface.messages, status: "running", action: null } : null;
+  }
   const plan = block.name === EXIT_PLAN_MODE ? stringField(input, "plan") : null;
   return plan ? { kind: "plan", id: block.id, at, plan: clip(plan, textChars), status: "running", feedback: null } : null;
 }
@@ -274,6 +282,16 @@ function deliveredPrompt(line: TranscriptLine): string | null {
   return typedText(attachment.prompt);
 }
 
+/** An `[A2UI action]` reply answers the latest card with that surface id; it is shown on the card, not as a prompt. */
+function claimAction(tools: Map<string, PendingStep>, text: string): boolean {
+  const action = parseActionText(text);
+  if (!action) return false;
+  const card = [...tools.values()].reverse().find((step) => step.kind === "ui" && step.surfaceId === action.surfaceId);
+  if (card?.kind !== "ui") return false;
+  card.action = action;
+  return true;
+}
+
 function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
   const steps: ActivityStep[] = [];
   const tools = new Map<string, PendingStep>();
@@ -293,6 +311,7 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
       continue;
     }
     const delivered = options.richTools ? deliveredPrompt(line) : null;
+    if (delivered && claimAction(tools, delivered)) continue;
     if (delivered) {
       steps.push({ kind: "prompt", id: `${line.uuid}:queued`, at, text: clip(delivered, options.textChars) });
       continue;
@@ -354,6 +373,7 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
         .flatMap((block) => (block.type === "text" && block.text ? [unwrapPasted(block.text).trim()] : []))
         .filter(isTypedPrompt)
         .join("\n");
+      if (typed && options.richTools && claimAction(tools, typed)) continue;
       if (typed) {
         // A new prompt means any tool still waiting for a result was cut off by the user.
         for (const tool of tools.values()) if (tool.status === "running") tool.status = "stopped";

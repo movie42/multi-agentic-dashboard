@@ -1,5 +1,6 @@
 import { conductorInstructions, MCP_SERVER_NAME } from "../orchestration/conductorMcp.ts";
 import { judgeInstructions } from "../templates/judgeMcp.ts";
+import { uiInstructions } from "../ui/uiMcp.ts";
 import { hookSettings, type StatusLineScript } from "./hookSettings.ts";
 import { isZsh } from "./shellIntegration.ts";
 import type { Command, CommandRequest } from "./SessionRegistry.ts";
@@ -24,24 +25,22 @@ export function mcpUrl(baseUrl: string, sessionId: string): string {
   return `${baseUrl}/mcp/${encodeURIComponent(sessionId)}`;
 }
 
-/** A conductor reaches the daemon's orchestration tools over MCP and may call them without asking. */
-function conductorArgs(request: CommandRequest, baseUrl: string): string[] {
-  if (!request.conductor) return [];
+/**
+ * Every Claude session reaches the daemon's MCP server: render_ui for all, plus the orchestration
+ * tools for a conductor or the route tool for a judge card. Claude Code keeps one appended system
+ * prompt, so the role text and the render_ui note go in together.
+ */
+function mcpArgs(request: CommandRequest, baseUrl: string): string[] {
   const config = { mcpServers: { [MCP_SERVER_NAME]: { type: "http", url: mcpUrl(baseUrl, request.id) } } };
+  const role = request.conductor ? conductorInstructions() : request.judge ? judgeInstructions() : null;
   return [
     "--mcp-config",
     JSON.stringify(config),
     "--allowedTools",
     `mcp__${MCP_SERVER_NAME}`,
     "--append-system-prompt",
-    conductorInstructions(),
+    [role, uiInstructions()].filter(Boolean).join("\n\n"),
   ];
-}
-
-function judgeArgs(request: CommandRequest, baseUrl: string): string[] {
-  if (!request.judge || request.conductor) return [];
-  const config = { mcpServers: { [MCP_SERVER_NAME]: { type: "http", url: mcpUrl(baseUrl, request.id) } } };
-  return ["--mcp-config", JSON.stringify(config), "--allowedTools", `mcp__${MCP_SERVER_NAME}`, "--append-system-prompt", judgeInstructions()];
 }
 
 function modelArgs(request: CommandRequest): string[] {
@@ -60,8 +59,7 @@ export function commandFor(request: CommandRequest, environment: CommandEnvironm
     file: environment.claude,
     args: [
       ...identity,
-      ...conductorArgs(request, environment.baseUrl),
-      ...judgeArgs(request, environment.baseUrl),
+      ...mcpArgs(request, environment.baseUrl),
       ...modelArgs(request),
       ...(request.askPermissions ? [] : ["--permission-mode", "bypassPermissions"]),
       "--settings",

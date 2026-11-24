@@ -207,3 +207,30 @@ describe("chatItemsOf questions and plans", () => {
     });
   });
 });
+
+describe("chatItemsOf render_ui", () => {
+  const surface = [
+    { version: "1.0", createSurface: { surfaceId: "pick", catalogId: "https://agent-control.local/a2ui/catalog/v1" } },
+    { version: "1.0", updateComponents: { surfaceId: "pick", components: [{ id: "root", component: "Text", text: "고르세요" }] } },
+  ];
+  const use = (input: Record<string, unknown>) =>
+    JSON.stringify({ type: "assistant", uuid: "a1", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__agent-control__render_ui", input }] } });
+  const result = JSON.stringify({ type: "user", uuid: "u2", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "Shown" }] } });
+
+  it("draws a render_ui call as a ui step", () => {
+    const chat = chatItemsOf([use({ messages: surface }), result]);
+    expect(chat).toMatchObject([{ kind: "ui", id: "t1", surfaceId: "pick", messages: surface, status: "ok", action: null }]);
+  });
+
+  it("folds the person's [A2UI action] reply into the card instead of a prompt bubble", () => {
+    const reply = JSON.stringify({ type: "user", uuid: "u3", message: { content: '[A2UI action] surface=pick name=choose\n{"plan":"A"}' } });
+    const chat = chatItemsOf([use({ messages: surface }), result, reply]);
+    expect(chat).toHaveLength(1);
+    expect(chat[0]).toMatchObject({ kind: "ui", action: { surfaceId: "pick", name: "choose", context: { plan: "A" } } });
+  });
+
+  it("keeps a broken render_ui call as an ordinary tool row", () => {
+    const chat = chatItemsOf([use({ messages: [{ version: "1.0", updateComponents: {} }] })]);
+    expect(chat).toMatchObject([{ kind: "tool", name: "mcp__agent-control__render_ui" }]);
+  });
+});

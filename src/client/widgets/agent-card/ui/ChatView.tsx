@@ -8,6 +8,7 @@ import { formatClock } from "@/client/shared/lib/format";
 import { Markdown } from "@/client/shared/ui/Markdown";
 import { StatusLine } from "@/client/shared/ui/StatusLine";
 import { SlackCopyButton } from "./SlackCopyButton";
+import { UiActionTarget, UiRow } from "./UiRow";
 
 const STICK_PX = 64;
 
@@ -274,6 +275,7 @@ function ChatRow({ step, copyable }: ChatRowProps) {
   if (step.kind === "tool") return <ToolRow step={step} />;
   if (step.kind === "question") return <QuestionRow step={step} />;
   if (step.kind === "plan") return <PlanRow step={step} />;
+  if (step.kind === "ui") return <UiRow step={step} />;
   if (step.kind === "output") {
     return (
       <li className="py-1">
@@ -313,11 +315,13 @@ export type ChatLayout = "box" | "page";
 
 interface ChatViewProps {
   sessionId: string;
+  /** Live terminal the answers from agent-drawn cards are typed into. */
+  terminalHandle?: string | null;
   working: boolean;
   layout: ChatLayout;
 }
 
-export function ChatView({ sessionId, working, layout }: ChatViewProps) {
+export function ChatView({ sessionId, terminalHandle = null, working, layout }: ChatViewProps) {
   const chat = useQuery(chatQueryOptions(sessionId));
   const isQueued = (step: ActivityStep) => step.kind === "prompt" && step.queued === true;
   const steps = chat.data?.filter((step) => !isQueued(step)) ?? null;
@@ -370,15 +374,17 @@ export function ChatView({ sessionId, working, layout }: ChatViewProps) {
       {steps.length === 0 ? (
         <p className="text-[13px] text-muted">아직 대화가 없어요</p>
       ) : (
-        <ol className="flex flex-col gap-0.5">
-          {groupSteps(steps).map((item) =>
-            item.kind === "tools" ? (
-              <ToolGroupRow key={`tools-${item.steps[0].id}`} steps={item.steps} last={item.last} />
-            ) : (
-              <ChatRow key={item.step.id} step={item.step} copyable={!working && item.step.id === lastTextId} />
-            ),
-          )}
-        </ol>
+        <UiActionTarget.Provider value={terminalHandle}>
+          <ol className="flex flex-col gap-0.5">
+            {groupSteps(steps).map((item) =>
+              item.kind === "tools" ? (
+                <ToolGroupRow key={`tools-${item.steps[0].id}`} steps={item.steps} last={item.last} />
+              ) : (
+                <ChatRow key={item.step.id} step={item.step} copyable={!working && item.step.id === lastTextId} />
+              ),
+            )}
+          </ol>
+        </UiActionTarget.Provider>
       )}
       {working && (
         <p className="flex items-center gap-1.5 px-2 text-[12px] text-now">

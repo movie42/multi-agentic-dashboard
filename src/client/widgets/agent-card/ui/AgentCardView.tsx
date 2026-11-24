@@ -393,6 +393,7 @@ export function AgentCardView({
           <ChatView
             key={`chat-${agent.session.id}`}
             sessionId={agent.session.id}
+            terminalHandle={isShell ? null : terminalHandle}
             working={agent.state === "working"}
             layout={chatLayout}
           />

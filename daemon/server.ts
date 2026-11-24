@@ -18,6 +18,7 @@ import { describePermission, isDelegated, ruleFor } from "./orchestration/grants
 import { lastAnswerOf } from "./orchestration/lastAnswer.ts";
 import type { Orchestration } from "./orchestration/Orchestration.ts";
 import { handleJudgeMessage } from "./templates/judgeMcp.ts";
+import { handleUiMessage, withUiTool } from "./ui/uiMcp.ts";
 import { templateOf } from "../src/common/templates/types.ts";
 import type { TemplateRuns } from "./templates/TemplateRuns.ts";
 import type { TemplateStore } from "./templates/TemplateStore.ts";
@@ -309,17 +310,12 @@ export function createRunnerServer({
           response.writeHead(405, { Allow: "POST" }).end();
           return;
         }
-        if (!orchestration.isConductor(id) && runs.isJudge(id)) {
-          const reply = handleJudgeMessage(id, await readBody(request), runs);
-          if (reply) respond(response, undefined, 200, reply);
-          else response.writeHead(202).end();
-          return;
-        }
-        if (!orchestration.isConductor(id)) {
-          respond(response, undefined, 404, { jsonrpc: "2.0", id: null, error: { code: -32001, message: "not a conductor session" } });
-          return;
-        }
-        const reply = await handleMcpMessage(id, await readBody(request), toolDeps);
+        const body = await readBody(request);
+        const reply = orchestration.isConductor(id)
+          ? await withUiTool(body, (message) => handleMcpMessage(id, message, toolDeps))
+          : runs.isJudge(id)
+            ? await withUiTool(body, (message) => handleJudgeMessage(id, message, runs))
+            : await handleUiMessage(body);
         if (reply) respond(response, undefined, 200, reply);
         else response.writeHead(202).end();
         return;

@@ -1,3 +1,5 @@
+import type { A2uiMessage } from "@/common/a2ui/messages";
+import type { UiAction } from "@/common/a2ui/actionText";
 import type { RunnerQuestion } from "@/common/runner/questions";
 
 export type TitleSource = "custom" | "ai" | "none";
@@ -62,7 +64,9 @@ export type ActivityStep =
   /** An AskUserQuestion call with the answers the user picked, null until they answer. */
   | { kind: "question"; id: string; at: number | null; questions: RunnerQuestion[]; answers: Record<string, string> | null; status: ToolStatus }
   /** An ExitPlanMode call: the plan Claude asked to approve, and the user's reply when they rejected it. */
-  | { kind: "plan"; id: string; at: number | null; plan: string; status: ToolStatus; feedback: string | null };
+  | { kind: "plan"; id: string; at: number | null; plan: string; status: ToolStatus; feedback: string | null }
+  /** A render_ui call: the A2UI surface the agent drew, and what the person did with it, null until they act. */
+  | { kind: "ui"; id: string; at: number | null; surfaceId: string; messages: A2uiMessage[]; status: ToolStatus; action: UiAction | null };
 
 export interface ToolDocument {
   path: string;
