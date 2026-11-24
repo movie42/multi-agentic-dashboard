@@ -84,6 +84,15 @@ if (commit) {
   writeFileSync(path.join(stage, "server", "build-info.json"), JSON.stringify({ commit, branch, builtAt: Date.now() }, null, 2));
 }
 
+/** A codesigning identity (its SHA-1 or name, as `security find-identity -v -p codesigning` lists it), from the environment or the untracked `.env.desktop`. */
+function signingIdentity() {
+  if (process.env.AGENT_CONTROL_SIGN_IDENTITY) return process.env.AGENT_CONTROL_SIGN_IDENTITY;
+  const file = path.join(root, ".env.desktop");
+  if (!existsSync(file)) return null;
+  const line = readFileSync(file, "utf8").match(/^AGENT_CONTROL_SIGN_IDENTITY=(.+)$/m);
+  return line?.[1]?.trim().replace(/^["']|["']$/g, "") || null;
+}
+
 const daemonEntry = path.join(root, "daemon", "main.ts");
 if (!existsSync(daemonEntry)) throw new Error(`missing ${daemonEntry}`);
 if (Number(process.versions.node.split(".")[0]) < 24) {
@@ -111,7 +120,11 @@ const [appPath] = await packager({
 
 const appBundle = path.join(appPath, "Agent Control.app");
 // The packaged binary keeps Electron's linker signature (identifier "Electron"), and macOS refuses
-// notifications whose signing identifier does not match the bundle id. Ad-hoc re-signing fixes it.
-execFileSync("codesign", ["--force", "--deep", "--sign", "-", appBundle]);
+// notifications whose signing identifier does not match the bundle id, so it is always re-signed.
+// macOS also ties folder permissions to the signature: an ad-hoc one is new on every build, so each
+// build asked again. A keychain certificate keeps the signature (bundle id + certificate) the same.
+const identity = signingIdentity();
+if (!identity) console.warn(`[build-desktop] no signing identity in AGENT_CONTROL_SIGN_IDENTITY or .env.desktop — ad-hoc signing, so macOS will ask for folder access again after this build`);
+execFileSync("codesign", ["--force", "--deep", "--sign", identity ?? "-", appBundle]);
 
 console.log(`built ${appBundle}`);
