@@ -167,6 +167,11 @@ describe("menuFor", () => {
     expect(recolor({ kind: "project", id: "shop" }).targets).toEqual([{ scope: "project", id: "shop" }]);
   });
 
+  it("keeps the canvas actions in a project frame's menu, since its empty inside is canvas too", () => {
+    const items = menuFor({ kind: "project", id: "shop" }, context())?.groups.flatMap((group) => group.items) ?? [];
+    expect(labels(items)).toEqual(["모든 세션 고르기", "자동 정리"]);
+  });
+
   it("offers no colours for a line or the empty canvas", () => {
     expect(menuFor({ kind: "canvas", id: "" }, context())?.colors).toBeUndefined();
   });

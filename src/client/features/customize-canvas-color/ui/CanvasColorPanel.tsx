@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_TOKEN, PART_LABEL, PARTS_OF, SCOPE_LABEL, type ColorPart, type ColorScope } from "../model/colorVars";
+import { DEFAULT_TOKEN, defaultColor, PART_LABEL, PARTS_OF, SCOPE_LABEL, type ColorPart, type ColorScope } from "../model/colorVars";
 import { CANVAS_COLOR_SLOTS, slotIndex, useCanvasColors } from "../model/useCanvasColors";
-import { tokenValue } from "./tokenValue";
+import { inputHex, tokenValue } from "./tokenValue";
 
 const SCOPES: readonly ColorScope[] = ["canvas", "project", "worktree", "card"];
 const PARTS: readonly ColorPart[] = ["line", "fill", "ink"];
@@ -31,7 +31,7 @@ function CanvasColorEditor() {
                 <input
                   key={part}
                   type="color"
-                  value={colors[slotIndex(scope, part)] ?? tokenValue(DEFAULT_TOKEN[scope][part] ?? "--fg")}
+                  value={colors[slotIndex(scope, part)] ?? inputHex(defaultColor(scope, part, tokenValue), DEFAULT_TOKEN[scope][part] ?? "--fg")}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) => pick(scope, part, event.target.value)}
                   aria-label={`${SCOPE_LABEL[scope]} ${PART_LABEL[part]} 색`}
                   className="h-6 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
@@ -42,7 +42,7 @@ function CanvasColorEditor() {
         ))}
       </div>
       <p className="text-[11px] leading-snug text-muted">
-        캔버스 전체에 적용돼요. 하나만 바꾸려면 캔버스에서 우클릭 → 정리 → 색 바꾸기. 세션 상태 색(내 차례 · 작업 중 · 쉬는 중 · 잠자는 중)은 바뀌지 않아요.
+        캔버스 전체에 적용돼요. 하나만 바꾸려면 캔버스에서 우클릭 → 맨 위 색 견본(또는 직접 고르기…). 세션 상태 색(내 차례 · 작업 중 · 쉬는 중 · 잠자는 중)은 바뀌지 않아요.
       </p>
       {customized && (
         <button

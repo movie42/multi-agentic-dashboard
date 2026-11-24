@@ -17,13 +17,23 @@ export const PARTS_OF: Record<ColorScope, readonly ColorPart[]> = {
   card: ["fill", "ink"],
 };
 
-/** The `globals.css` token each part falls back to; a colour input needs a hex, so this is what it shows with nothing picked. */
+/** The `globals.css` token each part falls back to. */
 export const DEFAULT_TOKEN: Record<ColorScope, Partial<Record<ColorPart, string>>> = {
   canvas: { fill: "--bg" },
   project: { line: "--hair", fill: "--tint", ink: "--fg" },
   worktree: { line: "--faint", fill: "--tint", ink: "--fg" },
   card: { fill: "--bg", ink: "--fg" },
 };
+
+/** Frame backgrounds are their token see-through, as `--color-canvas-*-fill` in `globals.css` draws them. */
+const DEFAULT_SHARE: Partial<Record<ColorScope, number>> = { project: 20, worktree: 40 };
+
+/** The colour a part shows with nothing picked, with `token` resolving a token name to its value. */
+export function defaultColor(scope: ColorScope, part: ColorPart, token: (name: string) => string): string {
+  const base = token(DEFAULT_TOKEN[scope][part] ?? "--fg");
+  const share = part === "fill" ? DEFAULT_SHARE[scope] : undefined;
+  return share ? `color-mix(in oklab, ${base} ${share}%, transparent)` : base;
+}
 
 const customName = (scope: ColorScope, part: ColorPart | "soft") => (scope === "canvas" ? "--canvas-bg-custom" : `--canvas-${scope}-${part}-custom`);
 
@@ -55,13 +65,13 @@ export type SwatchName = (typeof SWATCHES)[number]["name"];
  * `--bg` / `--fg`, so the same swatch reads right in light and dark mode.
  */
 export function swatchVars(scope: ColorScope, name: SwatchName): Array<[string, string]> {
-  const hue = `var(--swatch-${name})`;
-  const color: Record<ColorPart, string> = {
-    line: hue,
-    fill: `color-mix(in oklab, ${hue} 14%, var(--bg))`,
-    ink: `color-mix(in oklab, ${hue} 55%, var(--fg))`,
-  };
-  return PARTS_OF[scope].flatMap((part) => customVars(scope, part, color[part]));
+  return PARTS_OF[scope].flatMap((part) => customVars(scope, part, swatchColor(part, `var(--swatch-${name})`, "var(--bg)", "var(--fg)")));
+}
+
+/** What a swatch's hue becomes for one part; the colour editor calls it with resolved values to show it. */
+export function swatchColor(part: ColorPart, hue: string, bg: string, fg: string): string {
+  if (part === "line") return hue;
+  return part === "fill" ? `color-mix(in oklab, ${hue} 14%, ${bg})` : `color-mix(in oklab, ${hue} 55%, ${fg})`;
 }
 
 /** Every custom property a scope's part can set, for clearing it. */

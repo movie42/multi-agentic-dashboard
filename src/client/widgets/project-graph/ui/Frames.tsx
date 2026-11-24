@@ -214,7 +214,7 @@ export function ProjectFrame({ repo, rect, agents, worktrees, onOpen }: ProjectF
   const working = states.filter((state) => state === "working").length;
   return (
     <g data-color-key={colorKey({ scope: "project", id: repo })}>
-      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={22} strokeWidth={1.5} className="fill-canvas-project-fill stroke-canvas-project-line" />
+      <rect data-project={repo} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={22} strokeWidth={1.5} className="fill-canvas-project-fill stroke-canvas-project-line" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={PROJECT_HEAD}>
         <div data-drag="project" data-id={repo} className="flex h-full cursor-grab items-center gap-2.5 px-5 text-[12px] leading-none text-canvas-project-ink select-none active:cursor-grabbing">
           <span className="text-[10px] font-semibold tracking-[0.08em] text-canvas-project-soft">PROJECT</span>

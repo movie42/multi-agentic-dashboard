@@ -19,7 +19,8 @@ export function ItemColorSwatches({ targets, onCustom }: ItemColorSwatchesProps)
   const items = useItemColors();
   const [first] = targets;
   if (!first) return null;
-  const current = items.swatchOf(first);
+  // A mixed selection marks nothing, so clicking a swatch reads as "make them all this".
+  const current = SWATCHES.find((swatch) => targets.every((target) => items.swatchOf(target) === swatch.name))?.name ?? null;
   const ownColors = targets.some((target) => items.swatchOf(target) !== null || PARTS_OF[target.scope].some((part) => items.colorOf(target, part) !== null));
 
   return (

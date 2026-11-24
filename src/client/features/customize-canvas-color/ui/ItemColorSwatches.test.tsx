@@ -72,4 +72,18 @@ describe("ItemColorSwatches", () => {
     await userEvent.click(screen.getByRole("button", { name: /직접/ }));
     expect(onCustom).toHaveBeenCalled();
   });
+
+  it("marks a swatch only when every selected card has it", async () => {
+    window.localStorage.setItem("agent-control:canvas-item-colors", JSON.stringify(["card\tswatch\tblue\ts1"]));
+    const both = [
+      { scope: "card" as const, id: "s1" },
+      { scope: "card" as const, id: "s2" },
+    ];
+    render(<ItemColorSwatches targets={both} onCustom={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "파랑" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "기본 색" }).getAttribute("aria-pressed")).toBe("false");
+    await userEvent.click(screen.getByRole("button", { name: "파랑" }));
+    expect(screen.getByRole("button", { name: "파랑" }).getAttribute("aria-pressed")).toBe("true");
+  });
 });
+

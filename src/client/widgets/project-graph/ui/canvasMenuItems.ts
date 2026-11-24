@@ -228,6 +228,14 @@ function reservedMenu(id: string, context: MenuContext): MenuContent | null {
   };
 }
 
+function canvasItems(context: MenuContext, selection: AgentCard[]): MenuItem[] {
+  return [
+    { label: "모든 세션 고르기", run: () => context.select([...context.graph.nodes.keys()]) },
+    ...(selection.length > 0 ? [{ label: "고르기 해제", run: () => context.select([]) }] : []),
+    { label: "자동 정리", run: context.onTidy },
+  ];
+}
+
 /** What a right-click offers. A click on a selected box acts on the whole selection, like Figma. */
 export function menuFor(target: MenuTarget, context: MenuContext): MenuContent | null {
   const { graph, canvas, save, onAction } = context;
@@ -302,7 +310,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
 
   if (target.kind === "project") {
     const title = `프로젝트 · ${target.id}`;
-    return { title, rename: null, groups: [], colors: colorsOf([{ scope: "project", id: target.id }], title, context) };
+    return { title, rename: null, groups: sectioned({ arrange: canvasItems(context, []) }), colors: colorsOf([{ scope: "project", id: target.id }], title, context) };
   }
 
   if (target.kind === "group") {
@@ -333,13 +341,9 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
 
   if (target.kind === "canvas") {
     const selection = agentsOf(graph, context.selected);
-    const canvasItems: MenuItem[] = [
-      { label: "모든 세션 고르기", run: () => context.select([...graph.nodes.keys()]) },
-      ...(selection.length > 0 ? [{ label: "고르기 해제", run: () => context.select([]) }] : []),
-      { label: "자동 정리", run: context.onTidy },
-    ];
-    if (selection.length > 0) return selectionMenu(selection, context, { arrange: canvasItems });
-    return { title: "캔버스", rename: null, groups: sectioned({ arrange: canvasItems }) };
+    const items = canvasItems(context, selection);
+    if (selection.length > 0) return selectionMenu(selection, context, { arrange: items });
+    return { title: "캔버스", rename: null, groups: sectioned({ arrange: items }) };
   }
 
   const edge = graph.edges.find((entry) => entry.id === target.id);

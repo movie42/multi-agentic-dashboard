@@ -2,10 +2,10 @@
 
 import { createPortal } from "react-dom";
 import { ContextMenu, MenuHeading, type MenuPoint } from "@/client/shared/ui/ContextMenu";
-import { DEFAULT_TOKEN, PART_LABEL, PARTS_OF, type ColorPart } from "../model/colorVars";
+import { DEFAULT_TOKEN, defaultColor, PART_LABEL, PARTS_OF, swatchColor, type ColorPart } from "../model/colorVars";
 import { slotIndex, useCanvasColors } from "../model/useCanvasColors";
 import { useItemColors, type ItemColorTarget } from "../model/useItemColors";
-import { tokenValue } from "./tokenValue";
+import { inputHex, tokenValue } from "./tokenValue";
 
 interface ItemColorEditorProps {
   /** One scope at a time: the right-clicked frame, or the selected cards. */
@@ -23,9 +23,14 @@ export function ItemColorEditor({ targets, title, at, onClose }: ItemColorEditor
   if (!first) return null;
   const { scope } = first;
   const customized = targets.some((target) => items.swatchOf(target) !== null || PARTS_OF[scope].some((part) => items.colorOf(target, part) !== null));
-  // With no colour of its own, an item shows the canvas-wide colour, then the default token.
+  const swatch = items.swatchOf(first);
+  const fallbackToken = (part: ColorPart) => DEFAULT_TOKEN[scope][part] ?? "--fg";
+  // The colour the first target is painted with: a part picked on its own, its swatch, the canvas-wide colour, the default.
   const shown = (part: ColorPart) =>
-    items.colorOf(first, part) ?? canvasColors[slotIndex(scope, part)] ?? tokenValue(DEFAULT_TOKEN[scope][part] ?? "--fg");
+    items.colorOf(first, part) ??
+    (swatch && inputHex(swatchColor(part, tokenValue(`--swatch-${swatch}`), tokenValue("--bg"), tokenValue("--fg")), fallbackToken(part))) ??
+    canvasColors[slotIndex(scope, part)] ??
+    inputHex(defaultColor(scope, part, tokenValue), fallbackToken(part));
 
   return createPortal(
     <ContextMenu at={at} label={`${title} 색`} onClose={onClose} widthClass="w-auto">

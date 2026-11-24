@@ -633,6 +633,8 @@ export function CanvasStage(props: CanvasStageProps) {
     // The empty inside of a worktree frame counts as the worktree, not the canvas.
     const frame = target?.closest("[data-cluster]")?.getAttribute("data-cluster");
     const edge = target?.closest("[data-edge]")?.getAttribute("data-edge");
+    // So does the empty inside of a project frame on the all-projects canvas.
+    const project = target?.closest("[data-project]")?.getAttribute("data-project");
     const hit: MenuTarget = node
       ? { kind: "node", id: node }
       : edge
@@ -644,7 +646,9 @@ export function CanvasStage(props: CanvasStageProps) {
             }
           : frame
             ? { kind: "cluster", id: frame }
-            : { kind: "canvas", id: "" };
+            : project
+              ? { kind: "project", id: project }
+              : { kind: "canvas", id: "" };
     if (target?.closest("[role='menu']")) return;
     event.preventDefault();
     props.onContextMenu(hit, toWorld(event.clientX, event.clientY), { x: event.clientX, y: event.clientY });
