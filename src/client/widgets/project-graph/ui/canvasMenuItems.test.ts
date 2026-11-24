@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { openWindow } from "@/client/shared/lib/openWindow";
 import type { WorktreeSummary } from "@/common/board/types";
 import type { TemplateRun } from "@/common/templates/types";
 import { agentCard } from "../../../../../test/fixtures";
@@ -7,6 +8,8 @@ import { buildGraph, reservedId } from "../model/graph";
 import type { MenuItem } from "./CanvasMenu";
 import { menuFor, type MenuContext } from "./canvasMenuItems";
 import type { MenuTarget } from "./CanvasStage";
+
+vi.mock("@/client/shared/lib/openWindow", () => ({ openWindow: vi.fn() }));
 
 function worktree(path: string, isMain = false): WorktreeSummary {
   return {
@@ -107,11 +110,24 @@ describe("menuFor", () => {
   it("groups a session menu into open, create, state, arrange and close, in that order", () => {
     const groups = menuFor({ kind: "node", id: "s1" }, context())?.groups ?? [];
     expect(groups.map((group) => [group.label, labels(group.items)])).toEqual([
-      ["열기", ["패널에서 열기", "워크트리 열기", "셸 터미널"]],
+      ["열기", ["패널에서 열기", "새 창에서 열기", "워크트리 열기", "셸 터미널"]],
       ["만들기", ["다른 세션과 잇기"]],
       ["상태 바꾸기", ["쉬는 중으로 바꾸기", "잠자는 중으로 바꾸기"]],
       ["정리", ["그룹으로 묶기", "템플릿으로 저장"]],
       ["닫기·지우기", ["세션 닫기"]],
     ]);
+  });
+
+  it("opens a session in its own window", () => {
+    const items = menuFor({ kind: "node", id: "s1" }, context())?.groups.flatMap((group) => group.items) ?? [];
+    items.find((item) => item.label === "새 창에서 열기")?.run();
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=s1", expect.objectContaining({ width: expect.any(Number) }), "session:s1", undefined);
+  });
+
+  it("opens a worktree's board in its own window", () => {
+    const open = menuFor({ kind: "cluster", id: graph.clusters.find((entry) => entry.worktree.path === "/p/shop-a")!.id }, context())?.groups[0];
+    expect(labels(open?.items ?? []).slice(0, 2)).toEqual(["워크트리 열기", "새 창에서 열기"]);
+    open?.items[1]?.run();
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/?repo=shop&worktree=%2Fp%2Fshop-a", expect.objectContaining({ width: expect.any(Number) }), "board:shop:/p/shop-a");
   });
 });

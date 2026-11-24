@@ -1,0 +1,332 @@
+{
+  "id": "new-window",
+  "title": "새 창에서 열기 · 세션 창과 프로젝트·워크트리 창",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "세션은 캔버스 상자 우클릭 · 캔버스 오른쪽 패널의 '새 창' 버튼 · 에이전트 목록 줄 우클릭에서 그 세션 하나만 보이는 창(/session?id=)으로 열려요 [[P3]] [[P4]].",
+        "프로젝트 · 워크트리는 사이드바 프로젝트 메뉴, 워크트리 메뉴(사이드바 · 워크트리 패널), 캔버스 워크트리 틀 우클릭에서 그 범위로 띄운 대시보드 창(/?repo=&worktree=)으로 열려요 [[P4]].",
+        "새로 띄운 대시보드 창은 안에서 다른 프로젝트로 옮겨도 원래 창의 선택을 바꾸지 않고, 원래 창이 옮겨도 따라가지 않아요 [[P2]].",
+        "데스크톱 앱은 두 주소를 앱 창으로 열고, 그 밖의 주소는 지금처럼 기본 브라우저로 보내요 [[P4-5]].",
+        "오른쪽 패널에서 세션 탭도 문서 탭처럼 창 밖으로 끌어 놓으면 그 자리에 세션 창이 뜨고 탭은 닫혀요 [[P5]]."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 창 주소와 여는 함수",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "세션 창 주소 <code>sessionWindowHref(id)</code>와 프로젝트 · 워크트리 창 주소 <code>workspaceWindowHref(repo, worktreeId?)</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/agent/model/sessionWindow.ts</code> · <code>src/client/entities/workspace/model/workspaceWindow.ts</code> · 테스트 <code>sessionWindow.test.ts</code> · <code>workspaceWindow.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "주소를 만드는 함수 옆에 창 크기까지 정한 <code>openSessionWindow</code> · <code>openWorkspaceWindow</code>를 두고, 메뉴들은 이것만 불러요"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "새 창 열기 + 팝업이 막히면 토스트 <code>openWindow(url, size)</code>",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/shared/lib/openWindow.ts</code> · 테스트 <code>src/client/shared/lib/openWindow.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "세 번째 인자로 창 이름을 받아, 같은 세션 · 워크트리를 다시 열면 이미 뜬 창을 다시 써요"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bun run test</code> 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 창마다 따로 고르는 대시보드",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "<code>useWorkspacePrefs</code>가 주소에 <code>repo</code>가 있으면 고른 프로젝트 · 워크트리를 창 안 상태로만 들고 있음",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/workspace/model/useWorkspacePrefs.ts</code> · 테스트 <code>src/client/entities/workspace/model/useWorkspacePrefs.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "대시보드는 <code>useSearchParams</code>로 주소를 읽어 범위를 넘겨요. 창 안 이동은 새로고침하면 처음 범위로 돌아가요"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 테스트 통과 · <code>bunx tsc --noEmit</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 세션 창",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "<code>/session</code> 라우트와 세션 창 화면 — 보드에서 그 세션을 찾아 카드 한 장(채팅 · 터미널 · 이전 대화)을 창 가득 그림, 세션이 사라지면 안내",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/session/page.tsx</code> · <code>src/client/views/session/ui/SessionWindow.tsx</code> · 테스트 <code>src/client/views/session/ui/SessionWindow.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "창 제목은 '세션 제목 · 워크트리 · Agent Control'. Next 16의 Suspense 경고 때문에 <code>searchParams</code>는 Suspense 안에서 읽어요"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "세션 창에서 문서 열기는 문서 창(<code>/doc</code>)으로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>SessionWindow.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: 프로덕션 빌드에서 <code>/session?id=</code> 창에 카드 · 채팅 · 답장 입력과 창 제목이 뜸",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 메뉴와 버튼",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "캔버스 세션 상자 · 워크트리 틀 우클릭 '열기'에 '새 창에서 열기'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/canvasMenuItems.ts</code> · 테스트 <code>canvasMenuItems.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "캔버스 오른쪽 패널 아래 버튼줄에 '새 창' 버튼",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>SidePanel.tsx</code> · <code>src/client/shared/ui/ActionIcons.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "아이콘은 <code>ACTION_ICONS.newWindow</code> 하나로, 워크트리 패널 메뉴의 '새 창에서 열기'도 같은 아이콘을 써요"
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "에이전트 목록 줄 우클릭 '열기'에 '새 창에서 열기'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-list/ui/AgentList.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-4",
+              "title": "워크트리 패널 메뉴 · 사이드바 프로젝트 메뉴 · 사이드바 워크트리 메뉴에 '새 창에서 열기'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>WorktreePanel.tsx</code> · <code>ProjectMenu.tsx</code> · <code>ProjectWorktrees.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-5",
+              "title": "데스크톱 앱이 <code>/session</code>과 <code>/?repo=</code> 창을 앱 창으로 열게 허용",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>desktop/main.mjs</code> — <code>openHandler</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: 테스트 149파일 · 841건, tsc, lint 통과. 프로덕션 빌드에서 세션 창 · 범위 창 · 캔버스 메뉴 · 패널 버튼 · 사이드바 메뉴 확인",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 오른쪽 패널 세션 탭도 끌어서 새 창으로",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "문서 탭의 '창 밖으로 끌면 새 창' 동작을 탭 공용으로 빼냄",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/doc-panel/ui/detachDrag.ts</code> · <code>DocTabButton.tsx</code> · 테스트 <code>DocPanel.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "창은 놓은 자리에 뜨도록 <code>openWindow</code>가 위치를 받고, 열기에 성공하면 탭을 닫아요(문서 탭과 같게)"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "캔버스 세션 탭을 창 밖에 놓으면 세션 창이 뜨고 탭은 닫힘",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>ProjectCanvas.tsx</code> · <code>DocPanel.tsx</code> — <code>LeadTabButton</code> · 테스트 <code>ProjectCanvas.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "선택 탭(연결 · 여러 상자)은 창으로 옮길 대상이 없어서 끌 수 없어요"
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: 테스트 151파일 · 851건, tsc, lint 통과. 실제 끌어 놓기는 데스크톱 앱에서 사람이 확인",
+              "done": true
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        "리뷰 지적을 고친 뒤 typecheck · lint · test를 다시 통과했고, Dock 앱을 새로 빌드해 설치했어요. PR 없이 main에 커밋 · 푸시했어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "이 작업은 SOT 맵 행을 쓰지 않아서 바꿀 근거가 없어요"
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행 · 서버 요청 없음"
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "리뷰 지적 4건(모두 nit) 중 3건을 고침: 같은 세션 · 워크트리 창은 이름으로 다시 불러 두 개 뜨지 않게, 빈 제목은 '세션'으로, 세션 창 테스트 추가(<code>SessionWindow.test.tsx</code>). 주소가 창 안에서 바뀌는 경우는 이 앱에서 일어나지 않아 그대로 둠"
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "<code>bunx tsc --noEmit</code> · <code>bunx eslint</code> 오류 0 · <code>bun run test</code> 151파일 846건 통과(연속 2회). 그 전 실행 두 번은 매번 다른 테스트가 부하로 흔들렸어요"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음 — 사용자 요청으로 main에 바로 커밋 · 푸시"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "세션 · 프로젝트 · 워크트리를 한 창 안에서만 볼 수 있어서, 여러 세션을 나란히 지켜보거나 다른 프로젝트를 띄워 두려면 화면을 계속 바꿔야 해요.",
+      "state": "guess",
+      "basis": "사용자 요청"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "이 저장소에서는 질문·승인 멈춤 없이 구현하고 완료로 보고하라는 사용자 지시(메모리)"
+    }
+  ],
+  "pruned": "2026-11-24"
+}

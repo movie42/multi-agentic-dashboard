@@ -6,7 +6,10 @@ import type { OrchestrationLink } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
 import { useDocViewerStore } from "@/client/features/view-doc";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
+import { openWindow } from "@/client/shared/lib/openWindow";
 import { ProjectCanvas, type CanvasPanel } from "./ProjectCanvas";
+
+vi.mock("@/client/shared/lib/openWindow", () => ({ openWindow: vi.fn(() => true) }));
 
 const activeContent = (panel: CanvasPanel) => panel.tabs.find((tab) => tab.id === panel.activeId)?.content;
 
@@ -69,6 +72,14 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), els
                 </button>
               ))}
             </div>
+            {panel.tabs.map(
+              (tab) =>
+                tab.onDetach && (
+                  <button key={`detach:${tab.id}`} type="button" onClick={() => tab.onDetach?.({ left: 900, top: 40 })}>
+                    {`${tab.label} 떼기`}
+                  </button>
+                ),
+            )}
             {activeContent(panel)}
           </div>
         )}
@@ -126,6 +137,21 @@ describe("ProjectCanvas", () => {
     fireEvent.click(screen.getByRole("tab", { name: "에이전트" }));
     expect(screen.getByTestId("card").textContent).toBe("에이전트");
     expect(JSON.parse(localStorage.getItem("agent-control:panel-tabs:shop")!)).toEqual(["a", "t"]);
+  });
+
+  it("opens a session tab dragged out of the panel in its own window and drops the tab", () => {
+    renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "에이전트" }),
+      agentCard({ id: "t", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "터미널" }),
+    ]);
+    for (const id of ["a", "t"]) {
+      const box = document.querySelector(`[data-node="${id}"]`)!;
+      fireEvent.pointerDown(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    }
+    fireEvent.click(screen.getByRole("button", { name: "터미널 떼기" }));
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=t", expect.anything(), "session:t", { left: 900, top: 40 });
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["에이전트"]);
   });
 
   it("resizes a session box from its corner and keeps the size", () => {

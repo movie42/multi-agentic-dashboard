@@ -119,6 +119,13 @@ function openHandler({ url }) {
   if (pathname === "/runner") {
     return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, width: 1440, height: 960, title: "세션 러너" } };
   }
+  // Size comes from the window.open features of "새 창에서 열기".
+  if (pathname === "/session") {
+    return { action: "allow", overrideBrowserWindowOptions: { minWidth: 420, minHeight: 400, title: "세션" } };
+  }
+  if (pathname === "/" && new URL(url).searchParams.has("repo")) {
+    return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, title: "Agent Control" } };
+  }
   // Size and position come from the window.open features of a tab dragged out of the doc panel.
   if (pathname === "/doc") {
     return { action: "allow", overrideBrowserWindowOptions: { minWidth: 480, minHeight: 400, title: "문서" } };

@@ -17,9 +17,10 @@ import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
+import type { ScreenPoint } from "@/client/shared/lib/openWindow";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
-import { displayStateOf, useRestOverrides } from "@/client/entities/agent";
+import { displayStateOf, openSessionWindow, useRestOverrides } from "@/client/entities/agent";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
 import { draftFromSelection } from "../model/templateDraft";
@@ -41,6 +42,8 @@ export interface CanvasPanelTab {
   label: string;
   content: React.ReactNode;
   closable: boolean;
+  /** Given: the tab can leave the panel for its own window, landing at this screen point. */
+  onDetach?: (at: ScreenPoint) => void;
 }
 
 /** The right panel the host draws around the session view: its tabs before any document tabs. */
@@ -320,7 +323,11 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const leadTabs: CanvasPanelTab[] = [
     ...sessionTabs.flatMap((id): CanvasPanelTab[] => {
       const agent = graph.nodes.get(id)?.agent;
-      return agent ? [{ id, label: nodeTitle(agent), content: sidePanel({ kind: "agent", agent }), closable: true }] : [];
+      if (!agent) return [];
+      const onDetach = (at: ScreenPoint) => {
+        if (openSessionWindow(id, at)) closeTab(id);
+      };
+      return [{ id, label: nodeTitle(agent), content: sidePanel({ kind: "agent", agent }), closable: true, onDetach }];
     }),
     ...(selectionView ? [{ id: SELECTION_TAB, label: panelLabel(selectionView), content: sidePanel(selectionView), closable: true }] : []),
     ...(sessionTabs.length === 0 && !selectionView ? [{ id: EMPTY_TAB, label: panelLabel({ kind: "empty" }), content: sidePanel({ kind: "empty" }), closable: false }] : []),

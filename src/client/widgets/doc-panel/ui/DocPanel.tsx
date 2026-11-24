@@ -10,6 +10,8 @@ import { paneWidth } from "@/client/shared/lib/paneWidth";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { DocFrame } from "./DocFrame";
 import { DocTabButton } from "./DocTabButton";
+import { DETACH_HINT, detachDrag } from "./detachDrag";
+import type { ScreenPoint } from "@/client/shared/lib/openWindow";
 import { openInBrowser } from "./openInBrowser";
 import type { AgentCard } from "@/common/board/types";
 import { postAction } from "@/client/shared/api/actions";
@@ -34,6 +36,8 @@ export interface PanelLeadTab {
   label: string;
   content: React.ReactNode;
   closable: boolean;
+  /** Given: dropping the tab outside the app hands it to the host to open in its own window. */
+  onDetach?: (at: ScreenPoint) => void;
 }
 
 /** What a host puts before the document tabs — the canvas puts its session tabs there. */
@@ -305,11 +309,12 @@ function LeadTabButton({ tab, active, onActivate, onClose }: LeadTabButtonProps)
     <div
       role="tab"
       aria-selected={active}
+      {...(tab.onDetach ? detachDrag(tab.id, tab.onDetach) : {})}
       onClick={onActivate}
       onAuxClick={(event: React.MouseEvent<HTMLDivElement>) => {
         if (event.button === 1 && tab.closable) onClose();
       }}
-      title={tab.label}
+      title={tab.onDetach ? `${tab.label}\n${DETACH_HINT}` : tab.label}
       className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-t-md border-x border-t px-3 py-1.5 text-[13px] select-none ${
         active ? "border-hair bg-bg font-semibold" : "border-transparent text-muted hover:text-fg"
       }`}

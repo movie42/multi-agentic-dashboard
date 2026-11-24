@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { DiffTab } from "@/client/widgets/intent-diff";
 import type { ActionRequest } from "@/common/actions/schema";
 import type {
@@ -37,7 +38,7 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { useBoard } from "../model/useBoard";
 import { useSidebarCollapsed } from "../model/useSidebarCollapsed";
 import { useRestOverrides, type RestOf } from "@/client/entities/agent";
-import { useWorkspacePrefs, useWorktreeOrder } from "@/client/entities/workspace";
+import { useWorkspacePrefs, useWorktreeOrder, workspaceScopeOf } from "@/client/entities/workspace";
 import { WorktreePanel } from "@/client/widgets/worktree-panel";
 import { ProjectCanvas, type CanvasPanel, type CanvasScope } from "@/client/widgets/project-graph";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
@@ -189,7 +190,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const boardQuery = useBoard(initialBoard);
   const board = boardQuery.data ?? null;
   const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
-  const prefs = useWorkspacePrefs();
+  const prefs = useWorkspacePrefs(workspaceScopeOf(useSearchParams()));
   const rest = useRestOverrides();
   const hasDocTabs = useDocViewerStore((state) => state.tabs.length > 0);
   const treeShown = useFileExplorerStore((state) => state.treeOpen && state.root !== null);

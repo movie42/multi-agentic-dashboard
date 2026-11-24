@@ -2,7 +2,9 @@
 
 import type { ProjectSummary } from "@/common/board/types";
 import type { WorkflowMode } from "@/common/workflow/types";
+import { useState } from "react";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
+import type { WorkspaceScope } from "./workspaceWindow";
 
 const SESSIONS_PAGE = "@sessions";
 const DIFF_PAGE = "@diff";
@@ -26,8 +28,15 @@ export interface WorkspacePrefs {
   toggleMode: (project: ProjectSummary) => void;
 }
 
-export function useWorkspacePrefs(): WorkspacePrefs {
-  const [selected, writeSelected] = useStoredList("agent-control:selected-repo");
+/**
+ * With a scope (a window opened by "새 창에서 열기") the selection lives in this window only, so it
+ * neither moves the other windows nor follows them.
+ */
+export function useWorkspacePrefs(scope: WorkspaceScope | null = null): WorkspacePrefs {
+  const [stored, writeStored] = useStoredList("agent-control:selected-repo");
+  const [local, writeLocal] = useState<string[]>(() => (scope ? [scope.repo, ...(scope.worktreeId ? [scope.worktreeId] : [])] : []));
+  const selected = scope ? local : stored;
+  const writeSelected = scope ? writeLocal : writeStored;
   const [overrides, writeOverrides] = useStoredList("agent-control:mode-overrides");
 
   const overrideOf = (repo: string): WorkflowMode | null => {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { boardKeys } from "@/client/entities/board";
+import { openWorkspaceWindow } from "@/client/entities/workspace";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { ContextMenu, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
@@ -64,6 +65,9 @@ export function ProjectMenu({ repo, at, focused, modeLabel, onOpen, onToggleFocu
               items: [
                 <MenuItem key="open" onSelect={pick(onOpen)}>
                   열기
+                </MenuItem>,
+                <MenuItem key="window" description="이 창은 그대로 두고 따로 떠 있는 창으로 열어요" onSelect={pick(() => openWorkspaceWindow(repo))}>
+                  새 창에서 열기
                 </MenuItem>,
               ],
             },

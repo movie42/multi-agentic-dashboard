@@ -6,3 +6,4 @@ export { shellStatusLabel, shellStatusOf, type ShellStatus } from "./model/shell
 export { PermissionModeBadge } from "./ui/PermissionModeBadge";
 export { StateBadge } from "./ui/StateBadge";
 export { restChoices, type RestChoice } from "./model/restChoices";
+export { openSessionWindow, sessionWindowHref } from "./model/sessionWindow";

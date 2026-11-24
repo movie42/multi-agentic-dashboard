@@ -1,8 +1,8 @@
 import { MAX_CLOSE_TERMINALS, type ActionRequest } from "@/common/actions/schema";
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
-import { requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
-import { restChoices, type RestOverrides } from "@/client/entities/agent";
+import { openWorkspaceWindow, requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
+import { openSessionWindow, restChoices, type RestOverrides } from "@/client/entities/agent";
 import { controlRun, removeRun } from "@/client/entities/runner";
 import type { TemplateRun } from "@/common/templates/types";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
@@ -233,6 +233,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       groups: sectioned({
         open: [
           { label: "패널에서 열기", run: () => context.select([agent.id]) },
+          { label: "새 창에서 열기", run: () => openSessionWindow(agent.id) },
           docsItem([agent], worktreesOf(graph, [agent]), context.onOpenDoc),
           { label: "워크트리 열기", run: () => context.onOpenWorktree(agent.worktreeId) },
           { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: agent.worktreePath }) },
@@ -260,6 +261,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
       groups: sectioned({
         open: [
           { label: "워크트리 열기", run: () => context.onOpenWorktree(worktree.worktreeId) },
+          { label: "새 창에서 열기", run: () => openWorkspaceWindow(worktree.repo, worktree.worktreeId) },
           docsItem(sessions, [worktree], context.onOpenDoc),
           { label: "셸 터미널", run: () => void onAction({ type: "open-terminal", worktreePath: worktree.path }) },
           { label: "변경 읽기", run: () => window.open(intentDiffHref({ worktreePath: worktree.path }), "_blank", "noopener") },

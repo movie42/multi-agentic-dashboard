@@ -18,7 +18,7 @@ import type { BoardGroups } from "@/client/entities/agent";
 import { DevPortBadges } from "@/client/entities/dev-ports";
 import { Stepper } from "@/client/entities/workflow";
 import { useWorktreeWizard, WorktreeWizardPanel, wizardOrigin } from "@/client/features/create-worktree";
-import { useWorktreeMenuRequest } from "@/client/entities/workspace";
+import { openWorkspaceWindow, useWorktreeMenuRequest } from "@/client/entities/workspace";
 import { requestCommandManage, requestCommandRun, useProjectCommands } from "@/client/entities/project-commands";
 import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
@@ -126,6 +126,13 @@ export function WorktreePanel({
       label: "이름 바꾸기",
       description: "보드에 보이는 이름만 바꿔요. 폴더와 브랜치는 그대로예요",
       run: () => setEditingName(true),
+    },
+    {
+      key: "newWindow",
+      section: "open",
+      label: "새 창에서 열기",
+      description: "이 워크트리 화면을 따로 떠 있는 창으로 열어요",
+      run: () => openWorkspaceWindow(worktree.repo, worktree.worktreeId),
     },
     {
       key: "terminal",

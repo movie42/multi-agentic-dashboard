@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/board/types";
-import { restChoices, StateBadge, useRestOverrides } from "@/client/entities/agent";
+import { openSessionWindow, restChoices, StateBadge, useRestOverrides } from "@/client/entities/agent";
 import { requestTerminal, useTerminalRequest } from "@/client/entities/runner";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { parseMessage } from "@/client/shared/lib/message";
@@ -344,6 +344,15 @@ function AgentRow({
                       }}
                     >
                       {expanded ? "접기" : "펼치기"}
+                    </MenuItem>,
+                    <MenuItem
+                      key="window"
+                      onSelect={() => {
+                        closeMenu();
+                        openSessionWindow(agent.id);
+                      }}
+                    >
+                      새 창에서 열기
                     </MenuItem>,
                     terminalHandle && !expanded && (
                       <MenuItem

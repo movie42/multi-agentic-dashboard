@@ -2,11 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
+import { openWindow } from "@/client/shared/lib/openWindow";
 import type { ActionRequest } from "@/common/actions/schema";
 import { agentCard } from "../../../../../test/fixtures";
 import { AgentList } from "./AgentList";
 import { useRowSelection } from "../model/rowSelection";
 
+vi.mock("@/client/shared/lib/openWindow", () => ({ openWindow: vi.fn() }));
 vi.mock("@/client/features/bookmark-session", () => ({ BookmarkMark: () => null, bookmarkTarget: () => null }));
 
 function setup() {
@@ -47,6 +49,15 @@ describe("AgentList context menu", () => {
     expect(onAction).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("menuitem", { name: "모두 닫기" }));
     expect(onAction).toHaveBeenCalledWith({ type: "close-terminals", terminalHandles: ["term-a", "term-w"] });
+  });
+
+  it("opens the right-clicked session in its own window", async () => {
+    setup();
+    openMenuOn("첫 세션");
+    await userEvent.click(screen.getByRole("menuitem", { name: /^열기/ }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "새 창에서 열기" }));
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=a", expect.objectContaining({ width: expect.any(Number) }), "session:a", undefined);
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("expands the row from the menu and closes on Escape", async () => {

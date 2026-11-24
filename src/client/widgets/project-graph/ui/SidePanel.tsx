@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard } from "@/common/board/types";
+import { openSessionWindow } from "@/client/entities/agent";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import type { TemplateRun } from "@/common/templates/types";
 import { runOfNode, type GraphEdge, type ProjectGraph } from "../model/graph";
@@ -216,6 +217,10 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
       </div>
       {agent && (
         <div className="flex justify-end gap-1.5 border-t border-hair px-4 py-2">
+          <button type="button" onClick={() => openSessionWindow(agent.id)} title="이 세션을 따로 떠 있는 창으로 열어요" className={FOOT_BUTTON}>
+            {ACTION_ICONS.newWindow}
+            새 창
+          </button>
           <button type="button" onClick={() => onOpenWorktree(agent.worktreeId)} className={FOOT_BUTTON}>
             {ACTION_ICONS.worktree}
             워크트리 열기

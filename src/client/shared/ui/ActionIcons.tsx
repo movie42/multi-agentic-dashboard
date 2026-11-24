@@ -90,6 +90,12 @@ export const ACTION_ICONS = {
       <path d="M10 1.5v2.5M10 16v2.5M1.5 10H4M16 10h2.5" />
     </Icon>
   ),
+  newWindow: (
+    <Icon>
+      <path d="M8.5 3.5h-4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+      <path d="M12 2.5h5.5V8M17.5 2.5l-7 7" />
+    </Icon>
+  ),
   remove: (
     <Icon>
       <path d="M3.5 5.5h13M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" />

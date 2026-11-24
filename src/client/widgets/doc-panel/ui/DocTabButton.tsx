@@ -1,10 +1,8 @@
 "use client";
 
 import { docWindowUrl, fileWindowUrl, type DocTab } from "@/client/features/view-doc";
-import { useToastStore } from "@/client/shared/model/toastStore";
-
-// A custom type only: Finder turns text or URL drag data dropped on the desktop into a file.
-const DRAG_TYPE = "application/x-agent-control-doc";
+import { openWindow } from "@/client/shared/lib/openWindow";
+import { DETACH_HINT, detachDrag } from "./detachDrag";
 
 interface DocTabButtonProps {
   tab: DocTab;
@@ -14,49 +12,23 @@ interface DocTabButtonProps {
   onClose: () => void;
 }
 
-function droppedOutsideWindow(event: React.DragEvent<HTMLElement>): boolean {
-  const { screenX, screenY } = event;
-  if (screenX === 0 && screenY === 0) return false;
-  return (
-    screenX < window.screenX ||
-    screenX > window.screenX + window.outerWidth ||
-    screenY < window.screenY ||
-    screenY > window.screenY + window.outerHeight
-  );
-}
-
 export function DocTabButton({ tab, active, onActivate, onPin, onClose }: DocTabButtonProps) {
-  const showToast = useToastStore((state) => state.show);
-
-  const detach = (event: React.DragEvent<HTMLElement>) => {
-    if (!droppedOutsideWindow(event)) return;
-    const width = Math.min(1200, window.screen.availWidth);
-    const height = Math.min(960, window.screen.availHeight);
-    const features = `popup,width=${width},height=${height},left=${event.screenX - 120},top=${event.screenY - 16}`;
+  const detach = detachDrag(tab.current, (at) => {
     const url = tab.kind === "file" ? fileWindowUrl(tab.current) : docWindowUrl(tab.current);
-    if (!window.open(url, "_blank", features)) {
-      showToast("새 창을 열지 못했어요. 팝업 차단을 확인해 주세요.", "error");
-      return;
-    }
-    onClose();
-  };
+    if (openWindow(url, { width: 1200, height: 960 }, "_blank", at)) onClose();
+  });
 
   return (
     <div
       role="tab"
       aria-selected={active}
-      draggable
-      onDragStart={(event: React.DragEvent<HTMLDivElement>) => {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData(DRAG_TYPE, tab.current);
-      }}
-      onDragEnd={detach}
+      {...detach}
       onClick={onActivate}
       onDoubleClick={onPin}
       onAuxClick={(event: React.MouseEvent<HTMLDivElement>) => {
         if (event.button === 1) onClose();
       }}
-      title={`${tab.current}\n${tab.preview ? "미리보기 탭 · 두 번 누르면 고정돼요\n" : ""}창 밖으로 끌면 별도 창으로 열려요`}
+      title={`${tab.current}\n${tab.preview ? "미리보기 탭 · 두 번 누르면 고정돼요\n" : ""}${DETACH_HINT}`}
       className={`group flex max-w-56 shrink-0 cursor-default items-center gap-1.5 rounded-t-md border-x border-t px-3 py-1.5 text-[13px] select-none ${
         active ? "border-hair bg-bg font-semibold" : "border-transparent text-muted hover:text-fg"
       }`}
