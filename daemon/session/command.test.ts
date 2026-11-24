@@ -7,9 +7,18 @@ describe("commandFor", () => {
   it("starts a new Claude session under the daemon's id, with the hooks that report its status", () => {
     const command = commandFor({ id: "s1", kind: "claude" }, environment);
     expect(command.file).toBe("claude");
-    expect(command.args.slice(0, 5)).toEqual(["--session-id", "s1", "--permission-mode", "bypassPermissions", "--settings"]);
-    expect(command.args[5]).toContain("http://127.0.0.1:3198/hooks/s1/Stop");
-    expect(command.args).toHaveLength(6);
+    expect(command.args.slice(0, 2)).toEqual(["--session-id", "s1"]);
+    expect(command.args).toEqual(expect.arrayContaining(["--permission-mode", "bypassPermissions"]));
+    expect(command.args[command.args.indexOf("--settings") + 1]).toContain("http://127.0.0.1:3198/hooks/s1/Stop");
+  });
+
+  it("gives every Claude session the daemon's render_ui tool and says when to use it", () => {
+    const command = commandFor({ id: "s1", kind: "claude" }, environment);
+    const config = command.args[command.args.indexOf("--mcp-config") + 1];
+    expect(JSON.parse(config ?? "")).toEqual({ mcpServers: { "agent-control": { type: "http", url: "http://127.0.0.1:3198/mcp/s1" } } });
+    expect(command.args[command.args.indexOf("--allowedTools") + 1]).toBe("mcp__agent-control");
+    expect(command.args[command.args.indexOf("--append-system-prompt") + 1]).toContain("render_ui");
+    expect(command.args.filter((arg) => arg === "--mcp-config")).toHaveLength(1);
   });
 
   it("keeps permission prompts for a conductor's worker", () => {
@@ -51,8 +60,12 @@ describe("commandFor a conductor", () => {
     expect(command.args.slice(-2)).toEqual(["--", "plan it"]);
   });
 
-  it("leaves ordinary sessions without orchestration tools", () => {
-    expect(commandFor({ id: "s1", kind: "claude" }, environment).args).not.toContain("--mcp-config");
+  it("adds the conductor role and the render_ui note in one appended prompt", () => {
+    const command = commandFor({ id: "c1", kind: "claude", conductor: true }, environment);
+    expect(command.args.filter((arg) => arg === "--append-system-prompt")).toHaveLength(1);
+    const prompt = command.args[command.args.indexOf("--append-system-prompt") + 1] ?? "";
+    expect(prompt).toContain("conductor");
+    expect(prompt).toContain("render_ui");
   });
 
   it("opens a template card with its model, effort and, for a judge card, the route tool", () => {

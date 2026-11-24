@@ -32,6 +32,13 @@ describe("nextStatus", () => {
     expect(nextStatus("waiting", { event: "interrupt" })).toBe("waiting");
   });
 
+  it("works through a compaction the user started, and an automatic one leaves the turn as it is", () => {
+    expect(nextStatus("idle", { event: "PreCompact", compactTrigger: "manual" })).toBe("working");
+    expect(nextStatus("idle", { event: "PreCompact", compactTrigger: "auto" })).toBe("idle");
+    expect(nextStatus("working", { event: "SessionStart", endsCompact: true })).toBe("idle");
+    expect(nextStatus("working", { event: "SessionStart" })).toBe("working");
+  });
+
   it("stays exited whatever arrives after the process ends", () => {
     expect(nextStatus("working", { event: "exit" })).toBe("exited");
     expect(nextStatus("exited", { event: "UserPromptSubmit" })).toBe("exited");

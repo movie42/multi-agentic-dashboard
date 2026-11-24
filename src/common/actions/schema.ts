@@ -50,6 +50,13 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
       z.object({ behavior: z.literal("deny"), message: z.string().max(MAX_PROMPT) }),
     ]),
   }),
+  z.object({
+    type: z.literal("a2ui-action"),
+    terminalHandle: z.string(),
+    surfaceId: z.string().max(128).regex(/^\S+$/),
+    name: z.string().max(128).regex(/^\S+$/),
+    context: z.record(z.string(), z.unknown()).refine((value) => JSON.stringify(value).length <= MAX_PROMPT),
+  }),
   z.object({ type: z.literal("interrupt-session"), terminalHandle: z.string() }),
   z.object({ type: z.literal("press-keys"), terminalHandle: z.string(), keys: z.array(z.enum(TERMINAL_KEYS)).min(1).max(MAX_TERMINAL_KEYS) }),
   z.object({ type: z.literal("set-model"), terminalHandle: z.string(), model: z.enum(MODEL_CHOICES) }),

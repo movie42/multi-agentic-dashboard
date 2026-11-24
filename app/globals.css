@@ -140,6 +140,24 @@
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
+/* A 내 차례 nobody clicked yet: the dot steps through the swatch hues like an old marquee and blinks. */
+@theme {
+  --animate-turn-rainbow: turn-rainbow 2.1s steps(1, end) infinite, turn-blink 0.6s steps(1, end) infinite;
+  @keyframes turn-rainbow {
+    0% { background-color: var(--swatch-red); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-red) 35%, transparent); }
+    14.28% { background-color: var(--swatch-orange); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-orange) 35%, transparent); }
+    28.57% { background-color: var(--swatch-yellow); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-yellow) 35%, transparent); }
+    42.85% { background-color: var(--swatch-green); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-green) 35%, transparent); }
+    57.14% { background-color: var(--swatch-teal); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-teal) 35%, transparent); }
+    71.42% { background-color: var(--swatch-blue); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-blue) 35%, transparent); }
+    85.71% { background-color: var(--swatch-violet); box-shadow: 0 0 0 2px color-mix(in oklab, var(--swatch-violet) 35%, transparent); }
+  }
+  @keyframes turn-blink {
+    0% { opacity: 1; }
+    70% { opacity: 0.25; }
+  }
+}
+
 body {
   background: var(--bg);
   color: var(--fg);

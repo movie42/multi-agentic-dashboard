@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { WorktreeSummary } from "@/common/board/types";
 import type { WorkflowStep } from "@/common/workflow/types";
-import { clampZoom, type UserGroup, type Viewport } from "../model/canvasState";
+import type { SessionArea } from "@/client/entities/session-area";
+import { clampZoom, type Viewport } from "../model/canvasState";
 import type { GraphEdge, ProjectGraph } from "../model/graph";
 import {
   clusterRect,
-  groupRect,
+  areaKey,
+  areaRect,
   type EdgeEnds,
   intersects,
   MAX_NODE,
@@ -26,10 +28,14 @@ import {
   unionRect,
 } from "../model/layout";
 import { EdgeMarkers, GraphEdges } from "./GraphEdges";
-import { ClusterFrame, GroupFrame, ProjectFrame, ResizeCorner } from "./Frames";
+import { AreaFrame, ClusterFrame, ProjectFrame, ResizeCorner } from "./Frames";
 import { NodeBox } from "./NodeBox";
 import { ReservedBox } from "./ReservedBox";
 import { SeaRoutes } from "./SeaRoutes";
+import { isSketchTool, SKETCH_TOOLS, SketchCapture, type SketchFrames, SketchItems, type SketchTool, useSketchTools } from "./SketchLayer";
+import type { Sketch } from "../model/useSketch";
+import { boundsOf } from "@/common/sketch/ops";
+import { keepsWheel } from "../model/wheel";
 
 const DRAG_THRESHOLD = 3;
 const FIT_MARGIN = 64;
@@ -60,18 +66,25 @@ type Gesture =
 
 type LineEnd = "from" | "to";
 
-/** `select` edits (drag boxes, drag empty space to select several); `hand` only moves the canvas. */
-type PointerTool = "select" | "hand";
+/** `select` edits (drag boxes, drag empty space to select several); `hand` only moves the canvas; the rest draw. */
+type PointerTool = "select" | "hand" | SketchTool;
 
 /** Smallest a worktree frame can be resized to. */
 const MIN_FRAME: Size = { w: 240, h: 120 };
 
 export type MenuTarget = {
-  kind: "node" | "cluster" | "group" | "project" | "edge" | "canvas";
+  kind: "node" | "cluster" | "area" | "project" | "edge" | "canvas";
   id: string;
 };
 
-const DRAG_MENU_KIND: Record<string, MenuTarget["kind"]> = { group: "group", project: "project", cluster: "cluster" };
+const DRAG_MENU_KIND: Record<string, MenuTarget["kind"]> = { area: "area", project: "project", cluster: "cluster" };
+
+/** A worktree's named area as the canvas draws it; `memberIds` are the sessions shown in that worktree. */
+export interface CanvasArea {
+  area: SessionArea;
+  clusterId: string;
+  memberIds: string[];
+}
 
 const DOUBLE_CLICK_MS = 400;
 
@@ -85,7 +98,9 @@ interface CanvasStageProps {
   graph: ProjectGraph;
   positions: ReadonlyMap<string, Point>;
   anchors: ReadonlyMap<string, Point>;
-  groups: UserGroup[];
+  areas: CanvasArea[];
+  /** The area whose name is being typed, right after it was made. */
+  renamingAreaId: string | null;
   /** Boxes and frames a person resized. */
   sizes: Sizes;
   /** Draw a frame around each project's worktrees, for the canvas that shows every project. */
@@ -95,6 +110,8 @@ interface CanvasStageProps {
   ends: Record<string, EdgeEnds>;
   connecting: boolean;
   viewport: Viewport | null;
+  /** Memos and drawings on this canvas. */
+  sketch: Sketch;
   now: number;
   stepsOf: (worktree: WorktreeSummary) => WorkflowStep[] | null;
   roundDocOf: (worktree: WorktreeSummary) => string | null;
@@ -106,7 +123,11 @@ interface CanvasStageProps {
   /** A box clicked twice in a row without moving. */
   onOpenNode?: (id: string) => void;
   onSelectEdge: (edge: GraphEdge) => void;
-  onMove: (moved: Map<string, Point>) => void;
+  /**
+   * Boxes or frames dragged. For boxes dragged by themselves, `dropArea` is the area of their worktree
+   * they were dropped on, or null outside every area; it is undefined when a frame was dragged.
+   */
+  onMove: (moved: Map<string, Point>, dropArea?: string | null) => void;
   /** A box or frame resized from its corner; a frame also pins its top-left corner at `at`. */
   onResize: (id: string, size: Size, at?: Point) => void;
   /** The resize corner clicked twice: back to the default size. */
@@ -126,15 +147,16 @@ interface CanvasStageProps {
   onOpenWorktree: (worktreeId: string) => void;
   onOpenDoc: (target: string) => void;
   onOpenElsewhere: (repo: string, worktreeId: string) => void;
-  onRenameGroup: (groupId: string, name: string) => void;
-  onUngroup: (groupId: string) => void;
+  onToggleArea: (areaId: string) => void;
+  /** A typed name, or null when the typing was given up. */
+  onRenameArea: (areaId: string, name: string | null) => void;
 }
 
 const TOOL_ICON =
   "h-4 w-4 fill-none stroke-current stroke-[1.6] [stroke-linecap:round] [stroke-linejoin:round]";
 
 const TOOLS: ReadonlyArray<{
-  tool: PointerTool;
+  tool: "select" | "hand";
   label: string;
   key: string;
   hint: string;
@@ -186,7 +208,8 @@ export function CanvasStage(props: CanvasStageProps) {
     graph,
     positions,
     anchors,
-    groups,
+    areas,
+    renamingAreaId,
     sizes: savedSizes,
     projectFrames = false,
     selectedIds,
@@ -194,6 +217,7 @@ export function CanvasStage(props: CanvasStageProps) {
     ends,
     connecting,
     viewport,
+    sketch,
     now,
     stepsOf,
     roundDocOf,
@@ -228,20 +252,26 @@ export function CanvasStage(props: CanvasStageProps) {
   );
   const shownAnchor = (id: string) =>
     resizing?.id === id ? { x: resizing.rect.x, y: resizing.rect.y } : shifted(anchors.get(id) ?? { x: 0, y: 0 }, drag, id);
+  const areaRects = areas.map((entry) => ({ ...entry, rect: areaRect(entry.memberIds, shown, shownAnchor(areaKey(entry.area.id)), sizes) }));
   const clusterRects = new Map(
     graph.clusters.map((cluster) => [
       cluster.id,
-      clusterRect(cluster.id, cluster.nodeIds, shown, shownAnchor(cluster.id), sizes),
+      clusterRect(
+        cluster.id,
+        cluster.nodeIds,
+        shown,
+        shownAnchor(cluster.id),
+        sizes,
+        areaRects.filter((entry) => entry.clusterId === cluster.id).map((entry) => entry.rect),
+      ),
     ]),
   );
+  /** A cluster drag carries its area headers along, so an empty or folded one moves with the frame. */
+  const areaKeysOf = (clusterId: string) => areas.filter((entry) => entry.clusterId === clusterId).map((entry) => areaKey(entry.area.id));
   const rectOf = (id: string): Rect | null => {
     const point = shown.get(id);
     return point ? nodeRect(point, sizeOf(id)) : (clusterRects.get(id) ?? null);
   };
-  const groupRects = groups.flatMap((group) => {
-    const rect = groupRect(group.memberIds, shown, sizes);
-    return rect ? [{ group, rect }] : [];
-  });
   const portRects = placePorts(graph.ports, shown, sizes);
   const projectRects = projectFrames
     ? [...new Set(graph.clusters.map((cluster) => cluster.worktree.repo))].flatMap((repo) => {
@@ -259,14 +289,30 @@ export function CanvasStage(props: CanvasStageProps) {
     };
   };
 
+  const within = (point: Point, rect: Rect) => point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h;
+  const sketchFrames: SketchFrames = {
+    origins: new Map([
+      ...[...clusterRects].map(([id, rect]): [string, Point] => [id, { x: rect.x, y: rect.y }]),
+      ...projectRects.map(({ repo, rect }): [string, Point] => [`project:${repo}`, { x: rect.x, y: rect.y }]),
+    ]),
+    frameAt: (point) =>
+      [...clusterRects].find(([, rect]) => within(point, rect))?.[0] ??
+      (() => {
+        const project = projectRects.find(({ rect }) => within(point, rect));
+        return project ? `project:${project.repo}` : undefined;
+      })(),
+  };
+  const sketchUi = useSketchTools({ sketch, tool, zoom: view.zoom, passive: spaceHeld, toWorld, frames: sketchFrames, onDone: () => setTool("select") });
+
   const fit = () => {
     const box = svgRef.current?.getBoundingClientRect();
     const content = unionRect([
       ...[...shown].map(([id, point]) => nodeRect(point, sizeOf(id))),
       ...clusterRects.values(),
       ...projectRects.map((entry) => entry.rect),
-      ...groupRects.map((entry) => entry.rect),
+      ...areaRects.map((entry) => entry.rect),
       ...portRects.values(),
+      ...sketchUi.items.map(boundsOf),
     ]);
     if (!box || !content || box.width === 0) return;
     const zoom = clampZoom(
@@ -324,11 +370,7 @@ export function CanvasStage(props: CanvasStageProps) {
     const svg = svgRef.current;
     if (!svg) return;
     const onWheel = (event: WheelEvent) => {
-      if (
-        event.target instanceof Element &&
-        event.target.closest("[data-scroll]")
-      )
-        return;
+      if (keepsWheel(event.target)) return;
       event.preventDefault();
       if (event.ctrlKey || event.metaKey) {
         const box = svg.getBoundingClientRect();
@@ -362,6 +404,8 @@ export function CanvasStage(props: CanvasStageProps) {
         event.target instanceof Element && event.target.closest("aside");
       if (plain && !inPanel && event.code === "KeyV") setTool("select");
       if (plain && !inPanel && event.code === "KeyH") setTool("hand");
+      const drawTool = SKETCH_TOOLS.find((entry) => entry.code === event.code);
+      if (plain && !inPanel && drawTool) setTool((current) => (current === drawTool.tool ? "select" : drawTool.tool));
     };
     const up = (event: KeyboardEvent) => {
       if (event.code === "Space") setSpaceHeld(false);
@@ -444,20 +488,15 @@ export function CanvasStage(props: CanvasStageProps) {
     } else if (handle) {
       const id = handle.getAttribute("data-id") ?? "";
       const dragKind = handle.getAttribute("data-drag");
+      const clusterIdOf = dragKind === "area" ? areas.find((entry) => entry.area.id === id)?.clusterId : id;
       const ids =
         dragKind === "project"
           ? graph.clusters
               .filter((cluster) => cluster.worktree.repo === id)
-              .flatMap((cluster) => [cluster.id, ...cluster.nodeIds.filter((member) => positions.has(member))])
-          : dragKind === "cluster"
-          ? [
-              id,
-              ...(graph.clusters.find((cluster) => cluster.id === id)
-                ?.nodeIds ?? []),
-            ]
-          : (groups.find((group) => group.id === id)?.memberIds ?? []).filter(
-              (member) => positions.has(member),
-            );
+              .flatMap((cluster) => [cluster.id, ...areaKeysOf(cluster.id), ...cluster.nodeIds.filter((member) => positions.has(member))])
+          : clusterIdOf
+            ? [clusterIdOf, ...areaKeysOf(clusterIdOf), ...(graph.clusters.find((cluster) => cluster.id === clusterIdOf)?.nodeIds ?? [])]
+            : [];
       gesture.current = {
         kind: "move",
         ids,
@@ -551,6 +590,13 @@ export function CanvasStage(props: CanvasStageProps) {
     } else if (current.kind === "move") {
       if (current.moved) {
         const { delta } = current;
+        const pointer = toWorld(event.clientX, event.clientY);
+        const draggedCluster = current.clickId ? graph.clusters.find((cluster) => cluster.nodeIds.includes(current.clickId ?? "")) : undefined;
+        const hitArea = areaRects.find(
+          (entry) => entry.clusterId === draggedCluster?.id && intersects(entry.rect, { ...pointer, w: 0, h: 0 }),
+        )?.area.id;
+        // Several boxes landing outside every area are only being moved; only one box leaves its area that way.
+        const dropArea = !current.clickId ? undefined : (hitArea ?? (current.ids.length > 1 ? undefined : null));
         props.onMove(
           new Map(
             current.ids.flatMap((id) => {
@@ -568,6 +614,7 @@ export function CanvasStage(props: CanvasStageProps) {
                 : [];
             }),
           ),
+          dropArea,
         );
       } else if (current.clickId) {
         props.onSelect([current.clickId], current.additive);
@@ -726,15 +773,18 @@ export function CanvasStage(props: CanvasStageProps) {
               </g>
             );
           })}
-          {groupRects.map(({ group, rect }) => (
-            <GroupFrame
-              key={group.id}
+          {areaRects.map(({ area, memberIds, rect }) => (
+            <AreaFrame
+              key={area.id}
               rect={rect}
-              group={group}
-              onRename={(name) => props.onRenameGroup(group.id, name)}
-              onUngroup={() => props.onUngroup(group.id)}
+              area={area}
+              count={memberIds.length}
+              renaming={renamingAreaId === area.id}
+              onToggle={() => props.onToggleArea(area.id)}
+              onRename={(name) => props.onRenameArea(area.id, name)}
             />
           ))}
+          <SketchItems ui={sketchUi} />
           <GraphEdges
             edges={graph.edges}
             rectOf={rectOf}
@@ -820,6 +870,7 @@ export function CanvasStage(props: CanvasStageProps) {
               className="pointer-events-none fill-focus/10 stroke-focus"
             />
           )}
+          {isSketchTool(tool) && <SketchCapture ui={sketchUi} />}
           {overlay?.(view.zoom)}
         </g>
       </svg>
@@ -842,6 +893,23 @@ export function CanvasStage(props: CanvasStageProps) {
               className="px-2.5 py-2 text-muted hover:bg-tint aria-checked:bg-fg aria-checked:text-bg"
             >
               {option.icon}
+            </button>
+          ))}
+          <span aria-hidden className="mx-2 h-px bg-hair" />
+          {SKETCH_TOOLS.map((option) => (
+            <button
+              key={option.tool}
+              type="button"
+              role="radio"
+              aria-checked={tool === option.tool}
+              aria-label={option.label}
+              title={`${option.label} (${option.key}) · ${option.hint}`}
+              onClick={() => setTool((current) => (current === option.tool ? "select" : option.tool))}
+              className="px-2.5 py-2 text-muted hover:bg-tint aria-checked:bg-fg aria-checked:text-bg"
+            >
+              <svg viewBox="0 0 16 16" className={TOOL_ICON} aria-hidden>
+                {option.icon}
+              </svg>
             </button>
           ))}
         </div>

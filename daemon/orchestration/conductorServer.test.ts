@@ -72,7 +72,7 @@ describe("conductor over the runner server", () => {
     const init = await (await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })).json();
     expect(init.result.serverInfo.name).toBe("agent-control");
     const listed = await (await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", id: 2, method: "tools/list" })).json();
-    expect(listed.result.tools.map((tool: { name: string }) => tool.name)).toContain("start_session");
+    expect(listed.result.tools.map((tool: { name: string }) => tool.name)).toEqual(expect.arrayContaining(["start_session", "render_ui"]));
     expect((await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", method: "notifications/initialized" })).status).toBe(202);
 
     expect((await call(conductorId, "start_session", { cwd: "/somewhere/else", prompt: "x" })).isError).toBe(true);
@@ -107,11 +107,14 @@ describe("conductor over the runner server", () => {
     expect(sent).toEqual([]);
   });
 
-  it("refuses MCP calls for a session that is not a conductor", async () => {
+  it("gives a session that is not a conductor only render_ui", async () => {
     const { runner, registry, post } = setup();
     await listen(runner);
     const plain = registry.launch({ cwd: folder });
-    expect((await post(`/mcp/${plain.id}`, { jsonrpc: "2.0", id: 1, method: "tools/list" })).status).toBe(404);
+    const listed = await (await post(`/mcp/${plain.id}`, { jsonrpc: "2.0", id: 1, method: "tools/list" })).json();
+    expect(listed.result.tools.map((tool: { name: string }) => tool.name)).toEqual(["render_ui"]);
+    const refused = await (await post(`/mcp/${plain.id}`, { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "start_session", arguments: {} } })).json();
+    expect(refused.result.isError).toBe(true);
   });
 
   it("holds a worktree request until the dashboard settles it", async () => {

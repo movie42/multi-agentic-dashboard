@@ -1,0 +1,394 @@
+{
+  "id": "a2ui-session",
+  "title": "세션 GUI에 A2UI 적용 — 에이전트가 그리는 UI 카드 · 권한/질문 카드 A2UI 렌더링",
+  "type": "기능 개발",
+  "branch": "feat/a2ui-session",
+  "links": [
+    {
+      "label": "A2UI v0.9 발표",
+      "url": "https://developers.googleblog.com/en/a2ui-v0-9-generative-ui/"
+    },
+    {
+      "label": "google/A2UI",
+      "url": "https://github.com/google/A2UI"
+    },
+    {
+      "label": "PR #20",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/20"
+    }
+  ],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "Phase 6개 구현 완료",
+      "conclusion": [
+        "모든 Claude 세션이 데몬 MCP 도구 `render_ui`를 가진다. 에이전트가 넘긴 A2UI v1.0 메시지는 데몬이 엄격 검증하고, 통과한 카드는 채팅의 그 자리에 `카드` 행으로 그려진다.",
+        "카드를 누르면 `[A2UI action] surface=… name=…`과 입력값 JSON이 세션의 다음 메시지로 들어가고, 채팅에는 프롬프트 말풍선 대신 카드 아래에 고른 값이 남는다.",
+        "권한 승인 · 질문 카드(`PermissionPrompt`)는 서버 데이터를 A2UI 메시지로 바꿔 같은 렌더러로 그린다. 기존 테스트 5개가 그대로 통과한다.",
+        "빠른 답장 입력창(`QuickReply`)은 옮기지 않았다. 에이전트가 그리는 UI가 아니라 사용자의 입력 상자라서다.",
+        "새 세션이 render_ui를 쓰려면 데몬이 새 코드로 재시작돼야 한다. 지금 떠 있는 데몬은 이전 커밋이다."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 공용 타입과 액션 메시지",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "A2UI 메시지 배열 판별과 `ui` 활동 단계 타입",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/a2ui/messages.ts</code>, <code>src/common/a2ui/messages.test.ts</code>, <code>src/common/sessions/types.ts</code>"
+                ],
+                [
+                  "결정",
+                  "검증은 데몬과 화면이 같은 A2UI 처리기(`MessageProcessor`)를 엄격 모드로 돌려서 한다. 서버에서 통과한 카드는 화면에서도 그려진다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "사용자 액션을 세션에 보낼 한 줄 텍스트로 만들기(`[A2UI action] surface=… name=…` + context JSON)와 되읽기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/a2ui/actionText.ts</code>, <code>src/common/a2ui/actionText.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: vitest 해당 테스트 통과",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>package.json</code>, <code>bun.lock</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 데몬 MCP 도구 render_ui",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "`render_ui` 도구 정의와 처리 — 메시지 형식이 틀리면 이유를 돌려줘 에이전트가 고치게",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/ui/uiMcp.ts</code>, <code>daemon/ui/uiMcp.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "에이전트가 형식을 틀리면 이유를 돌려준다. 실제 sonnet 세션에서 Button에 `text`를 넣었다가 거절 이유를 보고 `child`로 고쳐 두 번째에 통과했다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "모든 Claude 세션에 MCP 설정 · 허용 도구 · 짧은 사용법 지시 추가, 지휘자 · 판정 세션은 기존 도구에 합치기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/command.ts</code>, <code>daemon/session/command.test.ts</code>, <code>daemon/server.ts</code>, <code>daemon/orchestration/conductorServer.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "Claude Code는 덧붙이는 시스템 프롬프트를 하나만 받으므로, 지휘자 · 판정 역할 설명과 render_ui 안내를 한 덩어리로 합쳤다."
+                ],
+                [
+                  "결정",
+                  "지휘자 · 판정 서버 코드는 그대로 두고, 데몬 라우트에서 `withUiTool`로 render_ui를 그 도구 목록에 덧붙인다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: vitest daemon 159개 통과, 실제 claude -p 세션이 render_ui를 보고 호출해 카드가 통과함",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "Phase 3 · 대화 기록에서 UI 카드 찾기",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "`mcp__agent-control__render_ui` 호출을 `ui` 단계로, 뒤따르는 `[A2UI action]` 메시지를 그 카드의 답으로 묶기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/activitySteps.ts</code>, <code>src/server/sessions/activitySteps.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: activitySteps 테스트 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "Phase 4 · 렌더러와 앱 카탈로그",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "기본 카탈로그 컴포넌트를 앱 스타일로 구현 + 미리보기 있는 선택지 `OptionList` · 코드 블록 `Code` 커스텀 컴포넌트",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/shared/ui/a2ui/components.tsx</code>, <code>src/client/shared/ui/a2ui/catalog.ts</code>, <code>src/client/shared/ui/a2ui/lock.ts</code>, <code>src/common/a2ui/catalog.ts</code>"
+                ],
+                [
+                  "결정",
+                  "공용 위치에 두는 이유: 채팅 카드(위젯)와 권한 카드(기능) 두 곳이 오늘 바로 쓴다."
+                ],
+                [
+                  "결정",
+                  "`Option`은 계획과 달리 `value` · `selection`(문자열 목록) · `single`로 고르는 상태를 데이터 모델에 둔다. 질문 여러 개를 모아 보내는 카드가 이걸로 그려진다."
+                ],
+                [
+                  "결정",
+                  "`TextField`는 라벨을 선택으로 풀고 Enter에 보낼 `action`을 더했다. 기본 카탈로그보다 넓기만 해서 표준 카드는 그대로 통과한다."
+                ],
+                [
+                  "결정",
+                  "기본 함수 중 `openUrl`은 뺐다. 카드 버튼이 페이지를 여는 일을 막기 위해서다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "`A2uiView` — 메시지 배열을 받아 그리고, 액션을 콜백으로 넘기고, 답한 뒤 잠그기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/shared/ui/a2ui/A2uiView.tsx</code>, <code>src/client/shared/ui/a2ui/A2uiView.test.tsx</code>, <code>src/client/shared/ui/a2ui/index.ts</code>"
+                ],
+                [
+                  "결정",
+                  "액션 콜백은 `useEffectEvent`로 감싸 의존성 배열에 함수를 넣지 않는다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: dom 테스트에서 버튼 클릭 → 액션 콜백, 잘못된 메시지 → 오류 안내",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P5",
+          "title": "Phase 5 · 권한 · 질문 카드를 A2UI로",
+          "items": [
+            {
+              "id": "P5-1",
+              "title": "권한 요청 → A2UI 메시지 변환(도구 실행 허락, 거부 사유, 다시 묻지 않기 제안, 지휘자에게 맡기기)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/model/permissionSurface.ts</code>, <code>src/client/features/answer-permission/model/permissionSurface.test.ts</code>, <code>src/client/features/answer-permission/model/surfaceParts.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P5-2",
+              "title": "질문 → A2UI 메시지 변환(질문 하나 · 단일 선택은 누르면 바로 보냄, 여러 개면 보내기 버튼, 직접 입력)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/model/questionSurface.ts</code>, <code>src/client/features/answer-permission/model/questionSurface.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "여러 질문의 보내기 버튼은 A2UI `@checks`(and · or · required)로 모든 질문에 답했을 때만 켜진다."
+                ]
+              ]
+            },
+            {
+              "id": "P5-3",
+              "title": "`PermissionPrompt`를 `A2uiView` 위에 다시 쓰고 액션을 기존 `answer-permission` · `delegate-permission` 호출로 연결",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/ui/PermissionPrompt.tsx</code>, <code>src/client/features/answer-permission/ui/PermissionPrompt.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "기존 PermissionPrompt 테스트가 그대로 통과해야 옮긴 것으로 본다."
+                ]
+              ]
+            },
+            {
+              "id": "P5-V",
+              "title": "검증: PermissionPrompt 기존 테스트 + 새 테스트 통과",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P6",
+          "title": "Phase 6 · 채팅에 에이전트 UI 카드",
+          "items": [
+            {
+              "id": "P6-1",
+              "title": "`a2ui-action` 액션 — 텍스트로 바꿔 기존 send-prompt 경로로 세션에 보냄",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code>, <code>src/common/actions/schema.test.ts</code>, <code>app/api/actions/route.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-2",
+              "title": "ChatView에 `UiRow` — 답하기 전엔 누를 수 있고, 답한 뒤엔 고른 값과 함께 잠김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/ui/ChatView.tsx</code>, <code>src/client/widgets/agent-card/ui/UiRow.tsx</code>, <code>src/client/widgets/agent-card/ui/UiRow.test.tsx</code>, <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P6-V",
+              "title": "검증: tsc · eslint(에러 0) · vitest 1016개 통과, 실제 세션 대화 기록이 ui 단계로 읽힘, bun run desktop 빌드·설치 완료",
+              "done": true
+            },
+            {
+              "id": "X1",
+              "title": "같은 브랜치에 함께 올라간 다른 세션의 작업 (이 작업 범위 밖)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/sketches</code> <code>app/globals.css</code> <code>daemon/session</code> <code>src/client/entities/agent</code> <code>src/client/entities/session-area</code> <code>src/client/widgets/project-graph</code> <code>src/client/widgets/session-tabs</code> <code>src/common/runner/types.ts</code> <code>src/common/sketch</code> <code>src/server/board</code> <code>src/server/container.ts</code> <code>src/server/sketches</code>"
+                ],
+                [
+                  "결정",
+                  "캔버스 메모·드로잉, 세션 탭 새 답 표시, 대화 압축 표시는 같은 워크트리의 다른 세션이 만든 것으로, 사용자 요청에 따라 PR #20에 함께 넣었다."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "PR #20 머지",
+      "conclusion": [
+        "PR #20으로 main에 squash 머지했다. 데몬 재시작 뒤 이 세션에서 render_ui 카드가 뜨고, 누른 값이 다음 메시지로 오는 것을 실제 앱에서 확인했다."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "화면 단계(SOT 맵)가 없는 작업이라 바꿀 근거가 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "계산 행 · 서버 요청 없음."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review medium 지적 6건 중 3건 수정(646e331): 이미 답한 카드에 온 답은 프롬프트로 남김, 못 그린 카드의 처리기 정리, 액션 이름 128자 제한. 여러 줄 액션 텍스트 지적은 데몬이 붙여넣기 형식으로 보내므로(daemon/server.ts:147) 해당 없음."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "tsc · eslint(에러 0) 통과. 깨끗한 임시 worktree에서 이 작업의 테스트 237개 통과. 전체 실행에서는 부하 평균 283 때문에 매번 다른 git · 파일 테스트가 5초 제한에 걸렸다(이번 작업과 무관한 파일)."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ],
+      "ext": {
+        "hyunsu": {
+          "title": "옵시디언 기록",
+          "unknown": {
+            "vault": "개인 도구 저장소(Agent Control)라 볼트에 기록하지 않음"
+          }
+        }
+      }
+    }
+  },
+  "intent": [
+    {
+      "text": "에이전트가 글 대신 버튼·선택지·폼·표를 채팅 카드 안에 직접 띄우고, 사용자가 누른 결과가 다음 메시지로 돌아가게 한다.",
+      "state": "confirmed",
+      "basis": "사용자 요청: 세션 GUI에 A2UI 적용"
+    },
+    {
+      "text": "권한·질문 카드도 같은 렌더러로 그려 화면을 그리는 길을 하나로 만든다.",
+      "state": "confirmed",
+      "basis": "사용자 답: 전부 옮겨줘"
+    }
+  ],
+  "pruned": "2026-11-24"
+}

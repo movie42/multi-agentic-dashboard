@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { actionRequestSchema, type ActionResponse, type TerminalKey, type VoiceReadResponse, type VoiceToggleResponse } from "@/common/actions/schema";
 import { services } from "@/server/container";
+import { actionText } from "@/common/a2ui/actionText";
 
 const execFileAsync = promisify(execFile);
 
@@ -78,6 +79,8 @@ export async function POST(request: Request) {
       await runner.input(body.terminalHandle, { text: `/effort ${body.effort}`, submit: true });
     } else if (body.type === "send-prompt") {
       await runner.input(body.terminalHandle, { text: body.text, submit: true });
+    } else if (body.type === "a2ui-action") {
+      await runner.input(body.terminalHandle, { text: actionText({ surfaceId: body.surfaceId, name: body.name, context: body.context }), submit: true });
     } else if (body.type === "launch-agent") {
       const prompt = body.prompt.trim();
       const session = await runner.launch({ cwd: body.worktreePath, ...(prompt ? { prompt } : {}) });

@@ -4,7 +4,7 @@ import { hookSettings, shellQuote } from "./hookSettings.ts";
 describe("hookSettings", () => {
   it("points every status hook at this session's address on the daemon", () => {
     const settings = JSON.parse(hookSettings("http://127.0.0.1:3198", "abc"));
-    expect(Object.keys(settings.hooks)).toEqual(["SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "PermissionRequest"]);
+    expect(Object.keys(settings.hooks)).toEqual(["SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "PreCompact", "PermissionRequest"]);
     expect(settings.hooks.Stop[0].hooks[0]).toEqual({
       type: "http",
       url: "http://127.0.0.1:3198/hooks/abc/Stop",

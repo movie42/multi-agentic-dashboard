@@ -3,7 +3,6 @@ import { openWindow } from "@/client/shared/lib/openWindow";
 import type { WorktreeSummary } from "@/common/board/types";
 import type { TemplateRun } from "@/common/templates/types";
 import { agentCard } from "../../../../../test/fixtures";
-import { EMPTY_CANVAS } from "../model/canvasState";
 import { buildGraph, reservedId } from "../model/graph";
 import type { MenuItem } from "./CanvasMenu";
 import { menuFor, type MenuContext } from "./canvasMenuItems";
@@ -59,9 +58,7 @@ const graph = buildGraph(agents, [worktree("/p/shop", true), worktree("/p/shop-a
 function context(overrides: Partial<MenuContext> = {}): MenuContext {
   return {
     graph,
-    canvas: EMPTY_CANVAS,
     selected: [],
-    save: vi.fn(),
     select: vi.fn(),
     onAction: vi.fn(async () => {}),
     onOpenDoc: vi.fn(),
@@ -75,6 +72,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     onEditRun: vi.fn(),
     onEditColors: vi.fn(),
     rest: { restOf: () => null, setRest: vi.fn() },
+    areas: { of: () => [], create: vi.fn(), moveTo: vi.fn(), rename: vi.fn(), toggle: vi.fn(), remove: vi.fn() },
     ...overrides,
   };
 }
@@ -114,7 +112,7 @@ describe("menuFor", () => {
       ["열기", ["패널에서 열기", "새 창에서 열기", "워크트리 열기", "셸 터미널"]],
       ["만들기", ["다른 세션과 잇기"]],
       ["상태 바꾸기", ["쉬는 중으로 바꾸기", "잠자는 중으로 바꾸기"]],
-      ["정리", ["그룹으로 묶기", "템플릿으로 저장"]],
+      ["정리", ["새 영역으로 묶기", "템플릿으로 저장"]],
       ["닫기·지우기", ["세션 닫기"]],
     ]);
   });
@@ -179,5 +177,45 @@ describe("menuFor", () => {
   it("no longer hides recolouring in the arrange group", () => {
     const items = menuFor({ kind: "node", id: "s1" }, context())?.groups.flatMap((group) => group.items) ?? [];
     expect(items.some((item) => item.label.includes("색"))).toBe(false);
+  });
+
+  describe("areas", () => {
+    const later = { id: "later", name: "나중에 볼 일", memberIds: ["s2"], collapsed: false };
+    const areas = (overrides: Partial<MenuContext["areas"]> = {}): MenuContext["areas"] => ({
+      of: (worktreeId) => (worktreeId === "/p/shop-a" ? [later] : []),
+      create: vi.fn(),
+      moveTo: vi.fn(),
+      rename: vi.fn(),
+      toggle: vi.fn(),
+      remove: vi.fn(),
+      ...overrides,
+    });
+    const items = (target: MenuTarget, ctx: Partial<MenuContext>) => menuFor(target, context(ctx))?.groups.flatMap((group) => group.items) ?? [];
+
+    it("moves a session into one of its worktree's areas", () => {
+      const moveTo = vi.fn();
+      const move = items({ kind: "node", id: "s1" }, { areas: areas({ moveTo }) }).find((item) => item.label === "영역으로 옮기기");
+      expect(labels(move?.children ?? [])).toEqual(["나중에 볼 일"]);
+      move?.children?.[0]?.run();
+      expect(moveTo).toHaveBeenCalledWith(["s1"], "later");
+    });
+
+    it("takes a session out of its area", () => {
+      const moveTo = vi.fn();
+      items({ kind: "node", id: "s2" }, { areas: areas({ moveTo }) })
+        .find((item) => item.label === "'나중에 볼 일'에서 빼기")
+        ?.run();
+      expect(moveTo).toHaveBeenCalledWith(["s2"], null);
+    });
+
+    it("gives an area its own menu: rename, select, fold and remove", () => {
+      const remove = vi.fn();
+      const menu = menuFor({ kind: "area", id: "later" }, context({ areas: areas({ remove }) }));
+      expect(menu?.rename?.value).toBe("나중에 볼 일");
+      const all = menu?.groups.flatMap((group) => group.items) ?? [];
+      expect(labels(all)).toEqual(["안의 세션 1개 고르기", "접기", "영역 지우기"]);
+      all.at(-1)?.run();
+      expect(remove).toHaveBeenCalledWith("later");
+    });
   });
 });

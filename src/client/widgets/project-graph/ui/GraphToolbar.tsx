@@ -66,13 +66,13 @@ export function GraphToolbar({ scope, worktrees, connecting, showAllLinks, canGr
         <button type="button" aria-pressed={showAllLinks} onClick={onToggleRules} className={TOOL}>
           규칙 <span className={KEY}>R</span>
         </button>
-        <button type="button" disabled={!canGroup} onClick={onGroup} title="고른 상자를 그룹으로 묶기" className={`${TOOL} disabled:opacity-30`}>
-          그룹 <span className={KEY}>⌘G</span>
+        <button type="button" disabled={!canGroup} onClick={onGroup} title="고른 세션을 새 영역으로 묶기 (한 워크트리 안에서만)" className={`${TOOL} disabled:opacity-30`}>
+          영역 <span className={KEY}>⌘G</span>
         </button>
         <button type="button" aria-pressed={showWorktreeLines} onClick={onToggleWorktreeLines} title="갈라진 워크트리 · 같은 파일을 고치는 워크트리 사이 선 (git에서 계산)" className={TOOL}>
           워크트리 관계
         </button>
-        <button type="button" onClick={onTidy} title="상자 자리만 처음 배치로 되돌려요. 그룹은 그대로예요." className={TOOL}>
+        <button type="button" onClick={onTidy} title="상자 자리만 처음 배치로 되돌려요. 영역은 그대로예요." className={TOOL}>
           자동 정리 <span className={KEY}>L</span>
         </button>
       </div>

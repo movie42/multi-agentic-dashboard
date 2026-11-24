@@ -105,7 +105,7 @@ export interface RunnerInputRequest {
   raw?: boolean;
 }
 
-export const RUNNER_HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop"] as const;
+export const RUNNER_HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "PreCompact"] as const;
 
 export type RunnerHookEvent = (typeof RUNNER_HOOK_EVENTS)[number];
 

@@ -111,6 +111,20 @@ describe("SessionRegistry", () => {
     expect(registry.get("s1")?.conversationId).toBe("picked");
   });
 
+  it("shows a /compact as work until the compacted session starts, without ending a turn an automatic one interrupts", () => {
+    const { registry } = setup();
+    registry.launch({ cwd: "/repo" });
+    registry.signal("s1", { event: "PreCompact", compactTrigger: "manual" });
+    expect(registry.get("s1")?.status).toBe("working");
+    registry.signal("s1", { event: "SessionStart", sessionSource: "compact" });
+    expect(registry.get("s1")?.status).toBe("idle");
+
+    registry.signal("s1", { event: "UserPromptSubmit" });
+    registry.signal("s1", { event: "PreCompact", compactTrigger: "auto" });
+    registry.signal("s1", { event: "SessionStart", sessionSource: "compact" });
+    expect(registry.get("s1")?.status).toBe("working");
+  });
+
   it("waits on the user while Claude asks whether to trust the folder, then goes on once hooks start", () => {
     const { registry, ptys } = setup();
     registry.launch({ cwd: "/new", prompt: "go" });

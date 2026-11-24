@@ -1,5 +1,7 @@
-import type { EdgeEnds, Point, Side, Size } from "./layout";
+import type { SessionArea } from "@/client/entities/session-area";
+import type { AutoLayout, EdgeEnds, Point, Side, Size } from "./layout";
 
+/** A free group from before areas; read only to turn it into an area (`groupsToAreas`). */
 export interface UserGroup {
   id: string;
   name: string;
@@ -89,33 +91,45 @@ export function resolvePositions(auto: ReadonlyMap<string, Point>, saved: Record
   return new Map([...auto].map(([id, point]) => [id, saved[id] ?? point]));
 }
 
+/**
+ * Saved spots win over the auto layout, except for sessions in an area, which always sit where their
+ * area lays them out. Anything on its auto spot moves along with its cluster when that was dragged.
+ */
+export function resolveLayout(auto: AutoLayout, saved: Record<string, Point>, inArea: ReadonlySet<string>): { positions: Map<string, Point>; anchors: Map<string, Point> } {
+  const follow = (id: string, point: Point): Point => {
+    const owner = auto.owners.get(id);
+    const from = owner ? auto.anchors.get(owner) : undefined;
+    const to = owner ? saved[owner] : undefined;
+    return from && to ? { x: point.x + to.x - from.x, y: point.y + to.y - from.y } : point;
+  };
+  return {
+    positions: new Map([...auto.positions].map(([id, point]) => [id, (!inArea.has(id) && saved[id]) || follow(id, point)])),
+    anchors: new Map([...auto.anchors].map(([id, point]) => [id, saved[id] ?? follow(id, point)])),
+  };
+}
+
 export function movePositions(state: CanvasState, moved: ReadonlyMap<string, Point>): CanvasState {
   return { ...state, positions: { ...state.positions, ...Object.fromEntries(moved) } };
 }
 
 /**
- * Groups the given nodes into a new group. A node belongs to one group at most, so it leaves the
- * group it was in; a group left empty disappears.
+ * Free groups gave way to areas inside a worktree: a group whose sessions all sit in one worktree
+ * becomes an area there, keeping its id and name; one that crossed worktrees is dropped. A group with
+ * a session not on the board yet is left alone until it is — `settledIds` are the groups to clear.
  */
-export function groupNodes(state: CanvasState, ids: string[], id: string, name: string): CanvasState {
-  if (ids.length === 0) return state;
-  const taken = new Set(ids);
-  const rest = state.groups
-    .map((group) => ({ ...group, memberIds: group.memberIds.filter((member) => !taken.has(member)) }))
-    .filter((group) => group.memberIds.length > 0);
-  return { ...state, groups: [...rest, { id, name, memberIds: [...ids] }] };
-}
-
-export function ungroup(state: CanvasState, groupId: string): CanvasState {
-  return { ...state, groups: state.groups.filter((group) => group.id !== groupId) };
-}
-
-export function renameGroup(state: CanvasState, groupId: string, name: string): CanvasState {
-  return { ...state, groups: state.groups.map((group) => (group.id === groupId ? { ...group, name } : group)) };
-}
-
-export function groupOf(state: CanvasState, nodeId: string): UserGroup | null {
-  return state.groups.find((group) => group.memberIds.includes(nodeId)) ?? null;
+export function groupsToAreas(
+  groups: UserGroup[],
+  worktreeOf: (sessionId: string) => string | undefined,
+): { areas: Array<{ worktreeId: string; area: SessionArea }>; settledIds: string[] } {
+  const settled = groups.filter((group) => group.memberIds.every((id) => worktreeOf(id) !== undefined));
+  return {
+    areas: settled.flatMap((group) => {
+      const worktrees = new Set(group.memberIds.map(worktreeOf));
+      const [only] = worktrees;
+      return worktrees.size === 1 && only ? [{ worktreeId: only, area: { id: group.id, name: group.name, memberIds: [...group.memberIds], collapsed: false } }] : [];
+    }),
+    settledIds: settled.map((group) => group.id),
+  };
 }
 
 /** Drops spots and group members of sessions that closed; the cluster ids stay while the worktree lives. */

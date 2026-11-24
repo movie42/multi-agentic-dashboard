@@ -112,3 +112,30 @@ describe("PermissionPrompt", () => {
     expect(post).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("PermissionPrompt drawn with A2UI", () => {
+  it("sends a deny with the typed reason", async () => {
+    post.mockResolvedValue();
+    render(<PermissionPrompt terminalHandle="s1" permission={tool} />);
+    await userEvent.click(screen.getByRole("button", { name: "거부" }));
+    await userEvent.type(screen.getByPlaceholderText("거부 사유 (Claude에게 전달돼요)"), "  지우지 마  ");
+    await userEvent.click(screen.getByRole("button", { name: "거부" }));
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ answer: { behavior: "deny", message: "지우지 마" } }));
+  });
+
+  it("allows with a suggestion and shows its rule unescaped", async () => {
+    post.mockResolvedValue();
+    const withRule: RunnerPermission = { ...tool, suggestions: [{ type: "addRules", rules: [{ toolName: "Bash", ruleContent: "rm:*" }], destination: "session" }] };
+    render(<PermissionPrompt terminalHandle="s1" permission={withRule} />);
+    await userEvent.click(screen.getByRole("button", { name: /다시 묻지 않기 · Bash\(rm:\*\)/ }));
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ answer: { behavior: "allow", suggestionIndex: 0 } }));
+  });
+
+  it("delegates to the conductor", async () => {
+    post.mockResolvedValue();
+    render(<PermissionPrompt terminalHandle="s1" permission={tool} delegable />);
+    await userEvent.click(screen.getByRole("button", { name: "앞으로 지휘자에게 맡기기" }));
+    expect(post).toHaveBeenCalledWith({ type: "delegate-permission", terminalHandle: "s1", requestId: "req-1" });
+    expect(await screen.findByText(/지휘자에게 넘겼어요/)).toBeTruthy();
+  });
+});

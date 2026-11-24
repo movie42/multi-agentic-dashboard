@@ -7,6 +7,8 @@ import {
   shellStatusLabel,
   shellStatusOf,
   useRestOverrides,
+  UNSEEN_TURN_DOT,
+  useUnseenTurns,
   type DisplayState,
   type RestOf,
   type ShellStatus,
@@ -69,6 +71,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
   const { agent, outside } = node;
   const { restOf } = useRestOverrides();
   const state = stateOf(agent, restOf);
+  const unseen = useUnseenTurns().isUnseen(agent);
   const conductor = agent.orchestration?.conductor ?? null;
   const hasMeta = Boolean(agent.model || agent.effort || agent.permissionMode || agent.contextPercent !== null);
   return (
@@ -79,7 +82,10 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
       } ${outside ? "border-dashed" : ""} ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-canvas" : ""}`}
     >
       <p className="flex items-center gap-1.5 text-[11px] leading-none font-semibold tracking-[0.02em]">
-        <span className={`size-1.5 shrink-0 rounded-full ${state.dot}`} />
+        <span
+          className={`size-1.5 shrink-0 rounded-full ${unseen ? UNSEEN_TURN_DOT : state.dot}`}
+          title={unseen ? "아직 확인하지 않은 내 차례" : undefined}
+        />
         {conductor && (
           <span className="truncate text-now">
             {outside ? `${outside.repo ? `${outside.repo} 프로젝트` : "앱"} 지휘자 ·` : `지휘자 · ${SCOPE_TAG[conductor.scope.kind]} ·`}

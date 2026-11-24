@@ -7,7 +7,7 @@ import { controlRun, removeRun } from "@/client/entities/runner";
 import type { TemplateRun } from "@/common/templates/types";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { ItemColorTarget } from "@/client/features/customize-canvas-color";
-import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
+import { areaOf, type SessionArea } from "@/client/entities/session-area";
 import type { ProjectGraph } from "../model/graph";
 import type { MenuGroup, MenuItem, MenuRename } from "./CanvasMenu";
 import type { MenuTarget } from "./CanvasStage";
@@ -15,9 +15,7 @@ import { nodeTitle } from "./NodeBox";
 
 export interface MenuContext {
   graph: ProjectGraph;
-  canvas: CanvasState;
   selected: string[];
-  save: (change: (current: CanvasState) => CanvasState) => void;
   select: (ids: string[]) => void;
   onAction: (action: ActionRequest) => Promise<void>;
   /** Open a document in the right panel, or outside the app when the panel cannot show it. */
@@ -37,6 +35,19 @@ export interface MenuContext {
   rest: RestOverrides;
   /** Open the colour editor for these frames or cards; `title` names them in it. */
   onEditColors: (targets: ItemColorTarget[], title: string) => void;
+  areas: CanvasAreaActions;
+}
+
+/** The named areas inside each worktree, shared with the session tabs. */
+export interface CanvasAreaActions {
+  of: (worktreeId: string) => SessionArea[];
+  /** A new area holding these sessions, all from one worktree; its name is typed right after. */
+  create: (sessionIds: string[]) => void;
+  /** `areaId` null takes them out of every area. */
+  moveTo: (sessionIds: string[], areaId: string | null) => void;
+  rename: (areaId: string, name: string) => void;
+  toggle: (areaId: string) => void;
+  remove: (areaId: string) => void;
 }
 
 /**
@@ -124,14 +135,19 @@ function worktreesOf(graph: ProjectGraph, agents: AgentCard[]): WorktreeSummary[
  * a worktree's sessions. `label` names the set ("세션 3개") when there is more than one.
  */
 function sessionsSections(agents: AgentCard[], context: MenuContext, label: string): Required<Pick<Sections, "state" | "arrange" | "danger">> {
-  const { graph, canvas, save, onAction } = context;
+  const { graph, onAction } = context;
   const ids = agents.map((agent) => agent.id);
   const idSet = new Set(ids);
   const links = graph.edges.filter((edge) => edge.linkId && (idSet.has(edge.from) || idSet.has(edge.to)));
-  const grouped = ids.filter((id) => groupOf(canvas, id));
   const closable = agents.filter((agent) => agent.terminalHandle);
   const many = agents.length > 1;
   const settable = agents.filter((agent) => agent.state !== "working").length;
+  const worktreeIds = [...new Set(agents.map((agent) => agent.worktreeId))];
+  const oneWorktree = worktreeIds.length === 1 ? worktreeIds[0]! : null;
+  const areas = oneWorktree ? context.areas.of(oneWorktree) : [];
+  const areaIdOf = (id: string) => areaOf(areas, id)?.id ?? null;
+  const targets = areas.filter((area) => ids.some((id) => areaIdOf(id) !== area.id));
+  const inArea = ids.filter((id) => areaIdOf(id) !== null);
   return {
     state: restChoices(agents, context.rest.restOf).map(
       (choice): MenuItem => ({
@@ -142,22 +158,15 @@ function sessionsSections(agents: AgentCard[], context: MenuContext, label: stri
     ),
     arrange: [
       many && { label: `${label} 고르기`, run: () => context.select(ids) },
-      {
-        label: many ? `${label} 그룹으로 묶기` : "그룹으로 묶기",
-        run: () => {
-          const id = crypto.randomUUID();
-          save((current) => groupNodes(current, ids, id, `그룹 ${current.groups.length + 1}`));
-        },
+      oneWorktree !== null && { label: many ? `${label} 새 영역으로 묶기` : "새 영역으로 묶기", run: () => context.areas.create(ids) },
+      targets.length > 0 && {
+        label: "영역으로 옮기기",
+        run: () => {},
+        children: targets.map((area): MenuItem => ({ key: area.id, label: area.name, run: () => context.areas.moveTo(ids, area.id) })),
       },
-      grouped.length > 0 && {
-        label: many ? `그룹에서 빼기 (${grouped.length}개)` : `'${groupOf(canvas, ids[0]!)?.name ?? ""}'에서 빼기`,
-        run: () =>
-          save((current) => ({
-            ...current,
-            groups: current.groups
-              .map((group) => ({ ...group, memberIds: group.memberIds.filter((member) => !idSet.has(member)) }))
-              .filter((group) => group.memberIds.length > 0),
-          })),
+      inArea.length > 0 && {
+        label: many ? `영역에서 빼기 (${inArea.length}개)` : `'${areaOf(areas, ids[0]!)?.name ?? ""}'에서 빼기`,
+        run: () => context.areas.moveTo(inArea, null),
       },
       { label: many ? `${label} 템플릿으로 저장` : "템플릿으로 저장", run: () => context.onSaveAsTemplate(agents) },
     ],
@@ -238,7 +247,7 @@ function canvasItems(context: MenuContext, selection: AgentCard[]): MenuItem[] {
 
 /** What a right-click offers. A click on a selected box acts on the whole selection, like Figma. */
 export function menuFor(target: MenuTarget, context: MenuContext): MenuContent | null {
-  const { graph, canvas, save, onAction } = context;
+  const { graph, onAction } = context;
 
   if (target.kind === "node") {
     const agent = graph.nodes.get(target.id)?.agent;
@@ -313,26 +322,28 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
     return { title, rename: null, groups: sectioned({ arrange: canvasItems(context, []) }), colors: colorsOf([{ scope: "project", id: target.id }], title, context) };
   }
 
-  if (target.kind === "group") {
-    const group = canvas.groups.find((entry) => entry.id === target.id);
-    if (!group) return null;
-    const members = agentsOf(graph, group.memberIds);
-    const closable = members.filter((member) => member.terminalHandle);
+  if (target.kind === "area") {
+    const found = graph.clusters.flatMap((cluster) => {
+      const area = context.areas.of(cluster.worktree.worktreeId).find((entry) => entry.id === target.id);
+      return area ? [{ area, cluster }] : [];
+    })[0];
+    if (!found) return null;
+    const { area, cluster } = found;
+    const members = agentsOf(graph, area.memberIds.filter((id) => cluster.nodeIds.includes(id)));
     return {
-      title: `그룹 · ${group.name}`,
-      rename: { label: "이름 바꾸기", value: group.name, onSave: (name) => save((current) => renameGroup(current, group.id, name)) },
+      title: `영역 · ${area.name}`,
+      rename: { label: "이름 바꾸기", value: area.name, onSave: (name) => context.areas.rename(area.id, name) },
       groups: sectioned({
         arrange: [
-          { label: `안의 세션 ${members.length}개 고르기`, run: () => context.select(members.map((member) => member.id)) },
-          { label: "그룹 풀기", run: () => save((current) => ungroup(current, group.id)) },
+          members.length > 0 && { label: `안의 세션 ${members.length}개 고르기`, run: () => context.select(members.map((member) => member.id)) },
+          { label: area.collapsed ? "펼치기" : "접기", run: () => context.areas.toggle(area.id) },
         ],
         danger: [
           {
-            label: `안의 세션 닫기 (${closable.length}개)`,
+            label: "영역 지우기",
             danger: true,
-            disabled: closable.length === 0,
-            confirm: `한 번 더 누르면 ${closable.length}개를 닫아요`,
-            run: () => closeSessions(closable, onAction),
+            confirm: "한 번 더 누르면 영역을 지워요. 안의 세션은 영역 밖으로 나와요",
+            run: () => context.areas.remove(area.id),
           },
         ],
       }),

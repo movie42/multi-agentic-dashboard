@@ -6,7 +6,7 @@
   "links": [],
   "stages": {
     "grill": {
-      "status": "ask",
+      "status": "done",
       "rounds": [
         {
           "id": "R1",
@@ -16,111 +16,294 @@
             {
               "id": "Q1",
               "title": "영역을 어느 화면에 둘까요?",
-              "said": "워크트리 내에 영역 설정 할수 있는 기능 … 터미널, 세션 … '하고 있는 일', '나중에 볼 일' 같은 걸로 header 정해서 그룹화 / 그룹 기능이 있긴 한데 조금 부족해",
               "intent": "세션·터미널을 보는 화면이 두 곳이라, 한 곳에만 만들면 다른 화면에서는 묶음이 안 보여요.",
-              "body": "세션과 터미널은 두 화면에 나와요. ① 대시보드의 워크트리 목록(워크트리마다 세션 카드를 세로로 나열, 끌어서 순서 바꾸기 가능)과 ② 캔버스의 워크트리 점선 프레임(상자를 자유 배치)이에요. 지금 있는 그룹(⌘G)은 캔버스에만 있어요.",
-              "recommendation": "둘 다. 영역은 워크트리마다 하나의 데이터로 저장하고, 목록에서는 헤더가 붙은 구간으로, 캔버스에서는 워크트리 프레임 안의 칸으로 같은 묶음을 보여 줘요.",
-              "options": [
-                {
-                  "value": "both",
-                  "label": "목록과 캔버스 둘 다 — 같은 영역이 양쪽에 보여요"
-                },
-                {
-                  "value": "list",
-                  "label": "대시보드 워크트리 목록에만"
-                },
-                {
-                  "value": "canvas",
-                  "label": "캔버스 워크트리 프레임에만"
-                }
-              ],
-              "recommended": "both"
+              "decision": "영역은 워크트리마다 한 벌로 저장하고, 대시보드 세션 탭 줄과 캔버스 워크트리 프레임 양쪽에 같은 영역을 보여 준다.",
+              "appliedTo": "[[P2]] [[P3]]",
+              "reason": {
+                "text": "한쪽에서 묶으면 다른 화면에서도 같은 묶음이 보여야 한다.",
+                "by": "recommended"
+              }
             },
             {
               "id": "Q2",
               "title": "지금 그룹(⌘G)에서 무엇이 부족했나요?",
-              "said": "그룹 기능이 있긴 한데 조금 부족해",
               "intent": "부족한 점을 고쳐야 새 영역이 같은 불편을 반복하지 않아요.",
-              "body": "지금 캔버스 그룹은 고른 상자들을 감싸는 테두리만 그려요. 상자를 자동으로 모아 주지 않아 다른 상자·워크트리와 겹칠 수 있고, 워크트리를 넘어 걸칠 수 있고, 목록 화면에는 안 보이고, 접기도 없어요. 해당하는 걸 모두 골라 주세요(여러 개면 메모에 적어 주세요).",
-              "recommendation": "영역은 워크트리 안에서만 생기고, 영역마다 세션을 세로로 정렬해 겹치지 않게, 헤더로 접고 펼 수 있게 만들어요.",
-              "options": [
-                {
-                  "value": "overlap",
-                  "label": "상자가 정렬되지 않고 겹쳐요"
-                },
-                {
-                  "value": "cross",
-                  "label": "워크트리 밖으로 걸쳐져요"
-                },
-                {
-                  "value": "list",
-                  "label": "목록 화면에서 안 보여요"
-                },
-                {
-                  "value": "fold",
-                  "label": "접어 둘 수 없어요"
-                },
-                {
-                  "value": "all",
-                  "label": "위 전부"
-                }
-              ],
-              "recommended": "all"
+              "decision": "영역은 워크트리 안에서만 생기고, 안의 상자는 자동으로 정렬되며, 헤더를 눌러 접고 펼 수 있다.",
+              "appliedTo": "[[P1]] [[P3]]",
+              "reason": {
+                "text": "겹침, 워크트리 밖으로 걸침, 목록에 안 보임, 접기 없음을 한 번에 없앤다.",
+                "by": "recommended"
+              }
             },
             {
               "id": "Q3",
               "title": "기존 캔버스 그룹(⌘G)은 어떻게 할까요?",
-              "said": "그룹 기능이 있긴 한데 조금 부족해",
               "intent": "묶는 방법이 두 개면 어느 걸 써야 할지 헷갈려요.",
-              "body": "새 영역이 생기면 지금의 자유 그룹(워크트리를 넘나드는 테두리)과 역할이 겹쳐요.",
-              "recommendation": "영역으로 바꾸고 ⌘G는 '고른 세션을 새 영역으로'로 바꿔요. 기존에 만든 그룹은 멤버가 한 워크트리 안에 있으면 영역으로 옮기고, 아니면 지워요.",
-              "options": [
-                {
-                  "value": "replace",
-                  "label": "영역으로 대체 — ⌘G가 새 영역을 만들어요"
-                },
-                {
-                  "value": "keep",
-                  "label": "둘 다 유지 — 자유 그룹은 그대로, 영역을 따로 추가"
-                }
-              ],
-              "recommended": "replace"
+              "decision": "캔버스 자유 그룹은 영역으로 바꾼다. ⌘G는 고른 세션으로 새 영역을 만들고, 한 워크트리 안에 있던 기존 그룹은 영역으로 옮기고 나머지는 지운다.",
+              "appliedTo": "[[P3]]",
+              "reason": {
+                "text": "묶는 방법을 하나로 두어 헷갈리지 않게 한다.",
+                "by": "recommended"
+              }
             },
             {
               "id": "Q4",
               "title": "처음엔 영역을 어떻게 시작할까요?",
-              "said": "'하고 있는 일', '나중에 볼 일' 같은 걸로 header 정해서",
               "intent": "새 세션이 어느 영역에 떨어지는지가 매일 쓰는 흐름을 정해요.",
-              "body": "영역이 없는 워크트리는 지금처럼 보여요. 영역을 만들면 어느 영역에도 안 넣은 세션(새로 연 세션 포함)이 어디에 보일지 정해야 해요.",
-              "recommendation": "영역은 사람이 '영역 추가'로 직접 이름을 붙여 만들고, 안 넣은 세션은 맨 위 이름 없는 구간에 둬요. 새 세션이 저절로 미뤄 둔 영역에 들어가는 일이 없어요.",
-              "options": [
-                {
-                  "value": "manual",
-                  "label": "직접 만들기 — 안 넣은 세션은 맨 위 이름 없는 구간"
-                },
-                {
-                  "value": "preset",
-                  "label": "'하고 있는 일'·'나중에 볼 일' 두 영역을 미리 만들고, 새 세션은 '하고 있는 일'로"
-                }
-              ],
-              "recommended": "manual"
+              "decision": "영역은 사람이 직접 만들고, 어느 영역에도 안 넣은 세션(새 세션 포함)은 맨 앞 이름 없는 구간에 둔다.",
+              "appliedTo": "[[P1]] [[P2]]",
+              "reason": {
+                "text": "새 세션이 저절로 미뤄 둔 영역에 들어가 놓치는 일이 없게 한다.",
+                "by": "recommended"
+              }
             }
           ]
         }
       ]
     },
     "tasks": {
-      "status": "wait",
-      "summary": "계획 작성 전",
-      "conclusion": [],
-      "blocks": []
+      "status": "done",
+      "summary": "구현 완료",
+      "conclusion": [
+        {
+          "text": "워크트리마다 이름 붙인 영역을 둔다. 저장은 이 컴퓨터의 localStorage에 워크트리별로 하고, 대시보드 탭 줄과 캔버스가 같은 영역을 본다."
+        },
+        {
+          "text": "대시보드: 영역 없는 탭이 맨 앞, 그 뒤에 영역 헤더 칩과 그 탭들. 헤더를 누르면 접히고, 탭 우클릭·끌어 놓기로 옮긴다."
+        },
+        {
+          "text": "캔버스: 워크트리 프레임 안에 영역 프레임을 쌓아 상자를 자동 정렬한다. 상자를 영역에 끌어 놓거나 ⌘G로 새 영역을 만든다. 예전 그룹은 한 워크트리 안이면 영역으로 옮겨진다."
+        }
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "영역 데이터",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "영역 목록을 다루는 순수 함수 (만들기·이름 바꾸기·지우기·옮기기·접기·나누기)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/session-area/model/areas.ts</code>"
+                ],
+                [
+                  "파일",
+                  "<code>src/client/entities/session-area/model/areas.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "워크트리별 영역 저장 훅 useSessionAreas (localStorage, 다른 창과 동기화)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/session-area/model/useSessionAreas.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: bun run test",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "대시보드 세션 탭 줄",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "이름 없는 구간 다음에 영역 헤더 칩과 그 탭들을 한 줄에 그리기, 헤더로 접기·두 번 눌러 이름 바꾸기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/session-tabs/ui/SessionTabs.tsx</code>"
+                ],
+                [
+                  "파일",
+                  "<code>SessionTabs.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "탭 줄 높이(--tabs-h)를 다른 화면이 쓰고 있어서, 영역을 줄로 쌓지 않고 한 줄 안에 헤더 칩 + 밑줄로 그렸다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "탭 우클릭 메뉴: 영역으로 옮기기 · 새 영역으로 · 영역에서 빼기, 헤더 메뉴: 이름 바꾸기 · 접기 · 영역 지우기, '영역 추가' 버튼",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "'영역 추가'는 새 아이콘 대신 글자 버튼 '영역'으로 둔다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "탭을 다른 영역의 탭·헤더에 끌어 놓으면 그 영역으로 옮기기",
+              "done": true,
+              "rows": []
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 테스트 + 화면에서 영역 만들기·옮기기·접기",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "캔버스",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "자동 배치가 워크트리 안에서 이름 없는 구간 → 영역 순으로 세로로 쌓기, 접힌 영역은 헤더만",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>model/layout.ts</code>"
+                ],
+                [
+                  "파일",
+                  "<code>model/layout.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "영역 프레임 그리기, 상자를 영역 위에 놓으면 그 영역으로, 영역 밖에 놓으면 빼기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>ui/CanvasStage.tsx</code> <code>ui/Frames.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "영역 안 상자는 끌어 둔 자리를 기억하지 않고 영역이 배치한다. 영역 밖에 놓으면 영역에서 빠지고 놓은 자리에 남는다."
+                ],
+                [
+                  "결정",
+                  "빈 영역·접힌 영역은 캔버스에 헤더만 그린다. 접힌 영역의 상자와 그 선은 숨긴다."
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "⌘G와 메뉴의 그룹을 영역으로 바꾸고, 한 워크트리 안 기존 그룹을 영역으로 옮기기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>ui/ProjectCanvas.tsx</code> <code>ui/canvasMenuItems.ts</code> <code>model/canvasState.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: tsc · lint · 테스트 + 캔버스 화면 확인",
+              "done": true,
+              "rows": []
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        {
+          "text": "구현과 리뷰 반영을 마쳤어요. 타입 검사 · 린트 · 테스트 통과, 헤드리스 화면에서 탭 줄과 캔버스 동작을 확인했어요. PR 없음."
+        }
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "죽은 세션 id를 영역에서 지우는 정리는 하지 않는다. 보드 데이터가 잠깐 빠질 때 저장한 값을 지운 적이 있어서(449acf7) 같은 위험을 피한다."
+                ],
+                [
+                  "결정",
+                  "내 차례 점 지적은 이 작업이 아닌 다른 세션의 변경(unseenTurn)이라 손대지 않았다."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ],
+      "ext": {
+        "hyunsu": {
+          "title": "옵시디언 기록",
+          "unknown": {
+            "vault": "개인 도구 저장소(Agent Control)라 볼트에 기록하지 않음"
+          }
+        }
+      }
     }
   },
   "intent": [
     {
       "text": "한 워크트리 안의 세션과 터미널을 '하고 있는 일', '나중에 볼 일' 같은 이름 붙인 영역으로 나눠, 지금 볼 것과 미뤄 둔 것을 한눈에 가른다.",
-      "state": "guess",
-      "basis": "사용자 요청 2026-11-24"
+      "state": "confirmed",
+      "basis": "[[R1-Q1]] [[R1-Q2]] [[R1-Q4]]"
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "03 계획 승인",
+      "why": "사용자가 질문 한 번 뒤에는 승인 없이 구현까지 하길 원함"
+    }
+  ],
+  "pruned": "2026-11-24",
+  "pulledAt": 1795488375306
 }

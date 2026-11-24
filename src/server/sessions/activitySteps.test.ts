@@ -113,6 +113,25 @@ describe("chatItemsOf local commands", () => {
     ]);
   });
 
+  it("hides the compact summary and marks an automatic compaction", () => {
+    const boundary = (trigger: string) =>
+      line({ uuid: `b-${trigger}`, type: "system", subtype: "compact_boundary", content: "Conversation compacted", compactMetadata: { trigger } });
+    const summary = line({ uuid: "s", type: "user", isCompactSummary: true, message: { content: "This session is being continued from a previous conversation." } });
+    const steps = chatItemsOf([
+      boundary("manual"),
+      summary,
+      line({ uuid: "c", type: "user", message: { content: "<command-name>/compact</command-name>\n<command-args></command-args>" } }),
+      line({ uuid: "o", type: "user", message: { content: "<local-command-stdout>Compacted</local-command-stdout>" } }),
+      boundary("auto"),
+      summary,
+    ]);
+    expect(steps.map((step) => (step.kind === "prompt" || step.kind === "output" ? [step.kind, step.text] : [step.kind]))).toEqual([
+      ["prompt", "/compact"],
+      ["output", "Compacted"],
+      ["output", "대화가 길어져 자동으로 압축했어요"],
+    ]);
+  });
+
   it("keeps the activity timeline free of them", () => {
     expect(stepsOf([line({ type: "user", message: { content: "<command-name>/context</command-name>" } })])).toEqual([]);
   });
@@ -205,5 +224,40 @@ describe("chatItemsOf questions and plans", () => {
       ]);
       expect(steps).toEqual([{ kind: "prompt", id: "queued:1", at: Date.parse("2026-11-23T02:00:01.000Z"), text: "둘째", queued: true }]);
     });
+  });
+});
+
+describe("chatItemsOf render_ui", () => {
+  const surface = [
+    { version: "1.0", createSurface: { surfaceId: "pick", catalogId: "https://agent-control.local/a2ui/catalog/v1" } },
+    { version: "1.0", updateComponents: { surfaceId: "pick", components: [{ id: "root", component: "Text", text: "고르세요" }] } },
+  ];
+  const use = (input: Record<string, unknown>) =>
+    JSON.stringify({ type: "assistant", uuid: "a1", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__agent-control__render_ui", input }] } });
+  const result = JSON.stringify({ type: "user", uuid: "u2", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "Shown" }] } });
+
+  it("draws a render_ui call as a ui step", () => {
+    const chat = chatItemsOf([use({ messages: surface }), result]);
+    expect(chat).toMatchObject([{ kind: "ui", id: "t1", surfaceId: "pick", messages: surface, status: "ok", action: null }]);
+  });
+
+  it("folds the person's [A2UI action] reply into the card instead of a prompt bubble", () => {
+    const reply = JSON.stringify({ type: "user", uuid: "u3", message: { content: '[A2UI action] surface=pick name=choose\n{"plan":"A"}' } });
+    const chat = chatItemsOf([use({ messages: surface }), result, reply]);
+    expect(chat).toHaveLength(1);
+    expect(chat[0]).toMatchObject({ kind: "ui", action: { surfaceId: "pick", name: "choose", context: { plan: "A" } } });
+  });
+
+  it("leaves a reply for an already answered card as an ordinary prompt", () => {
+    const reply = (uuid: string, plan: string) =>
+      JSON.stringify({ type: "user", uuid, message: { content: `[A2UI action] surface=pick name=choose\n{"plan":"${plan}"}` } });
+    const chat = chatItemsOf([use({ messages: surface }), result, reply("u3", "A"), reply("u4", "B")]);
+    expect(chat.map((item) => item.kind)).toEqual(["ui", "prompt"]);
+    expect(chat[0]).toMatchObject({ action: { context: { plan: "A" } } });
+  });
+
+  it("keeps a broken render_ui call as an ordinary tool row", () => {
+    const chat = chatItemsOf([use({ messages: [{ version: "1.0", updateComponents: {} }] })]);
+    expect(chat).toMatchObject([{ kind: "tool", name: "mcp__agent-control__render_ui" }]);
   });
 });

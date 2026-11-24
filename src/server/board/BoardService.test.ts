@@ -108,6 +108,17 @@ describe("BoardService.load", () => {
     expect(snapshot.agents[1]).toMatchObject({ session: null, lastMessage: null });
   });
 
+  it("keeps showing the previous conversation until the file of a /clear-ed one exists", async () => {
+    const { board, runnerSessions, sessions } = setup();
+    runnerSessions.mockResolvedValue([runnerSession({ id: "s1", cwd: "/w", status: "idle" })]);
+    await board.load();
+
+    runnerSessions.mockResolvedValue([runnerSession({ id: "s1", cwd: "/w", status: "idle", conversationId: "fresh" })]);
+    const cleared = await board.load();
+    expect(cleared.agents[0]).toMatchObject({ session: { id: "s1" } });
+    expect(sessions.transcriptOf.mock.calls.slice(-2).map(([, id]) => id)).toEqual(["fresh", "s1"]);
+  });
+
   it("still shows worktrees when the daemon, bookmarks or a transcript cannot be read", async () => {
     const { board, runnerSessions, sessions, warn } = setup();
     runnerSessions.mockRejectedValueOnce(new Error("daemon down"));
