@@ -11,6 +11,10 @@
     {
       "label": "google/A2UI",
       "url": "https://github.com/google/A2UI"
+    },
+    {
+      "label": "PR #20",
+      "url": "https://github.com/movie42/multi-agentic-dashboard/pull/20"
     }
   ],
   "stages": {
@@ -38,10 +42,6 @@
                 [
                   "파일",
                   "<code>src/common/a2ui/messages.ts</code>, <code>src/common/a2ui/messages.test.ts</code>, <code>src/common/sessions/types.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "<code>ActivityStep</code>의 <code>question</code> · <code>plan</code> 변형과 같은 판별 유니언"
                 ],
                 [
                   "결정",
@@ -88,10 +88,6 @@
                   "<code>daemon/ui/uiMcp.ts</code>, <code>daemon/ui/uiMcp.test.ts</code>"
                 ],
                 [
-                  "재사용",
-                  "<code>daemon/templates/judgeMcp.ts</code>의 JSON-RPC 처리 형태"
-                ],
-                [
                   "결정",
                   "에이전트가 형식을 틀리면 이유를 돌려준다. 실제 sonnet 세션에서 Button에 `text`를 넣었다가 거절 이유를 보고 `child`로 고쳐 두 번째에 통과했다."
                 ]
@@ -136,10 +132,6 @@
                 [
                   "파일",
                   "<code>src/server/sessions/activitySteps.ts</code>, <code>src/server/sessions/activitySteps.test.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "AskUserQuestion을 <code>question</code> 단계로 그리는 기존 분기"
                 ]
               ]
             },
@@ -163,10 +155,6 @@
                 [
                   "파일",
                   "<code>src/client/shared/ui/a2ui/components.tsx</code>, <code>src/client/shared/ui/a2ui/catalog.ts</code>, <code>src/client/shared/ui/a2ui/lock.ts</code>, <code>src/common/a2ui/catalog.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>Markdown</code>, <code>DictationButton</code>, PermissionPrompt의 버튼 클래스"
                 ],
                 [
                   "결정",
@@ -292,16 +280,31 @@
               "id": "P6-V",
               "title": "검증: tsc · eslint(에러 0) · vitest 1016개 통과, 실제 세션 대화 기록이 ui 단계로 읽힘, bun run desktop 빌드·설치 완료",
               "done": true
+            },
+            {
+              "id": "X1",
+              "title": "같은 브랜치에 함께 올라간 다른 세션의 작업 (이 작업 범위 밖)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/sketches</code> <code>app/globals.css</code> <code>daemon/session</code> <code>src/client/entities/agent</code> <code>src/client/entities/session-area</code> <code>src/client/widgets/project-graph</code> <code>src/client/widgets/session-tabs</code> <code>src/common/runner/types.ts</code> <code>src/common/sketch</code> <code>src/server/board</code> <code>src/server/container.ts</code> <code>src/server/sketches</code>"
+                ],
+                [
+                  "결정",
+                  "캔버스 메모·드로잉, 세션 탭 새 답 표시, 대화 압축 표시는 같은 워크트리의 다른 세션이 만든 것으로, 사용자 요청에 따라 PR #20에 함께 넣었다."
+                ]
+              ]
             }
           ]
         }
       ]
     },
     "done": {
-      "status": "ask",
-      "summary": "PR 여부 확인 대기",
+      "status": "done",
+      "summary": "PR #20 머지",
       "conclusion": [
-        "리뷰 반영까지 끝났다. 남은 것은 PR 여부와, 데몬 재시작 뒤 실제 앱에서 카드를 눌러 보는 확인이다."
+        "PR #20으로 main에 squash 머지했다. 데몬 재시작 뒤 이 세션에서 render_ui 카드가 뜨고, 누른 값이 다음 메시지로 오는 것을 실제 앱에서 확인했다."
       ],
       "blocks": [
         {
@@ -355,7 +358,7 @@
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true
             }
           ]
         },
@@ -364,7 +367,15 @@
           "title": "서버 · 기획에 요청할 것",
           "html": "없어요"
         }
-      ]
+      ],
+      "ext": {
+        "hyunsu": {
+          "title": "옵시디언 기록",
+          "unknown": {
+            "vault": "개인 도구 저장소(Agent Control)라 볼트에 기록하지 않음"
+          }
+        }
+      }
     }
   },
   "intent": [
@@ -378,5 +389,6 @@
       "state": "confirmed",
       "basis": "사용자 답: 전부 옮겨줘"
     }
-  ]
+  ],
+  "pruned": "2026-11-24"
 }
