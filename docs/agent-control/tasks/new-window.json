@@ -338,6 +338,14 @@
         "desktop/main.mjs"
       ],
       "sha": "1515b20"
+    },
+    {
+      "date": "2026-11-24",
+      "text": "2026-11-24 mergeAllWindows()가 macOS 27에서 동작하지 않아 윈도우 메뉴에 '모든 창 합치기'(⇧⌘M, addTabbedWindow) · '탭을 새 창으로 분리' · '탭 막대 보기 · 숨기기'를 직접 추가",
+      "files": [
+        "desktop/main.mjs"
+      ],
+      "sha": "c889b76"
     }
   ]
 }
