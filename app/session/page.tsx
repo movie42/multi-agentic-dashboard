@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "세션 · Agent Control" };
 
 async function SessionEntry({ searchParams }: Pick<PageProps<"/session">, "searchParams">) {
   const { id } = await searchParams;
-  return <SessionWindow agentId={typeof id === "string" ? id : null} />;
+  return <SessionWindow agentIds={typeof id === "string" ? [id] : (id ?? [])} />;
 }
 
 export default function SessionPage({ searchParams }: PageProps<"/session">) {

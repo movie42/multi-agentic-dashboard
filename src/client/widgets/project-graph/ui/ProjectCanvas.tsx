@@ -20,7 +20,7 @@ import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 import type { ScreenPoint } from "@/client/shared/lib/openWindow";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
-import { displayStateOf, openSessionWindow, useRestOverrides } from "@/client/entities/agent";
+import { displayStateOf, openSessionWindow, requestDock, useRestOverrides, useSessionDockStore } from "@/client/entities/agent";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
 import { ItemColorEditor, type ItemColorTarget } from "@/client/features/customize-canvas-color";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
@@ -45,6 +45,10 @@ export interface CanvasPanelTab {
   closable: boolean;
   /** Given: the tab can leave the panel for its own window, landing at this screen point. */
   onDetach?: (at: ScreenPoint) => void;
+  /** A session tab: another window's tab strip can take it. */
+  sessionId?: string;
+  /** The tab landed in another window's tab strip. */
+  onMoved?: () => void;
 }
 
 /** The right panel the host draws around the session view: its tabs before any document tabs. */
@@ -54,6 +58,8 @@ export interface CanvasPanel {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onCollapse: () => void;
+  /** A session tab dragged here from another window. */
+  onDropSession?: (agentId: string) => void;
 }
 
 interface PendingConnect {
@@ -188,6 +194,27 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
     save((current) => ({ ...resetPositions(current), viewport: null }));
     setStageKey((key) => key + 1);
   };
+
+  // A session sent here from another window — dropped on the panel or "메인 창으로" — opens as a panel tab.
+  const dockPending = useSessionDockStore((state) => state.pending);
+  const dockReady = dockPending !== null && graph.nodes.has(dockPending);
+  const [dockedId, setDockedId] = useState<string | null>(null);
+  if (dockReady && dockPending !== dockedId) {
+    setDockedId(dockPending);
+    setFocus(dockPending);
+    setSelected([dockPending]);
+  } else if (dockPending === null && dockedId !== null) {
+    setDockedId(null);
+  }
+  useEffect(() => {
+    if (dockPending === null || !dockReady) return;
+    useSessionDockStore.getState().docked(dockPending);
+    showLead();
+    if (!sessionTabs.includes(dockPending)) writeTabs([...sessionTabs, dockPending]);
+    if (panelCollapsed) writePanelPref([]);
+    // Runs when a request arrives or the graph comes to hold its session; the helpers change every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dockPending, dockReady]);
 
   // A document opened from anywhere (menu, quick open, a session card) unfolds the panel it lands in.
   useEffect(
@@ -330,7 +357,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
       const onDetach = (at: ScreenPoint) => {
         if (openSessionWindow(id, at)) closeTab(id);
       };
-      return [{ id, label: nodeTitle(agent), content: sidePanel({ kind: "agent", agent }), closable: true, onDetach }];
+      return [{ id, label: nodeTitle(agent), content: sidePanel({ kind: "agent", agent }), closable: true, onDetach, sessionId: id, onMoved: () => closeTab(id) }];
     }),
     ...(selectionView ? [{ id: SELECTION_TAB, label: panelLabel(selectionView), content: sidePanel(selectionView), closable: true }] : []),
     ...(sessionTabs.length === 0 && !selectionView ? [{ id: EMPTY_TAB, label: panelLabel({ kind: "empty" }), content: sidePanel({ kind: "empty" }), closable: false }] : []),
@@ -518,6 +545,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           onActivate: activateTab,
           onClose: closeTab,
           onCollapse: () => writePanelPref(["collapsed"]),
+          onDropSession: requestDock,
         })
       )}
     </div>

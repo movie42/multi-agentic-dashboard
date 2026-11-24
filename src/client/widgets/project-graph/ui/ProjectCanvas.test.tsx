@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import type { OrchestrationLink } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
+import { requestDock, useSessionDockStore } from "@/client/entities/agent";
 import { useDocViewerStore } from "@/client/features/view-doc";
 import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 import { openWindow } from "@/client/shared/lib/openWindow";
@@ -75,11 +76,19 @@ function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), els
             {panel.tabs.map(
               (tab) =>
                 tab.onDetach && (
-                  <button key={`detach:${tab.id}`} type="button" onClick={() => tab.onDetach?.({ left: 900, top: 40 })}>
-                    {`${tab.label} 떼기`}
-                  </button>
+                  <span key={`detach:${tab.id}`}>
+                    <button type="button" onClick={() => tab.onDetach?.({ left: 900, top: 40 })}>
+                      {`${tab.label} 떼기`}
+                    </button>
+                    <button type="button" onClick={() => tab.onMoved?.()}>
+                      {`${tab.label} 옮겨 감`}
+                    </button>
+                  </span>
                 ),
             )}
+            <button type="button" onClick={() => panel.onDropSession?.("t")}>
+              터미널 받기
+            </button>
             {activeContent(panel)}
           </div>
         )}
@@ -150,8 +159,34 @@ describe("ProjectCanvas", () => {
       fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
     }
     fireEvent.click(screen.getByRole("button", { name: "터미널 떼기" }));
-    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=t", expect.anything(), "session:t", { left: 900, top: 40 });
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=t", expect.anything(), expect.stringMatching(/^session-window:/), { left: 900, top: 40 });
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["에이전트"]);
+  });
+
+  it("takes a session tab dropped on the panel from another window", () => {
+    renderCanvas([
+      agentCard({ id: "a", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "에이전트" }),
+      agentCard({ id: "t", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "터미널" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "터미널 받기" }));
+    expect(screen.getByRole("tab", { name: "터미널" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByTestId("card").textContent).toBe("터미널");
+  });
+
+  it("opens a session another window sent to the main window as a panel tab", () => {
+    renderCanvas([agentCard({ id: "t", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "터미널" })]);
+    act(() => requestDock("t"));
+    expect(screen.getByRole("tab", { name: "터미널" }).getAttribute("aria-selected")).toBe("true");
+    expect(useSessionDockStore.getState().pending).toBeNull();
+  });
+
+  it("drops a session tab that moved into another window", () => {
+    renderCanvas([agentCard({ id: "t", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "터미널" })]);
+    const box = document.querySelector('[data-node="t"]')!;
+    fireEvent.pointerDown(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.click(screen.getByRole("button", { name: "터미널 옮겨 감" }));
+    expect(screen.queryByRole("tab", { name: "터미널" })).toBeNull();
   });
 
   it("resizes a session box from its corner and keeps the size", () => {

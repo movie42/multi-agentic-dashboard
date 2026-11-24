@@ -56,7 +56,7 @@ describe("AgentList context menu", () => {
     openMenuOn("첫 세션");
     await userEvent.click(screen.getByRole("menuitem", { name: /^열기/ }));
     await userEvent.click(screen.getByRole("menuitem", { name: "새 창에서 열기" }));
-    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=a", expect.objectContaining({ width: expect.any(Number) }), "session:a", undefined);
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=a", expect.objectContaining({ width: expect.any(Number) }), expect.stringMatching(/^session-window:/), undefined);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 

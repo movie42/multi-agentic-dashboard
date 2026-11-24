@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { thisWindowId } from "@/client/entities/agent";
 import { useDocViewerStore } from "@/client/features/view-doc";
 import { DocPanel } from "./DocPanel";
 
@@ -121,5 +122,72 @@ describe("DocPanel with a lead tab", () => {
     drag(screen.getAllByRole("tab")[1]!, OUTSIDE);
     expect(open).toHaveBeenCalledWith(`/doc?path=${encodeURIComponent(DOC)}`, "_blank", expect.stringContaining(`left=${OUTSIDE.screenX - 120}`));
     expect(useDocViewerStore.getState().tabs).toHaveLength(0);
+  });
+
+  const sessionDrop = (from: string, agentId: string) => ({
+    dataTransfer: {
+      types: ["application/x-agent-control-session", `application/x-agent-control-from-${from}`],
+      getData: (type: string) => (type === "application/x-agent-control-session" ? agentId : ""),
+      dropEffect: "none",
+    },
+  });
+
+  it("hands a session tab dropped on its tab strip from another window to the host", () => {
+    const onDropSession = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocPanel
+          agents={[]}
+          lead={{
+            tabs: [{ id: "a", label: "결제 API", content: <p>세션 내용</p>, closable: true }],
+            activeId: "a",
+            onActivate: vi.fn(),
+            onClose: vi.fn(),
+            onCollapse: vi.fn(),
+            onDropSession,
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    const strip = screen.getByRole("tablist");
+    fireEvent.drop(strip, sessionDrop(thisWindowId(), "a"));
+    expect(onDropSession).not.toHaveBeenCalled();
+    fireEvent.dragOver(strip, sessionDrop("w-other", "s9"));
+    fireEvent.drop(strip, sessionDrop("w-other", "s9"));
+    expect(onDropSession).toHaveBeenCalledWith("s9");
+  });
+
+  it("lets a session tab go, without a new window, once another window's tab strip took it", () => {
+    const onDetach = vi.fn();
+    const onMoved = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocPanel
+          agents={[]}
+          lead={{
+            tabs: [{ id: "a", label: "결제 API", content: <p>세션 내용</p>, closable: true, onDetach, onMoved, sessionId: "a" }],
+            activeId: "a",
+            onActivate: vi.fn(),
+            onClose: vi.fn(),
+            onCollapse: vi.fn(),
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    const tab = screen.getByRole("tab", { name: /결제 API/ });
+    fireEvent.dragStart(tab, { dataTransfer: { setData: vi.fn(), effectAllowed: "" } });
+    fireEvent.dragEnd(tab, { ...OUTSIDE, dataTransfer: { dropEffect: "move" } });
+    expect(onMoved).toHaveBeenCalled();
+    expect(onDetach).not.toHaveBeenCalled();
+  });
+
+  it("still opens a document tab in its own window when the drop reports a move", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
+    useDocViewerStore.getState().open(DOC);
+    renderPanel();
+    const tab = screen.getAllByRole("tab")[1]!;
+    fireEvent.dragStart(tab, { dataTransfer: { setData: vi.fn(), effectAllowed: "" } });
+    fireEvent.dragEnd(tab, { ...OUTSIDE, dataTransfer: { dropEffect: "move" } });
+    expect(open).toHaveBeenCalled();
   });
 });

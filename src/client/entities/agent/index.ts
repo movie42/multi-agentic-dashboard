@@ -7,3 +7,18 @@ export { PermissionModeBadge } from "./ui/PermissionModeBadge";
 export { StateBadge } from "./ui/StateBadge";
 export { restChoices, type RestChoice } from "./model/restChoices";
 export { openSessionWindow, sessionWindowHref } from "./model/sessionWindow";
+export {
+  HEARTBEAT_MS,
+  liveSessionWindows,
+  onSessionMessage,
+  postSessionMessage,
+  readRegistry,
+  thisWindowId,
+  updateRegistry,
+  watchTaken,
+  withWindow,
+  withoutWindow,
+  type SessionWindowMessage,
+} from "./model/sessionWindowChannel";
+export { acceptsSessionDrag, droppedSessionId, setSessionDrag } from "./model/sessionDrag";
+export { requestDock, useSessionDockStore } from "./model/sessionDockStore";

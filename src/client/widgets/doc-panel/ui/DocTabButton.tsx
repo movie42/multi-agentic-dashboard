@@ -2,7 +2,7 @@
 
 import { docWindowUrl, fileWindowUrl, type DocTab } from "@/client/features/view-doc";
 import { openWindow } from "@/client/shared/lib/openWindow";
-import { DETACH_HINT, detachDrag } from "./detachDrag";
+import { DETACH_HINT, useDetachDrag } from "./detachDrag";
 
 interface DocTabButtonProps {
   tab: DocTab;
@@ -13,7 +13,7 @@ interface DocTabButtonProps {
 }
 
 export function DocTabButton({ tab, active, onActivate, onPin, onClose }: DocTabButtonProps) {
-  const detach = detachDrag(tab.current, (at) => {
+  const detach = useDetachDrag(tab.current, (at) => {
     const url = tab.kind === "file" ? fileWindowUrl(tab.current) : docWindowUrl(tab.current);
     if (openWindow(url, { width: 1200, height: 960 }, "_blank", at)) onClose();
   });

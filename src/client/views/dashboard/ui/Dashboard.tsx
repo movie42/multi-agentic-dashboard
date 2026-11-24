@@ -32,6 +32,7 @@ import { SessionTabs } from "@/client/widgets/session-tabs";
 import { StageBoard } from "@/client/widgets/stage-board";
 import { TodoBoardPage } from "@/client/widgets/todo-board";
 import { useAttention } from "../model/useAttention";
+import { useSessionDock } from "../model/useSessionDock";
 import { AllLaunch } from "./AllLaunch";
 import { useKeyboardNav } from "@/client/shared/lib/useKeyboardNav";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
@@ -191,7 +192,8 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const boardQuery = useBoard(initialBoard);
   const board = boardQuery.data ?? null;
   const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
-  const prefs = useWorkspacePrefs(workspaceScopeOf(useSearchParams()));
+  const scope = workspaceScopeOf(useSearchParams());
+  const prefs = useWorkspacePrefs(scope);
   const rest = useRestOverrides();
   const hasDocTabs = useDocViewerStore((state) => state.tabs.length > 0);
   const treeShown = useFileExplorerStore((state) => state.treeOpen && state.root !== null);
@@ -268,6 +270,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     jumpTo(agent.repo, [agent.id, agent.worktreeId], agent.worktreeId);
   };
   useAttention(board?.agents ?? null, needsMeCount, folded.foldedIds, jumpToAgent);
+  useSessionDock({ main: scope === null, agents: board?.agents ?? null, selectRepo: prefs.selectRepo });
   useKeyboardNav();
 
   if (!board) {

@@ -122,7 +122,7 @@ describe("menuFor", () => {
   it("opens a session in its own window", () => {
     const items = menuFor({ kind: "node", id: "s1" }, context())?.groups.flatMap((group) => group.items) ?? [];
     items.find((item) => item.label === "새 창에서 열기")?.run();
-    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=s1", expect.objectContaining({ width: expect.any(Number) }), "session:s1", undefined);
+    expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/session?id=s1", expect.objectContaining({ width: expect.any(Number) }), expect.stringMatching(/^session-window:/), undefined);
   });
 
   it("opens a worktree's board in its own window", () => {

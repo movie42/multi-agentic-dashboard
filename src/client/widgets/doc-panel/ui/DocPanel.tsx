@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { acceptsSessionDrag, droppedSessionId } from "@/client/entities/agent";
 import { useFileExplorerStore } from "@/client/features/browse-files";
 import { targetOfDocUrl, useDocViewerStore } from "@/client/features/view-doc";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
@@ -10,7 +11,7 @@ import { paneWidth } from "@/client/shared/lib/paneWidth";
 import { ResizeHandle } from "@/client/shared/ui/ResizeHandle";
 import { DocFrame } from "./DocFrame";
 import { DocTabButton } from "./DocTabButton";
-import { DETACH_HINT, detachDrag } from "./detachDrag";
+import { DETACH_HINT, useDetachDrag } from "./detachDrag";
 import type { ScreenPoint } from "@/client/shared/lib/openWindow";
 import { openInBrowser } from "./openInBrowser";
 import type { AgentCard } from "@/common/board/types";
@@ -38,6 +39,10 @@ export interface PanelLeadTab {
   closable: boolean;
   /** Given: dropping the tab outside the app hands it to the host to open in its own window. */
   onDetach?: (at: ScreenPoint) => void;
+  /** A session tab: another window's tab strip can take it. */
+  sessionId?: string;
+  /** The tab landed in another window's tab strip. */
+  onMoved?: () => void;
 }
 
 /** What a host puts before the document tabs — the canvas puts its session tabs there. */
@@ -48,6 +53,8 @@ export interface PanelLead {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onCollapse: () => void;
+  /** Given: a session tab dragged here from another window becomes a tab of this panel. */
+  onDropSession?: (agentId: string) => void;
 }
 
 interface DocPanelProps {
@@ -80,6 +87,9 @@ export function DocPanel({ agents, lead }: DocPanelProps) {
     hide();
   };
   const framesRef = useRef<HTMLDivElement>(null);
+  const [dropping, setDropping] = useState(false);
+  const onDropSession = lead?.onDropSession;
+  const takesSession = (event: React.DragEvent<HTMLDivElement>) => onDropSession !== undefined && acceptsSessionDrag(event.dataTransfer);
   const reloadActive = () =>
     framesRef.current?.querySelector<HTMLIFrameElement>("iframe[data-active]")?.contentWindow?.location.reload();
 
@@ -198,7 +208,24 @@ export function DocPanel({ agents, lead }: DocPanelProps) {
               {ACTION_ICONS.files}
             </button>
           )}
-          <div role="tablist" className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto">
+          <div
+            role="tablist"
+            onDragOver={(event: React.DragEvent<HTMLDivElement>) => {
+              if (!takesSession(event)) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDropping(true);
+            }}
+            onDragLeave={() => setDropping(false)}
+            onDrop={(event: React.DragEvent<HTMLDivElement>) => {
+              setDropping(false);
+              if (!takesSession(event)) return;
+              event.preventDefault();
+              const agentId = droppedSessionId(event.dataTransfer);
+              if (agentId) onDropSession?.(agentId);
+            }}
+            className={`flex min-h-9 min-w-0 flex-1 items-end gap-0.5 overflow-x-auto rounded-t-md ${dropping ? "bg-tint-2" : ""}`}
+          >
             {lead?.tabs.map((tab) => (
               <LeadTabButton
                 key={tab.id}
@@ -304,12 +331,15 @@ interface LeadTabButtonProps {
   onClose: () => void;
 }
 
+const NO_DETACH = () => {};
+
 function LeadTabButton({ tab, active, onActivate, onClose }: LeadTabButtonProps) {
+  const drag = useDetachDrag(tab.id, tab.onDetach ?? NO_DETACH, { sessionId: tab.sessionId, onMoved: tab.onMoved });
   return (
     <div
       role="tab"
       aria-selected={active}
-      {...(tab.onDetach ? detachDrag(tab.id, tab.onDetach) : {})}
+      {...(tab.onDetach ? drag : {})}
       onClick={onActivate}
       onAuxClick={(event: React.MouseEvent<HTMLDivElement>) => {
         if (event.button === 1 && tab.closable) onClose();
