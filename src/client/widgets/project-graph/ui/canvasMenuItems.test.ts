@@ -73,6 +73,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     onExpandTemplate: vi.fn(),
     onSaveAsTemplate: vi.fn(),
     onEditRun: vi.fn(),
+    onEditColors: vi.fn(),
     rest: { restOf: () => null, setRest: vi.fn() },
     ...overrides,
   };
@@ -113,7 +114,7 @@ describe("menuFor", () => {
       ["열기", ["패널에서 열기", "새 창에서 열기", "워크트리 열기", "셸 터미널"]],
       ["만들기", ["다른 세션과 잇기"]],
       ["상태 바꾸기", ["쉬는 중으로 바꾸기", "잠자는 중으로 바꾸기"]],
-      ["정리", ["그룹으로 묶기", "템플릿으로 저장"]],
+      ["정리", ["그룹으로 묶기", "템플릿으로 저장", "색 바꾸기"]],
       ["닫기·지우기", ["세션 닫기"]],
     ]);
   });
@@ -129,5 +130,35 @@ describe("menuFor", () => {
     expect(labels(open?.items ?? []).slice(0, 2)).toEqual(["워크트리 열기", "새 창에서 열기"]);
     open?.items[1]?.run();
     expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/?repo=shop&worktree=%2Fp%2Fshop-a", expect.objectContaining({ width: expect.any(Number) }), "board:shop:/p/shop-a");
+  });
+
+  const recolor = (target: MenuTarget, overrides: Partial<MenuContext> = {}) => {
+    const onEditColors = vi.fn();
+    const items = menuFor(target, context({ onEditColors, ...overrides }))?.groups.flatMap((group) => group.items) ?? [];
+    items.find((item) => item.label.startsWith("색 바꾸기"))?.run();
+    return onEditColors;
+  };
+
+  it("recolours only the right-clicked session card", () => {
+    expect(recolor({ kind: "node", id: "s1" })).toHaveBeenCalledWith([{ scope: "card", id: "s1" }], "구현");
+  });
+
+  it("recolours every selected card when the click lands on the selection", () => {
+    expect(recolor({ kind: "node", id: "s1" }, { selected: ["s1", "s2"] })).toHaveBeenCalledWith(
+      [
+        { scope: "card", id: "s1" },
+        { scope: "card", id: "s2" },
+      ],
+      "고른 세션 2개",
+    );
+  });
+
+  it("recolours a worktree frame, not the sessions inside it", () => {
+    const cluster = graph.clusters.find((entry) => entry.worktree.path === "/p/shop-a")!;
+    expect(recolor({ kind: "cluster", id: cluster.id })).toHaveBeenCalledWith([{ scope: "worktree", id: "/p/shop-a" }], "워크트리 · shop-a");
+  });
+
+  it("gives a project frame on the all-projects canvas a menu that recolours it", () => {
+    expect(recolor({ kind: "project", id: "shop" })).toHaveBeenCalledWith([{ scope: "project", id: "shop" }], "프로젝트 · shop");
   });
 });

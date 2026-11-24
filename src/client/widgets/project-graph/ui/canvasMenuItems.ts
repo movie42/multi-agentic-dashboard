@@ -6,6 +6,7 @@ import { openSessionWindow, restChoices, type RestOverrides } from "@/client/ent
 import { controlRun, removeRun } from "@/client/entities/runner";
 import type { TemplateRun } from "@/common/templates/types";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
+import type { ItemColorTarget } from "@/client/features/customize-canvas-color";
 import { type CanvasState, groupNodes, groupOf, renameGroup, ungroup } from "../model/canvasState";
 import type { ProjectGraph } from "../model/graph";
 import type { MenuGroup, MenuItem, MenuRename } from "./CanvasMenu";
@@ -34,6 +35,8 @@ export interface MenuContext {
   onEditRun: (run: TemplateRun) => void;
   /** A person's 쉬는 중 / 잠자는 중 marks. */
   rest: RestOverrides;
+  /** Open the colour editor for these frames or cards; `title` names them in it. */
+  onEditColors: (targets: ItemColorTarget[], title: string) => void;
 }
 
 /**
@@ -173,17 +176,24 @@ function agentsOf(graph: ProjectGraph, ids: string[]): AgentCard[] {
   return ids.flatMap((id) => graph.nodes.get(id)?.agent ?? []);
 }
 
+function recolorItem(targets: ItemColorTarget[], title: string, context: MenuContext): MenuItem {
+  return { label: targets.length > 1 ? `색 바꾸기 (${targets.length}개)` : "색 바꾸기", run: () => context.onEditColors(targets, title) };
+}
+
+const cardTargets = (agents: AgentCard[]): ItemColorTarget[] => agents.map((agent) => ({ scope: "card", id: agent.id }));
+
 function selectionMenu(selection: AgentCard[], context: MenuContext, extra: Sections = {}): MenuContent {
   const label = `세션 ${selection.length}개`;
   const sessions = sessionsSections(selection, context, label);
+  const title = `고른 세션 ${selection.length}개`;
   return {
-    title: `고른 세션 ${selection.length}개`,
-    heading: `고른 세션 ${selection.length}개`,
+    title,
+    heading: title,
     rename: null,
     groups: sectioned({
       open: [docsItem(selection, worktreesOf(context.graph, selection), context.onOpenDoc), ...(extra.open ?? [])],
       state: sessions.state,
-      arrange: [...sessions.arrange, ...(extra.arrange ?? [])],
+      arrange: [...sessions.arrange, recolorItem(cardTargets(selection), title, context), ...(extra.arrange ?? [])],
       danger: sessions.danger,
     }),
   };
@@ -240,6 +250,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
         ],
         create: [{ label: "다른 세션과 잇기", run: () => context.onConnectFrom(agent.id) }],
         ...sessions,
+        arrange: [...sessions.arrange, recolorItem(cardTargets([agent]), nodeTitle(agent), context)],
       }),
     };
   }
@@ -274,10 +285,15 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
           { label: "여기서 워크트리 만들기", run: () => inPanel("worktree") },
         ],
         state: bulk?.state,
-        arrange: bulk?.arrange,
+        arrange: [recolorItem([{ scope: "worktree", id: worktree.worktreeId }], `워크트리 · ${worktree.name}`, context), ...(bulk?.arrange ?? [])],
         danger: [...(bulk?.danger ?? []), !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") }],
       }),
     };
+  }
+
+  if (target.kind === "project") {
+    const title = `프로젝트 · ${target.id}`;
+    return { title, rename: null, groups: sectioned({ arrange: [recolorItem([{ scope: "project", id: target.id }], title, context)] }) };
   }
 
   if (target.kind === "group") {

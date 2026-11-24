@@ -8,6 +8,7 @@ import type { StepStatus, WorkflowStep } from "@/common/workflow/types";
 import { displayStateOf, useRestOverrides } from "@/client/entities/agent";
 import { DevPortBadges } from "@/client/entities/dev-ports";
 import { gitGraphHref } from "@/client/entities/git-graph";
+import { colorKey } from "@/client/features/customize-canvas-color";
 import { WorktreeCommandButtons } from "@/client/features/run-project-command";
 import { ContextMenu, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import type { UserGroup } from "../model/canvasState";
@@ -60,22 +61,22 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
         </span>
       )}
       {steps && current >= 0 && (
-        <span className="shrink-0 text-muted">
+        <span className="shrink-0 text-canvas-worktree-soft">
           {current + 1}/{steps.length} {steps[current]?.label}
         </span>
       )}
     </>
   );
   return (
-    <g>
+    <g data-color-key={colorKey({ scope: "worktree", id: worktree.worktreeId })}>
       <rect data-cluster={id} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={14} strokeDasharray="6 5" strokeWidth={1.3} className="fill-canvas-worktree-fill stroke-canvas-worktree-line" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={CLUSTER_HEAD}>
-        <div data-drag="cluster" data-id={id} className="flex h-full cursor-grab items-center gap-2 px-4 text-[12px] leading-none select-none active:cursor-grabbing">
+        <div data-drag="cluster" data-id={id} className="flex h-full cursor-grab items-center gap-2 px-4 text-[12px] leading-none text-canvas-worktree-ink select-none active:cursor-grabbing">
           <button
             type="button"
             onClick={() => window.open(gitGraphHref(worktree.path), "_blank", "noopener")}
             title="깃 그래프에서 커밋 흐름 보기"
-            className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-muted underline decoration-faint underline-offset-[3px] hover:decoration-current"
+            className="shrink-0 text-[10px] font-semibold tracking-[0.08em] text-canvas-worktree-soft underline decoration-faint underline-offset-[3px] hover:decoration-current"
           >
             {worktree.isMain ? "MAIN" : "WORKTREE"}
           </button>
@@ -102,7 +103,7 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
               PR #{pr.number}
             </button>
           )}
-          <button type="button" onClick={onOpen} className="ml-auto shrink-0 text-muted underline decoration-faint underline-offset-[3px] hover:decoration-current">
+          <button type="button" onClick={onOpen} className="ml-auto shrink-0 text-canvas-worktree-soft underline decoration-faint underline-offset-[3px] hover:decoration-current">
             세션 {sessions}
           </button>
           <DevPortBadges worktreePath={worktree.path} />
@@ -124,7 +125,7 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
       </foreignObject>
       {empty && (
         <foreignObject x={rect.x} y={rect.y + CLUSTER_HEAD} width={rect.w} height={rect.h - CLUSTER_HEAD}>
-          <p className="px-4 text-[12px] text-muted">열린 세션이 없어요</p>
+          <p className="px-4 text-[12px] text-canvas-worktree-soft">열린 세션이 없어요</p>
         </foreignObject>
       )}
       {flowMenu &&
@@ -212,13 +213,13 @@ export function ProjectFrame({ repo, rect, agents, worktrees, onOpen }: ProjectF
   const myTurn = states.filter((state) => state === "done" || state === "blocked" || state === "waiting").length;
   const working = states.filter((state) => state === "working").length;
   return (
-    <g>
+    <g data-color-key={colorKey({ scope: "project", id: repo })}>
       <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={22} strokeWidth={1.5} className="fill-canvas-project-fill stroke-canvas-project-line" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={PROJECT_HEAD}>
-        <div data-drag="project" data-id={repo} className="flex h-full cursor-grab items-center gap-2.5 px-5 text-[12px] leading-none select-none active:cursor-grabbing">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-muted">PROJECT</span>
+        <div data-drag="project" data-id={repo} className="flex h-full cursor-grab items-center gap-2.5 px-5 text-[12px] leading-none text-canvas-project-ink select-none active:cursor-grabbing">
+          <span className="text-[10px] font-semibold tracking-[0.08em] text-canvas-project-soft">PROJECT</span>
           <span className="max-w-full shrink-0 truncate text-[16px] font-bold">{repo}</span>
-          <span className="min-w-0 truncate text-muted">
+          <span className="min-w-0 truncate text-canvas-project-soft">
             워크트리 {worktrees} · 세션 {agents.length}
             {myTurn > 0 && <span className="font-semibold text-ask"> · 내 차례 {myTurn}</span>}
             {working > 0 && <span className="font-semibold text-now"> · 작업 중 {working}</span>}

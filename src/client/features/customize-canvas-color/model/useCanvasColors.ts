@@ -1,57 +1,47 @@
 "use client";
 
 import { useStoredList } from "@/client/shared/lib/useStoredList";
+import { HEX, type ColorPart, type ColorScope } from "./colorVars";
 
 const STORAGE_KEY = "agent-control:canvas-colors";
-const HEX = /^#[0-9a-f]{6}$/i;
 
 export interface CanvasColorSlot {
-  key: "bg" | "project-line" | "project-fill" | "worktree-line" | "worktree-fill" | "card";
-  target: string;
-  part: "라인" | "배경";
-  /** The token the canvas falls back to; a colour input needs a hex, so this is what it shows with nothing picked. */
-  token: string;
+  scope: ColorScope;
+  part: ColorPart;
 }
 
-export type CanvasColorKey = CanvasColorSlot["key"];
-
 /**
- * Stored by position, so the order is part of the storage format. Session-state colours (a card's
- * border, the dot beside its state) are left out on purpose.
+ * Stored by position, so the order is part of the storage format: new slots go at the end.
+ * Session-state colours (a card's border, the dot beside its state) are left out on purpose.
  */
 export const CANVAS_COLOR_SLOTS: readonly CanvasColorSlot[] = [
-  { key: "bg", target: "캔버스", part: "배경", token: "--bg" },
-  { key: "project-line", target: "프로젝트", part: "라인", token: "--hair" },
-  { key: "project-fill", target: "프로젝트", part: "배경", token: "--tint" },
-  { key: "worktree-line", target: "워크트리", part: "라인", token: "--faint" },
-  { key: "worktree-fill", target: "워크트리", part: "배경", token: "--tint" },
-  { key: "card", target: "카드", part: "배경", token: "--bg" },
+  { scope: "canvas", part: "fill" },
+  { scope: "project", part: "line" },
+  { scope: "project", part: "fill" },
+  { scope: "worktree", part: "line" },
+  { scope: "worktree", part: "fill" },
+  { scope: "card", part: "fill" },
+  { scope: "project", part: "ink" },
+  { scope: "worktree", part: "ink" },
+  { scope: "card", part: "ink" },
 ];
 
-/** `null` means the colour from `globals.css`. */
-export type CanvasColors = Record<CanvasColorKey, string | null>;
+/** By slot position; `null` means the colour from `globals.css`. */
+export type CanvasColors = Array<string | null>;
 
-export const DEFAULT_CANVAS_COLORS: CanvasColors = {
-  bg: null,
-  "project-line": null,
-  "project-fill": null,
-  "worktree-line": null,
-  "worktree-fill": null,
-  card: null,
-};
+export const slotIndex = (scope: ColorScope, part: ColorPart) =>
+  CANVAS_COLOR_SLOTS.findIndex((slot) => slot.scope === scope && slot.part === part);
 
 function hexOrNull(value: string | undefined): string | null {
   return value && HEX.test(value) ? value : null;
 }
 
+/** The colours picked for the whole canvas, under any one project's, worktree's or card's own. */
 export function useCanvasColors(): [CanvasColors, (next: CanvasColors) => void] {
   const [stored, writeStored] = useStoredList(STORAGE_KEY);
-  const colors = CANVAS_COLOR_SLOTS.reduce<CanvasColors>(
-    (picked, slot, index) => ({ ...picked, [slot.key]: hexOrNull(stored[index]) }),
-    DEFAULT_CANVAS_COLORS,
-  );
+  const colors = CANVAS_COLOR_SLOTS.map((_, index) => hexOrNull(stored[index]));
   const write = (next: CanvasColors) => {
-    const values = CANVAS_COLOR_SLOTS.map((slot) => next[slot.key] ?? "");
+    const values = CANVAS_COLOR_SLOTS.map((_, index) => next[index] ?? "");
     writeStored(values.every((value) => value === "") ? [] : values);
   };
   return [colors, write];

@@ -22,6 +22,7 @@ import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
 import { displayStateOf, openSessionWindow, useRestOverrides } from "@/client/entities/agent";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
+import { ItemColorEditor, type ItemColorTarget } from "@/client/features/customize-canvas-color";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
 import { draftFromSelection } from "../model/templateDraft";
 import { ConductorPopover, ConnectPicker, TemplatePopover } from "./CanvasOverlays";
@@ -130,6 +131,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const [pending, setPending] = useState<PendingConnect | null>(null);
   const [stageKey, setStageKey] = useState(0);
   const [menu, setMenu] = useState<{ target: MenuTarget; at: Point; screen: Point } | null>(null);
+  const [recoloring, setRecoloring] = useState<{ targets: ItemColorTarget[]; title: string; at: Point } | null>(null);
   const [conductorFor, setConductorFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [templateFor, setTemplateFor] = useState<{ clusterId: string; at: Point } | null>(null);
   const [editing, setEditing] = useState<{ template: WorkflowTemplate; isNew: boolean; run?: TemplateRun } | null>(null);
@@ -281,6 +283,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         },
         rest,
         onEditRun: editRun,
+        onEditColors: (targets, title) => setRecoloring({ targets, title, at: menu.screen }),
         onSaveAsTemplate: (chosen) => setEditing({ template: draftFromSelection(crypto.randomUUID(), chosen, graph.edges, nodeTitle), isNew: true }),
       })
     : null;
@@ -373,6 +376,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   return (
     <div className="flex h-dvh min-w-0">
       {menuContent && menu && <CanvasMenu key={`${menu.screen.x}:${menu.screen.y}`} at={menu.screen} {...menuContent} onClose={() => setMenu(null)} />}
+      {recoloring && <ItemColorEditor {...recoloring} onClose={() => setRecoloring(null)} />}
       {editing && (
         <TemplateEditor key={editing.run?.id ?? editing.template.id} initial={editing.template} isNew={editing.isNew} run={editing.run} onClose={() => setEditing(null)} />
       )}

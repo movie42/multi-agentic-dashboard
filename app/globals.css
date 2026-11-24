@@ -105,12 +105,20 @@
   --color-prompt-ink: var(--prompt-ink-custom, var(--prompt-ink));
   --color-term-bg: var(--term-bg);
   /* --canvas-*-custom are set on <html> when the user picks canvas colours; session-state colours have no override. */
+  /* A frame or card can carry its own --canvas-*-custom (a [data-color-key] rule), which wins on that item. */
+  /* `soft` is the text that is `muted` by default; it follows a picked text colour, dimmed. */
   --color-canvas: var(--canvas-bg-custom, var(--bg));
   --color-canvas-project-line: var(--canvas-project-line-custom, var(--hair));
   --color-canvas-project-fill: var(--canvas-project-fill-custom, color-mix(in oklab, var(--tint) 20%, transparent));
+  --color-canvas-project-ink: var(--canvas-project-ink-custom, var(--fg));
+  --color-canvas-project-soft: var(--canvas-project-soft-custom, var(--muted));
   --color-canvas-worktree-line: var(--canvas-worktree-line-custom, var(--faint));
   --color-canvas-worktree-fill: var(--canvas-worktree-fill-custom, color-mix(in oklab, var(--tint) 40%, transparent));
-  --color-canvas-card: var(--canvas-card-custom, var(--bg));
+  --color-canvas-worktree-ink: var(--canvas-worktree-ink-custom, var(--fg));
+  --color-canvas-worktree-soft: var(--canvas-worktree-soft-custom, var(--muted));
+  --color-canvas-card-fill: var(--canvas-card-fill-custom, var(--bg));
+  --color-canvas-card-ink: var(--canvas-card-ink-custom, var(--fg));
+  --color-canvas-card-soft: var(--canvas-card-soft-custom, var(--muted));
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }

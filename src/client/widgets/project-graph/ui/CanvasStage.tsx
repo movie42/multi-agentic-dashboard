@@ -67,9 +67,11 @@ type PointerTool = "select" | "hand";
 const MIN_FRAME: Size = { w: 240, h: 120 };
 
 export type MenuTarget = {
-  kind: "node" | "cluster" | "group" | "edge" | "canvas";
+  kind: "node" | "cluster" | "group" | "project" | "edge" | "canvas";
   id: string;
 };
+
+const DRAG_MENU_KIND: Record<string, MenuTarget["kind"]> = { group: "group", project: "project", cluster: "cluster" };
 
 const DOUBLE_CLICK_MS = 400;
 
@@ -635,12 +637,9 @@ export function CanvasStage(props: CanvasStageProps) {
       ? { kind: "node", id: node }
       : edge
         ? { kind: "edge", id: edge }
-        : handle && handle.getAttribute("data-drag") !== "project"
+        : handle
           ? {
-              kind:
-                handle.getAttribute("data-drag") === "group"
-                  ? "group"
-                  : "cluster",
+              kind: DRAG_MENU_KIND[handle.getAttribute("data-drag") ?? ""] ?? "cluster",
               id: handle.getAttribute("data-id") ?? "",
             }
           : frame

@@ -13,6 +13,7 @@ import {
 } from "@/client/entities/agent";
 import { formatElapsed, plainMessage } from "@/client/shared/lib/format";
 import type { ConductorScopeKind } from "@/common/orchestration/types";
+import { colorKey } from "@/client/features/customize-canvas-color";
 import type { GraphNode } from "../model/graph";
 
 const NODE_STATE: Record<DisplayState, { label: string; tone: string; dot: string }> = {
@@ -72,8 +73,9 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
   const hasMeta = Boolean(agent.model || agent.effort || agent.permissionMode || agent.contextPercent !== null);
   return (
     <div
-      className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] px-3 py-2.5 select-none ${state.tone} ${
-        conductor ? "bg-now/5" : "bg-canvas-card"
+      data-color-key={colorKey({ scope: "card", id: agent.id })}
+      className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] bg-canvas-card-fill px-3 py-2.5 select-none ${state.tone} ${
+        conductor ? "bg-linear-to-b from-now/5 to-now/5" : ""
       } ${outside ? "border-dashed" : ""} ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-canvas" : ""}`}
     >
       <p className="flex items-center gap-1.5 text-[11px] leading-none font-semibold tracking-[0.02em]">
@@ -84,9 +86,9 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
           </span>
         )}
         <span>{state.label}</span>
-        <span className="ml-auto font-normal text-muted">{formatElapsed(agent.stateSince, now)}</span>
+        <span className="ml-auto font-normal text-canvas-card-soft">{formatElapsed(agent.stateSince, now)}</span>
       </p>
-      <p className="truncate text-[14px] leading-snug font-bold text-fg">{nodeTitle(agent)}</p>
+      <p className="truncate text-[14px] leading-snug font-bold text-canvas-card-ink">{nodeTitle(agent)}</p>
       {conductor ? (
         <p className="flex min-w-0 flex-wrap gap-1 text-[11px] leading-none">
           {delegatedTo.map((name) => (
@@ -95,10 +97,10 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
             </span>
           ))}
           {reports > 0 && <span className="rounded-[5px] bg-now/10 px-1.5 py-1 text-now">보고 {reports}</span>}
-          {delegatedTo.length === 0 && reports === 0 && !routed && <span className="py-1 text-muted">아직 맡긴 세션이 없어요</span>}
+          {delegatedTo.length === 0 && reports === 0 && !routed && <span className="py-1 text-canvas-card-soft">아직 맡긴 세션이 없어요</span>}
         </p>
       ) : (
-        <p className={`text-[12px] text-muted ${roomy ? "min-h-0 flex-1 overflow-hidden leading-relaxed break-words whitespace-pre-line" : "truncate"}`}>
+        <p className={`text-[12px] text-canvas-card-soft ${roomy ? "min-h-0 flex-1 overflow-hidden leading-relaxed break-words whitespace-pre-line" : "truncate"}`}>
           {detailOf(agent)}
         </p>
       )}
@@ -113,7 +115,7 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
         <p className={`flex min-w-0 items-center ${hasMeta ? "" : "mt-auto"} gap-1.5 text-[11px] leading-none text-now`} title={agent.subagents.map((run) => `${run.description} — ${run.activity ?? "시작하는 중"}`).join("\n")}>
           <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-current" />
           <span className="shrink-0 font-semibold">서브 에이전트 {agent.subagents.length}</span>
-          <span className="truncate text-muted">{agent.subagents[0]?.activity ?? agent.subagents[0]?.description}</span>
+          <span className="truncate text-canvas-card-soft">{agent.subagents[0]?.activity ?? agent.subagents[0]?.description}</span>
         </p>
       )}
     </div>

@@ -24,13 +24,18 @@ describe("CanvasColorPanel", () => {
     fireEvent.change(screen.getByLabelText("프로젝트 라인 색"), { target: { value: "#202020" } });
     fireEvent.change(screen.getByLabelText("워크트리 배경 색"), { target: { value: "#303030" } });
     fireEvent.change(screen.getByLabelText("카드 배경 색"), { target: { value: "#404040" } });
+    fireEvent.change(screen.getByLabelText("프로젝트 글자 색"), { target: { value: "#505050" } });
 
     const root = document.documentElement.style;
     expect(root.getPropertyValue("--canvas-bg-custom")).toBe("#101010");
     expect(root.getPropertyValue("--canvas-project-line-custom")).toBe("#202020");
     expect(root.getPropertyValue("--canvas-project-fill-custom")).toBe("");
     expect(root.getPropertyValue("--canvas-worktree-fill-custom")).toBe("#303030");
-    expect(root.getPropertyValue("--canvas-card-custom")).toBe("#404040");
+    expect(root.getPropertyValue("--canvas-card-fill-custom")).toBe("#404040");
+    expect(root.getPropertyValue("--canvas-project-ink-custom")).toBe("#505050");
+    expect(root.getPropertyValue("--canvas-project-soft-custom")).toBe("color-mix(in oklab, #505050 70%, transparent)");
+    expect(root.getPropertyValue("--canvas-card-ink-custom")).toBe("");
+    // Text colours were added after the first six, so colours saved before them still load in place.
     expect(JSON.parse(window.localStorage.getItem("agent-control:canvas-colors") ?? "[]")).toEqual([
       "#101010",
       "#202020",
@@ -38,11 +43,15 @@ describe("CanvasColorPanel", () => {
       "",
       "#303030",
       "#404040",
+      "#505050",
+      "",
+      "",
     ]);
 
     await userEvent.click(screen.getByRole("button", { name: "기본 색으로" }));
     expect(root.getPropertyValue("--canvas-bg-custom")).toBe("");
-    expect(root.getPropertyValue("--canvas-card-custom")).toBe("");
+    expect(root.getPropertyValue("--canvas-card-fill-custom")).toBe("");
+    expect(root.getPropertyValue("--canvas-project-soft-custom")).toBe("");
     expect(window.localStorage.getItem("agent-control:canvas-colors")).toBe("[]");
     expect(screen.queryByRole("button", { name: "기본 색으로" })).toBeNull();
   });

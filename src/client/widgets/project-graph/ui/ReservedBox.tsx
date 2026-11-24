@@ -23,7 +23,7 @@ export function ReservedBox({ reserved, selected }: ReservedBoxProps) {
   const flags = cardFlags(card);
   return (
     <div
-      className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] border-dashed border-faint bg-canvas-card/70 px-3 py-2.5 text-muted select-none ${
+      className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] border-dashed border-faint bg-canvas-card-fill/70 px-3 py-2.5 text-muted select-none ${
         selected ? "ring-2 ring-fg ring-offset-2 ring-offset-canvas" : ""
       }`}
     >
