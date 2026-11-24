@@ -1008,6 +1008,16 @@
         "app/globals.css"
       ],
       "sha": "9b891f1"
+    },
+    {
+      "date": "2026-11-24",
+      "text": "리뷰 반영: 직접 고르기에 실제 칠해진 색 표시, 프로젝트 안쪽 우클릭 → 프로젝트 메뉴, 여러 카드 견본 표시 · 안내 문구 수정. 닫힌 세션 카드 색 정리는 저장 색 유실 위험으로 되돌림(449acf7)",
+      "files": [
+        "src/client/features/customize-canvas-color/ui/ItemColorEditor.tsx",
+        "src/client/widgets/project-graph/ui/CanvasStage.tsx",
+        "src/client/widgets/project-graph/ui/canvasMenuItems.ts"
+      ],
+      "sha": "96bb1a2"
     }
   ],
   "skipped": [
