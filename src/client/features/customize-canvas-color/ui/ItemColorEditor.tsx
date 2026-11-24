@@ -11,14 +11,16 @@ interface ItemColorEditorProps {
   /** One scope at a time: the right-clicked frame, or the selected cards. */
   targets: ItemColorTarget[];
   title: string;
+  /** Every session on the board; colours of cards not in it are forgotten on the next paint. */
+  liveCards?: ReadonlySet<string>;
   at: MenuPoint;
   onClose: () => void;
 }
 
 /** Colours for one project, worktree or card (or every selected card), opened from the canvas's right-click menu. */
-export function ItemColorEditor({ targets, title, at, onClose }: ItemColorEditorProps) {
+export function ItemColorEditor({ targets, title, liveCards, at, onClose }: ItemColorEditorProps) {
   const [first] = targets;
-  const items = useItemColors();
+  const items = useItemColors(liveCards);
   const [canvasColors] = useCanvasColors();
   if (!first) return null;
   const { scope } = first;

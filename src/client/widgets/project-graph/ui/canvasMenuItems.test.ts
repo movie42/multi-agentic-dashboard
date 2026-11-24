@@ -74,6 +74,7 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     onSaveAsTemplate: vi.fn(),
     onEditRun: vi.fn(),
     onEditColors: vi.fn(),
+    liveCards: new Set(["s1", "s2"]),
     rest: { restOf: () => null, setRest: vi.fn() },
     ...overrides,
   };
