@@ -3,3 +3,4 @@ export { CanvasColorPanel } from "./ui/CanvasColorPanel";
 export { CanvasColorSync } from "./ui/CanvasColorSync";
 export { CanvasItemColorStyle } from "./ui/CanvasItemColorStyle";
 export { ItemColorEditor } from "./ui/ItemColorEditor";
+export { ItemColorSwatches } from "./ui/ItemColorSwatches";

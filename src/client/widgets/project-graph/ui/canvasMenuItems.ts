@@ -50,6 +50,13 @@ export interface MenuContent {
   heading?: string;
   rename: MenuRename | null;
   groups: MenuGroup[];
+  /** The frames or cards the swatch row on top paints; `custom` opens the full colour editor. */
+  colors?: MenuColors;
+}
+
+export interface MenuColors {
+  targets: ItemColorTarget[];
+  custom: () => void;
 }
 
 type Entry = MenuItem | null | false;
@@ -176,8 +183,8 @@ function agentsOf(graph: ProjectGraph, ids: string[]): AgentCard[] {
   return ids.flatMap((id) => graph.nodes.get(id)?.agent ?? []);
 }
 
-function recolorItem(targets: ItemColorTarget[], title: string, context: MenuContext): MenuItem {
-  return { label: targets.length > 1 ? `색 바꾸기 (${targets.length}개)` : "색 바꾸기", run: () => context.onEditColors(targets, title) };
+function colorsOf(targets: ItemColorTarget[], title: string, context: MenuContext): MenuColors {
+  return { targets, custom: () => context.onEditColors(targets, title) };
 }
 
 const cardTargets = (agents: AgentCard[]): ItemColorTarget[] => agents.map((agent) => ({ scope: "card", id: agent.id }));
@@ -193,9 +200,10 @@ function selectionMenu(selection: AgentCard[], context: MenuContext, extra: Sect
     groups: sectioned({
       open: [docsItem(selection, worktreesOf(context.graph, selection), context.onOpenDoc), ...(extra.open ?? [])],
       state: sessions.state,
-      arrange: [...sessions.arrange, recolorItem(cardTargets(selection), title, context), ...(extra.arrange ?? [])],
+      arrange: [...sessions.arrange, ...(extra.arrange ?? [])],
       danger: sessions.danger,
     }),
+    colors: colorsOf(cardTargets(selection), title, context),
   };
 }
 
@@ -250,8 +258,8 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
         ],
         create: [{ label: "다른 세션과 잇기", run: () => context.onConnectFrom(agent.id) }],
         ...sessions,
-        arrange: [...sessions.arrange, recolorItem(cardTargets([agent]), nodeTitle(agent), context)],
       }),
+      colors: colorsOf(cardTargets([agent]), nodeTitle(agent), context),
     };
   }
 
@@ -285,15 +293,16 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
           { label: "여기서 워크트리 만들기", run: () => inPanel("worktree") },
         ],
         state: bulk?.state,
-        arrange: [recolorItem([{ scope: "worktree", id: worktree.worktreeId }], `워크트리 · ${worktree.name}`, context), ...(bulk?.arrange ?? [])],
+        arrange: bulk?.arrange,
         danger: [...(bulk?.danger ?? []), !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") }],
       }),
+      colors: colorsOf([{ scope: "worktree", id: worktree.worktreeId }], `워크트리 · ${worktree.name}`, context),
     };
   }
 
   if (target.kind === "project") {
     const title = `프로젝트 · ${target.id}`;
-    return { title, rename: null, groups: sectioned({ arrange: [recolorItem([{ scope: "project", id: target.id }], title, context)] }) };
+    return { title, rename: null, groups: [], colors: colorsOf([{ scope: "project", id: target.id }], title, context) };
   }
 
   if (target.kind === "group") {

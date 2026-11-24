@@ -18,6 +18,15 @@
   --tint-2: #edf1f6;
   --prompt: #800020;
   --prompt-ink: #ffffff;
+  /* Canvas swatches: one hue each; the canvas mixes background and text from it with --bg / --fg. */
+  --swatch-red: #e03131;
+  --swatch-orange: #f76707;
+  --swatch-yellow: #f59f00;
+  --swatch-green: #2f9e44;
+  --swatch-teal: #0c8599;
+  --swatch-blue: #1c7ed6;
+  --swatch-violet: #7048e8;
+  --swatch-gray: #868e96;
   /* Terminal palette: Tango Light, the light theme Orca ships as "Builtin Tango Light". */
   --term-bg: #ffffff;
   --term-fg: #2e3436;
@@ -107,6 +116,14 @@
   /* --canvas-*-custom are set on <html> when the user picks canvas colours; session-state colours have no override. */
   /* A frame or card can carry its own --canvas-*-custom (a [data-color-key] rule), which wins on that item. */
   /* `soft` is the text that is `muted` by default; it follows a picked text colour, dimmed. */
+  --color-swatch-red: var(--swatch-red);
+  --color-swatch-orange: var(--swatch-orange);
+  --color-swatch-yellow: var(--swatch-yellow);
+  --color-swatch-green: var(--swatch-green);
+  --color-swatch-teal: var(--swatch-teal);
+  --color-swatch-blue: var(--swatch-blue);
+  --color-swatch-violet: var(--swatch-violet);
+  --color-swatch-gray: var(--swatch-gray);
   --color-canvas: var(--canvas-bg-custom, var(--bg));
   --color-canvas-project-line: var(--canvas-project-line-custom, var(--hair));
   --color-canvas-project-fill: var(--canvas-project-fill-custom, color-mix(in oklab, var(--tint) 20%, transparent));

@@ -31,9 +31,37 @@ const customName = (scope: ColorScope, part: ColorPart | "soft") => (scope === "
  * The custom properties one picked colour sets; `globals.css` prefers them over the default tokens.
  * A text colour also sets a dimmer one for the secondary text that is `muted` by default.
  */
-export function customVars(scope: ColorScope, part: ColorPart, hex: string): Array<[string, string]> {
-  const own: [string, string] = [customName(scope, part), hex];
-  return part === "ink" ? [own, [customName(scope, "soft"), `color-mix(in oklab, ${hex} 70%, transparent)`]] : [own];
+export function customVars(scope: ColorScope, part: ColorPart, color: string): Array<[string, string]> {
+  const own: [string, string] = [customName(scope, part), color];
+  return part === "ink" ? [own, [customName(scope, "soft"), `color-mix(in oklab, ${color} 70%, transparent)`]] : [own];
+}
+
+/** `dot` is spelled out per swatch so Tailwind sees the class. */
+export const SWATCHES = [
+  { name: "red", label: "빨강", dot: "bg-swatch-red" },
+  { name: "orange", label: "주황", dot: "bg-swatch-orange" },
+  { name: "yellow", label: "노랑", dot: "bg-swatch-yellow" },
+  { name: "green", label: "초록", dot: "bg-swatch-green" },
+  { name: "teal", label: "청록", dot: "bg-swatch-teal" },
+  { name: "blue", label: "파랑", dot: "bg-swatch-blue" },
+  { name: "violet", label: "보라", dot: "bg-swatch-violet" },
+  { name: "gray", label: "회색", dot: "bg-swatch-gray" },
+] as const;
+
+export type SwatchName = (typeof SWATCHES)[number]["name"];
+
+/**
+ * One swatch paints every part a scope has. Background and text are mixed from the swatch's hue with
+ * `--bg` / `--fg`, so the same swatch reads right in light and dark mode.
+ */
+export function swatchVars(scope: ColorScope, name: SwatchName): Array<[string, string]> {
+  const hue = `var(--swatch-${name})`;
+  const color: Record<ColorPart, string> = {
+    line: hue,
+    fill: `color-mix(in oklab, ${hue} 14%, var(--bg))`,
+    ink: `color-mix(in oklab, ${hue} 55%, var(--fg))`,
+  };
+  return PARTS_OF[scope].flatMap((part) => customVars(scope, part, color[part]));
 }
 
 /** Every custom property a scope's part can set, for clearing it. */

@@ -22,7 +22,7 @@ export function ItemColorEditor({ targets, title, at, onClose }: ItemColorEditor
   const [canvasColors] = useCanvasColors();
   if (!first) return null;
   const { scope } = first;
-  const customized = targets.some((target) => PARTS_OF[scope].some((part) => items.colorOf(target, part) !== null));
+  const customized = targets.some((target) => items.swatchOf(target) !== null || PARTS_OF[scope].some((part) => items.colorOf(target, part) !== null));
   // With no colour of its own, an item shows the canvas-wide colour, then the default token.
   const shown = (part: ColorPart) =>
     items.colorOf(first, part) ?? canvasColors[slotIndex(scope, part)] ?? tokenValue(DEFAULT_TOKEN[scope][part] ?? "--fg");

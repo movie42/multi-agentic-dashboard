@@ -114,7 +114,7 @@ describe("menuFor", () => {
       ["열기", ["패널에서 열기", "새 창에서 열기", "워크트리 열기", "셸 터미널"]],
       ["만들기", ["다른 세션과 잇기"]],
       ["상태 바꾸기", ["쉬는 중으로 바꾸기", "잠자는 중으로 바꾸기"]],
-      ["정리", ["그룹으로 묶기", "템플릿으로 저장", "색 바꾸기"]],
+      ["정리", ["그룹으로 묶기", "템플릿으로 저장"]],
       ["닫기·지우기", ["세션 닫기"]],
     ]);
   });
@@ -132,33 +132,47 @@ describe("menuFor", () => {
     expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/?repo=shop&worktree=%2Fp%2Fshop-a", expect.objectContaining({ width: expect.any(Number) }), "board:shop:/p/shop-a");
   });
 
+  // The swatch row on top of the menu paints; its '직접' button opens the full editor.
   const recolor = (target: MenuTarget, overrides: Partial<MenuContext> = {}) => {
     const onEditColors = vi.fn();
-    const items = menuFor(target, context({ onEditColors, ...overrides }))?.groups.flatMap((group) => group.items) ?? [];
-    items.find((item) => item.label.startsWith("색 바꾸기"))?.run();
-    return onEditColors;
+    const colors = menuFor(target, context({ onEditColors, ...overrides }))?.colors;
+    colors?.custom();
+    return { targets: colors?.targets, onEditColors };
   };
 
-  it("recolours only the right-clicked session card", () => {
-    expect(recolor({ kind: "node", id: "s1" })).toHaveBeenCalledWith([{ scope: "card", id: "s1" }], "구현");
+  it("paints only the right-clicked session card", () => {
+    const { targets, onEditColors } = recolor({ kind: "node", id: "s1" });
+    expect(targets).toEqual([{ scope: "card", id: "s1" }]);
+    expect(onEditColors).toHaveBeenCalledWith([{ scope: "card", id: "s1" }], "구현");
   });
 
-  it("recolours every selected card when the click lands on the selection", () => {
-    expect(recolor({ kind: "node", id: "s1" }, { selected: ["s1", "s2"] })).toHaveBeenCalledWith(
-      [
-        { scope: "card", id: "s1" },
-        { scope: "card", id: "s2" },
-      ],
-      "고른 세션 2개",
-    );
+  it("paints every selected card when the click lands on the selection", () => {
+    const { targets, onEditColors } = recolor({ kind: "node", id: "s1" }, { selected: ["s1", "s2"] });
+    const both = [
+      { scope: "card", id: "s1" },
+      { scope: "card", id: "s2" },
+    ];
+    expect(targets).toEqual(both);
+    expect(onEditColors).toHaveBeenCalledWith(both, "고른 세션 2개");
   });
 
-  it("recolours a worktree frame, not the sessions inside it", () => {
+  it("paints a worktree frame, not the sessions inside it", () => {
     const cluster = graph.clusters.find((entry) => entry.worktree.path === "/p/shop-a")!;
-    expect(recolor({ kind: "cluster", id: cluster.id })).toHaveBeenCalledWith([{ scope: "worktree", id: "/p/shop-a" }], "워크트리 · shop-a");
+    const { targets, onEditColors } = recolor({ kind: "cluster", id: cluster.id });
+    expect(targets).toEqual([{ scope: "worktree", id: "/p/shop-a" }]);
+    expect(onEditColors).toHaveBeenCalledWith([{ scope: "worktree", id: "/p/shop-a" }], "워크트리 · shop-a");
   });
 
-  it("gives a project frame on the all-projects canvas a menu that recolours it", () => {
-    expect(recolor({ kind: "project", id: "shop" })).toHaveBeenCalledWith([{ scope: "project", id: "shop" }], "프로젝트 · shop");
+  it("gives a project frame on the all-projects canvas a menu that paints it", () => {
+    expect(recolor({ kind: "project", id: "shop" }).targets).toEqual([{ scope: "project", id: "shop" }]);
+  });
+
+  it("offers no colours for a line or the empty canvas", () => {
+    expect(menuFor({ kind: "canvas", id: "" }, context())?.colors).toBeUndefined();
+  });
+
+  it("no longer hides recolouring in the arrange group", () => {
+    const items = menuFor({ kind: "node", id: "s1" }, context())?.groups.flatMap((group) => group.items) ?? [];
+    expect(items.some((item) => item.label.includes("색"))).toBe(false);
   });
 });

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { ContextMenu, MenuHeading, MenuItem as MenuRow, MenuSeparator, type MenuPoint } from "@/client/shared/ui/ContextMenu";
 import { MenuGroups } from "@/client/shared/ui/MenuGroups";
+import { ItemColorSwatches } from "@/client/features/customize-canvas-color";
+import type { MenuColors } from "./canvasMenuItems";
 
 export interface MenuItem {
   label: string;
@@ -39,11 +41,12 @@ interface CanvasMenuProps {
   heading?: string;
   groups: MenuGroup[];
   rename: MenuRename | null;
+  colors?: MenuColors;
   onClose: () => void;
 }
 
 /** The right-click menu on a box, frame or line: the app's shared context menu, groups first and their items to the side. */
-export function CanvasMenu({ at, title, heading, groups, rename, onClose }: CanvasMenuProps) {
+export function CanvasMenu({ at, title, heading, groups, rename, colors, onClose }: CanvasMenuProps) {
   const [asking, setAsking] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [submenu, setSubmenu] = useState<MenuItem | null>(null);
@@ -86,6 +89,18 @@ export function CanvasMenu({ at, title, heading, groups, rename, onClose }: Canv
       ) : (
         <>
           {heading && <MenuHeading>{heading}</MenuHeading>}
+          {colors && (
+            <>
+              <ItemColorSwatches
+                targets={colors.targets}
+                onCustom={() => {
+                  colors.custom();
+                  onClose();
+                }}
+              />
+              {(rename || groups.length > 0) && <MenuSeparator />}
+            </>
+          )}
           {renaming && rename ? (
             <input
               autoFocus
