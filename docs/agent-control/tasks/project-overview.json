@@ -998,6 +998,16 @@
         "app/globals.css"
       ],
       "sha": "26ad91d"
+    },
+    {
+      "date": "2026-11-24",
+      "text": "우클릭 메뉴 맨 위 색 견본 8개(--swatch-*) 한 번 클릭으로 칠하기, 정리 → 색 바꾸기는 '직접 고르기…'로 대체",
+      "files": [
+        "src/client/features/customize-canvas-color/ui/ItemColorSwatches.tsx",
+        "src/client/widgets/project-graph/ui/CanvasMenu.tsx",
+        "app/globals.css"
+      ],
+      "sha": "9b891f1"
     }
   ],
   "skipped": [
