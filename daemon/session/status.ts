@@ -7,6 +7,12 @@ export interface StatusSignal {
   conversationId?: string | null;
   /** `permission_mode` from the hook payload. */
   permissionMode?: string | null;
+  /** `trigger` from a PreCompact payload: `manual` for /compact, `auto` when the context fills mid-turn. */
+  compactTrigger?: string | null;
+  /** `source` from a SessionStart payload: `startup`, `resume`, `clear` or `compact`. */
+  sessionSource?: string | null;
+  /** Set by the registry: this SessionStart closes a /compact, which sends no Stop hook. */
+  endsCompact?: boolean;
 }
 
 export function nextStatus(current: RunnerStatus, signal: StatusSignal): RunnerStatus {
@@ -26,7 +32,9 @@ export function nextStatus(current: RunnerStatus, signal: StatusSignal): RunnerS
     case "interrupt":
       return current === "working" ? "idle" : current;
     case "SessionStart":
-      return current === "waiting" ? "idle" : current;
+      return current === "waiting" || signal.endsCompact ? "idle" : current;
+    case "PreCompact":
+      return signal.compactTrigger === "manual" ? "working" : current;
     case "UserPromptSubmit":
     case "PostToolUse":
       return "working";

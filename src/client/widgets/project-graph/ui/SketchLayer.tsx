@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { adopt, boundsOf, capPoints, centerOf, dragBox, moveItems, penPath, placed, resizeItem, simplify, unplaced } from "@/common/sketch/ops";
 import { SKETCH_ITEM_LIMIT, SKETCH_POINT_LIMIT, SKETCH_TEXT_LIMIT } from "@/common/sketch/schema";
-import { linkSelection, textSegments } from "@/common/sketch/links";
+import { textSegments } from "@/common/sketch/links";
+import { fillEditable, linkPastedSelection, readEditable } from "./linkEditing";
 import { SKETCH_COLORS } from "@/common/sketch/schema";
 import type { SketchColor, SketchItem, SketchPoint, SketchRect } from "@/common/sketch/types";
 import type { Sketch } from "../model/useSketch";
@@ -371,33 +372,57 @@ interface TextBodyProps {
   onCommit: (text: string) => void;
 }
 
+interface TextEditorProps {
+  item: TextBodyProps["item"];
+  pad: string;
+  tone: string;
+  onCommit: (text: string) => void;
+}
+
+/** Edits the memo with its links shown by name, like the read view; the stored text keeps `[name](url)`. */
+function TextEditor({ item, pad, tone, onCommit }: TextEditorProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    fillEditable(box, item.text);
+    box.focus();
+    const selection = box.ownerDocument.getSelection();
+    selection?.selectAllChildren(box);
+    selection?.collapseToEnd();
+    // Fill once when editing opens; later renders must not reset what is being typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div
+      ref={ref}
+      role="textbox"
+      aria-multiline
+      aria-label={item.kind === "note" ? "메모 내용" : "글 내용"}
+      tabIndex={0}
+      contentEditable="plaintext-only"
+      suppressContentEditableWarning
+      data-placeholder={item.kind === "note" ? "메모" : "글"}
+      data-scroll-overflow
+      onBlur={(event) => onCommit(readEditable(event.currentTarget))}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) event.currentTarget.blur();
+      }}
+      onPaste={(event) => {
+        if (linkPastedSelection(event.currentTarget, event.clipboardData.getData("text/plain"))) event.preventDefault();
+      }}
+      className={`h-full w-full overflow-y-auto break-words whitespace-pre-wrap outline-none empty:before:text-muted empty:before:content-[attr(data-placeholder)] [&_a]:text-focus [&_a]:underline [&_a]:underline-offset-2 ${pad} ${tone}`}
+    />
+  );
+}
+
 function TextBody({ item, editing, onCommit }: TextBodyProps) {
   const pad = item.kind === "note" ? "p-3" : "p-1";
   const tone = item.kind === "note" ? "text-fg text-[14px] leading-snug" : `${INK[item.color]} text-[18px] leading-snug font-semibold`;
   return (
     <foreignObject x={item.x} y={item.y} width={item.w} height={item.h} className={item.kind === "text" ? "overflow-visible" : undefined}>
       {editing ? (
-        <textarea
-          aria-label={item.kind === "note" ? "메모 내용" : "글 내용"}
-          autoFocus
-          defaultValue={item.text}
-          placeholder={item.kind === "note" ? "메모" : "글"}
-          data-scroll-overflow
-          maxLength={SKETCH_TEXT_LIMIT}
-          onBlur={(event) => onCommit(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) event.currentTarget.blur();
-          }}
-          onPaste={(event) => {
-            const box = event.currentTarget;
-            const linked = linkSelection(box.value, box.selectionStart, box.selectionEnd, event.clipboardData.getData("text/plain"));
-            if (!linked) return;
-            event.preventDefault();
-            box.value = linked.text;
-            box.setSelectionRange(linked.caret, linked.caret);
-          }}
-          className={`h-full w-full resize-none bg-transparent outline-none placeholder:text-muted ${pad} ${tone}`}
-        />
+        <TextEditor item={item} pad={pad} tone={tone} onCommit={onCommit} />
       ) : (
         <div data-scroll-overflow className={`h-full w-full overflow-y-auto break-words whitespace-pre-wrap ${pad} ${tone}`}>
           {item.text ? (

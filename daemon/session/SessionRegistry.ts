@@ -102,6 +102,8 @@ interface Entry {
   held: HeldPermission | null;
   interruptWatchUntil: number;
   menuOpen: boolean;
+  /** A /compact is running; its end shows only as a SessionStart with source `compact`. */
+  compacting: boolean;
   modeCheck: ReturnType<typeof setTimeout> | null;
   /** The start of a shell mark cut off at the end of the last output chunk. */
   markCarry: string;
@@ -222,6 +224,7 @@ export class SessionRegistry {
       held: null,
       interruptWatchUntil: 0,
       menuOpen: false,
+      compacting: false,
       modeCheck: null,
       markCarry: "",
     };
@@ -306,7 +309,10 @@ export class SessionRegistry {
       this.#changed();
     }
     if (signal.permissionMode) this.#setPermissionMode(entry, signal.permissionMode);
-    this.#apply(entry, signal);
+    if (signal.event === "PreCompact") entry.compacting = signal.compactTrigger === "manual";
+    const endsCompact = entry.compacting && signal.event === "SessionStart" && signal.sessionSource === "compact";
+    if (endsCompact) entry.compacting = false;
+    this.#apply(entry, { ...signal, endsCompact });
     return true;
   }
 

@@ -281,7 +281,11 @@ export function createRunnerServer({
           const notificationType = field(body, "notification_type");
           const conversationId = field(body, "session_id");
           const permissionMode = field(body, "permission_mode");
+          const compactTrigger = field(body, "trigger");
+          const sessionSource = field(body, "source");
           registry.signal(id, {
+            compactTrigger: typeof compactTrigger === "string" ? compactTrigger : null,
+            sessionSource: typeof sessionSource === "string" ? sessionSource : null,
             permissionMode: typeof permissionMode === "string" && permissionMode ? permissionMode : null,
             event,
             notificationType: typeof notificationType === "string" ? notificationType : null,

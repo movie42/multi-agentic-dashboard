@@ -53,6 +53,8 @@ function uniqueByPath(worktrees: BoardWorktree[]): BoardWorktree[] {
 
 export class BoardService {
   private lastBoard: BoardSnapshot | null = null;
+  /** The last conversation each daemon session had a transcript for, by daemon session id. */
+  private readonly shownConversation = new Map<string, string>();
   private readonly now: () => number;
 
   constructor(private readonly options: BoardServiceOptions) {
@@ -170,6 +172,26 @@ export class BoardService {
     return board.worktrees.map((worktree) => worktree.path);
   }
 
+  /**
+   * After /clear the hook hands over the new conversation id a few seconds before Claude Code creates its file,
+   * so the previous conversation stays on the card until then.
+   */
+  private async transcriptOf(session: RunnerSession): Promise<TranscriptFacts | null> {
+    const read = (conversationId: string) =>
+      this.options.sessions.transcriptOf(session.cwd, conversationId).catch((error: unknown) => {
+        this.options.warn("board", error, { step: "transcript", sessionId: session.id });
+        return null;
+      });
+    const current = session.conversationId ?? session.id;
+    const facts = await read(current);
+    if (facts) {
+      this.shownConversation.set(session.id, current);
+      return facts;
+    }
+    const previous = this.shownConversation.get(session.id);
+    return previous && previous !== current ? read(previous) : null;
+  }
+
   private async agentCard(
     session: RunnerSession,
     worktree: BoardWorktree,
@@ -177,13 +199,7 @@ export class BoardService {
     aliases: ReadonlyMap<string, string>,
   ): Promise<AgentCard> {
     const { sessions, warn } = this.options;
-    const facts =
-      session.kind === "claude"
-        ? await sessions.transcriptOf(session.cwd, session.conversationId ?? session.id).catch((error: unknown) => {
-            warn("board", error, { step: "transcript", sessionId: session.id });
-            return null;
-          })
-        : null;
+    const facts = session.kind === "claude" ? await this.transcriptOf(session) : null;
     const sessionRef = facts
       ? await sessions.sessionRefOf(facts.file, facts.size).catch((error: unknown) => {
           warn("board", error, { step: "session title", file: facts.file });

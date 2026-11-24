@@ -97,7 +97,7 @@ describe("SketchLayer", () => {
     const { container } = render(<Harness tool="select" initial={[note]} onItems={onItems} />);
     fireEvent.doubleClick(container.querySelector("[data-sketch='n1']")!);
     const box = screen.getByRole("textbox", { name: "메모 내용" });
-    fireEvent.change(box, { target: { value: "나중에 볼 일" } });
+    box.textContent = "나중에 볼 일";
     fireEvent.blur(box);
     expect(onItems).toHaveBeenLastCalledWith([expect.objectContaining({ id: "n1", text: "나중에 볼 일" })]);
   });
@@ -144,15 +144,33 @@ describe("SketchLayer", () => {
     expect(onItems.mock.lastCall?.[0][0]).not.toHaveProperty("parent");
   });
 
-  it("links the selected words when a URL is pasted over them, and shows the link outside editing", () => {
+  it("links the selected words when a URL is pasted over them, and shows the link by its name", () => {
     const onItems = vi.fn();
     const { container } = render(<Harness tool="select" initial={[{ ...note, text: "리뷰 답장" }]} onItems={onItems} />);
     fireEvent.doubleClick(container.querySelector("[data-sketch='n1']")!);
-    const box = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "메모 내용" });
-    box.setSelectionRange(3, 5);
+    const box = screen.getByRole("textbox", { name: "메모 내용" });
+    const range = document.createRange();
+    range.setStart(box.firstChild!, 3);
+    range.setEnd(box.firstChild!, 5);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(range);
     fireEvent.paste(box, { clipboardData: { getData: () => "https://github.com/x/pull/1" } });
+    expect(box.textContent).toBe("리뷰 답장");
     fireEvent.blur(box);
     expect(onItems).toHaveBeenLastCalledWith([expect.objectContaining({ text: "리뷰 [답장](https://github.com/x/pull/1)" })]);
     expect(screen.getByRole("link", { name: "답장" }).getAttribute("href")).toBe("https://github.com/x/pull/1");
+  });
+
+  it("keeps showing a link by its name while the memo is edited, and saves it back as a link", () => {
+    const onItems = vi.fn();
+    const url = "obsidian://open?vault=second-brain&file=00%20Inbox%2FCOMP-623";
+    const { container } = render(<Harness tool="select" initial={[{ ...note, text: `[바텀시트 회고](${url})\n${url}` }]} onItems={onItems} />);
+    fireEvent.doubleClick(container.querySelector("[data-sketch='n1']")!);
+    const box = screen.getByRole("textbox", { name: "메모 내용" });
+    expect(box.textContent).toBe(`바텀시트 회고\n${url}`);
+    expect(box.querySelector("a")?.textContent).toBe("바텀시트 회고");
+    box.append(" 끝");
+    fireEvent.blur(box);
+    expect(onItems).toHaveBeenLastCalledWith([expect.objectContaining({ text: `[바텀시트 회고](${url})\n${url} 끝` })]);
   });
 });

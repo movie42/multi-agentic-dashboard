@@ -103,6 +103,8 @@ const transcriptLineSchema = z.looseObject({
   timestamp: text,
   isSidechain: flag,
   isMeta: flag,
+  isCompactSummary: flag,
+  compactMetadata: z.looseObject({ trigger: text }).optional().catch(undefined),
   toolUseResult: z.unknown().optional(),
   operation: text,
   attachment: z
@@ -303,8 +305,16 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
 
   for (const raw of lines) {
     const line = parseLine(raw);
-    if (!line || line.isSidechain || line.isMeta) continue;
+    // The compact summary is the model's next context, written as a user line; the user never typed it.
+    if (!line || line.isSidechain || line.isMeta || line.isCompactSummary) continue;
     const at = timeOf(line);
+    if (options.localCommands && line.type === "system" && line.subtype === "compact_boundary") {
+      // A /compact already shows as its own prompt and output; an automatic one leaves no other trace.
+      if (line.compactMetadata?.trigger === "auto") {
+        steps.push({ kind: "output", id: `${line.uuid}:compact`, at, text: "대화가 길어져 자동으로 압축했어요", error: false });
+      }
+      continue;
+    }
     if (line.type === "queue-operation") {
       if (options.richTools) queue = replayQueue(queue, line, enqueued);
       if (line.operation === "enqueue") enqueued += 1;

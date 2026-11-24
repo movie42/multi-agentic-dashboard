@@ -113,6 +113,25 @@ describe("chatItemsOf local commands", () => {
     ]);
   });
 
+  it("hides the compact summary and marks an automatic compaction", () => {
+    const boundary = (trigger: string) =>
+      line({ uuid: `b-${trigger}`, type: "system", subtype: "compact_boundary", content: "Conversation compacted", compactMetadata: { trigger } });
+    const summary = line({ uuid: "s", type: "user", isCompactSummary: true, message: { content: "This session is being continued from a previous conversation." } });
+    const steps = chatItemsOf([
+      boundary("manual"),
+      summary,
+      line({ uuid: "c", type: "user", message: { content: "<command-name>/compact</command-name>\n<command-args></command-args>" } }),
+      line({ uuid: "o", type: "user", message: { content: "<local-command-stdout>Compacted</local-command-stdout>" } }),
+      boundary("auto"),
+      summary,
+    ]);
+    expect(steps.map((step) => (step.kind === "prompt" || step.kind === "output" ? [step.kind, step.text] : [step.kind]))).toEqual([
+      ["prompt", "/compact"],
+      ["output", "Compacted"],
+      ["output", "대화가 길어져 자동으로 압축했어요"],
+    ]);
+  });
+
   it("keeps the activity timeline free of them", () => {
     expect(stepsOf([line({ type: "user", message: { content: "<command-name>/context</command-name>" } })])).toEqual([]);
   });
