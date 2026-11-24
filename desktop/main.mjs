@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, shell, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, Notification, shell, utilityProcess } from "electron";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -106,8 +106,8 @@ function isInternal(url) {
   return url.startsWith(ORIGIN);
 }
 
-// One identifier across every window lets macOS merge them into one tabbed window (Window → Merge
-// All Windows) and drag a tab back out, as VS Code does.
+// One identifier across every window lets them share one tabbed window and drag a tab back out,
+// as VS Code does.
 const TABBING = { tabbingIdentifier: APP_ID };
 const APP_WINDOW = { ...TABBING, minWidth: 900, minHeight: 600 };
 
@@ -181,6 +181,45 @@ function createWindow() {
     mainWindow = null;
   });
   mainWindow.loadURL(ORIGIN);
+}
+
+// BrowserWindow.mergeAllWindows() leaves the windows apart on macOS 27 and the system adds no
+// "Merge All Windows" item to Electron's menu, so merging adds each window as a tab by hand.
+function mergeAllWindows() {
+  const target = BrowserWindow.getFocusedWindow() ?? mainWindow;
+  if (!target) return;
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window !== target && !window.isDestroyed()) target.addTabbedWindow(window);
+  }
+  target.focus();
+}
+
+function installMenu() {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: "appMenu" },
+      { role: "fileMenu" },
+      { role: "editMenu" },
+      { role: "viewMenu" },
+      {
+        label: "윈도우",
+        role: "window",
+        submenu: [
+          { role: "minimize" },
+          { role: "zoom" },
+          { type: "separator" },
+          { label: "모든 창 합치기", accelerator: "Shift+CmdOrCtrl+M", click: mergeAllWindows },
+          {
+            label: "탭을 새 창으로 분리",
+            click: () => BrowserWindow.getFocusedWindow()?.moveTabToNewWindow(),
+          },
+          { label: "탭 막대 보기 · 숨기기", click: () => BrowserWindow.getFocusedWindow()?.toggleTabBar() },
+          { type: "separator" },
+          { role: "front" },
+        ],
+      },
+    ]),
+  );
 }
 
 function focusFirstCard() {
@@ -265,6 +304,7 @@ if (!app.requestSingleInstanceLock()) {
       app.quit();
       return;
     }
+    installMenu();
     createWindow();
     if (!globalShortcut.register(SUMMON_SHORTCUT, toggleWindow)) {
       console.warn("[agent-control] could not register", SUMMON_SHORTCUT);
