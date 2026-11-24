@@ -3,8 +3,8 @@ import type { WorktreeSummary } from "@/common/board/types";
 import type { OrchestrationLink, SessionOrchestration } from "@/common/orchestration/types";
 import { agentCard } from "../../../../../test/fixtures";
 import { buildGraph, clusterId } from "./graph";
-import { autoLayout, chainColumns, clusterRect, edgeGeometry, NODE_H, NODE_W, nearestSide, sharedLanes } from "./layout";
-import { EMPTY_CANVAS, groupNodes, parseCanvasState, pruneCanvas, resetPositions, resolvePositions, setEdgeEnd, ungroup } from "./canvasState";
+import { AREA_HEAD, areaKey, areaRect, autoLayout, chainColumns, clusterRect, edgeGeometry, NODE_H, NODE_W, nearestSide, sharedLanes } from "./layout";
+import { EMPTY_CANVAS, parseCanvasState, pruneCanvas, groupsToAreas, resetPositions, resolveLayout, resolvePositions, setEdgeEnd } from "./canvasState";
 
 function worktree(path: string, overrides: Partial<WorktreeSummary> = {}): WorktreeSummary {
   return {
@@ -172,15 +172,8 @@ describe("canvas state", () => {
     expect(resolvePositions(auto, { a: { x: 500, y: 500 } }).get("b")).toEqual({ x: 10, y: 10 });
   });
 
-  it("moves a node out of its old group when it joins a new one, and drops the emptied group", () => {
-    const first = groupNodes(EMPTY_CANVAS, ["a"], "g1", "하나");
-    const second = groupNodes(first, ["a", "b"], "g2", "둘");
-    expect(second.groups).toEqual([{ id: "g2", name: "둘", memberIds: ["a", "b"] }]);
-    expect(ungroup(second, "g2").groups).toEqual([]);
-  });
-
   it("forgets closed sessions", () => {
-    const state = groupNodes({ ...EMPTY_CANVAS, positions: { a: { x: 1, y: 1 }, gone: { x: 2, y: 2 } } }, ["a", "gone"], "g", "그룹");
+    const state = { ...EMPTY_CANVAS, positions: { a: { x: 1, y: 1 }, gone: { x: 2, y: 2 } }, groups: [{ id: "g", name: "그룹", memberIds: ["a", "gone"] }] };
     const pruned = pruneCanvas(state, new Set(["a"]));
     expect(Object.keys(pruned.positions)).toEqual(["a"]);
     expect(pruned.groups[0]?.memberIds).toEqual(["a"]);
@@ -195,6 +188,77 @@ describe("canvas state", () => {
       ends: {},
       sizes: { a: { w: 300, h: 140 } },
     });
+  });
+});
+
+describe("areas inside a worktree", () => {
+  const graph = buildGraph(
+    ["loose", "doing1", "doing2", "later1"].map((id) => agentCard({ id, worktreeId: "/p/shop-a" })),
+    [worktree("/p/shop-a")],
+    [],
+  );
+  const doing = { id: "doing", name: "하고 있는 일", memberIds: ["doing1", "doing2"], collapsed: false };
+  const later = { id: "later", name: "나중에 볼 일", memberIds: ["later1"], collapsed: false };
+
+  it("stacks the sessions in no area on top, then each area below its header, inside the worktree frame", () => {
+    const layout = autoLayout(graph, { areasOf: () => [doing, later] });
+    const at = (id: string) => layout.positions.get(id)!;
+    const doingTop = at("loose").y + NODE_H;
+    expect(at("doing1").y).toBeGreaterThan(doingTop + AREA_HEAD - 1);
+    expect(at("doing2").y).toBe(at("doing1").y);
+    expect(at("later1").y).toBeGreaterThan(at("doing1").y + NODE_H + AREA_HEAD - 1);
+    expect(layout.anchors.get(areaKey("doing"))!.y).toBe(at("doing1").y - AREA_HEAD);
+  });
+
+  it("hides a folded area's sessions and keeps only its header", () => {
+    const layout = autoLayout(graph, { areasOf: () => [{ ...doing, collapsed: true }, later] });
+    expect(layout.positions.has("doing1")).toBe(false);
+    expect(layout.anchors.has(areaKey("doing"))).toBe(true);
+    expect(layout.positions.get("later1")!.y).toBe(layout.anchors.get(areaKey("later"))!.y + AREA_HEAD);
+  });
+
+  it("draws an area around its sessions, or as a bare header where it holds none", () => {
+    const layout = autoLayout(graph, { areasOf: () => [doing, { ...later, collapsed: true }] });
+    const rect = areaRect(doing.memberIds, layout.positions, layout.anchors.get(areaKey("doing"))!);
+    expect(rect.y).toBe(layout.anchors.get(areaKey("doing"))!.y);
+    expect(rect.h).toBeGreaterThan(NODE_H + AREA_HEAD);
+    expect(areaRect(later.memberIds, layout.positions, layout.anchors.get(areaKey("later"))!).h).toBe(AREA_HEAD);
+  });
+
+  it("keeps area sessions in their laid-out spot and moves them with a dragged worktree", () => {
+    const layout = autoLayout(graph, { areasOf: () => [doing] });
+    const cluster = clusterId("/p/shop-a");
+    const autoAnchor = layout.anchors.get(cluster)!;
+    const saved = { [cluster]: { x: autoAnchor.x + 100, y: autoAnchor.y + 50 }, doing1: { x: 9999, y: 9999 }, loose: { x: 7, y: 7 } };
+    const { positions, anchors } = resolveLayout(layout, saved, new Set(doing.memberIds));
+    expect(positions.get("doing1")).toEqual({ x: layout.positions.get("doing1")!.x + 100, y: layout.positions.get("doing1")!.y + 50 });
+    expect(positions.get("loose")).toEqual({ x: 7, y: 7 });
+    expect(anchors.get(areaKey("doing"))!.x).toBe(layout.anchors.get(areaKey("doing"))!.x + 100);
+  });
+
+  it("turns an old group inside one worktree into that worktree's area and drops one that crossed worktrees, waiting on one with sessions not loaded yet", () => {
+    const worktreeOf = (id: string) => ({ a: "w1", b: "w1", c: "w2" })[id];
+    expect(
+      groupsToAreas(
+        [
+          { id: "g1", name: "리뷰", memberIds: ["a", "b"] },
+          { id: "g2", name: "섞임", memberIds: ["a", "c"] },
+          { id: "g3", name: "아직", memberIds: ["a", "unloaded"] },
+        ],
+        worktreeOf,
+      ),
+    ).toEqual({
+      areas: [{ worktreeId: "w1", area: { id: "g1", name: "리뷰", memberIds: ["a", "b"], collapsed: false } }],
+      settledIds: ["g1", "g2"],
+    });
+  });
+
+  it("grows the worktree frame to hold an area header with no sessions", () => {
+    const layout = autoLayout(graph, { areasOf: () => [{ ...later, memberIds: [] }] });
+    const cluster = graph.clusters[0]!;
+    const header = areaRect([], layout.positions, layout.anchors.get(areaKey("later"))!);
+    const frame = clusterRect(cluster.id, cluster.nodeIds, layout.positions, layout.anchors.get(cluster.id)!, {}, [header]);
+    expect(frame.y + frame.h).toBeGreaterThanOrEqual(header.y + header.h);
   });
 });
 

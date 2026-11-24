@@ -1,5 +1,6 @@
 export { groupAgents, foldWorkers, needsInput, displayStateOf } from "./model/classify";
 export type { BoardGroups, DisplayState, FoldedAgents } from "./model/classify";
+export { UNSEEN_TURN_DOT, useUnseenTurns, type UnseenTurns } from "./model/useUnseenTurns";
 export { useRestOverrides, type RestKind, type RestOf, type RestOverrides } from "./model/useRestOverrides";
 export { permissionModeLabel } from "./model/permissionMode";
 export { shellStatusLabel, shellStatusOf, type ShellStatus } from "./model/shellStatus";

@@ -188,7 +188,7 @@ export function SidePanel({ graph, view, renderCard, onAction, onOpenWorktree, o
           <p className="pt-10 text-center text-[14px] text-muted">
             상자 {view.count}개를 골랐어요.
             <br />
-            ⌘G로 그룹으로 묶을 수 있어요.
+            한 워크트리 안의 세션이면 ⌘G로 새 영역으로 묶을 수 있어요.
           </p>
         )}
         {view.kind === "run" && <RunPanel key={view.run.id} run={view.run} focusKey={view.cardKey} onEdit={onEditRun} />}

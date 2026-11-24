@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { flowDocsOf } from "@/common/workflow/steps";
@@ -11,8 +11,8 @@ import { gitGraphHref } from "@/client/entities/git-graph";
 import { colorKey } from "@/client/features/customize-canvas-color";
 import { WorktreeCommandButtons } from "@/client/features/run-project-command";
 import { ContextMenu, MenuItem, type MenuPoint } from "@/client/shared/ui/ContextMenu";
-import type { UserGroup } from "../model/canvasState";
-import { CLUSTER_HEAD, GROUP_HEAD, PROJECT_HEAD, type Rect } from "../model/layout";
+import type { SessionArea } from "@/client/entities/session-area";
+import { AREA_HEAD, CLUSTER_HEAD, PROJECT_HEAD, type Rect } from "../model/layout";
 
 const STEP_DOT: Record<StepStatus, string> = {
   done: "bg-done",
@@ -152,45 +152,67 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
   );
 }
 
-interface GroupFrameProps {
+interface AreaFrameProps {
   rect: Rect;
-  group: UserGroup;
-  onRename: (name: string) => void;
-  onUngroup: () => void;
+  area: SessionArea;
+  /** Sessions in it, shown or folded away. */
+  count: number;
+  renaming: boolean;
+  onToggle: () => void;
+  onRename: (name: string | null) => void;
 }
 
-/** A group a person made; it may cross worktrees. Double-click the name to rename. */
-export function GroupFrame({ rect, group, onRename, onUngroup }: GroupFrameProps) {
+/**
+ * A named area inside a worktree frame. Its sessions are laid out inside it; dragging its header moves
+ * the whole worktree. The arrow folds it, double-clicking the name renames it.
+ */
+export function AreaFrame({ rect, area, count, renaming, onToggle, onRename }: AreaFrameProps) {
   const [editing, setEditing] = useState(false);
-  const finish = (value: string) => {
+  const typing = editing || renaming;
+  // Enter or Escape already settled it; a blur from the input leaving the page must not rename again.
+  const settled = useRef(false);
+  const finish = (value: string | null) => {
+    if (settled.current) return;
+    settled.current = true;
     setEditing(false);
-    if (value.trim() && value.trim() !== group.name) onRename(value.trim());
+    onRename(value === null ? null : value.trim() || null);
   };
   return (
-    <g className="group">
-      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={18} strokeWidth={1.5} className="fill-focus/5 stroke-focus/60" />
-      <foreignObject x={rect.x} y={rect.y} width={rect.w} height={GROUP_HEAD}>
-        <div data-drag="group" data-id={group.id} className="flex h-full cursor-grab items-center gap-2 px-4 text-[12px] leading-none select-none active:cursor-grabbing">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-focus">GROUP</span>
-          {editing ? (
+    <g>
+      <rect data-area={area.id} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={10} strokeWidth={1.3} className="fill-focus/5 stroke-focus/50" />
+      <foreignObject x={rect.x} y={rect.y} width={rect.w} height={AREA_HEAD}>
+        <div data-drag="area" data-id={area.id} className="flex h-full cursor-grab items-center gap-1.5 px-2.5 text-[12px] leading-none select-none active:cursor-grabbing">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={!area.collapsed}
+            title={area.collapsed ? "펼치기" : "접기"}
+            className="flex size-5 shrink-0 items-center justify-center rounded text-[10px] text-focus hover:bg-focus/15"
+          >
+            {area.collapsed ? "▸" : "▾"}
+          </button>
+          {typing ? (
             <input
               autoFocus
-              defaultValue={group.name}
+              aria-label="영역 이름"
+              defaultValue={area.name}
+              onFocus={(event: React.FocusEvent<HTMLInputElement>) => {
+                settled.current = false;
+                event.currentTarget.select();
+              }}
               onBlur={(event: React.FocusEvent<HTMLInputElement>) => finish(event.target.value)}
               onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
                 if (event.key === "Enter") finish(event.currentTarget.value);
-                if (event.key === "Escape") setEditing(false);
+                if (event.key === "Escape") finish(null);
               }}
-              className="min-w-0 flex-1 rounded-[4px] bg-bg px-1 py-0.5 font-bold outline-none"
+              className="min-w-0 flex-1 rounded-[4px] bg-bg px-1 py-0.5 font-bold text-focus outline-none"
             />
           ) : (
             <span onDoubleClick={() => setEditing(true)} title="두 번 눌러 이름 바꾸기" className="truncate font-bold text-focus">
-              {group.name}
+              {area.name}
             </span>
           )}
-          <button type="button" onClick={onUngroup} title="그룹 풀기 (⌘⇧G)" className="ml-auto shrink-0 text-muted opacity-0 group-hover:opacity-100 hover:text-fg">
-            풀기
-          </button>
+          <span className="shrink-0 text-muted">{count}</span>
         </div>
       </foreignObject>
     </g>

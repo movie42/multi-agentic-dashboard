@@ -37,6 +37,8 @@ import { DocServer } from "./docs/DocServer";
 import { FileBrowser } from "./files/FileBrowser";
 import { FlowAnswerStore } from "./docs/FlowAnswerStore";
 import { ErrorLog } from "./shared/errorLog";
+import { SKETCH_FILE } from "./sketches/paths";
+import { SketchStore } from "./sketches/SketchStore";
 import { TODO_FILE } from "./todos/paths";
 import { TodoAgent } from "./todos/TodoAgent";
 import { TodoJiraImporter } from "./todos/TodoJiraImporter";
@@ -93,6 +95,7 @@ export interface Services {
   appStatus: AppStatusService;
   commandAgent: { propose: typeof proposeCommands; revise: typeof reviseCommands };
   todos: TodoStore;
+  sketches: SketchStore;
   todoLaunches: TodoLaunchAttacher;
   todoLinker: TodoLinker;
   todoJira: TodoJiraImporter;
@@ -212,6 +215,7 @@ function createServices(): Services {
     appStatus: createAppStatusService(runner),
     commandAgent: { propose: proposeCommands, revise: reviseCommands },
     todos,
+    sketches: new SketchStore(SKETCH_FILE, warn),
     todoLaunches: new TodoLaunchAttacher(todos),
     todoLinker: new TodoLinker(todos, () => sessionIndex.list()),
     todoJira: new TodoJiraImporter(todos, workflow.jira, warn),

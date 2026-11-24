@@ -8,11 +8,13 @@ import type { LinkKind } from "@/common/orchestration/types";
 import { buildSteps, roundDocOf } from "@/common/workflow/steps";
 import type { WorkflowMode } from "@/common/workflow/types";
 import { fileOverlapsQueryOptions } from "../api/fileOverlapsQuery";
-import { groupNodes, groupOf, movePositions, pruneCanvas, renameGroup, resetPositions, resetSize, resizeBox, resolvePositions, setEdgeEnd, ungroup } from "../model/canvasState";
+import { addArea, areaOf, assignArea, removeArea, renameArea, toggleArea, useWorktreeAreas } from "@/client/entities/session-area";
+import { groupsToAreas, movePositions, pruneCanvas, resetPositions, resetSize, resizeBox, resolveLayout, setEdgeEnd } from "../model/canvasState";
 import { buildGraph, type GraphEdge } from "../model/graph";
-import { autoLayout, type Point, type Side } from "../model/layout";
+import { areaKey, autoLayout, type Point, type Side } from "../model/layout";
 import { canvasKey, useCanvasState, type CanvasScope } from "../model/useCanvasState";
-import { CanvasStage, type MenuTarget } from "./CanvasStage";
+import { useSketch } from "../model/useSketch";
+import { CanvasStage, type CanvasArea, type MenuTarget } from "./CanvasStage";
 import { CanvasMenu } from "./CanvasMenu";
 import { menuFor } from "./canvasMenuItems";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
@@ -20,7 +22,7 @@ import { useStoredListStore } from "@/client/shared/lib/storedListStore";
 import type { ScreenPoint } from "@/client/shared/lib/openWindow";
 import { openInPanel, useDocViewerStore } from "@/client/features/view-doc";
 import { useRunnerSessions } from "@/client/entities/runner";
-import { displayStateOf, openSessionWindow, requestDock, useRestOverrides, useSessionDockStore } from "@/client/entities/agent";
+import { displayStateOf, openSessionWindow, requestDock, useRestOverrides, useSessionDockStore, useUnseenTurns } from "@/client/entities/agent";
 import { blankTemplate, TemplateEditor } from "@/client/features/edit-template";
 import { ItemColorEditor, type ItemColorTarget } from "@/client/features/customize-canvas-color";
 import type { TemplateRun, WorkflowTemplate } from "@/common/templates/types";
@@ -125,11 +127,23 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const built = buildGraph(agents, worktrees, overlaps, runs, everyAgent);
   const graph = showWorktreeLines ? built : { ...built, edges: built.edges.filter((edge) => edge.kind !== "fork" && edge.kind !== "overlap") };
   const [canvas, updateCanvas] = useCanvasState(canvasKey(scope));
-  const auto = autoLayout(graph, { sizes: canvas.sizes, byProject: scope.kind === "all" });
-  const positions = resolvePositions(auto.positions, canvas.positions);
-  const anchors = resolvePositions(auto.anchors, canvas.positions);
+  const sketch = useSketch(canvasKey(scope));
+  const worktreeAreas = useWorktreeAreas(worktrees.map((worktree) => worktree.worktreeId));
+  const canvasAreas: CanvasArea[] = graph.clusters.flatMap((cluster) =>
+    worktreeAreas.areasOf(cluster.worktree.worktreeId).map((area) => ({
+      area,
+      clusterId: cluster.id,
+      memberIds: area.memberIds.filter((id) => cluster.nodeIds.includes(id)),
+    })),
+  );
+  const inArea = new Set(canvasAreas.flatMap((entry) => entry.memberIds));
+  const auto = autoLayout(graph, { sizes: canvas.sizes, byProject: scope.kind === "all", areasOf: worktreeAreas.areasOf });
+  const { positions, anchors } = resolveLayout(auto, canvas.positions, inArea);
+  const [renamingAreaId, setRenamingAreaId] = useState<string | null>(null);
 
   const rest = useRestOverrides();
+  const unseenTurns = useUnseenTurns();
+  const markSeen = (ids: string[]) => unseenTurns.markSeen(ids.flatMap((id) => graph.nodes.get(id)?.agent ?? []));
   const [selected, setSelected] = useState<string[]>([]);
   const [edgeId, setEdgeId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -176,20 +190,98 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         ? liveSelected.filter((id) => id !== ids[0])
         : [...new Set([...liveSelected, ...ids])];
     setSelected(next);
+    if (ids.length === 1) markSeen(ids);
     const only = next.length === 1 ? next[0]! : null;
     if (only !== null && graph.nodes.has(only)) openSessionTab(only);
     else if (next.length > 0) setFocus(SELECTION_TAB);
   };
 
-  const groupSelected = () => {
-    if (liveSelected.length === 0) return;
-    const id = crypto.randomUUID();
-    save((current) => groupNodes(current, liveSelected, id, `그룹 ${current.groups.length + 1}`));
+  const worktreeOfSession = (id: string) => graph.nodes.get(id)?.agent.worktreeId;
+  const worktreeOfArea = (areaId: string) =>
+    graph.clusters.find((cluster) => worktreeAreas.areasOf(cluster.worktree.worktreeId).some((area) => area.id === areaId))?.worktree.worktreeId;
+  /** A box entering an area forgets where it was dragged, so it never jumps back there once it leaves. */
+  const forgetSpots = (ids: string[]) =>
+    save((current) => ({ ...current, positions: Object.fromEntries(Object.entries(current.positions).filter(([id]) => !ids.includes(id))) }));
+  const sameWorktree = (ids: string[]) => {
+    const worktreeIds = new Set(ids.map(worktreeOfSession));
+    const [only] = worktreeIds;
+    return worktreeIds.size === 1 && only ? only : null;
   };
-  const ungroupSelected = () => {
-    const group = liveSelected.map((id) => groupOf(canvas, id)).find((entry) => entry !== null);
-    if (group) save((current) => ungroup(current, group.id));
+  const areaActions = {
+    of: worktreeAreas.areasOf,
+    create: (sessionIds: string[]) => {
+      const worktreeId = sameWorktree(sessionIds);
+      if (!worktreeId) return;
+      const id = crypto.randomUUID();
+      worktreeAreas.update(worktreeId, (current) => addArea(current, id, "새 영역", sessionIds));
+      forgetSpots(sessionIds);
+      setRenamingAreaId(id);
+    },
+    moveTo: (sessionIds: string[], areaId: string | null) => {
+      const target = areaId ? worktreeOfArea(areaId) : undefined;
+      new Set(sessionIds.flatMap((id) => worktreeOfSession(id) ?? [])).forEach((worktreeId) => {
+        const ids = sessionIds.filter((id) => worktreeOfSession(id) === worktreeId);
+        worktreeAreas.update(worktreeId, (current) => assignArea(current, ids, target === worktreeId ? areaId : null));
+      });
+      if (areaId) forgetSpots(sessionIds.filter((id) => worktreeOfSession(id) === target));
+    },
+    rename: (areaId: string, name: string) => {
+      const worktreeId = worktreeOfArea(areaId);
+      if (worktreeId) worktreeAreas.update(worktreeId, (current) => renameArea(current, areaId, name));
+    },
+    toggle: (areaId: string) => {
+      const worktreeId = worktreeOfArea(areaId);
+      if (worktreeId) worktreeAreas.update(worktreeId, (current) => toggleArea(current, areaId));
+    },
+    remove: (areaId: string) => {
+      const worktreeId = worktreeOfArea(areaId);
+      if (worktreeId) worktreeAreas.update(worktreeId, (current) => removeArea(current, areaId));
+    },
   };
+  const areaSelected = () => {
+    if (selectedSessions.length > 0) areaActions.create(selectedSessions);
+  };
+  const unareaSelected = () => {
+    if (selectedSessions.length > 0) areaActions.moveTo(selectedSessions, null);
+  };
+  /**
+   * Boxes dragged by themselves join the area they land on, or leave theirs when they land outside every
+   * area; boxes in an area keep no dragged spot. Area headers only ride along with their worktree.
+   */
+  const moveBoxes = (moved: Map<string, Point>, dropArea?: string | null) => {
+    const sessions = [...moved.keys()].filter((id) => graph.nodes.has(id));
+    if (dropArea !== undefined) {
+      const changing = sessions.filter((id) => (areaOf(worktreeAreas.areasOf(worktreeOfSession(id) ?? ""), id)?.id ?? null) !== dropArea);
+      if (changing.length > 0) areaActions.moveTo(changing, dropArea);
+    }
+    const target = dropArea ? worktreeOfArea(dropArea) : undefined;
+    const endsInArea = (id: string) =>
+      dropArea === undefined ? inArea.has(id) : dropArea !== null && worktreeOfSession(id) === target;
+    const kept = new Map([...moved].filter(([id]) => !id.startsWith(areaKey("")) && !endsInArea(id)));
+    save((current) => movePositions(current, kept));
+  };
+
+  // A session put in an area from the session tabs forgets its dragged spot here too, the next time this canvas is open.
+  const staleSpots = [...inArea].filter((id) => canvas.positions[id]).join("\u0000");
+  useEffect(() => {
+    if (staleSpots) forgetSpots(staleSpots.split("\u0000"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- forgetSpots changes every render
+  }, [staleSpots]);
+
+  // Free groups from before areas: one inside a single worktree becomes an area there, the rest go.
+  const groupCount = canvas.groups.length;
+  const nodeCount = graph.nodes.size;
+  useEffect(() => {
+    if (groupCount === 0 || nodeCount === 0) return;
+    const { areas: migrated, settledIds } = groupsToAreas(canvas.groups, worktreeOfSession);
+    if (settledIds.length === 0) return;
+    migrated.forEach(({ worktreeId, area }) =>
+      worktreeAreas.update(worktreeId, (current) => (current.some((entry) => entry.id === area.id) ? current : addArea(current, area.id, area.name, area.memberIds))),
+    );
+    updateCanvas((current) => ({ ...current, groups: current.groups.filter((group) => !settledIds.includes(group.id)) }));
+    // Runs once groups and sessions are both loaded; the helpers change every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupCount, nodeCount]);
   const tidy = () => {
     save((current) => ({ ...resetPositions(current), viewport: null }));
     setStageKey((key) => key + 1);
@@ -232,8 +324,8 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
       if (isTyping(event.target)) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
         event.preventDefault();
-        if (event.shiftKey) ungroupSelected();
-        else groupSelected();
+        if (event.shiftKey) unareaSelected();
+        else areaSelected();
       } else if (event.key === "Escape") {
         setSelected([]);
         setEdgeId(null);
@@ -286,9 +378,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   const menuContent = menu
     ? menuFor(menu.target, {
         graph,
-        canvas,
         selected: selectedSessions,
-        save,
         select: (ids) => select(ids, false),
         onAction,
         onOpenWorktree,
@@ -311,6 +401,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         rest,
         onEditRun: editRun,
         onEditColors: (targets, title) => setRecoloring({ targets, title, at: menu.screen }),
+        areas: areaActions,
         onSaveAsTemplate: (chosen) => setEditing({ template: draftFromSelection(crypto.randomUUID(), chosen, graph.edges, nodeTitle), isNew: true }),
       })
     : null;
@@ -369,6 +460,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
     }
     setFocus(id);
     setSelected([id]);
+    markSeen([id]);
     setEdgeId(null);
     setShowAllLinks(false);
     setPending(null);
@@ -411,9 +503,11 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         <CanvasStage
           key={stageKey}
           graph={graph}
+          sketch={sketch}
           positions={positions}
           anchors={anchors}
-          groups={canvas.groups}
+          areas={canvasAreas}
+          renamingAreaId={renamingAreaId}
           sizes={canvas.sizes}
           projectFrames={scope.kind === "all"}
           selectedIds={new Set(liveSelected)}
@@ -473,7 +567,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
             setShowAllLinks(false);
             setEdgeId(edge.id);
           }}
-          onMove={(moved) => save((current) => movePositions(current, moved))}
+          onMove={moveBoxes}
           onResize={(id, size, at) => save((current) => resizeBox(current, id, size, at))}
           onResetSize={(id) => save((current) => resetSize(current, id))}
           onOpenProject={onOpenProject}
@@ -493,8 +587,11 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
           onOpenWorktree={onOpenWorktree}
           onOpenDoc={openDoc}
           onOpenElsewhere={onOpenElsewhere}
-          onRenameGroup={(groupId, name) => save((current) => renameGroup(current, groupId, name))}
-          onUngroup={(groupId) => save((current) => ungroup(current, groupId))}
+          onToggleArea={areaActions.toggle}
+          onRenameArea={(areaId, name) => {
+            setRenamingAreaId(null);
+            if (name) areaActions.rename(areaId, name);
+          }}
         >
           <div className="pointer-events-none absolute top-4 left-4 flex max-w-[45%] flex-col gap-1.5">
             <div className="pointer-events-auto">{header}</div>
@@ -511,7 +608,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
             worktrees={worktrees}
             connecting={connecting}
             showAllLinks={showAllLinks}
-            canGroup={selectedSessions.length > 0}
+            canGroup={sameWorktree(selectedSessions) !== null}
             showWorktreeLines={showWorktreeLines}
             onToggleWorktreeLines={() => setShowWorktreeLines((value) => !value)}
             onToggleConnect={() => setConnecting((value) => !value)}
@@ -522,7 +619,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
               }
               setShowAllLinks(!showAllLinks);
             }}
-            onGroup={groupSelected}
+            onGroup={areaSelected}
             onTidy={tidy}
           />
         </CanvasStage>

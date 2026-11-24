@@ -1,3 +1,4 @@
+import { splitByArea, type SessionArea } from "@/client/entities/session-area";
 import type { GraphCluster, GraphPort, ProjectGraph } from "./graph";
 
 export interface Point {
@@ -22,8 +23,10 @@ const CONDUCTOR_GAP = 120;
 const EMPTY_H = 56;
 const GRID_COLUMNS = 2;
 const MAX_COLUMNS = 3;
-export const GROUP_PAD = 28;
-export const GROUP_HEAD = 30;
+export const AREA_PAD = 14;
+export const AREA_HEAD = 32;
+const AREA_GAP = 20;
+const AREA_MIN_W = NODE_W + AREA_PAD * 2;
 export const PROJECT_PAD = 28;
 export const PROJECT_HEAD = 48;
 const PROJECT_GAP = 72;
@@ -48,13 +51,20 @@ export interface LayoutOptions {
   sizes?: Sizes;
   /** Every project as its own block of worktrees, for the canvas that shows all projects. */
   byProject?: boolean;
+  /** A worktree's named areas; its sessions are laid out area by area below the ones in no area. */
+  areasOf?: (worktreeId: string) => SessionArea[];
 }
+
+/** Where an area's header sits in the layout's anchors, beside the cluster ids. */
+export const areaKey = (areaId: string) => `area:${areaId}`;
 
 export interface AutoLayout {
   /** Top-left corner of every node. */
   positions: Map<string, Point>;
-  /** Top-left corner of every cluster, used when it holds no node. */
+  /** Top-left corner of every cluster, used when it holds no node, and of every area by `areaKey`. */
   anchors: Map<string, Point>;
+  /** The cluster each node and area anchor was laid out in, so it can follow a dragged cluster. */
+  owners: Map<string, string>;
 }
 
 /** Sessions of one cluster as columns: each `next` chain runs downward in its own column. */
@@ -115,27 +125,65 @@ function grid(blocks: Block[], columns: number, gap: number): Block {
   };
 }
 
-function clusterBlock(cluster: GraphCluster, graph: ProjectGraph, sizes: Sizes, layout: AutoLayout): Block {
-  const columns = chainColumns(cluster, graph);
-  const widths = columns.map((ids) => Math.max(...ids.map((id) => nodeSize(sizes, id).w)));
-  const heights = columns.map((ids) => sum(ids.map((id) => nodeSize(sizes, id).h)) + (ids.length - 1) * NODE_GAP);
+/** Sessions as `next` chains in columns, top-left at the origin. */
+function columnsBlock(cluster: GraphCluster, ids: string[], graph: ProjectGraph, sizes: Sizes, layout: AutoLayout): Block {
+  const columns = chainColumns({ ...cluster, nodeIds: ids }, graph);
+  const widths = columns.map((column) => Math.max(...column.map((id) => nodeSize(sizes, id).w)));
+  const heights = columns.map((column) => sum(column.map((id) => nodeSize(sizes, id).h)) + (column.length - 1) * NODE_GAP);
+  return {
+    w: columns.length === 0 ? 0 : sum(widths) + (columns.length - 1) * NODE_GAP,
+    h: columns.length === 0 ? 0 : Math.max(...heights),
+    place: (origin) =>
+      columns.forEach((column, columnIndex) => {
+        const x = origin.x + sum(widths.slice(0, columnIndex)) + columnIndex * NODE_GAP;
+        column.reduce((y, id) => {
+          layout.positions.set(id, { x, y });
+          layout.owners.set(id, cluster.id);
+          return y + nodeSize(sizes, id).h + NODE_GAP;
+        }, origin.y);
+      }),
+  };
+}
+
+/** An area: its header, then its sessions; a folded or empty one is the header alone. */
+function areaBlock(cluster: GraphCluster, area: SessionArea, ids: string[], graph: ProjectGraph, sizes: Sizes, layout: AutoLayout): Block {
+  const inner = columnsBlock(cluster, area.collapsed ? [] : ids, graph, sizes, layout);
+  const open = inner.h > 0;
+  return {
+    w: Math.max(AREA_MIN_W, inner.w + AREA_PAD * 2),
+    h: AREA_HEAD + (open ? inner.h + AREA_PAD : 0),
+    place: (origin) => {
+      layout.anchors.set(areaKey(area.id), origin);
+      layout.owners.set(areaKey(area.id), cluster.id);
+      inner.place({ x: origin.x + AREA_PAD, y: origin.y + AREA_HEAD });
+    },
+  };
+}
+
+function clusterBlock(cluster: GraphCluster, graph: ProjectGraph, sizes: Sizes, layout: AutoLayout, areas: SessionArea[]): Block {
+  const split = splitByArea(cluster.nodeIds.map((id) => ({ id })), areas);
+  const loose = columnsBlock(cluster, split.unassigned.map((item) => item.id), graph, sizes, layout);
+  const parts = [
+    ...(loose.h > 0 ? [loose] : []),
+    ...split.sections.map((section) => areaBlock(cluster, section.area, section.items.map((item) => item.id), graph, sizes, layout)),
+  ];
   const content =
-    columns.length === 0
+    parts.length === 0
       ? EMPTY_CLUSTER
-      : { w: CLUSTER_PAD * 2 + sum(widths) + (columns.length - 1) * NODE_GAP, h: CLUSTER_HEAD + Math.max(...heights) + CLUSTER_PAD };
+      : {
+          w: CLUSTER_PAD * 2 + Math.max(...parts.map((part) => part.w)),
+          h: CLUSTER_HEAD + sum(parts.map((part) => part.h)) + (parts.length - 1) * AREA_GAP + CLUSTER_PAD,
+        };
   const saved = sizes[cluster.id];
   return {
     w: Math.max(content.w, saved?.w ?? 0),
     h: Math.max(content.h, saved?.h ?? 0),
     place: (origin) => {
       layout.anchors.set(cluster.id, origin);
-      columns.forEach((ids, columnIndex) => {
-        const x = origin.x + CLUSTER_PAD + sum(widths.slice(0, columnIndex)) + columnIndex * NODE_GAP;
-        ids.reduce((y, id) => {
-          layout.positions.set(id, { x, y });
-          return y + nodeSize(sizes, id).h + NODE_GAP;
-        }, origin.y + CLUSTER_HEAD);
-      });
+      parts.reduce((y, part) => {
+        part.place({ x: origin.x + CLUSTER_PAD, y });
+        return y + part.h + AREA_GAP;
+      }, origin.y + CLUSTER_HEAD);
     },
   };
 }
@@ -159,12 +207,12 @@ function projectBlocks(clusters: Block[], graph: ProjectGraph): Block[] {
  * clusters below in a two-column grid in sidebar order — or, across projects, each project as a
  * block of its worktrees, three projects to a row. Resized boxes keep their size.
  */
-export function autoLayout(graph: ProjectGraph, { sizes = {}, byProject = false }: LayoutOptions = {}): AutoLayout {
-  const layout: AutoLayout = { positions: new Map(), anchors: new Map() };
+export function autoLayout(graph: ProjectGraph, { sizes = {}, byProject = false, areasOf = () => [] }: LayoutOptions = {}): AutoLayout {
+  const layout: AutoLayout = { positions: new Map(), anchors: new Map(), owners: new Map() };
   const conductorSizes = graph.conductors.map((node) => nodeSize(sizes, node.id));
   const top = graph.conductors.length > 0 ? Math.max(...conductorSizes.map((size) => size.h)) + CONDUCTOR_GAP : 0;
 
-  const clusters = graph.clusters.map((cluster) => clusterBlock(cluster, graph, sizes, layout));
+  const clusters = graph.clusters.map((cluster) => clusterBlock(cluster, graph, sizes, layout, areasOf(cluster.worktree.worktreeId)));
   const body = byProject ? grid(projectBlocks(clusters, graph), PROJECT_COLUMNS, PROJECT_GAP) : grid(clusters, GRID_COLUMNS, CLUSTER_GAP);
   body.place({ x: 0, y: top });
 
@@ -223,8 +271,9 @@ function bounds(ids: string[], positions: ReadonlyMap<string, Point>, sizes: Siz
  * A worktree cluster follows its sessions wherever they were dragged; an empty one stays at its
  * anchor. One a person resized also covers its anchor at that size, so it never shrinks below it.
  */
-export function clusterRect(id: string, nodeIds: string[], positions: ReadonlyMap<string, Point>, anchor: Point, sizes: Sizes = {}): Rect {
-  const box = bounds(nodeIds, positions, sizes);
+export function clusterRect(id: string, nodeIds: string[], positions: ReadonlyMap<string, Point>, anchor: Point, sizes: Sizes = {}, areas: Rect[] = []): Rect {
+  const nodes = bounds(nodeIds, positions, sizes);
+  const box = unionRect(nodes ? [nodes, ...areas] : areas);
   const content = box
     ? { x: box.x - CLUSTER_PAD, y: box.y - CLUSTER_HEAD, w: box.w + CLUSTER_PAD * 2, h: box.h + CLUSTER_HEAD + CLUSTER_PAD }
     : { ...anchor, ...EMPTY_CLUSTER };
@@ -232,11 +281,11 @@ export function clusterRect(id: string, nodeIds: string[], positions: ReadonlyMa
   return saved ? unionRect([content, { ...anchor, ...saved }])! : content;
 }
 
-/** A person's group sits one step outside the clusters it may cross. */
-export function groupRect(memberIds: string[], positions: ReadonlyMap<string, Point>, sizes: Sizes = {}): Rect | null {
+/** An area wraps its shown sessions below its header; folded or empty, it is the header alone at its anchor. */
+export function areaRect(memberIds: string[], positions: ReadonlyMap<string, Point>, anchor: Point, sizes: Sizes = {}): Rect {
   const box = bounds(memberIds, positions, sizes);
-  if (!box) return null;
-  return { x: box.x - GROUP_PAD, y: box.y - GROUP_PAD - GROUP_HEAD, w: box.w + GROUP_PAD * 2, h: box.h + GROUP_PAD * 2 + GROUP_HEAD };
+  if (!box) return { ...anchor, w: AREA_MIN_W, h: AREA_HEAD };
+  return { x: box.x - AREA_PAD, y: box.y - AREA_HEAD, w: Math.max(AREA_MIN_W, box.w + AREA_PAD * 2), h: box.h + AREA_HEAD + AREA_PAD };
 }
 
 /** A project frame on the all-projects canvas wraps its worktree frames wherever they went. */
