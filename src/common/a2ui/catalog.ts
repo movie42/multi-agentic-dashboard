@@ -28,7 +28,7 @@ export const OptionApi = {
   schema: ButtonApi.schema.pick({ action: true }).partial().extend({
     label: CommonSchemas.DynamicString.describe("The option's title."),
     description: CommonSchemas.DynamicString.optional().describe("One line under the title."),
-    preview: CommonSchemas.DynamicString.optional().describe("Monospace text shown below the options while this one is hovered."),
+    preview: CommonSchemas.DynamicString.optional().describe("Monospace text shown under the card while this option is hovered or picked."),
     value: CommonSchemas.DynamicString.optional().describe("The value this option adds to `selection`."),
     selection: CommonSchemas.DynamicStringList.optional().describe("Bind to a string list in the data model; the option toggles its value there."),
     single: CommonSchemas.DynamicBoolean.optional().describe("With `selection`: picking this option replaces the list instead of adding to it."),

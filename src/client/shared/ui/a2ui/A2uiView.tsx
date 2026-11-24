@@ -9,6 +9,7 @@ import { processErrors, surfaceIdOf, type A2uiMessage } from "@/common/a2ui/mess
 import { Markdown } from "@/client/shared/ui/Markdown";
 import { appCatalog } from "./catalog";
 import { A2uiLockContext } from "./lock";
+import { A2uiPreviewArea } from "./preview";
 
 type Built =
   | { kind: "ok"; surface: SurfaceModel<ReactComponentImplementation> }
@@ -51,7 +52,9 @@ function Surface({ messages, onAction, locked }: SurfaceProps) {
   return (
     <A2uiLockContext.Provider value={locked}>
       <MarkdownComponentContext.Provider value={ChatMarkdown}>
-        <A2uiSurface surface={built.surface} />
+        <A2uiPreviewArea>
+          <A2uiSurface surface={built.surface} />
+        </A2uiPreviewArea>
       </MarkdownComponentContext.Provider>
     </A2uiLockContext.Provider>
   );

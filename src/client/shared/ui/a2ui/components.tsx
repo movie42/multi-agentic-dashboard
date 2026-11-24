@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { createComponentImplementation } from "@a2ui/react";
 import type { ResolvedChildRef } from "@a2ui/web_core";
 import { ButtonApi, CardApi, CheckBoxApi, ChoicePickerApi, ColumnApi, DividerApi, RowApi, TextApi } from "@a2ui/web_core/v1_0";
@@ -8,6 +7,7 @@ import { AppTextFieldApi, CodeApi, OptionApi, TableApi } from "@/common/a2ui/cat
 import { Markdown } from "@/client/shared/ui/Markdown";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 import { useA2uiLocked } from "./lock";
+import { useA2uiPreview } from "./preview";
 
 const PRIMARY =
   "cursor-pointer rounded-full bg-fg px-4 py-1.5 text-[13px] leading-5 font-semibold text-bg hover:opacity-85 disabled:cursor-default disabled:opacity-30";
@@ -171,40 +171,42 @@ export const AppCheckBox = createComponentImplementation(CheckBoxApi, ({ props, 
 
 export const AppOption = createComponentImplementation(OptionApi, ({ props }) => {
   const locked = useA2uiLocked();
-  const [peeking, setPeeking] = useState(false);
+  const preview = useA2uiPreview();
   const value = props.value ?? props.label ?? "";
   const selectable = props.selection !== undefined;
   const selection = stringList(props.selection);
   const on = selectable && selection.includes(value);
   const pick = () => {
-    if (selectable) props.setSelection(props.single ? [value] : on ? selection.filter((item) => item !== value) : [...selection, value]);
+    if (selectable) {
+      const nextOn = props.single || !on;
+      props.setSelection(props.single ? [value] : on ? selection.filter((item) => item !== value) : [...selection, value]);
+      if (nextOn && (props.single || props.preview)) preview.pin(props.preview ?? null);
+      if (!nextOn && props.preview) preview.unpin(props.preview);
+    }
     void props.action?.();
   };
+  const peek = props.preview ? () => preview.peek(props.preview ?? null) : undefined;
+  const unpeek = props.preview ? () => preview.peek(null) : undefined;
   return (
-    <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        disabled={locked}
-        aria-pressed={selectable ? on : undefined}
-        onClick={pick}
-        onMouseEnter={props.preview ? () => setPeeking(true) : undefined}
-        onMouseLeave={props.preview ? () => setPeeking(false) : undefined}
-        onFocus={props.preview ? () => setPeeking(true) : undefined}
-        onBlur={props.preview ? () => setPeeking(false) : undefined}
-        className={`flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] leading-snug disabled:cursor-default disabled:opacity-40 ${
-          on ? "bg-fg text-bg" : "bg-bg shadow-[inset_0_0_0_1px_var(--hair)] hover:shadow-[inset_0_0_0_1.5px_var(--fg)]"
-        }`}
-      >
-        <span className="font-semibold">
-          {selectable && !props.single && <span className="mr-1.5 font-mono">{on ? "☑" : "☐"}</span>}
-          {props.label}
-        </span>
-        {props.description && <span className="text-[12px] opacity-70">{props.description}</span>}
-      </button>
-      {props.preview && (peeking || on) && (
-        <pre className="max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap">{props.preview}</pre>
-      )}
-    </div>
+    <button
+      type="button"
+      disabled={locked}
+      aria-pressed={selectable ? on : undefined}
+      onClick={pick}
+      onMouseEnter={peek}
+      onMouseLeave={unpeek}
+      onFocus={peek}
+      onBlur={unpeek}
+      className={`flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] leading-snug disabled:cursor-default disabled:opacity-40 ${
+        on ? "bg-fg text-bg" : "bg-bg shadow-[inset_0_0_0_1px_var(--hair)] hover:shadow-[inset_0_0_0_1.5px_var(--fg)]"
+      }`}
+    >
+      <span className="font-semibold">
+        {selectable && !props.single && <span className="mr-1.5 font-mono">{on ? "☑" : "☐"}</span>}
+        {props.label}
+      </span>
+      {props.description && <span className="text-[12px] opacity-70">{props.description}</span>}
+    </button>
   );
 });
 

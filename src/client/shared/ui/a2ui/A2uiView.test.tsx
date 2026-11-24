@@ -53,6 +53,33 @@ describe("A2uiView", () => {
     expect(screen.getByRole("button", { name: /B안/ }).getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("shows an option's preview in one slot after every option, falling back to the picked one", async () => {
+    const messages = [
+      create,
+      components([
+        { id: "root", component: "Column", children: ["a", "b"] },
+        { id: "a", component: "Option", label: "A안", preview: "a-preview", value: "A", single: true, selection: { "@path": "/picked" } },
+        { id: "b", component: "Option", label: "B안", preview: "b-preview", value: "B", single: true, selection: { "@path": "/picked" } },
+      ]),
+      { version: "1.0", updateDataModel: { surfaceId: "pick", path: "/", value: { picked: [] } } },
+    ];
+    render(<A2uiView messages={messages} onAction={() => {}} />);
+    const a = screen.getByRole("button", { name: /A안/ });
+    const b = screen.getByRole("button", { name: /B안/ });
+    expect(screen.queryByLabelText("미리보기")).toBeNull();
+    await userEvent.hover(a);
+    const slot = screen.getByLabelText("미리보기");
+    expect(slot.textContent).toBe("a-preview");
+    expect(b.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await userEvent.click(a);
+    await userEvent.unhover(a);
+    expect(screen.getByLabelText("미리보기").textContent).toBe("a-preview");
+    await userEvent.hover(b);
+    expect(screen.getByLabelText("미리보기").textContent).toBe("b-preview");
+    await userEvent.unhover(b);
+    expect(screen.getByLabelText("미리보기").textContent).toBe("a-preview");
+  });
+
   it("explains a surface it cannot draw instead of crashing", () => {
     render(<A2uiView messages={[create, components([{ id: "root", component: "Bogus" }])]} onAction={() => {}} />);
     expect(screen.getByText(/카드를 그리지 못했어요/)).toBeTruthy();
