@@ -365,7 +365,7 @@ export function ChatView({ sessionId, working, layout }: ChatViewProps) {
       ref={listRef}
       onScroll={onScroll}
       data-chat
-      className={`flex min-h-24 flex-col gap-2 pr-1 ${layout === "box" ? "max-h-[36rem] overflow-y-auto" : ""}`}
+      className={`flex min-h-24 flex-col gap-2 pr-1 wrap-anywhere ${layout === "box" ? "max-h-[36rem] overflow-y-auto" : ""}`}
     >
       {steps.length === 0 ? (
         <p className="text-[13px] text-muted">아직 대화가 없어요</p>
