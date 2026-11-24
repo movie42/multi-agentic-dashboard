@@ -73,8 +73,8 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
   return (
     <div
       className={`flex h-full flex-col gap-1 overflow-hidden rounded-[10px] border-[1.5px] px-3 py-2.5 select-none ${state.tone} ${
-        conductor ? "bg-now/5" : "bg-bg"
-      } ${outside ? "border-dashed" : ""} ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-bg" : ""}`}
+        conductor ? "bg-now/5" : "bg-canvas-card"
+      } ${outside ? "border-dashed" : ""} ${selected ? "ring-2 ring-fg ring-offset-2 ring-offset-canvas" : ""}`}
     >
       <p className="flex items-center gap-1.5 text-[11px] leading-none font-semibold tracking-[0.02em]">
         <span className={`size-1.5 shrink-0 rounded-full ${state.dot}`} />

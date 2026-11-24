@@ -68,7 +68,7 @@ export function ClusterFrame({ id, rect, worktree, steps, roundDoc, sessions, em
   );
   return (
     <g>
-      <rect data-cluster={id} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={14} strokeDasharray="6 5" strokeWidth={1.3} className="fill-tint/40 stroke-faint" />
+      <rect data-cluster={id} x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={14} strokeDasharray="6 5" strokeWidth={1.3} className="fill-canvas-worktree-fill stroke-canvas-worktree-line" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={CLUSTER_HEAD}>
         <div data-drag="cluster" data-id={id} className="flex h-full cursor-grab items-center gap-2 px-4 text-[12px] leading-none select-none active:cursor-grabbing">
           <button
@@ -213,7 +213,7 @@ export function ProjectFrame({ repo, rect, agents, worktrees, onOpen }: ProjectF
   const working = states.filter((state) => state === "working").length;
   return (
     <g>
-      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={22} strokeWidth={1.5} className="fill-tint/20 stroke-hair" />
+      <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} rx={22} strokeWidth={1.5} className="fill-canvas-project-fill stroke-canvas-project-line" />
       <foreignObject x={rect.x} y={rect.y} width={rect.w} height={PROJECT_HEAD}>
         <div data-drag="project" data-id={repo} className="flex h-full cursor-grab items-center gap-2.5 px-5 text-[12px] leading-none select-none active:cursor-grabbing">
           <span className="text-[10px] font-semibold tracking-[0.08em] text-muted">PROJECT</span>

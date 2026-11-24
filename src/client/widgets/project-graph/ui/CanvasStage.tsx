@@ -670,7 +670,7 @@ export function CanvasStage(props: CanvasStageProps) {
         : "cursor-default";
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-bg">
+    <div className="relative h-full w-full overflow-hidden bg-canvas">
       <svg
         ref={svgRef}
         className={`absolute inset-0 h-full w-full touch-none ${cursor}`}
