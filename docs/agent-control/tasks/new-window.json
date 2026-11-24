@@ -328,5 +328,16 @@
       "why": "이 저장소에서는 질문·승인 멈춤 없이 구현하고 완료로 보고하라는 사용자 지시(메모리)"
     }
   ],
-  "pruned": "2026-11-24"
+  "pruned": "2026-11-24",
+  "followUps": [
+    {
+      "date": "2026-11-24",
+      "text": "2026-11-24 SessionWindow.tsx에 PromptColorSync · CanvasColorSync를 붙여 세션 창에도 고른 색 적용 · desktop/main.mjs 모든 창에 tabbingIdentifier를 줘 macOS 윈도우 → 모든 윈도우 병합으로 한 창 탭으로 합치기",
+      "files": [
+        "src/client/views/session/ui/SessionWindow.tsx",
+        "desktop/main.mjs"
+      ],
+      "sha": "1515b20"
+    }
+  ]
 }
