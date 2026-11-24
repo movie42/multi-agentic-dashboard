@@ -153,7 +153,6 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
     if (!openInPanel(target)) void onAction({ type: "open-artifact", target });
   };
 
-  const liveCards = new Set(everyAgent.map((agent) => agent.id));
   const liveIds = new Set([...graph.nodes.keys(), ...graph.reserved.keys(), ...graph.clusters.map((cluster) => cluster.id)]);
   const save = (change: (current: typeof canvas) => typeof canvas) => updateCanvas((current) => pruneCanvas(change(current), liveIds));
   const liveSelected = selected.filter((id) => graph.nodes.has(id) || graph.reserved.has(id));
@@ -312,7 +311,6 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
         rest,
         onEditRun: editRun,
         onEditColors: (targets, title) => setRecoloring({ targets, title, at: menu.screen }),
-        liveCards,
         onSaveAsTemplate: (chosen) => setEditing({ template: draftFromSelection(crypto.randomUUID(), chosen, graph.edges, nodeTitle), isNew: true }),
       })
     : null;
@@ -405,7 +403,7 @@ export function ProjectCanvas({ scope, worktrees, agents, everyAgent, modeOf, no
   return (
     <div className="flex h-dvh min-w-0">
       {menuContent && menu && <CanvasMenu key={`${menu.screen.x}:${menu.screen.y}`} at={menu.screen} {...menuContent} onClose={() => setMenu(null)} />}
-      {recoloring && <ItemColorEditor {...recoloring} liveCards={liveCards} onClose={() => setRecoloring(null)} />}
+      {recoloring && <ItemColorEditor {...recoloring} onClose={() => setRecoloring(null)} />}
       {editing && (
         <TemplateEditor key={editing.run?.id ?? editing.template.id} initial={editing.template} isNew={editing.isNew} run={editing.run} onClose={() => setEditing(null)} />
       )}

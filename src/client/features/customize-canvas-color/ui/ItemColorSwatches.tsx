@@ -5,8 +5,6 @@ import { useItemColors, type ItemColorTarget } from "../model/useItemColors";
 
 interface ItemColorSwatchesProps {
   targets: ItemColorTarget[];
-  /** Every session on the board; colours of cards not in it are forgotten on the next paint. */
-  liveCards?: ReadonlySet<string>;
   /** Opens the editor that picks line, background and text one by one. */
   onCustom: () => void;
 }
@@ -17,8 +15,8 @@ const DOT = "size-[18px] shrink-0 rounded-full outline-offset-2 hover:scale-110 
  * A row of swatches at the top of the canvas's right-click menu. One click paints the item, and the
  * menu stays open so another swatch can be tried against it.
  */
-export function ItemColorSwatches({ targets, liveCards, onCustom }: ItemColorSwatchesProps) {
-  const items = useItemColors(liveCards);
+export function ItemColorSwatches({ targets, onCustom }: ItemColorSwatchesProps) {
+  const items = useItemColors();
   const [first] = targets;
   if (!first) return null;
   const current = items.swatchOf(first);

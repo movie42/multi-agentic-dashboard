@@ -72,24 +72,4 @@ describe("ItemColorSwatches", () => {
     await userEvent.click(screen.getByRole("button", { name: /직접/ }));
     expect(onCustom).toHaveBeenCalled();
   });
-
-  it("forgets the colours of cards whose sessions closed when it paints, and keeps frames' colours", async () => {
-    window.localStorage.setItem(
-      "agent-control:canvas-item-colors",
-      JSON.stringify(["card\tswatch\tred\tgone", "worktree\tswatch\tteal\t/p/old", "card\tswatch\tred\ts2"]),
-    );
-    const { container } = render(
-      <>
-        <CanvasItemColorStyle />
-        <ItemColorSwatches targets={[{ scope: "card", id: "s1" }]} liveCards={new Set(["s1", "s2"])} onCustom={vi.fn()} />
-      </>,
-    );
-    await userEvent.click(screen.getByRole("button", { name: "파랑" }));
-    const rule = styleText(container);
-    expect(rule).not.toContain("card:gone");
-    expect(rule).toContain("worktree:/p/old");
-    expect(rule).toContain("card:s2");
-    expect(rule).toContain("card:s1");
-  });
 });
-

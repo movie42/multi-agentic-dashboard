@@ -93,7 +93,6 @@ export function CanvasMenu({ at, title, heading, groups, rename, colors, onClose
             <>
               <ItemColorSwatches
                 targets={colors.targets}
-                liveCards={colors.liveCards}
                 onCustom={() => {
                   colors.custom();
                   onClose();

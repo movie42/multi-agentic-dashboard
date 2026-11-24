@@ -37,8 +37,6 @@ export interface MenuContext {
   rest: RestOverrides;
   /** Open the colour editor for these frames or cards; `title` names them in it. */
   onEditColors: (targets: ItemColorTarget[], title: string) => void;
-  /** Every session on the board, so painting can forget the colours of closed ones. */
-  liveCards: ReadonlySet<string>;
 }
 
 /**
@@ -58,7 +56,6 @@ export interface MenuContent {
 
 export interface MenuColors {
   targets: ItemColorTarget[];
-  liveCards: ReadonlySet<string>;
   custom: () => void;
 }
 
@@ -187,7 +184,7 @@ function agentsOf(graph: ProjectGraph, ids: string[]): AgentCard[] {
 }
 
 function colorsOf(targets: ItemColorTarget[], title: string, context: MenuContext): MenuColors {
-  return { targets, liveCards: context.liveCards, custom: () => context.onEditColors(targets, title) };
+  return { targets, custom: () => context.onEditColors(targets, title) };
 }
 
 const cardTargets = (agents: AgentCard[]): ItemColorTarget[] => agents.map((agent) => ({ scope: "card", id: agent.id }));

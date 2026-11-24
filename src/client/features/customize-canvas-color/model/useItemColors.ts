@@ -55,15 +55,11 @@ export interface ItemColors {
 /**
  * Colours a person gave one project, worktree or card, on this machine. They sit above the
  * canvas-wide colours and reach every canvas the item shows on.
- *
- * `liveCards` is every session on the board: a write drops the cards that are no longer there, the
- * way the canvas drops a closed session's spot when a person changes it.
  */
-export function useItemColors(liveCards?: ReadonlySet<string>): ItemColors {
+export function useItemColors(): ItemColors {
   const [stored, writeStored] = useStoredList(STORAGE_KEY);
   const colors = stored.flatMap(parseEntry);
-  const live = (color: ItemColor) => !liveCards || liveCards.size === 0 || color.target.scope !== "card" || liveCards.has(color.target.id);
-  const write = (next: ItemColor[]) => writeStored(next.filter(live).map(formatEntry));
+  const write = (next: ItemColor[]) => writeStored(next.map(formatEntry));
   return {
     colors,
     colorOf: (target, part) => {
