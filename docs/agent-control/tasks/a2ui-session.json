@@ -298,9 +298,11 @@
       ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "ask",
+      "summary": "PR 여부 확인 대기",
+      "conclusion": [
+        "리뷰 반영까지 끝났다. 남은 것은 PR 여부와, 데몬 재시작 뒤 실제 앱에서 카드를 눌러 보는 확인이다."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -309,22 +311,46 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "화면 단계(SOT 맵)가 없는 작업이라 바꿀 근거가 없다."
+                ]
+              ]
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "계산 행 · 서버 요청 없음."
+                ]
+              ]
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review medium 지적 6건 중 3건 수정(646e331): 이미 답한 카드에 온 답은 프롬프트로 남김, 못 그린 카드의 처리기 정리, 액션 이름 128자 제한. 여러 줄 액션 텍스트 지적은 데몬이 붙여넣기 형식으로 보내므로(daemon/server.ts:147) 해당 없음."
+                ]
+              ]
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "tsc · eslint(에러 0) 통과. 깨끗한 임시 worktree에서 이 작업의 테스트 237개 통과. 전체 실행에서는 부하 평균 283 때문에 매번 다른 git · 파일 테스트가 5초 제한에 걸렸다(이번 작업과 무관한 파일)."
+                ]
+              ]
             },
             {
               "id": "D5",
