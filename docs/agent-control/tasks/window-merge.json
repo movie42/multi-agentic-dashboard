@@ -1,311 +1,337 @@
 {
-  "id": "window-merge",
-  "title": "새 창 합치기 · 세션 창 탭과 메인 창으로 되돌리기",
-  "type": "기능 수정",
-  "branch": "main",
-  "links": [],
-  "stages": {
-    "tasks": {
-      "status": "done",
-      "summary": "완료",
-      "conclusion": [
-        "세션 창은 오른쪽 패널처럼 위에 탭 줄을 가지고, 세션 여러 개를 탭으로 담아요.",
-        "탭을 다른 세션 창 탭 줄이나 메인 창 오른쪽 패널 탭 줄에 끌어 놓으면 그 창으로 옮겨 가고, 원래 창은 탭이 다 빠지면 닫혀요.",
-        "세션 창의 '메인 창으로' 버튼은 지금 탭을 메인 창 오른쪽 패널로 보내고, '세션 창 모두 합치기'는 떠 있는 세션 창의 탭을 전부 이 창으로 모아요.",
-        "메인 창 오른쪽 패널의 세션 탭을 세션 창 탭 줄에 놓으면 새 창이 아니라 그 창의 탭이 돼요.",
-        "앞서 넣은 macOS 윈도우 메뉴(모든 창 합치기 · 탭 분리)와 tabbingIdentifier는 뺐어요."
-      ],
-      "blocks": [
-        {
-          "type": "checklist",
-          "id": "P1",
-          "title": "Phase 1 · 창끼리 주고받는 신호와 끌기 데이터",
-          "items": [
-            {
-              "id": "P1-1",
-              "title": "창끼리 세션을 주고받는 채널 <code>sessionWindowChannel</code> — 옮겨 감(taken) · 메인으로(dock) · 모두 합치기(merge-into · hand-over) · 이미 열린 창 찾기(focus)",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/entities/agent/model/sessionWindowChannel.ts</code> · 테스트 같은 이름 <code>.test.ts</code>"
-                ],
-                [
-                  "패턴",
-                  "BroadcastChannel — 같은 출처의 창끼리 메시지를 주고받는 브라우저 기능"
-                ],
-                [
-                  "테스트",
-                  "<code>src/client/entities/agent/model/sessionWindowChannel.test.ts</code>"
-                ],
-                [
-                  "결정",
-                  "보낼 때마다 채널을 새로 열고 닫아서 자기 창도 같은 메시지를 들어요. 받는 쪽은 창 id로 자기 메시지를 걸러요"
-                ],
-                [
-                  "결정",
-                  "레지스트리는 창마다 2초마다 보고하고, 6초 넘게 소식 없는 창은 죽은 것으로 봐요"
-                ]
-              ]
-            },
-            {
-              "id": "P1-2",
-              "title": "세션 탭 끌기 데이터 <code>sessionDrag</code> — 세션 id와 출발 창 표시를 dataTransfer에 담고, 놓는 쪽은 자기 창에서 온 끌기를 받지 않음",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/entities/agent/model/sessionDrag.ts</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>widgets/doc-panel/ui/detachDrag.ts</code>의 창 밖 판정"
-                ],
-                [
-                  "테스트",
-                  "<code>src/client/entities/agent/model/sessionDrag.test.ts</code>"
-                ],
-                [
-                  "결정",
-                  "끄는 중에는 데이터를 못 읽고 형식 이름만 읽을 수 있어서, 출발 창 id를 형식 이름에 담아 자기 창 탭은 받지 않아요"
-                ]
-              ]
-            },
-            {
-              "id": "P1-3",
-              "title": "메인 창에 세션을 넣어 달라는 요청 <code>useSessionDockStore</code>",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/entities/agent/model/sessionDockStore.ts</code>"
-                ],
-                [
-                  "테스트",
-                  "<code>src/client/entities/agent/model/sessionDockStore.test.ts</code>"
-                ]
-              ]
-            },
-            {
-              "id": "P1-V",
-              "title": "검증: <code>bun run test</code> — 채널 · 끌기 · 요청 테스트 통과",
-              "done": true,
-              "rows": []
-            }
-          ]
-        },
-        {
-          "type": "checklist",
-          "id": "P2",
-          "title": "Phase 2 · 탭을 가진 세션 창",
-          "items": [
-            {
-              "id": "P2-1",
-              "title": "세션 창 위 탭 줄 — 탭 고르기 · 닫기 · 끌어서 다른 창으로 · 창 밖에 놓으면 새 창 · 다른 창 탭 받기, 주소 <code>/session?id=a&id=b</code>로 새로고침해도 유지",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/views/session/ui/SessionWindow.tsx</code> · <code>SessionTabs.tsx</code> · <code>app/session/page.tsx</code>"
-                ],
-                [
-                  "재사용",
-                  "<code>DocPanel</code>의 탭 모양"
-                ],
-                [
-                  "테스트",
-                  "<code>src/client/views/session/ui/SessionWindow.test.tsx</code>"
-                ],
-                [
-                  "결정",
-                  "탭이 다 빠지면 창을 닫고, 닫히지 않는 창(사람이 직접 연 브라우저 탭)은 '탭을 모두 다른 창으로 옮겼어요' 안내를 보여요"
-                ],
-                [
-                  "결정",
-                  "다른 창에 놓인 탭은 drop 효과로 먼저 판단하고, 효과가 안 오면 250ms 동안 그 창의 'taken' 소식을 기다린 뒤 없으면 새 창으로 열어요"
-                ]
-              ]
-            },
-            {
-              "id": "P2-2",
-              "title": "'메인 창으로' · '세션 창 모두 합치기' 버튼",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>SessionWindow.tsx</code>"
-                ]
-              ]
-            },
-            {
-              "id": "P2-3",
-              "title": "'새 창에서 열기'가 이미 어느 세션 창에 탭으로 있는 세션이면 그 창을 앞으로",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>src/client/entities/agent/model/sessionWindow.ts</code>"
-                ],
-                [
-                  "테스트",
-                  "<code>src/client/entities/agent/model/sessionWindow.test.ts</code>"
-                ],
-                [
-                  "결정",
-                  "새 세션 창 이름을 매번 새로 지어요. 이름을 재사용하면 탭이 옮겨 간 뒤 같은 이름으로 다시 열 때 그 창의 다른 탭이 지워져요"
-                ]
-              ]
-            },
-            {
-              "id": "P2-V",
-              "title": "검증: 테스트 · tsc 통과",
-              "done": true,
-              "rows": []
-            }
-          ]
-        },
-        {
-          "type": "checklist",
-          "id": "P3",
-          "title": "Phase 3 · 메인 창 오른쪽 패널이 세션 탭을 받고 보냄",
-          "items": [
-            {
-              "id": "P3-1",
-              "title": "오른쪽 패널 탭 줄에 세션 탭을 놓으면 그 세션 탭이 열림, 패널 세션 탭을 다른 창에 놓으면 패널에서 닫힘",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>DocPanel.tsx</code> · <code>detachDrag.ts</code> · <code>ProjectCanvas.tsx</code>"
-                ],
-                [
-                  "테스트",
-                  "<code>DocPanel.test.tsx</code> · <code>ProjectCanvas.test.tsx</code>"
-                ],
-                [
-                  "결정",
-                  "<code>detachDrag</code>를 훅 <code>useDetachDrag</code>로 바꿔, 끄는 동안의 대기를 ref에 둬요"
-                ]
-              ]
-            },
-            {
-              "id": "P3-2",
-              "title": "메인 창이 '메인 창으로' 요청을 받으면 그 세션이 보이는 캔버스로 옮기고 패널 탭으로 엶",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>Dashboard.tsx</code> · <code>ProjectCanvas.tsx</code>"
-                ],
-                [
-                  "파일",
-                  "<code>src/client/views/dashboard/model/useSessionDock.ts</code>"
-                ],
-                [
-                  "테스트",
-                  "<code>useSessionDock.test.tsx</code>"
-                ],
-                [
-                  "결정",
-                  "'메인 창으로'는 주소에 repo가 없는 대시보드 창만 받아요. 화면의 캔버스가 그 세션을 못 받으면 세션의 프로젝트 캔버스로 옮겨요"
-                ]
-              ]
-            },
-            {
-              "id": "P3-V",
-              "title": "검증: 테스트 158파일 · 898건, tsc, lint 통과",
-              "done": true,
-              "rows": []
-            }
-          ]
-        },
-        {
-          "type": "checklist",
-          "id": "P4",
-          "title": "Phase 4 · macOS 창 탭 메뉴 빼기와 앱에서 확인",
-          "items": [
-            {
-              "id": "P4-1",
-              "title": "<code>desktop/main.mjs</code>에서 윈도우 메뉴 · <code>tabbingIdentifier</code> 제거",
-              "done": true,
-              "rows": [
-                [
-                  "파일",
-                  "<code>desktop/main.mjs</code>"
-                ]
-              ]
-            },
-            {
-              "id": "P4-V",
-              "title": "검증: 프로덕션 빌드(헤드리스)에서 세션 창 둘 모두 합치기 · 메인 창으로 · 메인 패널과 세션 창에 세션 탭 놓기 확인",
-              "done": true,
-              "rows": [
-                [
-                  "결정",
-                  "창 사이 실제 마우스 끌기는 헤드리스로 재현할 수 없어 같은 drop 이벤트를 보내 확인했어요. 데스크톱 앱에서의 손 끌기는 사람 확인으로 남겨요"
-                ]
-              ]
-            }
-          ]
-        }
-      ]
+ "id": "window-merge",
+ "title": "새 창 합치기 · 세션 창 탭과 메인 창으로 되돌리기",
+ "type": "기능 수정",
+ "branch": "main",
+ "links": [],
+ "stages": {
+  "tasks": {
+   "status": "done",
+   "summary": "완료",
+   "conclusion": [
+    "세션 창은 오른쪽 패널처럼 위에 탭 줄을 가지고, 세션 여러 개를 탭으로 담아요.",
+    "탭을 다른 세션 창 탭 줄이나 메인 창 오른쪽 패널 탭 줄에 끌어 놓으면 그 창으로 옮겨 가고, 원래 창은 탭이 다 빠지면 닫혀요.",
+    "세션 창의 '메인 창으로' 버튼은 지금 탭을 메인 창 오른쪽 패널로 보내고, '세션 창 모두 합치기'는 떠 있는 세션 창의 탭을 전부 이 창으로 모아요.",
+    "메인 창 오른쪽 패널의 세션 탭을 세션 창 탭 줄에 놓으면 새 창이 아니라 그 창의 탭이 돼요.",
+    "앞서 넣은 macOS 윈도우 메뉴(모든 창 합치기 · 탭 분리)와 tabbingIdentifier는 뺐어요."
+   ],
+   "blocks": [
+    {
+     "type": "checklist",
+     "id": "P1",
+     "title": "Phase 1 · 창끼리 주고받는 신호와 끌기 데이터",
+     "items": [
+      {
+       "id": "P1-1",
+       "title": "창끼리 세션을 주고받는 채널 <code>sessionWindowChannel</code> — 옮겨 감(taken) · 메인으로(dock) · 모두 합치기(merge-into · hand-over) · 이미 열린 창 찾기(focus)",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/client/entities/agent/model/sessionWindowChannel.ts</code> · 테스트 같은 이름 <code>.test.ts</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>src/client/entities/agent/model/sessionWindowChannel.test.ts</code>"
+        ],
+        [
+         "결정",
+         "보낼 때마다 채널을 새로 열고 닫아서 자기 창도 같은 메시지를 들어요. 받는 쪽은 창 id로 자기 메시지를 걸러요"
+        ],
+        [
+         "결정",
+         "레지스트리는 창마다 2초마다 보고하고, 6초 넘게 소식 없는 창은 죽은 것으로 봐요"
+        ]
+       ]
+      },
+      {
+       "id": "P1-2",
+       "title": "세션 탭 끌기 데이터 <code>sessionDrag</code> — 세션 id와 출발 창 표시를 dataTransfer에 담고, 놓는 쪽은 자기 창에서 온 끌기를 받지 않음",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/client/entities/agent/model/sessionDrag.ts</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>src/client/entities/agent/model/sessionDrag.test.ts</code>"
+        ],
+        [
+         "결정",
+         "끄는 중에는 데이터를 못 읽고 형식 이름만 읽을 수 있어서, 출발 창 id를 형식 이름에 담아 자기 창 탭은 받지 않아요"
+        ]
+       ]
+      },
+      {
+       "id": "P1-3",
+       "title": "메인 창에 세션을 넣어 달라는 요청 <code>useSessionDockStore</code>",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/client/entities/agent/model/sessionDockStore.ts</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>src/client/entities/agent/model/sessionDockStore.test.ts</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P1-V",
+       "title": "검증: <code>bun run test</code> — 채널 · 끌기 · 요청 테스트 통과",
+       "done": true,
+       "rows": []
+      }
+     ]
     },
-    "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
-      "blocks": [
-        {
-          "type": "checklist",
-          "title": "PR 전",
-          "items": [
-            {
-              "id": "D1",
-              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
-            },
-            {
-              "id": "D2",
-              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
-            },
-            {
-              "id": "D3",
-              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
-            },
-            {
-              "id": "D4",
-              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
-            },
-            {
-              "id": "D5",
-              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
-            }
-          ]
-        },
-        {
-          "type": "text",
-          "title": "서버 · 기획에 요청할 것",
-          "html": "없어요"
-        }
-      ]
+    {
+     "type": "checklist",
+     "id": "P2",
+     "title": "Phase 2 · 탭을 가진 세션 창",
+     "items": [
+      {
+       "id": "P2-1",
+       "title": "세션 창 위 탭 줄 — 탭 고르기 · 닫기 · 끌어서 다른 창으로 · 창 밖에 놓으면 새 창 · 다른 창 탭 받기, 주소 <code>/session?id=a&id=b</code>로 새로고침해도 유지",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/client/views/session/ui/SessionWindow.tsx</code> · <code>SessionTabs.tsx</code> · <code>app/session/page.tsx</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>src/client/views/session/ui/SessionWindow.test.tsx</code>"
+        ],
+        [
+         "결정",
+         "탭이 다 빠지면 창을 닫고, 닫히지 않는 창(사람이 직접 연 브라우저 탭)은 '탭을 모두 다른 창으로 옮겼어요' 안내를 보여요"
+        ],
+        [
+         "결정",
+         "다른 창에 놓인 탭은 drop 효과로 먼저 판단하고, 효과가 안 오면 250ms 동안 그 창의 'taken' 소식을 기다린 뒤 없으면 새 창으로 열어요"
+        ]
+       ]
+      },
+      {
+       "id": "P2-2",
+       "title": "'메인 창으로' · '세션 창 모두 합치기' 버튼",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>SessionWindow.tsx</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P2-3",
+       "title": "'새 창에서 열기'가 이미 어느 세션 창에 탭으로 있는 세션이면 그 창을 앞으로",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>src/client/entities/agent/model/sessionWindow.ts</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>src/client/entities/agent/model/sessionWindow.test.ts</code>"
+        ],
+        [
+         "결정",
+         "새 세션 창 이름을 매번 새로 지어요. 이름을 재사용하면 탭이 옮겨 간 뒤 같은 이름으로 다시 열 때 그 창의 다른 탭이 지워져요"
+        ]
+       ]
+      },
+      {
+       "id": "P2-V",
+       "title": "검증: 테스트 · tsc 통과",
+       "done": true,
+       "rows": []
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "id": "P3",
+     "title": "Phase 3 · 메인 창 오른쪽 패널이 세션 탭을 받고 보냄",
+     "items": [
+      {
+       "id": "P3-1",
+       "title": "오른쪽 패널 탭 줄에 세션 탭을 놓으면 그 세션 탭이 열림, 패널 세션 탭을 다른 창에 놓으면 패널에서 닫힘",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>DocPanel.tsx</code> · <code>detachDrag.ts</code> · <code>ProjectCanvas.tsx</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>DocPanel.test.tsx</code> · <code>ProjectCanvas.test.tsx</code>"
+        ],
+        [
+         "결정",
+         "<code>detachDrag</code>를 훅 <code>useDetachDrag</code>로 바꿔, 끄는 동안의 대기를 ref에 둬요"
+        ]
+       ]
+      },
+      {
+       "id": "P3-2",
+       "title": "메인 창이 '메인 창으로' 요청을 받으면 그 세션이 보이는 캔버스로 옮기고 패널 탭으로 엶",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>Dashboard.tsx</code> · <code>ProjectCanvas.tsx</code>"
+        ],
+        [
+         "파일",
+         "<code>src/client/views/dashboard/model/useSessionDock.ts</code>"
+        ],
+        [
+         "검증 테스트",
+         "<code>useSessionDock.test.tsx</code>"
+        ],
+        [
+         "결정",
+         "'메인 창으로'는 주소에 repo가 없는 대시보드 창만 받아요. 화면의 캔버스가 그 세션을 못 받으면 세션의 프로젝트 캔버스로 옮겨요"
+        ]
+       ]
+      },
+      {
+       "id": "P3-V",
+       "title": "검증: 테스트 158파일 · 898건, tsc, lint 통과",
+       "done": true,
+       "rows": []
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "id": "P4",
+     "title": "Phase 4 · macOS 창 탭 메뉴 빼기와 앱에서 확인",
+     "items": [
+      {
+       "id": "P4-1",
+       "title": "<code>desktop/main.mjs</code>에서 윈도우 메뉴 · <code>tabbingIdentifier</code> 제거",
+       "done": true,
+       "rows": [
+        [
+         "파일",
+         "<code>desktop/main.mjs</code>"
+        ]
+       ]
+      },
+      {
+       "id": "P4-V",
+       "title": "검증: 프로덕션 빌드(헤드리스)에서 세션 창 둘 모두 합치기 · 메인 창으로 · 메인 패널과 세션 창에 세션 탭 놓기 확인",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "창 사이 실제 마우스 끌기는 헤드리스로 재현할 수 없어 같은 drop 이벤트를 보내 확인했어요. 데스크톱 앱에서의 손 끌기는 사람 확인으로 남겨요"
+        ]
+       ]
+      }
+     ]
     }
+   ]
   },
-  "intent": [
+  "done": {
+   "status": "done",
+   "summary": "완료",
+   "conclusion": [
+    "세션 창 탭 옮기기 · 메인 창으로 · 모두 합치기를 만들어 main에 커밋했어요 (71ba3f7). PR 없음.",
+    "창 사이 실제 손 끌기는 데스크톱 앱에서 사람 확인이 남았어요."
+   ],
+   "blocks": [
     {
-      "text": "새 창으로 띄운 세션을 VS Code처럼 다시 한데 모으기 — 세션 창끼리 탭으로 합치고, 메인 창 오른쪽 패널로도 되돌리기",
-      "state": "user",
-      "basis": "사용자 요청 2026-11-24 · 질문 답 '둘 다'"
-    }
-  ],
-  "skipped": [
+     "type": "checklist",
+     "title": "PR 전",
+     "items": [
+      {
+       "id": "D1",
+       "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "화면 SOT 맵이 없는 작업이라 바꿀 근거가 없어요"
+        ]
+       ]
+      },
+      {
+       "id": "D2",
+       "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "서버 · 기획 요청 없음"
+        ]
+       ]
+      },
+      {
+       "id": "D3",
+       "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "/code-review medium 지적 10건 중 5건 고침: 메인 창이 실제로 연 뒤에만 원래 창이 탭을 놓음, 받지 못한 요청은 3초 뒤 포기, 숨은 창 생존 판정 150초, 여는 중인 창 이중 열기 방지, 문서 탭 끌기 회귀와 감시 누수"
+        ],
+        [
+         "결정",
+         "나머지(합치기 응답 확인, 마지막 탭 닫으면 창 닫힘, 채널 즉시 닫기, 주석)는 VS Code와 같은 동작이거나 메시지가 보낼 때 이미 줄에 서서 남겨 둠"
+        ]
+       ]
+      },
+      {
+       "id": "D4",
+       "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "테스트 158파일 · 903건, tsc, lint 통과 · 데스크톱 앱 다시 빌드해 설치"
+        ]
+       ]
+      },
+      {
+       "id": "D5",
+       "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+       "done": true,
+       "rows": [
+        [
+         "결정",
+         "PR 없음 — 이 저장소는 main에 바로 커밋 (<code>71ba3f7</code>)"
+        ]
+       ]
+      }
+     ]
+    },
     {
-      "stage": "tasks",
-      "stop": "계획 승인",
-      "why": "이 저장소에선 답 한 번 뒤 묻지 말고 구현하라는 사용자 지시(메모리)"
+     "type": "text",
+     "title": "서버 · 기획에 요청할 것",
+     "html": "없어요"
     }
-  ]
+   ]
+  }
+ },
+ "intent": [
+  {
+   "text": "새 창으로 띄운 세션을 VS Code처럼 다시 한데 모으기 — 세션 창끼리 탭으로 합치고, 메인 창 오른쪽 패널로도 되돌리기",
+   "state": "user",
+   "basis": "사용자 요청 2026-11-24 · 질문 답 '둘 다'"
+  }
+ ],
+ "skipped": [
+  {
+   "stage": "tasks",
+   "stop": "계획 승인",
+   "why": "이 저장소에선 답 한 번 뒤 묻지 말고 구현하라는 사용자 지시(메모리)"
+  }
+ ],
+ "pruned": "2026-11-24"
 }
