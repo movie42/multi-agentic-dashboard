@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, Artifact } from "@/common/board/types";
 import type { PullRequestInfo, WorkflowStep } from "@/common/workflow/types";
+import { ASK_USER_QUESTION } from "@/common/runner/questions";
 import { formatElapsed } from "@/client/shared/lib/format";
 import { useCardView, type CardView } from "../model/cardViewStore";
 import { consumeJump, useJumpRequest } from "../model/jumpRequestStore";
@@ -396,6 +397,7 @@ export function AgentCardView({
             terminalHandle={isShell ? null : terminalHandle}
             working={agent.state === "working"}
             layout={chatLayout}
+            liveQuestion={agent.permission?.toolName === ASK_USER_QUESTION && terminalHandle !== null}
           />
         ) : (
           <div className="flex flex-col gap-3">
