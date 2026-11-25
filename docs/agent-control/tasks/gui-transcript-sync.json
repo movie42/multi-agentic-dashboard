@@ -1,0 +1,58 @@
+{
+  "id": "gui-transcript-sync",
+  "title": "세션 채팅이 터미널 출력을 빠짐없이 보여 주기 — 요약 본문 · 생각 · 안내 줄 · /compact 실패 뒤 상태",
+  "type": "버그 수정",
+  "branch": "fix/gui-transcript-sync",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "wait",
+      "summary": "계획 작성 전",
+      "conclusion": [],
+      "blocks": []
+    },
+    "done": {
+      "status": "wait",
+      "summary": "리뷰 전",
+      "conclusion": [],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": false
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": false
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": false
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": false
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  }
+}

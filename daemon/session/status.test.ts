@@ -43,4 +43,14 @@ describe("nextStatus", () => {
     expect(nextStatus("working", { event: "exit" })).toBe("exited");
     expect(nextStatus("exited", { event: "UserPromptSubmit" })).toBe("exited");
   });
+
+  it("is idle once /clear starts a fresh conversation, whatever was left running", () => {
+    expect(nextStatus("working", { event: "SessionStart", sessionSource: "clear" })).toBe("idle");
+    expect(nextStatus("working", { event: "SessionStart", sessionSource: "startup" })).toBe("working");
+  });
+
+  it("goes idle when a /compact ends without compacting", () => {
+    expect(nextStatus("working", { event: "compact-ended" })).toBe("idle");
+    expect(nextStatus("waiting", { event: "compact-ended" })).toBe("waiting");
+  });
 });

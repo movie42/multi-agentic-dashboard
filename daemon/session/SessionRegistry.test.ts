@@ -125,6 +125,39 @@ describe("SessionRegistry", () => {
     expect(registry.get("s1")?.status).toBe("working");
   });
 
+  it("stops showing work when a /compact ends without compacting, which sends no hook", async () => {
+    const { registry, ptys } = setup();
+    registry.launch({ cwd: "/repo" });
+    ptys[0]?.emitData("\u276f /compact\r\n");
+    registry.signal("s1", { event: "PreCompact", compactTrigger: "manual" });
+    expect(registry.get("s1")?.status).toBe("working");
+    ptys[0]?.emitData("  \u23bf\x1b[2CNot\x1b[1Cenough\x1b[1Cmessages\x1b[1Cto\x1b[1Ccompact.\r\n");
+    await vi.waitFor(() => expect(registry.get("s1")?.status).toBe("idle"));
+
+    registry.signal("s1", { event: "UserPromptSubmit" });
+    ptys[0]?.emitData("  \u23bf  Read 3 files\r\n");
+    await registry.screen("s1");
+    expect(registry.get("s1")?.status).toBe("working");
+  });
+
+  it("keeps showing a /compact as work while an earlier one's result is still on screen", async () => {
+    const { registry, ptys } = setup();
+    registry.launch({ cwd: "/repo" });
+    ptys[0]?.emitData("\u276f /compact\r\n  \u23bf  Not enough messages to compact.\r\n\u276f say hi\r\n\u23fa hi\r\n\u276f /compact\r\n");
+    registry.signal("s1", { event: "PreCompact", compactTrigger: "manual" });
+    ptys[0]?.emitData("\u273b Compacting conversation\u2026\r\n");
+    await registry.screen("s1");
+    expect(registry.get("s1")?.status).toBe("working");
+  });
+
+  it("is idle after /clear even when a failed /compact left the session working", () => {
+    const { registry } = setup();
+    registry.launch({ cwd: "/repo" });
+    registry.signal("s1", { event: "PreCompact", compactTrigger: "manual" });
+    registry.signal("s1", { event: "SessionStart", sessionSource: "clear", conversationId: "fresh" });
+    expect(registry.get("s1")).toMatchObject({ status: "idle", conversationId: "fresh" });
+  });
+
   it("waits on the user while Claude asks whether to trust the folder, then goes on once hooks start", () => {
     const { registry, ptys } = setup();
     registry.launch({ cwd: "/new", prompt: "go" });
