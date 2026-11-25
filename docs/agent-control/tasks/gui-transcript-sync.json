@@ -142,11 +142,7 @@
               "rows": [
                 [
                   "파일",
-                  "<code>src/server/sessions/activitySteps.ts</code> <code>src/client/widgets/agent-card/ui/ChatView.tsx</code> <code>src/common/sessions/types.ts</code> <code>src/client/features/answer-permission/model/prDraft.test.ts</code> <code>src/server/sessions/__snapshots__/activitySteps.test.ts.snap</code>"
-                ],
-                [
-                  "테스트",
-                  "<code>src/server/sessions/toolResults.test.ts</code>"
+                  "<code>src/server/sessions/activitySteps.ts</code> <code>src/client/widgets/agent-card/ui/ChatView.tsx</code> <code>src/common/sessions/types.ts</code> <code>src/client/features/answer-permission/model/prDraft.test.ts</code> <code>src/server/sessions/__snapshots__/activitySteps.test.ts.snap</code> <code>src/server/sessions/toolResults.test.ts</code>"
                 ],
                 [
                   "결정",
