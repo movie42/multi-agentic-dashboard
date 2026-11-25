@@ -61,6 +61,8 @@ export type ActivityStep =
       detail: string | null;
       /** A markdown file as it stood after this Write/Edit, so the chat can render it instead of raw JSON. */
       document: ToolDocument | null;
+      /** What the call printed, cut short; null until it returns, when it printed nothing, or outside the chat. */
+      result: string | null;
       status: ToolStatus;
     }
   /** An AskUserQuestion call with the answers the user picked, null until they answer. */

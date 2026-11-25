@@ -13,6 +13,7 @@ const SUMMARY_CHARS = 140;
 const TEXT_CHARS = 600;
 const CHAT_TEXT_CHARS = 20_000;
 const CHAT_DETAIL_CHARS = 4_000;
+const CHAT_RESULT_CHARS = 1_500;
 
 interface StepOptions {
   limit: number;
@@ -20,6 +21,8 @@ interface StepOptions {
   detailOf: (input: Record<string, unknown> | undefined) => string | null;
   /** Keep slash commands, `!` shell commands, the output Claude Code printed for them and the notices it prints itself. */
   localCommands: boolean;
+  /** Keep what each tool call printed, cut to this many characters; 0 leaves it out. */
+  resultChars: number;
   /** Keep what Claude thought before answering. */
   thinking: boolean;
   /** Draw AskUserQuestion and ExitPlanMode as their own rows instead of one-line tool rows. */
@@ -160,7 +163,10 @@ function summaryOf(name: string, input: Record<string, unknown> | undefined, cwd
     const value = stringField(input, key);
     if (value) return clip(value.split("\n")[0] ?? value, SUMMARY_CHARS);
   }
-  return name === "TodoWrite" ? "할 일 목록 갱신" : null;
+  if (name === "TodoWrite") return "할 일 목록 갱신";
+  if (!name.startsWith("mcp__")) return null;
+  const first = Object.values(input ?? {}).find((value) => typeof value === "string" && value.trim());
+  return typeof first === "string" ? clip(first.split("\n")[0] ?? first, SUMMARY_CHARS) : null;
 }
 
 // Claude Code records slash commands, hook output and reminders as user lines wrapped in tags.
@@ -256,11 +262,11 @@ export function inputDetail(input: Record<string, unknown> | undefined): string 
 }
 
 export function stepsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false, thinking: false, richTools: false });
+  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false, resultChars: 0, thinking: false, richTools: false });
 }
 
 export function chatItemsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true, thinking: true, richTools: true });
+  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true, resultChars: CHAT_RESULT_CHARS, thinking: true, richTools: true });
 }
 
 interface QueuedMessage {
@@ -387,6 +393,7 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
             summary: summaryOf(block.name, block.input, line.cwd),
             detail: options.detailOf(block.input),
             document: options.richTools ? documentOf(block.name, block.input, files, options.textChars) : null,
+            result: null,
             status: "running",
           };
           tools.set(block.id, step);
@@ -399,6 +406,9 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
           const tool = tools.get(block.tool_use_id);
           if (!tool) continue;
           tool.status = block.is_error ? "error" : "ok";
+          if (tool.kind === "tool" && options.resultChars > 0) {
+            tool.result = clip(resultText(block.content).replace(ANSI, ""), options.resultChars) || null;
+          }
           if (tool.kind === "question") tool.answers = answersOf(line.toolUseResult);
           if (tool.kind === "plan" && block.is_error) tool.feedback = clip(resultText(block.content), options.textChars) || null;
         }
