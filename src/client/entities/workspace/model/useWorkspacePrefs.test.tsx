@@ -22,6 +22,7 @@ function Probe({ scope = null }: ProbeProps) {
       <button type="button" onClick={prefs.openTodo}>
         todo
       </button>
+      <span data-testid="pages">{`${prefs.showingSessions ? "sessions" : ""}${prefs.showingDiff ? "diff" : ""}`}</span>
     </>
   );
 }
@@ -41,13 +42,13 @@ describe("useWorkspacePrefs", () => {
 
   it("starts a scoped window on its project and worktree, whatever the stored selection is", () => {
     window.localStorage.setItem(KEY, JSON.stringify(["other"]));
-    render(<Probe scope={{ repo: "a", worktreeId: "wt-a" }} />);
+    render(<Probe scope={{ kind: "project", repo: "a", worktreeId: "wt-a" }} />);
     expect(screen.getByRole("status").textContent).toBe("a/wt-a/");
   });
 
   it("keeps a scoped window's moves inside that window", async () => {
     window.localStorage.setItem(KEY, JSON.stringify(["other"]));
-    render(<Probe scope={{ repo: "a", worktreeId: null }} />);
+    render(<Probe scope={{ kind: "project", repo: "a", worktreeId: null }} />);
     await userEvent.click(screen.getByRole("button", { name: "worktree" }));
     expect(screen.getByRole("status").textContent).toBe("b/wt-b/");
     await userEvent.click(screen.getByRole("button", { name: "todo" }));
@@ -55,8 +56,19 @@ describe("useWorkspacePrefs", () => {
     expect(JSON.parse(window.localStorage.getItem(KEY) ?? "[]")).toEqual(["other"]);
   });
 
+  it("starts a page window on that page without touching storage", () => {
+    window.localStorage.setItem(KEY, JSON.stringify(["other"]));
+    const { unmount } = render(<Probe scope={{ kind: "page", page: "todo" }} />);
+    expect(screen.getByRole("status").textContent).toBe("-/-/todo");
+    unmount();
+    const sessions = render(<Probe scope={{ kind: "page", page: "sessions" }} />);
+    expect(screen.getByTestId("pages").textContent).toBe("sessions");
+    sessions.unmount();
+    expect(JSON.parse(window.localStorage.getItem(KEY) ?? "[]")).toEqual(["other"]);
+  });
+
   it("does not follow another window's selection when scoped", () => {
-    render(<Probe scope={{ repo: "a", worktreeId: null }} />);
+    render(<Probe scope={{ kind: "project", repo: "a", worktreeId: null }} />);
     act(() => useStoredListStore.getState().write(KEY, ["moved"]));
     expect(screen.getByRole("status").textContent).toBe("a/-/");
   });

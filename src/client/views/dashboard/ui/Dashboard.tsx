@@ -17,7 +17,7 @@ import { postAction } from "@/client/shared/api/actions";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { toastError } from "@/client/shared/model/toastStore";
 import { AgentCardView, requestJump, type CardProgress, type CardSurface, type ChatLayout } from "@/client/widgets/agent-card";
-import { foldWorkers, groupAgents, needsInput, type FoldedAgents } from "@/client/entities/agent";
+import { foldWorkers, groupAgents, needsInput, openSessionWindow, type FoldedAgents } from "@/client/entities/agent";
 import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
 import { ProjectCommandHost } from "@/client/features/run-project-command";
@@ -194,6 +194,8 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const error = boardQuery.error ? errorMessage(boardQuery.error) : null;
   const scope = workspaceScopeOf(useSearchParams());
   const prefs = useWorkspacePrefs(scope);
+  // A window opened on one sidebar page shows only that page: no sidebar, and it never moves off it.
+  const pageWindow = scope?.kind === "page";
   const rest = useRestOverrides();
   const hasDocTabs = useDocViewerStore((state) => state.tabs.length > 0);
   const treeShown = useFileExplorerStore((state) => state.treeOpen && state.root !== null);
@@ -266,6 +268,10 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const needsMeCount = groupAgents(folded.top, rest.restOf).needsMe
     .length;
   const jumpToAgent = (agent: AgentCard) => {
+    if (pageWindow) {
+      openSessionWindow(agent.id);
+      return;
+    }
     requestJump(agent.id);
     jumpTo(agent.repo, [agent.id, agent.worktreeId], agent.worktreeId);
   };
@@ -409,18 +415,20 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
   const floatingDocOpen = docOpen && !onCanvas;
 
   return (
-    <div className={`${sidebarCollapsed ? "" : "md:pl-[var(--sidebar-w,18rem)]"} ${floatingDocOpen ? "md:pr-[var(--doc-panel-w,50vw)]" : ""}`}>
-      <ResizeHandle
-        cssVar="--sidebar-w"
-        storageKey="agent-control:sidebar-width"
-        edge="right"
-        defaultWidth={() => 288}
-        min={200}
-        max={() => Math.min(520, window.innerWidth - (floatingDocOpen ? paneWidth("--doc-panel-w", 0) : 0) - 400)}
-        label="사이드바 크기 조절"
-        className={`fixed inset-y-0 left-[calc(var(--sidebar-w,18rem)-4px)] hidden ${sidebarCollapsed ? "" : "md:flex"}`}
-      />
-      {sidebarCollapsed ? (
+    <div className={`${sidebarCollapsed || pageWindow ? "" : "md:pl-[var(--sidebar-w,18rem)]"} ${floatingDocOpen ? "md:pr-[var(--doc-panel-w,50vw)]" : ""}`}>
+      {!pageWindow && (
+        <ResizeHandle
+          cssVar="--sidebar-w"
+          storageKey="agent-control:sidebar-width"
+          edge="right"
+          defaultWidth={() => 288}
+          min={200}
+          max={() => Math.min(520, window.innerWidth - (floatingDocOpen ? paneWidth("--doc-panel-w", 0) : 0) - 400)}
+          label="사이드바 크기 조절"
+          className={`fixed inset-y-0 left-[calc(var(--sidebar-w,18rem)-4px)] hidden ${sidebarCollapsed ? "" : "md:flex"}`}
+        />
+      )}
+      {sidebarCollapsed && !pageWindow ? (
         <button
           type="button"
           onClick={toggleSidebar}
@@ -444,22 +452,24 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
       <PromptColorSync />
       <CanvasColorSync />
       <CanvasItemColorStyle />
-      <ProjectSidebar
-        projects={board.projects}
-        countsByRepo={countsByRepo}
-        worktreesByRepo={worktreesByRepo}
-        countsByWorktree={countsByWorktree}
-        totalNeedsInput={inputAgents.filter((agent) => inFocus(agent.repo)).length}
-        totalNeedsMe={focusGroups.needsMe.length}
-        totalWorking={focusGroups.working.length}
-        focused={focused}
-        onToggleFocus={toggleFocus}
-        prefs={prefs}
-        fetchedAt={board.fetchedAt}
-        error={error}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={toggleSidebar}
-      />
+      {!pageWindow && (
+        <ProjectSidebar
+          projects={board.projects}
+          countsByRepo={countsByRepo}
+          worktreesByRepo={worktreesByRepo}
+          countsByWorktree={countsByWorktree}
+          totalNeedsInput={inputAgents.filter((agent) => inFocus(agent.repo)).length}
+          totalNeedsMe={focusGroups.needsMe.length}
+          totalWorking={focusGroups.working.length}
+          focused={focused}
+          onToggleFocus={toggleFocus}
+          prefs={prefs}
+          fetchedAt={board.fetchedAt}
+          error={error}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+        />
+      )}
 
       <main
         className={

@@ -8,9 +8,10 @@ import { CanvasColorPanel } from "@/client/features/customize-canvas-color";
 import { PromptColorPanel } from "@/client/features/customize-prompt-color";
 import { ImportProject } from "@/client/features/import-project";
 import { UsageMeter } from "@/client/entities/usage";
-import type { WorkspacePrefs } from "@/client/entities/workspace";
+import type { WorkspacePage, WorkspacePrefs } from "@/client/entities/workspace";
 import { useState } from "react";
 import type { MenuPoint } from "@/client/shared/ui/ContextMenu";
+import { PageMenu } from "./PageMenu";
 import { ProjectMenu } from "./ProjectMenu";
 import { ProjectWorktrees, type WorktreeCounts } from "./ProjectWorktrees";
 
@@ -75,6 +76,7 @@ interface NavItemProps {
   /** A project row whose selection is shown by its highlighted worktree instead. */
   heading?: boolean;
   onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onContextMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 function itemTone(active: boolean, focused: boolean, heading: boolean): string {
@@ -94,11 +96,13 @@ function NavItem({
   working,
   heading = false,
   onSelect,
+  onContextMenu,
 }: NavItemProps) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       className={`-mx-2 grid min-w-0 flex-1 grid-cols-[8px_1fr_auto] items-center gap-x-2.5 rounded-md px-2 py-1.5 text-left text-[14px] leading-[1.4] ${itemTone(
         active,
         focused,
@@ -141,6 +145,11 @@ export function ProjectSidebar({
 }: ProjectSidebarProps) {
   const [collapsedRepos, writeCollapsedRepos] = useStoredList("agent-control:sidebar-collapsed-repos");
   const [menu, setMenu] = useState<{ project: ProjectSummary; at: MenuPoint } | null>(null);
+  const [pageMenu, setPageMenu] = useState<{ page: WorkspacePage; label: string; open: () => void; at: MenuPoint } | null>(null);
+  const pageMenuOn = (page: WorkspacePage, label: string, open: () => void) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setPageMenu({ page, label, open, at: { x: event.clientX, y: event.clientY } });
+  };
   const isOpen = (repo: string) => !collapsedRepos.includes(repo);
   const setOpen = (repo: string, open: boolean) =>
     writeCollapsedRepos(open ? collapsedRepos.filter((item) => item !== repo) : [...collapsedRepos, repo]);
@@ -189,13 +198,28 @@ export function ProjectSidebar({
           needsMe={0}
           working={0}
           onSelect={prefs.openSessions}
+          onContextMenu={pageMenuOn("sessions", "지난 세션", prefs.openSessions)}
         />
       </div>
       <div className="flex">
-        <NavItem label="할일" active={prefs.showingTodo} needsMe={0} working={0} onSelect={prefs.openTodo} />
+        <NavItem
+          label="할일"
+          active={prefs.showingTodo}
+          needsMe={0}
+          working={0}
+          onSelect={prefs.openTodo}
+          onContextMenu={pageMenuOn("todo", "할일", prefs.openTodo)}
+        />
       </div>
       <div className="flex">
-        <NavItem label="변경" active={prefs.showingDiff} needsMe={0} working={0} onSelect={prefs.openDiff} />
+        <NavItem
+          label="변경"
+          active={prefs.showingDiff}
+          needsMe={0}
+          working={0}
+          onSelect={prefs.openDiff}
+          onContextMenu={pageMenuOn("diff", "변경", prefs.openDiff)}
+        />
       </div>
 
       <p className="mt-6 mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">프로젝트</p>
@@ -287,6 +311,9 @@ export function ProjectSidebar({
           }}
           onClose={() => setMenu(null)}
         />
+      )}
+      {pageMenu && (
+        <PageMenu page={pageMenu.page} label={pageMenu.label} at={pageMenu.at} onOpen={pageMenu.open} onClose={() => setPageMenu(null)} />
       )}
       <ImportProject />
       <AppStatusPanel />

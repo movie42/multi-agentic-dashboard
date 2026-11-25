@@ -123,7 +123,8 @@ function openHandler({ url }) {
   if (pathname === "/session") {
     return { action: "allow", overrideBrowserWindowOptions: { minWidth: 420, minHeight: 400, title: "세션" } };
   }
-  if (pathname === "/" && new URL(url).searchParams.has("repo")) {
+  // A board window scoped to a project (?repo=) or a sidebar page (?page=), from "새 창에서 열기".
+  if (pathname === "/" && ["repo", "page"].some((key) => new URL(url).searchParams.has(key))) {
     return { action: "allow", overrideBrowserWindowOptions: { ...APP_WINDOW, title: "Agent Control" } };
   }
   // Size and position come from the window.open features of a tab dragged out of the doc panel.
