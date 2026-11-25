@@ -1,7 +1,7 @@
 import type { RunnerHookEvent, RunnerStatus } from "../../src/common/runner/types.ts";
 
 export interface StatusSignal {
-  event: RunnerHookEvent | "exit" | "trust-prompt" | "interrupt" | "menu-open" | "menu-closed" | "permission-answered";
+  event: RunnerHookEvent | "exit" | "trust-prompt" | "interrupt" | "compact-ended" | "menu-open" | "menu-closed" | "permission-answered";
   notificationType?: string | null;
   /** `session_id` from the hook payload: the Claude Code session the terminal is on now. */
   conversationId?: string | null;
@@ -30,9 +30,11 @@ export function nextStatus(current: RunnerStatus, signal: StatusSignal): RunnerS
     case "permission-answered":
       return current === "waiting" ? "working" : current;
     case "interrupt":
+    case "compact-ended":
       return current === "working" ? "idle" : current;
     case "SessionStart":
-      return current === "waiting" || signal.endsCompact ? "idle" : current;
+      // A /clear leaves nothing running, so it also clears a status no hook came to end.
+      return current === "waiting" || signal.endsCompact || signal.sessionSource === "clear" ? "idle" : current;
     case "PreCompact":
       return signal.compactTrigger === "manual" ? "working" : current;
     case "UserPromptSubmit":

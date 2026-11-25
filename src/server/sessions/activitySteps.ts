@@ -5,7 +5,7 @@ import { surfaceIdOf, validateUiMessages } from "@/common/a2ui/messages";
 import { ASK_USER_QUESTION, questionsOf } from "@/common/runner/questions";
 import type { ActivityStep, ToolDocument } from "@/common/sessions/types";
 import { parseJson } from "@/server/shared/fallback";
-import { unwrapPasted } from "./transcriptText";
+import { isNarration, unwrapPasted } from "./transcriptText";
 
 export const STEP_LIMIT = 40;
 export const CHAT_LIMIT = 300;
@@ -18,8 +18,10 @@ interface StepOptions {
   limit: number;
   textChars: number;
   detailOf: (input: Record<string, unknown> | undefined) => string | null;
-  /** Keep slash commands, `!` shell commands and the output Claude Code printed for them. */
+  /** Keep slash commands, `!` shell commands, the output Claude Code printed for them and the notices it prints itself. */
   localCommands: boolean;
+  /** Keep what Claude thought before answering. */
+  thinking: boolean;
   /** Draw AskUserQuestion and ExitPlanMode as their own rows instead of one-line tool rows. */
   richTools: boolean;
 }
@@ -88,6 +90,8 @@ const contentBlockSchema = z.looseObject({
   id: text,
   name: text,
   text,
+  thinking: text,
+  signature: text,
   input: z.record(z.string(), z.unknown()).optional().catch(undefined),
   tool_use_id: text,
   is_error: flag,
@@ -97,6 +101,7 @@ const contentBlockSchema = z.looseObject({
 const transcriptLineSchema = z.looseObject({
   type: text,
   subtype: text,
+  level: text,
   content: z.unknown().optional(),
   uuid: text,
   cwd: text,
@@ -172,6 +177,9 @@ function tagged(text: string, tag: string): string | null {
   return match ? (match[1] ?? "") : null;
 }
 
+/** System lines the terminal prints as they are: a recap after time away, a notice, a scheduled wake-up. */
+const NOTICE_SUBTYPES: ReadonlySet<string> = new Set(["away_summary", "informational", "scheduled_task_fire"]);
+
 type LocalItem = { kind: "prompt"; text: string } | { kind: "output"; text: string; error: boolean };
 
 /** Reads the tag-wrapped lines Claude Code writes for commands it runs itself. */
@@ -180,6 +188,10 @@ function localItemsOf(text: string): LocalItem[] {
   if (name) {
     const args = tagged(text, "command-args")?.trim();
     return [{ kind: "prompt", text: args ? `${name} ${args}` : name }];
+  }
+  if (text.trimStart().startsWith("<task-notification>")) {
+    const summary = tagged(text, "summary")?.trim();
+    return summary ? [{ kind: "output", text: summary, error: false }] : [];
   }
   const shell = tagged(text, "bash-input");
   if (shell !== null) return [{ kind: "prompt", text: `! ${shell.trim()}` }];
@@ -244,11 +256,11 @@ export function inputDetail(input: Record<string, unknown> | undefined): string 
 }
 
 export function stepsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false, richTools: false });
+  return parseSteps(lines, { limit: STEP_LIMIT, textChars: TEXT_CHARS, detailOf: commandOf, localCommands: false, thinking: false, richTools: false });
 }
 
 export function chatItemsOf(lines: string[]): ActivityStep[] {
-  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true, richTools: true });
+  return parseSteps(lines, { limit: CHAT_LIMIT, textChars: CHAT_TEXT_CHARS, detailOf: inputDetail, localCommands: true, thinking: true, richTools: true });
 }
 
 interface QueuedMessage {
@@ -315,6 +327,13 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
       }
       continue;
     }
+    if (line.type === "system" && line.subtype && NOTICE_SUBTYPES.has(line.subtype)) {
+      const notice = typeof line.content === "string" ? line.content.replace(ANSI, "").trim() : "";
+      if (options.localCommands && notice) {
+        steps.push({ kind: "output", id: `${line.uuid}:notice`, at, text: clip(notice, options.textChars), error: line.level === "error" });
+      }
+      continue;
+    }
     if (line.type === "queue-operation") {
       if (options.richTools) queue = replayQueue(queue, line, enqueued);
       if (line.operation === "enqueue") enqueued += 1;
@@ -346,8 +365,13 @@ function parseSteps(lines: string[], options: StepOptions): ActivityStep[] {
 
     if (line.type === "assistant") {
       blocks.forEach((block, index) => {
+        const thought = block.type === "thinking" ? block.thinking?.trim() : null;
         if (block.type === "text" && block.text?.trim()) {
           steps.push({ kind: "text", id: `${line.uuid}:${index}`, at, text: clip(block.text, options.textChars) });
+        } else if (thought && isNarration(block.signature)) {
+          steps.push({ kind: "text", id: `${line.uuid}:${index}`, at, text: clip(thought, options.textChars) });
+        } else if (thought && options.thinking) {
+          steps.push({ kind: "thinking", id: `${line.uuid}:${index}`, at, text: clip(thought, options.textChars) });
         } else if (block.type === "tool_use" && block.id && block.name) {
           const rich = options.richTools ? richStepOf({ ...block, id: block.id, name: block.name }, at, options.textChars) : null;
           if (rich) {

@@ -289,6 +289,16 @@ function ChatRow({ step, copyable }: ChatRowProps) {
       </li>
     );
   }
+  if (step.kind === "thinking") {
+    return (
+      <li className="flex gap-2 py-1 text-[13px] leading-relaxed text-muted">
+        <span aria-hidden className="shrink-0 text-faint">
+          ∴
+        </span>
+        <p className="min-w-0 whitespace-pre-wrap">{step.text}</p>
+      </li>
+    );
+  }
   if (step.kind === "prompt" && step.queued) {
     return (
       <li className="flex flex-col items-end gap-1 py-1">

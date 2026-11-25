@@ -48,6 +48,8 @@ export type ActivityStep =
   /** `queued`: typed while Claude was busy and not taken in yet. */
   | { kind: "prompt"; id: string; at: number | null; text: string; queued?: true }
   | { kind: "text"; id: string; at: number | null; text: string }
+  /** What Claude thought before answering; the terminal prints it dimmed above the answer. */
+  | { kind: "thinking"; id: string; at: number | null; text: string }
   /** Output Claude Code printed itself — a local slash command or a `!` shell command — not the model. */
   | { kind: "output"; id: string; at: number | null; text: string; error: boolean }
   | {
