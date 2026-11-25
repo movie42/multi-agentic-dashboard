@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { createComponentImplementation } from "@a2ui/react";
 import type { ResolvedChildRef } from "@a2ui/web_core";
 import { ButtonApi, CardApi, CheckBoxApi, ChoicePickerApi, ColumnApi, DividerApi, RowApi, TextApi } from "@a2ui/web_core/v1_0";
@@ -176,6 +177,11 @@ export const AppOption = createComponentImplementation(OptionApi, ({ props }) =>
   const selectable = props.selection !== undefined;
   const selection = stringList(props.selection);
   const on = selectable && selection.includes(value);
+  useEffect(() => {
+    if (!props.preview) return;
+    return preview.register(props.preview);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.preview]);
   const pick = () => {
     if (selectable) {
       const nextOn = props.single || !on;

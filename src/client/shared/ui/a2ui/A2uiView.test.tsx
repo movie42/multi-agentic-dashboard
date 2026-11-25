@@ -66,18 +66,43 @@ describe("A2uiView", () => {
     render(<A2uiView messages={messages} onAction={() => {}} />);
     const a = screen.getByRole("button", { name: /A안/ });
     const b = screen.getByRole("button", { name: /B안/ });
-    expect(screen.queryByLabelText("미리보기")).toBeNull();
-    await userEvent.hover(a);
     const slot = screen.getByLabelText("미리보기");
-    expect(slot.textContent).toBe("a-preview");
+    const shown = () => slot.querySelector('pre:not([aria-hidden="true"])')?.textContent ?? null;
     expect(b.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(shown()).toBeNull();
+    await userEvent.hover(a);
+    expect(shown()).toBe("a-preview");
     await userEvent.click(a);
     await userEvent.unhover(a);
-    expect(screen.getByLabelText("미리보기").textContent).toBe("a-preview");
+    expect(shown()).toBe("a-preview");
     await userEvent.hover(b);
-    expect(screen.getByLabelText("미리보기").textContent).toBe("b-preview");
+    expect(shown()).toBe("b-preview");
     await userEvent.unhover(b);
-    expect(screen.getByLabelText("미리보기").textContent).toBe("a-preview");
+    expect(shown()).toBe("a-preview");
+  });
+
+  it("keeps the preview slot the same size whatever is hovered, so the card never grows or shrinks under the pointer", async () => {
+    const messages = [
+      create,
+      components([
+        { id: "root", component: "Column", children: ["a", "b"] },
+        { id: "a", component: "Option", label: "A안", preview: "short", action: { event: { name: "pick", context: {} } } },
+        { id: "b", component: "Option", label: "B안", preview: "tall\ntall\ntall", action: { event: { name: "pick", context: {} } } },
+      ]),
+    ];
+    render(<A2uiView messages={messages} onAction={() => {}} />);
+    const slot = screen.getByLabelText("미리보기");
+    const stacked = () => Array.from(slot.querySelectorAll("pre"), (pre) => pre.textContent);
+    expect(stacked()).toEqual(["short", "tall\ntall\ntall"]);
+    await userEvent.hover(screen.getByRole("button", { name: /A안/ }));
+    expect(stacked()).toEqual(["short", "tall\ntall\ntall"]);
+    await userEvent.unhover(screen.getByRole("button", { name: /A안/ }));
+    expect(screen.getByLabelText("미리보기")).toBe(slot);
+  });
+
+  it("leaves out the preview slot when no option has a preview", () => {
+    render(<A2uiView messages={surface} onAction={() => {}} />);
+    expect(screen.queryByLabelText("미리보기")).toBeNull();
   });
 
   it("explains a surface it cannot draw instead of crashing", () => {
