@@ -21,7 +21,15 @@
                 "text": "FigJam에서 쓰던 기본 도구를 처음부터 다 쓰고 싶어서 고른 것으로 본다.",
                 "by": "inferred"
               },
-              "appliedTo": "[[P1]] [[P3]]"
+              "appliedTo": "[[P1]] [[P3]]",
+              "answer": {
+                "choice": "b",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q2",
@@ -32,7 +40,15 @@
                 "text": "자유롭게 그리되, 프레임 안에 둔 메모는 그 워크트리에 딸린 것처럼 같이 움직이길 원했다.",
                 "by": "user"
               },
-              "appliedTo": "[[P3]] [[P3-3]]"
+              "appliedTo": "[[P3]] [[P3-3]]",
+              "answer": {
+                "choice": "b",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q3",
@@ -43,7 +59,15 @@
                 "text": "Dock 앱과 브라우저에서 같은 메모가 보여야 하고 오래 남아야 한다.",
                 "by": "recommended"
               },
-              "appliedTo": "[[P2]]"
+              "appliedTo": "[[P2]]",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             },
             {
               "id": "Q4",
@@ -54,7 +78,15 @@
                 "text": "Q2에서 자유 배치를 골라 워크트리와 함께 지울 대상이 없어졌다.",
                 "by": "recommended"
               },
-              "appliedTo": "[[P3]]"
+              "appliedTo": "[[P3]]",
+              "answer": {
+                "choice": "a",
+                "why": "",
+                "note": "",
+                "followUp": "",
+                "copy": "",
+                "by": "user"
+              }
             }
           ]
         }
@@ -310,5 +342,6 @@
       "why": "사용자가 질문 한 번 뒤에는 승인 없이 구현까지 하길 원함"
     }
   ],
-  "pruned": "2026-11-24"
+  "pruned": "2026-11-24",
+  "pulledAt": 1795489920301
 }
