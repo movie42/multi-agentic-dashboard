@@ -26,6 +26,7 @@ import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
 import { usePendingLaunchStore } from "@/client/features/launch-agent";
 import { boardKeys } from "@/client/entities/board";
+import { tokenKeys } from "@/client/entities/tokens";
 import { ProjectSidebar, type ProjectCounts, type WorktreeCounts } from "@/client/widgets/project-sidebar";
 import { AgentList } from "@/client/widgets/agent-list";
 import { SessionsPage } from "@/client/widgets/session-list";
@@ -262,6 +263,9 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
     } catch (actionError) {
       if (pendingId) cancelPendingLaunch(pendingId);
       toastError("action", actionError, { type: action.type });
+    } finally {
+      // A batch close that partly fails still counted the sessions that did close.
+      if (action.type === "close-terminal" || action.type === "close-terminals") void queryClient.invalidateQueries({ queryKey: tokenKeys.all });
     }
   };
 

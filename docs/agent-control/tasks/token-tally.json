@@ -1,0 +1,276 @@
+{
+  "id": "token-tally",
+  "title": "세션을 닫을 때마다 총 사용 토큰 수 쌓기",
+  "type": "기능 개발",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 완료",
+      "conclusion": [
+        "세션을 닫으면 서버가 그 세션의 기록 파일에서 토큰을 세어 누적 장부에 더해요 — [[P1]].",
+        "사이드바의 Claude 사용량 위에 \"총 사용 토큰 수\"와 토큰 종류별 비율 막대를 보여주고, 닫을 때마다 다시 읽어요 — [[P2]].",
+        "3D 애니메이션은 사용자 요청으로 뺐어요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 토큰 세기와 누적 장부",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "토큰 장부 타입과 응답 타입",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/tokens/types.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/common/usage/types.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "세션 기록 파일(JSONL)에서 토큰 합계 — 같은 답변이 블록마다 여러 줄로 남아 있어 메시지 id로 한 번만 센다, 서브에이전트 기록도 포함",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/tokens/transcriptTokens.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/server/sessions/paths.ts</code> <code>projectDirOf</code>"
+                ],
+                [
+                  "결정",
+                  "토큰은 입력 · 출력 · 캐시 쓰기 · 캐시 읽기 네 가지를 모두 더한다(ccusage의 Total Tokens와 같은 기준). 화면에는 종류별 비율도 함께 보여 준다"
+                ],
+                [
+                  "테스트",
+                  "<code>src/server/tokens/transcriptTokens.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "누적 장부 — 세션별로 이미 센 양을 기억해, 다시 열었다 닫아도 늘어난 만큼만 더한다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/tokens/TokenLedger.ts</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>src/server/shared/JsonFile.ts</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/server/runner/TerminalAliases.ts</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>src/server/tokens/TokenLedger.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "장부는 총합과 세션별로 이미 센 양만 둔다. 애니메이션용으로 쌓던 최근 닫은 세션 목록은 애니메이션과 함께 뺐다"
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "세션 닫기 처리에서 장부에 기록하고, 총합을 읽는 API",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>app/api/actions/route.ts</code><br><code>app/api/tokens/route.ts</code><br><code>src/server/tokens/recordCloses.ts</code> <code>createTokenService</code><br><code>src/server/container.ts</code>"
+                ],
+                [
+                  "결정",
+                  "장부 기록이 실패해도 세션 닫기는 성공으로 둔다"
+                ],
+                [
+                  "테스트",
+                  "<code>src/server/tokens/recordCloses.test.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 새 테스트와 전체 <code>bun run test</code> 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 총 사용 토큰 수",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "토큰 장부 조회 쿼리와 총 사용 토큰 수 표시(종류별 비율 막대)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/entities/tokens/</code>"
+                ],
+                [
+                  "패턴",
+                  "<code>src/client/entities/usage/</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>src/client/entities/tokens/ui/TokenTotal.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "토큰 종류 색은 기존 상태 색 토큰을 쓴다: 입력 <code>now</code>, 출력 <code>accent</code>, 캐시 쓰기 <code>pr</code>, 캐시 읽기 <code>focus</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "사이드바의 Claude 사용량 위에 배치, 세션을 닫으면 바로 다시 읽기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-sidebar/ui/ProjectSidebar.tsx</code><br><code>src/client/views/dashboard/ui/Dashboard.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "다른 창에서 닫은 세션은 10초마다 다시 읽을 때 반영된다"
+                ],
+                [
+                  "결정",
+                  "여러 세션을 닫다 일부가 실패해도 총합을 다시 읽는다"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: 컴포넌트 테스트 통과",
+              "done": true,
+              "rows": []
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "뺀 것",
+          "html": "three.js 3D 애니메이션(닫을 때 토큰 큐브가 터졌다가 총합으로 날아가는 연출)을 만들어 화면에서 확인했지만, 사용자가 재미 요소는 빼고 총합 갱신만 남기기로 해서 <code>src/client/features/token-burst/</code>와 <code>three</code> 의존성을 지웠다."
+        }
+      ]
+    },
+    "done": {
+      "status": "ask",
+      "summary": "PR 여부 확인 대기",
+      "conclusion": [
+        "리뷰 지적 중 크리티컬 1건과 집계 누락 1건을 고쳤고, 검사는 모두 통과했어요.",
+        "커밋과 PR은 사용자 확인을 기다려요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "화면 · SOT 단계가 없는 작업이라 바꿀 근거가 없음"
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "서버 · 기획에 넘길 요청 없음"
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "크리티컬 1건: 여러 세션을 닫다 일부가 실패하면 총합을 다시 읽지 않던 문제 — 실패해도 다시 읽게 고침"
+                ],
+                [
+                  "결정",
+                  "id 없는 답변 줄을 하나로 합쳐 세던 문제도 고침. 이어 연 세션의 중복 집계 지적은 실제 기록 7,552개에서 파일 간 중복이 0건이라 그대로 둠"
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "내 변경 범위의 타입 검사 · lint 통과. 전체 테스트는 1119개 통과, 2개 실패 — 둘 다 다른 세션이 작업 중인 지휘자 타입 변경(<code>src/common/orchestration/types.ts</code>) 때문이고 애니메이션을 빼기 전에는 1137개 모두 통과"
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ],
+      "ext": {
+        "hyunsu": {
+          "title": "옵시디언 기록",
+          "unknown": "개인 도구 저장소(Agent Control)라 볼트에 기록하지 않음"
+        }
+      }
+    }
+  },
+  "intent": [
+    {
+      "text": "닫은 세션의 토큰을 계속 더한 \"총 사용 토큰 수\"를 사이드바의 Claude 사용량 위에 두고, 세션을 닫을 때마다 갱신한다.",
+      "state": "said",
+      "basis": "사용자 요청"
+    },
+    {
+      "text": "3D 애니메이션은 만들었다가 사용자 요청으로 뺐다.",
+      "state": "said",
+      "basis": "사용자 요청"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "이 저장소에서는 계획 승인 멈춤 없이 구현하고 끝에 보고하기로 함(메모리 flow-implement-dont-grill)"
+    }
+  ]
+}

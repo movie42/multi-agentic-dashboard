@@ -7,6 +7,7 @@ import { AppStatusPanel } from "@/client/features/apply-app";
 import { CanvasColorPanel } from "@/client/features/customize-canvas-color";
 import { PromptColorPanel } from "@/client/features/customize-prompt-color";
 import { ImportProject } from "@/client/features/import-project";
+import { TokenTotal } from "@/client/entities/tokens";
 import { UsageMeter } from "@/client/entities/usage";
 import type { WorkspacePage, WorkspacePrefs } from "@/client/entities/workspace";
 import { useState } from "react";
@@ -175,6 +176,10 @@ export function ProjectSidebar({
         {error ? <span className="text-accent">갱신 실패 · </span> : null}
         {formatClock(fetchedAt)} 갱신
       </p>
+      <div className="mb-5">
+        <p className="mb-1.5 text-[11px] font-bold tracking-[0.04em] text-muted">총 사용 토큰 수</p>
+        <TokenTotal />
+      </div>
       <div className="mb-6">
         <p className="mb-2 text-[11px] font-bold tracking-[0.04em] text-muted">Claude 사용량</p>
         <UsageMeter />

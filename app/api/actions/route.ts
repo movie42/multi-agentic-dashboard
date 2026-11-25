@@ -20,6 +20,20 @@ async function resolveTarget(target: string): Promise<string> {
   return target;
 }
 
+/** Runs a close and adds the closed sessions' tokens to the ledger; a ledger failure never fails the close. */
+async function closeAndTally(handles: readonly string[], close: () => Promise<readonly string[]>): Promise<void> {
+  const { runner, tokens } = services();
+  const before = await runner.list().catch((error: unknown) => {
+    console.error("[tokens] session list failed", error);
+    return [];
+  });
+  const closed = new Set(await close());
+  const sessions = before.filter((session) => handles.includes(session.id) && closed.has(session.id));
+  await tokens.recordCloses(sessions).catch((error: unknown) =>
+    console.error("[tokens] tally failed", error),
+  );
+}
+
 export async function POST(request: Request) {
   const parsed = actionRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -59,10 +73,17 @@ export async function POST(request: Request) {
       await stat(body.target);
       await execFileAsync("open", ["-R", body.target]);
     } else if (body.type === "close-terminal") {
-      await runner.close(body.terminalHandle);
+      await closeAndTally([body.terminalHandle], async () => {
+        await runner.close(body.terminalHandle);
+        return [body.terminalHandle];
+      });
       await services().terminalAliases.forget([body.terminalHandle]);
     } else if (body.type === "close-terminals") {
-      const results = await Promise.allSettled(body.terminalHandles.map((handle) => runner.close(handle)));
+      const results: PromiseSettledResult<void>[] = [];
+      await closeAndTally(body.terminalHandles, async () => {
+        results.push(...(await Promise.allSettled(body.terminalHandles.map((handle) => runner.close(handle)))));
+        return body.terminalHandles.filter((_, index) => results[index]?.status === "fulfilled");
+      });
       await services().terminalAliases.forget(body.terminalHandles.filter((_, index) => results[index]?.status === "fulfilled"));
       const failed = results.filter((result) => result.status === "rejected").length;
       if (failed > 0) throw new Error(`세션 ${body.terminalHandles.length}개 중 ${failed}개를 닫지 못했어요`);

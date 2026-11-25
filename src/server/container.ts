@@ -9,7 +9,9 @@ type IntentDiffServices = ReturnType<typeof createIntentDiffServices>;
 import { BoardService } from "./board/BoardService";
 import { listWorktrees } from "./projects/gitWorktrees";
 import { OrcaImport } from "./projects/importFromOrca";
-import { ORCA_BIN, PROJECTS_FILE, TERMINAL_ALIAS_FILE, WORKTREE_META_FILE } from "./projects/paths";
+import { ORCA_BIN, PROJECTS_FILE, TERMINAL_ALIAS_FILE, TOKEN_LEDGER_FILE, WORKTREE_META_FILE } from "./projects/paths";
+import { TokenLedger } from "./tokens/TokenLedger";
+import { createTokenService, type TokenService } from "./tokens/recordCloses";
 import { TerminalAliases } from "./runner/TerminalAliases";
 import { ProjectRegistry, type Project } from "./projects/ProjectRegistry";
 import { WorktreeActions } from "./projects/WorktreeActions";
@@ -101,6 +103,7 @@ export interface Services {
   todoJira: TodoJiraImporter;
   todoAgent: TodoAgent;
   usage: UsageReader;
+  tokens: TokenService;
   devPorts: DevPortReader;
   docs: DocServer;
   files: FileBrowser;
@@ -225,6 +228,7 @@ function createServices(): Services {
       todos,
     }),
     usage: new UsageReader(),
+    tokens: createTokenService({ ledger: new TokenLedger(TOKEN_LEDGER_FILE, warn), projectsDir: PROJECTS_DIR }),
     devPorts: new DevPortReader(nodeExecFile),
     docs,
     files: new FileBrowser({
