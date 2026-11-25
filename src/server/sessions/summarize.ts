@@ -135,6 +135,18 @@ export function summarizeSession(source: SessionSource, titles: SessionTitles): 
   };
 }
 
+const LINK_HINT = /\]\(|https?:\/\/|\.(?:html?|md|pdf|png|jpe?g|svg)\b/i;
+
+/** Main-conversation replies that may carry a link, oldest first. */
+export function linkRepliesIn(lines: string[]): string[] {
+  return lines
+    .filter((line) => line.includes('"assistant"'))
+    .map(parseEntry)
+    .filter((entry): entry is TranscriptEntry => entry?.type === "assistant" && !entry.isSidechain)
+    .map((entry) => textOf(entry.message?.content))
+    .filter((text): text is string => text !== null && LINK_HINT.test(text));
+}
+
 export interface TailEntry {
   lastAssistant: string | null;
   recentUser: string[];

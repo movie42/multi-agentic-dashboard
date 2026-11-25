@@ -23,7 +23,7 @@ function setup(overrides: Partial<BoardServiceOptions> = {}) {
   } satisfies Pick<GitInfo, "getPullRequest" | "detectMode">;
   const sessions = {
     transcriptOf: vi.fn(async (_cwd: string, id: string) =>
-      id === "s1" ? { file: "/s/s1.jsonl", size: 1, firstPrompt: "do it", lastAssistant: "See /w/report.md and /w/missing.md" } : null,
+      id === "s1" ? { file: "/s/s1.jsonl", size: 1, firstPrompt: "do it", lastAssistant: "Done", linkMessages: ["See /w/report.md and /w/missing.md", "Earlier: /w/report.md"] } : null,
     ),
     sessionRefOf: vi.fn(async () => ({ id: "s1", title: "Title", titleSource: "ai" as const, bookmark: null })),
     readBookmarks: vi.fn(async () => new Map()),

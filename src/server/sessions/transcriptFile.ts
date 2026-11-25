@@ -25,25 +25,39 @@ export async function readTitles(file: string, size: number): Promise<SessionTit
   return (await readTitlesFrom(file, size, 0)).titles;
 }
 
-export async function readTitlesFrom(file: string, size: number, start: number): Promise<{ titles: SessionTitles; resumeAt: number }> {
+/** Hands complete lines from `start` to `visit` chunk by chunk and returns the unfinished last line. */
+async function scanLinesFrom(file: string, size: number, start: number, visit: (complete: string) => void): Promise<string> {
   const handle = await open(file, "r");
   try {
     const decoder = new StringDecoder("utf8");
-    const offsets = Array.from({ length: Math.max(0, Math.ceil((size - start) / TITLE_CHUNK)) }, (_, index) => start + index * TITLE_CHUNK);
-    const scan = await offsets.reduce<Promise<{ titles: SessionTitles; carry: string }>>(async (previous, offset) => {
-      const { titles, carry } = await previous;
+    // eslint-disable-next-line no-restricted-syntax -- stream buffer carrying the unfinished line
+    let carry = "";
+    // eslint-disable-next-line no-restricted-syntax -- position loop over the file
+    for (let offset = start; offset < size; offset += TITLE_CHUNK) {
       const buffer = Buffer.alloc(Math.min(TITLE_CHUNK, size - offset));
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, offset);
       const text = carry + decoder.write(buffer.subarray(0, bytesRead));
       const lastBreak = text.lastIndexOf("\n");
-      const complete = lastBreak >= 0 ? text.slice(0, lastBreak) : "";
-      const nextCarry = lastBreak >= 0 ? text.slice(lastBreak + 1) : text;
-      if (!complete.includes('-title"')) return { titles, carry: nextCarry };
-      return { titles: titlesIn(complete.split("\n"), titles), carry: nextCarry };
-    }, Promise.resolve({ titles: { custom: null, ai: null }, carry: "" }));
-    const rest = scan.carry + decoder.end();
-    return { titles: titlesIn([rest], scan.titles), resumeAt: Math.max(start, size - Buffer.byteLength(rest, "utf8")) };
+      if (lastBreak >= 0) visit(text.slice(0, lastBreak));
+      carry = lastBreak >= 0 ? text.slice(lastBreak + 1) : text;
+    }
+    return carry + decoder.end();
   } finally {
     await handle.close();
   }
+}
+
+export async function readTitlesFrom(file: string, size: number, start: number): Promise<{ titles: SessionTitles; resumeAt: number }> {
+  const titleLines: string[] = [];
+  const rest = await scanLinesFrom(file, size, start, (complete) => {
+    if (complete.includes('-title"')) titleLines.push(...complete.split("\n").filter((line) => line.includes('-title"')));
+  });
+  return { titles: titlesIn([...titleLines, rest], { custom: null, ai: null }), resumeAt: Math.max(start, size - Buffer.byteLength(rest, "utf8")) };
+}
+
+/** Complete lines from `start`; `resumeAt` is where the unfinished last line begins. */
+export async function readLinesFrom(file: string, size: number, start: number): Promise<{ lines: string[]; resumeAt: number }> {
+  const lines: string[] = [];
+  const rest = await scanLinesFrom(file, size, start, (complete) => lines.push(...complete.split("\n")));
+  return { lines, resumeAt: Math.max(start, size - Buffer.byteLength(rest, "utf8")) };
 }

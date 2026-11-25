@@ -55,3 +55,12 @@ export function extractArtifacts(message: string | null, worktreePath: string): 
 
   return [...found.values()];
 }
+
+/** Links from every reply of a conversation, newest reply first, each target once. */
+export function extractConversationArtifacts(newestFirst: readonly string[], worktreePath: string): Artifact[] {
+  const found = new Map<string, Artifact>();
+  for (const artifact of newestFirst.flatMap((message) => extractArtifacts(message, worktreePath))) {
+    if (!found.has(artifact.target)) found.set(artifact.target, artifact);
+  }
+  return [...found.values()];
+}

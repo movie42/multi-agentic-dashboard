@@ -14,7 +14,7 @@ import type { GitInfo } from "@/server/workflow/GitInfo";
 import type { JiraInfo } from "@/server/workflow/JiraInfo";
 import { issueKeyOfBranch } from "@/server/workflow/JiraInfo";
 import type { WorkflowServices } from "@/server/workflow/services";
-import { extractArtifacts } from "./artifacts";
+import { extractConversationArtifacts } from "./artifacts";
 import { appConductorPlace, buildAgentCard, buildWorktreeSummary, withFeatureRepos, worktreeOfCwd, type BoardWorktree } from "./boardCards";
 
 export interface BoardSessionPort {
@@ -223,7 +223,7 @@ export class BoardService {
       sessionRef,
       bookmarks,
       alias: aliases.get(session.id) ?? null,
-      artifacts: await this.existing(extractArtifacts(lastMessage, worktree.path)),
+      artifacts: await this.existing(extractConversationArtifacts(facts?.linkMessages ?? [], worktree.path)),
     });
   }
 
