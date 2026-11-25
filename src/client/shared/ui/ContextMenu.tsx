@@ -18,7 +18,7 @@ interface ContextMenuProps {
 
 const EDGE_GAP = 8;
 
-/** A menu pinned at the pointer, nudged back inside the viewport, closed by an outside click, Esc, scroll or resize. */
+/** A menu pinned at the pointer, nudged back inside the viewport, closed by an outside click, Esc, wheel or resize. */
 export function ContextMenu({ at, label, onClose, widthClass = "w-56", children }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -41,17 +41,18 @@ export function ContextMenu({ at, label, onClose, widthClass = "w-56", children 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeRef.current();
     };
-    const onScroll = (event: Event) => {
+    // A wheel, not a scroll event: chat lists scroll themselves on every new message, which would close the menu.
+    const onWheel = (event: WheelEvent) => {
       if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
       closeRef.current();
     };
     const onResize = () => closeRef.current();
     window.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("wheel", onWheel, { capture: true, passive: true });
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("wheel", onWheel, true);
       window.removeEventListener("resize", onResize);
     };
   }, []);
