@@ -6,15 +6,153 @@
   "links": [],
   "stages": {
     "tasks": {
-      "status": "wait",
-      "summary": "계획 작성 전",
-      "conclusion": [],
-      "blocks": []
+      "status": "done",
+      "summary": "구현 완료 · 앱 화면 확인 전",
+      "conclusion": [
+        "스크린샷에서 빠진 본문은 대화 기록에 답변이 아니라 '생각' 종류로 적혀 있었고, 세션 채팅은 그 종류를 통째로 버리고 있었어요. 최근 대화 기록 150개에서 이런 본문이 약 800건이었어요.",
+        "이제 세션 채팅은 도구 호출 사이의 진행 본문을 답변으로, Claude의 생각을 흐린 글씨로, Claude Code가 직접 찍는 안내 줄(자리 비운 동안 요약 · 알림 · 예약 깨우기 · 백그라운드 작업 완료)을 출력 칸으로 보여 줘요.",
+        "/compact 가 압축 없이 끝나면(예: 대화가 너무 짧을 때) 끝났다는 신호가 오지 않아 세션이 계속 '작업 중'으로 남았어요. 이제 터미널 화면의 결과 줄을 보고 끝난 것으로 바꿔요.",
+        "/clear 를 하면 그전에 무엇이 남아 있었든 세션이 대기 상태로 돌아가요.",
+        "번들된 Dock 앱 화면에서는 아직 확인하지 않았어요. 앱을 다시 빌드하면 이 세션이 떠 있는 앱이 재시작돼서 사용자에게 남겼어요."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "원인",
+          "columns": [
+            "증상",
+            "원인",
+            "근거"
+          ],
+          "rows": [
+            [
+              "도구 호출 사이의 본문이 채팅에 없음",
+              "Claude Code 2.1.33x는 이 본문을 <code>thinking</code> 블록으로 기록하고, 블록의 서명 앞부분에 <code>narration</code> 이라는 종류 표시만 남겨요. 채팅 파서는 <code>text</code> · <code>tool_use</code> 블록만 읽었어요.",
+              "COMP-623 대화 기록 1933번째 줄"
+            ],
+            [
+              "Claude의 생각 · 안내 줄이 채팅에 없음",
+              "같은 파서가 <code>thinking</code> 블록과 <code>system</code> 줄(<code>away_summary</code> · <code>informational</code> · <code>scheduled_task_fire</code>), <code>&lt;task-notification&gt;</code> 줄을 버렸어요.",
+              "최근 대화 기록 150개 집계"
+            ],
+            [
+              "/compact 뒤 '작업 중'으로 남음",
+              "압축 없이 끝난 /compact 는 시작 훅 <code>PreCompact</code> 만 보내고 끝 훅을 보내지 않아요.",
+              "실제 Claude Code를 띄워 훅 순서를 기록"
+            ],
+            [
+              "/clear 를 해도 '작업 중'이 안 풀림",
+              "/clear 가 보내는 <code>SessionStart</code> 훅(source <code>clear</code>)이 상태를 바꾸지 않았어요.",
+              "<code>daemon/session/status.ts</code>"
+            ]
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "Phase 1 · 재현",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "실제 대화 기록에서 뽑은 레코드로 빠지는 경우를 재현하는 테스트",
+              "done": true,
+              "rows": [
+                [
+                  "테스트",
+                  "<code>src/server/sessions/activitySteps.test.ts</code> <code>src/server/sessions/conversationTurns.test.ts</code>"
+                ],
+                [
+                  "실패 커밋",
+                  "<code>ef82b2c</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "/compact 실패 · /clear 뒤 상태를 재현하는 테스트",
+              "done": true,
+              "rows": [
+                [
+                  "테스트",
+                  "<code>daemon/session/SessionRegistry.test.ts</code> <code>daemon/session/status.test.ts</code>"
+                ],
+                [
+                  "실패 커밋",
+                  "<code>ef82b2c</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: 새 테스트 8개가 고치기 전에 실패",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "Phase 2 · 수정",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "대화 기록 파서가 진행 본문 · 생각 · 안내 줄을 읽기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/activitySteps.ts</code> <code>src/server/sessions/transcriptText.ts</code> <code>src/common/sessions/types.ts</code>"
+                ],
+                [
+                  "결정",
+                  "진행 본문과 생각을 가르는 단서는 서명 앞부분뿐이라, 표시가 바뀌어 구분에 실패해도 내용은 흐린 글씨(생각)로 남게 했어요. 어느 쪽이든 버리지 않아요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-2",
+              "title": "세션 채팅에 생각 줄 그리기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/agent-card/ui/ChatView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-3",
+              "title": "/compact 가 압축 없이 끝난 것과 /clear 를 세션 상태에 반영",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/session/SessionRegistry.ts</code> <code>daemon/session/status.ts</code>"
+                ],
+                [
+                  "결정",
+                  "끝 훅이 없어서 터미널 화면에서 /compact 명령 아래의 결과 줄(Not enough messages to compact 등 Claude Code 2.1.332 실행 파일에 있는 문구)을 찾아요. 진행 중에 뜨는 팁 줄과 헷갈리지 않게 문구를 정해 두었어요."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bun run test</code> · <code>bunx tsc --noEmit</code> · <code>bun run lint</code> 통과, 스크린샷의 대화 기록에서 본문이 생각과 Bash 사이에 나옴",
+              "done": true
+            }
+          ]
+        }
+      ]
     },
     "done": {
-      "status": "wait",
-      "summary": "리뷰 전",
-      "conclusion": [],
+      "status": "done",
+      "summary": "완료 · PR 없음",
+      "conclusion": [
+        "PR 없음 — 사용자가 요청할 때 열기로 했어요.",
+        "코드 리뷰에서 고칠 크리티컬한 지적은 없었어요. /clear 와 /compact 는 턴이 도는 중에는 실행되지 않아, 지적된 두 경우는 생기지 않아요.",
+        "화면 근거(SOT 맵)와 서버 · 기획 요청은 이 작업에 해당하지 않아요.",
+        "번들된 Dock 앱 화면 확인은 남아 있어요. 앱을 다시 빌드(bun run desktop)한 뒤 볼 수 있어요."
+      ],
       "blocks": [
         {
           "type": "checklist",
@@ -23,27 +161,32 @@
             {
               "id": "D1",
               "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D2",
               "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D3",
               "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D4",
               "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
-              "done": false
+              "done": true,
+              "by": "inferred"
             },
             {
               "id": "D5",
               "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
-              "done": false
+              "done": true,
+              "by": "inferred"
             }
           ]
         },
@@ -52,7 +195,30 @@
           "title": "서버 · 기획에 요청할 것",
           "html": "없어요"
         }
-      ]
+      ],
+      "ext": {
+        "hyunsu": {
+          "title": "옵시디언 기록",
+          "unknown": {
+            "vault": "개인 도구 저장소라 볼트 기록 대상이 아님"
+          }
+        }
+      }
     }
-  }
+  },
+  "intent": [
+    {
+      "text": "터미널의 Claude Code 화면에 보이는 내용은 세션 채팅에서도 빠짐없이 보여야 해요.",
+      "state": "said",
+      "basis": "사용자 요청"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 질문 라운드를 줄이고 기본값을 정해 구현까지 가라고 함"
+    }
+  ],
+  "pruned": "2026-11-25"
 }
