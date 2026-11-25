@@ -20,6 +20,17 @@ describe("todoOpSchema", () => {
     [{ type: "status-create", name: "막힘", description: "두\n줄" }, false],
     [{ type: "card-move", cardId: "c", statusId: "s", source: "agent" }, true],
     [{ type: "card-move", cardId: "c", statusId: "s", source: "auto" }, false],
+    [{ type: "card-update", cardId: "c", dueDate: "2026-11-25" }, true],
+    [{ type: "card-update", cardId: "c", dueDate: null }, true],
+    [{ type: "card-update", cardId: "c", dueDate: "11/25" }, false],
+    [{ type: "card-update", cardId: "c", dueDate: "2026-02-31" }, false],
+    [{ type: "card-update", cardId: "c", dueDate: "2026-13-01" }, false],
+    [{ type: "card-update", cardId: "c", startDate: "2026-11-23" }, true],
+    [{ type: "card-update", cardId: "c", startDate: "2026-02-31" }, false],
+    [{ type: "card-create", title: "a", startDate: "2026-11-23", dueDate: "2026-11-25" }, true],
+    [{ type: "cards-carry-over", cardIds: ["a"] }, true],
+    [{ type: "settings-update", weekStartsOn: 3 }, true],
+    [{ type: "settings-update", weekStartsOn: 7 }, false],
   ])("%j → %s", (value, ok) => {
     expect(todoOpSchema.safeParse(value).success).toBe(ok);
   });
@@ -55,5 +66,63 @@ describe("applyTodoOp", () => {
     expect(() => run(board, { type: "card-launch", cardId: "id-1" })).toThrow("워크트리");
     const next = run(board, { type: "card-update", cardId: "id-1", worktreePath: "/w" }, { type: "card-launch", cardId: "id-1" });
     expect(next.cards[0]?.pendingLaunch).toEqual({ worktreePath: "/w", at: 10 });
+  });
+
+  it("sets and clears a card's deadline", () => {
+    const board = run(defaultBoard(), { type: "card-create", title: "a", dueDate: "2026-11-27" });
+    expect(board.cards[0]?.dueDate).toBe("2026-11-27");
+    expect(run(board, { type: "card-update", cardId: "id-1", dueDate: null }).cards[0]?.dueDate).toBeNull();
+  });
+
+  it("sets a start day and refuses one later than the deadline", () => {
+    const board = run(defaultBoard(), { type: "card-create", title: "a", startDate: "2026-11-23", dueDate: "2026-11-27" });
+    expect(board.cards[0]).toMatchObject({ startDate: "2026-11-23", dueDate: "2026-11-27" });
+    expect(() => run(board, { type: "card-update", cardId: "id-1", dueDate: "2026-11-22" })).toThrow("시작일");
+    expect(() => run(board, { type: "card-update", cardId: "id-1", startDate: "2026-11-28" })).toThrow("시작일");
+    const moved = run(board, { type: "card-update", cardId: "id-1", startDate: "2026-11-30", dueDate: "2026-12-04" });
+    expect(moved.cards[0]).toMatchObject({ startDate: "2026-11-30", dueDate: "2026-12-04" });
+    expect(run(board, { type: "card-update", cardId: "id-1", startDate: null, dueDate: null }).cards[0]).toMatchObject({ startDate: null, dueDate: null });
+  });
+
+  it("changes the weekday sprints start on", () => {
+    expect(run(defaultBoard(), { type: "settings-update", weekStartsOn: 3 }).settings.weekStartsOn).toBe(3);
+  });
+
+  it("carries open cards from earlier sprints into this one and leaves the rest", () => {
+    // now = 2026-11-25 (Wed) local; sprints start on Monday 11/23.
+    const now = new Date(2026, 10, 25, 12).getTime();
+    let n = 0;
+    const ops: TodoOp[] = [
+      { type: "card-create", title: "지난 주 금요일", dueDate: "2026-11-20" },
+      { type: "card-create", title: "지난 주 끝난 일", dueDate: "2026-11-20", statusId: "st-done" },
+      { type: "card-create", title: "이번 주 월요일", dueDate: "2026-11-23" },
+      { type: "card-create", title: "백로그" },
+      { type: "cards-carry-over" },
+    ];
+    const board = ops.reduce((acc, op) => applyTodoOp(acc, op, { now, newId: () => `id-${++n}` }).board, defaultBoard());
+    expect(board.cards.map((card) => card.dueDate)).toEqual(["2026-11-27", "2026-11-20", "2026-11-23", null]);
+  });
+
+  it("carries over only the cards it names when a list is given", () => {
+    const now = new Date(2026, 10, 25, 12).getTime();
+    let n = 0;
+    const ops: TodoOp[] = [
+      { type: "card-create", title: "A 프로젝트", dueDate: "2026-11-20" },
+      { type: "card-create", title: "B 프로젝트", dueDate: "2026-11-20" },
+      { type: "cards-carry-over", cardIds: ["id-1"] },
+    ];
+    const board = ops.reduce((acc, op) => applyTodoOp(acc, op, { now, newId: () => `id-${++n}` }).board, defaultBoard());
+    expect(board.cards.map((card) => card.dueDate)).toEqual(["2026-11-27", "2026-11-20"]);
+  });
+
+  it("moves the start day along with the deadline when carrying a card over", () => {
+    const now = new Date(2026, 10, 25, 12).getTime();
+    let n = 0;
+    const ops: TodoOp[] = [
+      { type: "card-create", title: "기간 있는 일", startDate: "2026-11-18", dueDate: "2026-11-20" },
+      { type: "cards-carry-over" },
+    ];
+    const board = ops.reduce((acc, op) => applyTodoOp(acc, op, { now, newId: () => `id-${++n}` }).board, defaultBoard());
+    expect(board.cards[0]).toMatchObject({ startDate: "2026-11-25", dueDate: "2026-11-27" });
   });
 });

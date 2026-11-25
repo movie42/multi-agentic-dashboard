@@ -1,3 +1,4 @@
+import { DEFAULT_WEEK_STARTS_ON } from "./schema";
 import type { TodoBoard, TodoCard, TodoColumn, TodoMoveSource, TodoStatus } from "./types";
 
 export class TodoRuleError extends Error {}
@@ -24,6 +25,7 @@ export function defaultBoard(): TodoBoard {
     })),
     cards: [],
     sync: { jiraImportedAt: null },
+    settings: { weekStartsOn: DEFAULT_WEEK_STARTS_ON },
   };
 }
 

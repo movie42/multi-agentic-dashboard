@@ -28,6 +28,12 @@ export interface TodoLink {
 
 export type TodoCardOrigin = "jira" | null;
 
+/** The Jira story a sub-issue belongs to; the schedule view shows the sub-issue under it. */
+export interface TodoJiraParent {
+  key: string;
+  summary: string;
+}
+
 export interface TodoPendingLaunch {
   worktreePath: string;
   at: number;
@@ -54,6 +60,13 @@ export interface TodoCard {
   /** Set a day after `doneAt`; archived cards leave the board and show in the archive list. */
   archivedAt: number | null;
   origin: TodoCardOrigin;
+  /** Local calendar day "YYYY-MM-DD"; the sprint is the week holding it. Null means backlog. */
+  dueDate: string | null;
+  /** Local calendar day the work starts, never after `dueDate`; null shows the card as a single deadline mark. */
+  startDate: string | null;
+  jiraParent: TodoJiraParent | null;
+  /** Whether the first Jira key's parent has been read; Jira is asked once per card. */
+  jiraParentChecked: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -62,12 +75,18 @@ export interface TodoSync {
   jiraImportedAt: number | null;
 }
 
+export interface TodoSettings {
+  /** Weekday a sprint starts on, 0 = Sunday … 6 = Saturday. */
+  weekStartsOn: number;
+}
+
 export interface TodoBoard {
   version: 1;
   statuses: TodoStatus[];
   columns: TodoColumn[];
   cards: TodoCard[];
   sync: TodoSync;
+  settings: TodoSettings;
 }
 
 export type TodoMoveSource = "user" | "agent";

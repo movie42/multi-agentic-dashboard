@@ -1,9 +1,11 @@
 "use client";
 
 import type { TodoCard as TodoCardData, TodoJiraStatuses, TodoStatus } from "@/common/todos/types";
+import { dayOf } from "@/common/todos/sprint";
 import { StateBadge } from "@/client/entities/agent";
 import { AGENT_MARK_MS, CARD_DRAG_TYPE, type StatusTone, TONE_CHIP } from "../model/kinds";
 import { type CardContext, pullRequestLabel } from "../model/cardContext";
+import { DUE_CHIP, dueCaption } from "../model/due";
 import type { SessionLookup } from "../model/sessions";
 
 interface TodoCardProps {
@@ -32,6 +34,7 @@ export function TodoCard({ card, status, tone, now, sessionOf, context, jiraStat
   const lead = memoLead(card.memo);
   const { pullRequest, flowTasks, worktree } = context;
   const flow = flowTasks[0];
+  const due = card.dueDate ? dueCaption(card.dueDate, dayOf(now), tone === "last") : null;
 
   return (
     <div
@@ -59,6 +62,12 @@ export function TodoCard({ card, status, tone, now, sessionOf, context, jiraStat
       {lead && <p className="line-clamp-1 text-[12px] text-muted">{lead}</p>}
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-none font-semibold">
         {status && <span className={`rounded-full px-2 py-1 ${TONE_CHIP[tone]}`}>{status.name}</span>}
+        {due && <span className={`rounded-full px-2 py-1 ${DUE_CHIP[due.tone]}`}>{due.text}</span>}
+        {card.jiraParent && (
+          <span title={card.jiraParent.summary} className="rounded-full bg-tint px-2 py-1 text-muted">
+            <span className="font-mono">{card.jiraParent.key}</span> 하위
+          </span>
+        )}
         {card.repo && (
           <span className="rounded-full bg-tint px-2 py-1 text-muted">{worktree && !worktree.isMain ? `${card.repo} · ${worktree.name}` : card.repo}</span>
         )}

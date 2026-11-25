@@ -38,6 +38,10 @@ function boardHolding(sessionId: string): TodoBoard {
         doneAt: null,
         archivedAt: null,
         origin: null,
+        dueDate: null,
+        startDate: null,
+        jiraParent: null,
+        jiraParentChecked: false,
         createdAt: 0,
         updatedAt: 0,
       },
@@ -349,5 +353,28 @@ describe("TodoAgent archive", () => {
     expect(block.archive[0]).toMatchObject({ id: archived.cards[0]?.id, archivedAt: "1970-01-02" });
     expect(turn.failures).toEqual([]);
     expect(todos.board.cards[0]?.archivedAt).toBeNull();
+  });
+
+  it("hands the agent today, the sprint start day and each card's deadline", async () => {
+    const base = boardHolding(S1);
+    const todos = memoryTodos({ ...base, cards: base.cards.map((card) => ({ ...card, dueDate: "2026-11-27", startDate: "2026-11-24", jiraParent: { key: "AB-1", summary: "스토리" } })) });
+    const prompts: string[] = [];
+    const runAgent: RunTodoAgent = vi.fn(async (prompt: string) => {
+      prompts.push(prompt);
+      return reply([]);
+    });
+    const agent = new TodoAgent({ loadBoard: async () => ({ agents: [], worktrees: [] }), listSessions: async () => [], todos, runAgent });
+
+    await agent.send({ conversationId: null, message: "이번 주 할 일 알려 줘" });
+
+    const block = JSON.parse(/<board>([\s\S]*)<\/board>/.exec(prompts[0] ?? "")?.[1] ?? "{}") as {
+      today: string;
+      weekStartsOn: number;
+      cards: { dueDate: string | null; startDate: string | null; jiraParent: { key: string } | null }[];
+    };
+    expect(block.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(block.weekStartsOn).toBe(1);
+    expect(block.cards[0]?.dueDate).toBe("2026-11-27");
+    expect(block.cards[0]).toMatchObject({ startDate: "2026-11-24", jiraParent: { key: "AB-1" } });
   });
 });

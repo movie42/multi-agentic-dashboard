@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { issueKeyOfBranch, JiraInfo, siteOfAuthStatus, statusOfIssueView } from "./JiraInfo";
+import { issueKeyOfBranch, JiraInfo, parentOfIssueView, siteOfAuthStatus, statusOfIssueView } from "./JiraInfo";
 
 describe("JiraInfo helpers", () => {
   it("takes the issue key from a branch name", () => {
@@ -15,6 +15,14 @@ describe("JiraInfo helpers", () => {
 
   it("reads the status name from acli workitem view", () => {
     expect(statusOfIssueView(JSON.stringify({ key: "COMP-1", fields: { status: { name: "작업 중" } } }))).toBe("작업 중");
+  });
+
+  it("reads a story parent from acli workitem view and skips an epic or a missing parent", () => {
+    const view = (hierarchyLevel: number) =>
+      JSON.stringify({ fields: { parent: { key: "COMP-603", fields: { summary: "로그인 · 세션", issuetype: { hierarchyLevel } } } } });
+    expect(parentOfIssueView(view(0))).toEqual({ key: "COMP-603", summary: "로그인 · 세션" });
+    expect(parentOfIssueView(view(1))).toBeNull();
+    expect(parentOfIssueView(JSON.stringify({ fields: {} }))).toBeNull();
   });
 });
 

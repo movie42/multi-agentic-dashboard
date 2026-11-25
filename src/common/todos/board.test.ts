@@ -35,6 +35,10 @@ function card(id: string, statusId: string): TodoCard {
     doneAt: null,
     archivedAt: null,
     origin: null,
+    dueDate: null,
+    startDate: null,
+    jiraParent: null,
+    jiraParentChecked: false,
     createdAt: 0,
     updatedAt: 0,
   };
@@ -159,7 +163,7 @@ describe("todoBoardSchema", () => {
       { id: "b", name: "B", description: "", next: ["c", "a"] },
       { id: "c", name: "C", description: "", next: ["b"] },
     ]);
-    expect(board.cards[0]).toMatchObject({ agentMovedAt: 9, doneSuggestedAt: null });
+    expect(board.cards[0]).toMatchObject({ agentMovedAt: 9, doneSuggestedAt: null, startDate: null, jiraParent: null, jiraParentChecked: false });
   });
 });
 

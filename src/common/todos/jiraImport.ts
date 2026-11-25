@@ -1,5 +1,5 @@
 import { mentionsKey } from "./linking";
-import type { TodoBoard, TodoCard } from "./types";
+import type { TodoBoard, TodoCard, TodoJiraParent } from "./types";
 
 export interface ImportedIssue {
   key: string;
@@ -59,6 +59,10 @@ export function mergeIssues(
       doneAt: null,
       archivedAt: null,
       origin: "jira",
+      dueDate: null,
+      startDate: null,
+      jiraParent: null,
+      jiraParentChecked: false,
       createdAt: now,
       updatedAt: now,
     }));
@@ -66,4 +70,21 @@ export function mergeIssues(
     board: { ...board, cards: [...existing, ...cards], sync: { ...board.sync, jiraImportedAt: now } },
     added: cards.length,
   };
+}
+
+/** Jira is asked about this many cards per import, so a first run on a big board does not stall for minutes. */
+export const JIRA_PARENT_BATCH = 20;
+
+/** Cards on the board whose first Jira key has not had its parent read yet. */
+export function cardsAwaitingParent(board: TodoBoard): TodoCard[] {
+  return board.cards.filter((card) => card.jira.length > 0 && !card.jiraParentChecked && card.archivedAt === null).slice(0, JIRA_PARENT_BATCH);
+}
+
+/** Records the parents read for these card ids; a card missing from `found` stays unread for the next import. */
+export function applyJiraParents(board: TodoBoard, found: ReadonlyMap<string, TodoJiraParent | null>, now: number): { board: TodoBoard } {
+  const cards = board.cards.map((card) => {
+    if (!found.has(card.id)) return card;
+    return { ...card, jiraParent: found.get(card.id) ?? null, jiraParentChecked: true, updatedAt: now };
+  });
+  return { board: { ...board, cards } };
 }

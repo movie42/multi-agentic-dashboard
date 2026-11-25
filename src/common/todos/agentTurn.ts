@@ -169,6 +169,8 @@ export function describeAgentOp(board: TodoBoard, op: AgentOp, sessionTitle: (id
         op.linkUrls !== undefined && "링크",
         op.repo !== undefined && `프로젝트 → ${op.repo ?? "없음"}`,
         op.worktreePath !== undefined && `워크트리 → ${op.worktreePath ?? "없음"}`,
+        op.startDate !== undefined && `시작일 → ${op.startDate ?? "없음"}`,
+        op.dueDate !== undefined && `마감일 → ${op.dueDate ?? "없음"}`,
       ].filter((field): field is string => typeof field === "string");
       return `${cardTitle(op.cardId)} 수정: ${fields.join(" · ")}`;
     }
