@@ -20,6 +20,7 @@ import {
 import { parseJiraUrl } from "./jira";
 import { parseCardLink } from "./links";
 import { TODO_DESCRIPTION_LIMIT, TODO_MEMO_LIMIT, TODO_NAME_LIMIT, TODO_TITLE_LIMIT } from "./schema";
+import { addDays, carryOverCards, carryOverDay, dayOf, daysBetween, isTodoDay } from "./sprint";
 import type { TodoBoard, TodoCard, TodoJira, TodoLink } from "./types";
 
 const id = z.string().min(1).max(100);
@@ -33,6 +34,7 @@ const name = z
   .string()
   .max(TODO_NAME_LIMIT)
   .refine((value) => value.trim().length > 0 && !/[\r\n]/.test(value));
+const dueDate = z.string().refine(isTodoDay, "YYYY-MM-DD calendar day required").nullable();
 const description = z.string().max(TODO_DESCRIPTION_LIMIT).refine((value) => !/[\r\n]/.test(value));
 
 export const todoOpSchema = z.discriminatedUnion("type", [
@@ -44,6 +46,8 @@ export const todoOpSchema = z.discriminatedUnion("type", [
     repo: z.string().nullable().optional(),
     worktreePath: absolutePath.nullable().optional(),
     sessionIds: z.array(sessionId).max(50).optional(),
+    dueDate: dueDate.optional(),
+    startDate: dueDate.optional(),
   }),
   z.object({
     type: z.literal("card-update"),
@@ -54,6 +58,8 @@ export const todoOpSchema = z.discriminatedUnion("type", [
     linkUrls: z.array(z.string().max(2000)).max(30).optional(),
     repo: z.string().nullable().optional(),
     worktreePath: absolutePath.nullable().optional(),
+    dueDate: dueDate.optional(),
+    startDate: dueDate.optional(),
   }),
   z.object({ type: z.literal("card-restore"), cardId: id }),
   z.object({ type: z.literal("card-move"), cardId: id, statusId: id, source: z.enum(["user", "agent"]).optional() }),
@@ -83,6 +89,8 @@ export const todoOpSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("column-delete"), columnId: id, moveStatusesTo: id.optional() }),
   z.object({ type: z.literal("column-reorder"), columnIds: z.array(id).max(50) }),
+  z.object({ type: z.literal("settings-update"), weekStartsOn: z.number().int().min(0).max(6) }),
+  z.object({ type: z.literal("cards-carry-over"), cardIds: z.array(id).max(500).optional() }),
 ]);
 
 export type TodoOp = z.infer<typeof todoOpSchema>;
@@ -120,6 +128,10 @@ function fail(message: string): never {
   throw new TodoRuleError(message);
 }
 
+function requireSpan(card: Pick<TodoCard, "startDate" | "dueDate">): void {
+  if (card.startDate !== null && card.dueDate !== null && card.startDate > card.dueDate) fail("시작일이 마감일보다 늦어요");
+}
+
 function cardOf(board: TodoBoard, cardId: string): TodoCard {
   return board.cards.find((card) => card.id === cardId) ?? fail("카드를 찾을 수 없어요");
 }
@@ -131,6 +143,7 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
       if (!statusOf(board, statusId)) fail("상태를 찾을 수 없어요");
       const cardId = newId();
       const sessionIds = op.sessionIds ?? [];
+      requireSpan({ startDate: op.startDate ?? null, dueDate: op.dueDate ?? null });
       const card: TodoCard = {
         id: cardId,
         title: op.title.trim(),
@@ -149,6 +162,10 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
         doneAt: board.statuses.at(-1)?.id === statusId ? now : null,
         archivedAt: null,
         origin: null,
+        dueDate: op.dueDate ?? null,
+        startDate: op.startDate ?? null,
+        jiraParent: null,
+        jiraParentChecked: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -163,7 +180,11 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
         ...(op.linkUrls !== undefined && { links: parseLinkUrls(op.linkUrls) }),
         ...(op.repo !== undefined && { repo: op.repo }),
         ...(op.worktreePath !== undefined && { worktreePath: op.worktreePath }),
+        ...(op.dueDate !== undefined && { dueDate: op.dueDate }),
+        ...(op.startDate !== undefined && { startDate: op.startDate }),
       };
+      const before = board.cards.find((card) => card.id === op.cardId);
+      if (before) requireSpan({ ...before, ...patch });
       return { board: updateCard(board, op.cardId, patch, now) };
     }
     case "card-restore":
@@ -239,7 +260,29 @@ export function applyTodoOp(board: TodoBoard, op: TodoOp, { now, newId }: TodoOp
       return { board: deleteColumn(board, op.columnId, op.moveStatusesTo) };
     case "column-reorder":
       return { board: reorderColumns(board, op.columnIds) };
+    case "settings-update":
+      return { board: { ...board, settings: { ...board.settings, weekStartsOn: op.weekStartsOn } } };
+    case "cards-carry-over": {
+      const today = dayOf(now);
+      const named = op.cardIds ? new Set(op.cardIds) : null;
+      const carried = new Set(
+        carryOverCards(board, today)
+          .filter((card) => !named || named.has(card.id))
+          .map((card) => card.id),
+      );
+      const cards = board.cards.map((card) =>
+        carried.has(card.id) && card.dueDate !== null
+          ? carryCard(card, card.dueDate, carryOverDay(card.dueDate, today, board.settings.weekStartsOn), now)
+          : card,
+      );
+      return { board: { ...board, cards } };
+    }
   }
+}
+
+function carryCard(card: TodoCard, from: string, to: string, now: number): TodoCard {
+  const startDate = card.startDate === null ? null : addDays(card.startDate, daysBetween(from, to));
+  return { ...card, dueDate: to, startDate, updatedAt: now };
 }
 
 function detachSessions(card: TodoCard, sessionIds: readonly string[], now: number): TodoCard {

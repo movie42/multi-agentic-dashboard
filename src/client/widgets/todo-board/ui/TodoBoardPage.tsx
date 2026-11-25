@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { AgentCard, WorktreeSummary } from "@/common/board/types";
 import { archivedCards, boardCards, firstStatusOfColumn, statusOf } from "@/common/todos/board";
+import { dayOf, inScope, newCardDueDate, isCardDone, type SprintScope } from "@/common/todos/sprint";
 import type { TodoBoard, TodoCard, TodoColumn as TodoColumnData } from "@/common/todos/types";
 import { sessionListQueryOptions } from "@/client/entities/session";
 import { todoBoardQueryOptions, todoJiraStatusQueryOptions, useJiraImport, useTodoOp } from "@/client/entities/todo";
@@ -14,13 +15,19 @@ import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { PendingButton } from "@/client/shared/ui/PendingButton";
 import { cardContext, type ModeOf } from "../model/cardContext";
+import type { DatePatch } from "../model/timeline";
+import { dueCaption, WEEKDAYS } from "../model/due";
 import { NO_PROJECT, statusTone } from "../model/kinds";
+import { Segmented } from "./Segmented";
 import { sessionLookup } from "../model/sessions";
+import { usePinnedHeight } from "../model/usePinnedHeight";
 import type { ColumnMenuActions } from "./ColumnMenu";
 import { TodoArchive } from "./TodoArchive";
 import { TodoCard as TodoCardView } from "./TodoCard";
 import { TodoCardDetail } from "./TodoCardDetail";
 import { TodoColumn } from "./TodoColumn";
+import { TodoChip } from "./TodoChip";
+import { TodoSchedule } from "./TodoSchedule";
 import { WorkflowEditor } from "./WorkflowEditor";
 
 function openTodoAgent(openSessionCount: number) {
@@ -39,6 +46,28 @@ interface TodoBoardPageProps {
 }
 
 const PILL = "rounded-full bg-tint px-3.5 py-1.5 text-[13px] leading-none font-semibold text-muted hover:text-fg";
+
+type TodoView = "kanban" | "schedule";
+
+const VIEWS: readonly { value: TodoView; label: string }[] = [
+  { value: "kanban", label: "칸반" },
+  { value: "schedule", label: "일정" },
+];
+
+const SCOPES: readonly { value: SprintScope; label: string }[] = [
+  { value: "this", label: "이번 주" },
+  { value: "next", label: "다음 주" },
+  { value: "backlog", label: "백로그" },
+  { value: "all", label: "전체" },
+];
+
+function viewOf(stored: string | undefined): TodoView {
+  return VIEWS.find((view) => view.value === stored)?.value ?? "kanban";
+}
+
+function scopeOf(stored: string | undefined): SprintScope {
+  return SCOPES.find((scope) => scope.value === stored)?.value ?? "this";
+}
 
 function matchesProject(card: TodoCard, project: string): boolean {
   if (!project) return true;
@@ -60,13 +89,20 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
   const [showArchive, setShowArchive] = useState(false);
   const [projectKeys, writeProject] = useStoredList("agent-control:todo-project");
   const project = projectKeys[0] ?? "";
+  const [viewKeys, writeView] = useStoredList("agent-control:todo-view");
+  const view = viewOf(viewKeys[0]);
+  const [scopeKeys, writeScope] = useStoredList("agent-control:todo-sprint");
+  const scope = scopeOf(scopeKeys[0]);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [editingWorkflow, setEditingWorkflow] = useState(false);
   const [showHiddenColumns, setShowHiddenColumns] = useState(false);
   const [columnDraft, setColumnDraft] = useState<string | null>(null);
   const agentPending = useTodoAgentStore((state) => state.pending);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pinnedRef = useRef<HTMLDivElement>(null);
 
   const board: TodoBoard | undefined = boardQuery.data;
+  usePinnedHeight(pinnedRef, rootRef, board !== undefined);
   const liveSessions = new Set(agents.flatMap((agent) => (agent.session ? [agent.session.id] : [])));
   const hasClosedSessions = board?.cards.some((card) => card.sessionIds.some((id) => !liveSessions.has(id))) ?? false;
   const sessionsQuery = useQuery({ ...sessionListQueryOptions(), enabled: hasClosedSessions });
@@ -82,7 +118,14 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
   }
 
   const sessionOf = sessionLookup(agents, sessionsQuery.data?.sessions ?? []);
-  const visible = (card: TodoCard) => matchesProject(card, project);
+  const today = dayOf(now);
+  const weekStartsOn = board.settings.weekStartsOn;
+  const inProject = (card: TodoCard) => matchesProject(card, project);
+  const visible = (card: TodoCard) => inProject(card) && inScope(board, card, scope, today, weekStartsOn);
+  const scopeOptions = SCOPES.map((option) => ({
+    ...option,
+    count: boardCards(board).filter((card) => inProject(card) && inScope(board, card, option.value, today, weekStartsOn)).length,
+  }));
   const openCard = board.cards.find((card) => card.id === openCardId) ?? null;
   const shownColumns = board.columns.filter((column) => !column.hidden);
   const hiddenColumns = board.columns.filter((column) => column.hidden);
@@ -101,7 +144,8 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
     const target = firstStatusOfColumn(board, column);
     if (!target) return;
     const repo = project && project !== NO_PROJECT ? project : null;
-    void run({ type: "card-create", title, statusId: target.id, repo });
+    const dueDate = newCardDueDate(scope, today, weekStartsOn);
+    void run({ type: "card-create", title, statusId: target.id, repo, ...(dueDate && { dueDate }) });
   };
 
   const menu: ColumnMenuActions = {
@@ -118,6 +162,8 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
     },
     remove: (columnId, moveStatusesTo) => void run({ type: "column-delete", columnId, ...(moveStatusesTo ? { moveStatusesTo } : {}) }),
   };
+
+  const patchDates = (cardId: string, patch: DatePatch) => void run({ type: "card-update", cardId, ...patch });
 
   const addColumn = () => {
     const name = (columnDraft ?? "").trim();
@@ -141,6 +187,9 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
       onOpen={setOpenCardId}
     />
   );
+  const renderChip = (card: TodoCard) => (
+    <TodoChip card={card} due={card.dueDate ? dueCaption(card.dueDate, today, isCardDone(board, card)) : null} onOpen={setOpenCardId} />
+  );
   const runImport = async () => {
     const result = await importJira();
     setImportResult(result ? importNote(result) : null);
@@ -159,100 +208,135 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
             ` · 지라 ${new Date(importedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}에 확인`}
           {importResult && ` · ${importResult}`}
         </p>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <select
-            aria-label="프로젝트 거르기"
-            value={project}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => writeProject(event.target.value ? [event.target.value] : [])}
-            className="rounded-full bg-tint px-3 py-1.5 text-[13px] outline-none"
-          >
-            <option value="">모든 프로젝트</option>
-            <option value={NO_PROJECT}>프로젝트 없음</option>
-            {filterRepos.map((repo) => (
-              <option key={repo} value={repo}>
-                {repo}
-              </option>
-            ))}
-          </select>
-          <PendingButton onRun={runImport} pendingLabel="지라 읽는 중" className={PILL}>
-            지라 가져오기
-          </PendingButton>
-          <button type="button" onClick={() => setShowArchive(true)} className={PILL}>
-            {`아카이브 ${archiveCount}`}
-          </button>
-          <button type="button" onClick={() => setEditingWorkflow(true)} className={PILL}>
-            워크플로
-          </button>
-          <button type="button" onClick={() => openTodoAgent(openSessionCount)} className={PILL}>
-            할일 에이전트
-            {agentPending ? (
-              <span className="ml-1.5 text-muted">· 답 기다리는 중</span>
-            ) : (
-              openSessionCount > 0 && <span className="ml-1.5 text-muted">{`· 새 세션 ${openSessionCount}`}</span>
-            )}
-          </button>
-          {hiddenColumns.length > 0 && (
-            <span className="relative">
-              <button type="button" aria-expanded={showHiddenColumns} onClick={() => setShowHiddenColumns((current) => !current)} className={PILL}>
-                숨긴 칸 {hiddenColumns.length}
-              </button>
-              {showHiddenColumns && (
-                <ul className="absolute top-full left-0 z-30 mt-1 flex w-56 flex-col rounded-[12px] bg-bg p-2 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]">
-                  {hiddenColumns.map((column) => (
-                    <li key={column.id} className="flex items-center gap-2 px-2 py-1">
-                      <span className="flex-1 truncate">{column.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => void run({ type: "column-update", columnId: column.id, hidden: false })}
-                        className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg"
-                      >
-                        보이기
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </span>
-          )}
-        </div>
       </header>
 
-      <div className="-mx-5 -mb-36 flex min-h-[calc(100dvh-15.5rem)] gap-3 overflow-x-auto px-5 pb-6 md:-mx-12 md:px-12">
-        {shownColumns.map((column) => (
-          <TodoColumn
-            key={column.id}
-            board={board}
-            column={column}
-            visible={visible}
-            renderCard={renderCard}
-            onDropCard={dropCard}
-            onAddCard={addCard}
-            menu={menu}
-          />
-        ))}
-        {columnDraft === null ? (
-          <button type="button" onClick={() => setColumnDraft("")} className="w-40 shrink-0 self-start rounded-[12px] px-3 py-2.5 text-left text-[13px] text-muted hover:bg-tint hover:text-fg">
-            + 칸 추가
-          </button>
-        ) : (
-          <input
-            autoFocus
-            aria-label="새 칸 이름"
-            placeholder="칸 이름"
-            value={columnDraft}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setColumnDraft(event.target.value)}
-            onBlur={(event: React.FocusEvent<HTMLInputElement>) => {
-              if (!event.currentTarget.dataset.cancelled) addColumn();
-            }}
-            onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-              if (event.key === "Enter" && !event.nativeEvent.isComposing) addColumn();
-              if (event.key === "Escape") {
-                event.currentTarget.dataset.cancelled = "true";
-                setColumnDraft(null);
+      <div ref={rootRef}>
+        <div ref={pinnedRef} className="sticky top-0 z-20 -mx-5 flex flex-col gap-3 bg-bg px-5 pt-6 pb-3 md:-mx-12 md:px-12">
+          <div className="flex flex-wrap items-center gap-3">
+            <Segmented label="보기" options={VIEWS} value={view} onChange={(next) => writeView([next])} />
+            {view === "kanban" && <Segmented label="스프린트" options={scopeOptions} value={scope} onChange={(next) => writeScope([next])} />}
+            <select
+              aria-label="스프린트 시작 요일"
+              value={weekStartsOn}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+                void run({ type: "settings-update", weekStartsOn: Number(event.target.value) })
               }
-            }}
-            className="w-56 shrink-0 self-start rounded-[12px] bg-tint px-3 py-2.5 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
-          />
+              className="rounded-full bg-tint px-3 py-1.5 text-[13px] outline-none"
+            >
+              {WEEKDAYS.map((name, index) => (
+                <option key={name} value={index}>
+                  {`${name}요일 시작`}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="프로젝트 거르기"
+              value={project}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => writeProject(event.target.value ? [event.target.value] : [])}
+              className="rounded-full bg-tint px-3 py-1.5 text-[13px] outline-none"
+            >
+              <option value="">모든 프로젝트</option>
+              <option value={NO_PROJECT}>프로젝트 없음</option>
+              {filterRepos.map((repo) => (
+                <option key={repo} value={repo}>
+                  {repo}
+                </option>
+              ))}
+            </select>
+            <PendingButton onRun={runImport} pendingLabel="지라 읽는 중" className={PILL}>
+              지라 가져오기
+            </PendingButton>
+            <button type="button" onClick={() => setShowArchive(true)} className={PILL}>
+              {`아카이브 ${archiveCount}`}
+            </button>
+            <button type="button" onClick={() => setEditingWorkflow(true)} className={PILL}>
+              워크플로
+            </button>
+            <button type="button" onClick={() => openTodoAgent(openSessionCount)} className={PILL}>
+              할일 에이전트
+              {agentPending ? (
+                <span className="ml-1.5 text-muted">· 답 기다리는 중</span>
+              ) : (
+                openSessionCount > 0 && <span className="ml-1.5 text-muted">{`· 새 세션 ${openSessionCount}`}</span>
+              )}
+            </button>
+            {hiddenColumns.length > 0 && (
+              <span className="relative">
+                <button type="button" aria-expanded={showHiddenColumns} onClick={() => setShowHiddenColumns((current) => !current)} className={PILL}>
+                  숨긴 칸 {hiddenColumns.length}
+                </button>
+                {showHiddenColumns && (
+                  <ul className="absolute top-full left-0 z-30 mt-1 flex w-56 flex-col rounded-[12px] bg-bg p-2 text-[13px] shadow-[0_16px_40px_-12px_var(--faint),inset_0_0_0_1px_var(--hair)]">
+                    {hiddenColumns.map((column) => (
+                      <li key={column.id} className="flex items-center gap-2 px-2 py-1">
+                        <span className="flex-1 truncate">{column.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => void run({ type: "column-update", columnId: column.id, hidden: false })}
+                          className="text-muted underline decoration-faint underline-offset-[3px] hover:text-fg"
+                        >
+                          보이기
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {view === "schedule" ? (
+          <div className="mt-3">
+            <TodoSchedule
+              board={board}
+              today={today}
+              visible={inProject}
+              renderChip={renderChip}
+              onOpen={setOpenCardId}
+              onPatch={patchDates}
+              onCarryOver={(cardIds) => void run({ type: "cards-carry-over", cardIds })}
+            />
+          </div>
+        ) : (
+          <div className="-mx-5 -mb-36 flex min-h-[calc(100dvh-15.5rem)] gap-3 overflow-x-auto px-5 pb-6 md:-mx-12 md:px-12">
+            {shownColumns.map((column) => (
+              <TodoColumn
+                key={column.id}
+                board={board}
+                column={column}
+                visible={visible}
+                renderCard={renderCard}
+                onDropCard={dropCard}
+                onAddCard={addCard}
+                menu={menu}
+              />
+            ))}
+            {columnDraft === null ? (
+              <button type="button" onClick={() => setColumnDraft("")} className="w-40 shrink-0 self-start rounded-[12px] px-3 py-2.5 text-left text-[13px] text-muted hover:bg-tint hover:text-fg">
+                + 칸 추가
+              </button>
+            ) : (
+              <input
+                autoFocus
+                aria-label="새 칸 이름"
+                placeholder="칸 이름"
+                value={columnDraft}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setColumnDraft(event.target.value)}
+                onBlur={(event: React.FocusEvent<HTMLInputElement>) => {
+                  if (!event.currentTarget.dataset.cancelled) addColumn();
+                }}
+                onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing) addColumn();
+                  if (event.key === "Escape") {
+                    event.currentTarget.dataset.cancelled = "true";
+                    setColumnDraft(null);
+                  }
+                }}
+                className="w-56 shrink-0 self-start rounded-[12px] bg-tint px-3 py-2.5 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
+              />
+            )}
+          </div>
         )}
       </div>
 

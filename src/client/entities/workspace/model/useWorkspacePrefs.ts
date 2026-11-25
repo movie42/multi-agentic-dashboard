@@ -4,12 +4,19 @@ import type { ProjectSummary } from "@/common/board/types";
 import type { WorkflowMode } from "@/common/workflow/types";
 import { useState } from "react";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
-import type { WorkspaceScope } from "./workspaceWindow";
+import type { WorkspacePage, WorkspaceScope } from "./workspaceWindow";
 
 const SESSIONS_PAGE = "@sessions";
 const DIFF_PAGE = "@diff";
 const TODO_PAGE = "@todo";
 const PAGES: ReadonlySet<string> = new Set([SESSIONS_PAGE, DIFF_PAGE, TODO_PAGE]);
+const PAGE_SELECTION: Record<WorkspacePage, string[]> = { sessions: [SESSIONS_PAGE], todo: [TODO_PAGE], diff: [DIFF_PAGE] };
+
+function initialSelection(scope: WorkspaceScope | null): string[] {
+  if (!scope) return [];
+  if (scope.kind === "page") return PAGE_SELECTION[scope.page];
+  return [scope.repo, ...(scope.worktreeId ? [scope.worktreeId] : [])];
+}
 
 export interface WorkspacePrefs {
   selectedRepo: string | null;
@@ -34,7 +41,7 @@ export interface WorkspacePrefs {
  */
 export function useWorkspacePrefs(scope: WorkspaceScope | null = null): WorkspacePrefs {
   const [stored, writeStored] = useStoredList("agent-control:selected-repo");
-  const [local, writeLocal] = useState<string[]>(() => (scope ? [scope.repo, ...(scope.worktreeId ? [scope.worktreeId] : [])] : []));
+  const [local, writeLocal] = useState<string[]>(() => initialSelection(scope));
   const selected = scope ? local : stored;
   const writeSelected = scope ? writeLocal : writeStored;
   const [overrides, writeOverrides] = useStoredList("agent-control:mode-overrides");

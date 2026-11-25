@@ -28,6 +28,11 @@ const searchSchema = z.array(
   }),
 );
 
+export interface JiraParent {
+  key: string;
+  summary: string;
+}
+
 export interface AssignedIssue {
   key: string;
   summary: string;
@@ -44,6 +49,24 @@ export function issuesOfSearch(stdout: string): AssignedIssue[] {
     summary: issue.fields.summary?.trim() || issue.key,
     status: issue.fields.status?.name ?? null,
   }));
+}
+
+const parentViewSchema = z.looseObject({
+  fields: z.looseObject({
+    parent: z
+      .looseObject({
+        key: z.string(),
+        fields: z.looseObject({ summary: z.string().nullish(), issuetype: z.looseObject({ hierarchyLevel: z.number() }).nullish() }),
+      })
+      .nullish(),
+  }),
+});
+
+/** The parent a sub-issue hangs under; an epic parent is a project bucket, not a story, so it is skipped. */
+export function parentOfIssueView(stdout: string): JiraParent | null {
+  const parent = parentViewSchema.parse(JSON.parse(stdout)).fields.parent;
+  if (!parent || (parent.fields.issuetype?.hierarchyLevel ?? 0) > 0) return null;
+  return { key: parent.key, summary: parent.fields.summary?.trim() || parent.key };
 }
 
 export function statusOfIssueView(stdout: string): string {
@@ -109,6 +132,12 @@ export class JiraInfo {
     const issues = issuesOfSearch(stdout);
     issues.forEach((issue) => this.statuses.set(issue.key, { status: issue.status }));
     return issues;
+  }
+
+  /** The story an issue sits under; throws when acli fails so the caller can ask again later. */
+  async parentOf(key: string): Promise<JiraParent | null> {
+    const { stdout } = await this.execFile("acli", ["jira", "workitem", "view", key, "--fields", "parent", "--json"], { timeout: 15_000 });
+    return parentOfIssueView(stdout);
   }
 
   /** Cached status for an issue key, refreshing in the background; null while loading or unknown. */

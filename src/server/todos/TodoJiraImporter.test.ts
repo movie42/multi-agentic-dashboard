@@ -61,6 +61,41 @@ describe("TodoJiraImporter", () => {
     expect(store.box.board.cards.find((card) => card.id === "hand")?.jira.map((each) => each.key)).toEqual(["AB-1"]);
   });
 
+  it("reads each Jira card's story parent once and keeps unread cards for the next run when Jira fails", async () => {
+    let n = 0;
+    const store = memoryStore(defaultBoard());
+    const parentOf = vi.fn(async (key: string) => {
+      if (key === "AB-2") throw new Error("acli down");
+      return key === "AB-1" ? { key: "AB-0", summary: "스토리" } : null;
+    });
+    const jira = {
+      searchAssigned: async () => [...ISSUES, { key: "AB-3", summary: "셋째", status: null }],
+      siteUrl: async () => "https://x",
+      parentOf,
+    };
+    const importer = new TodoJiraImporter(store, jira, () => {}, () => 1, () => `c${++n}`);
+
+    expect(await importer.run()).toEqual({ added: 3, total: 3 });
+    await importer.whenParentsRead();
+    expect(store.box.board.cards.map((card) => [card.jira[0]?.key, card.jiraParent, card.jiraParentChecked])).toEqual([
+      ["AB-1", { key: "AB-0", summary: "스토리" }, true],
+      ["AB-2", null, true],
+      ["AB-3", null, true],
+    ]);
+  });
+
+  it("leaves every card unread for the next import when no parent lookup succeeds", async () => {
+    let n = 0;
+    const store = memoryStore(defaultBoard());
+    const parentOf = vi.fn(async () => {
+      throw new Error("acli down");
+    });
+    const importer = new TodoJiraImporter(store, { searchAssigned: async () => ISSUES, siteUrl: async () => "https://x", parentOf }, () => {}, () => 1, () => `c${++n}`);
+    await importer.run();
+    await importer.whenParentsRead();
+    expect(store.box.board.cards.map((card) => card.jiraParentChecked)).toEqual([false, false]);
+  });
+
   it("auto import waits for the interval", async () => {
     const store = memoryStore({ ...defaultBoard(), sync: { jiraImportedAt: 100 } });
     const searchAssigned = vi.fn(async () => ISSUES);

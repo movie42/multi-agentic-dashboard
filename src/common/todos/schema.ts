@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { isTodoDay } from "./sprint";
 import type { TodoBoard, TodoStatus } from "./types";
 
 export const TODO_TITLE_LIMIT = 200;
 export const TODO_MEMO_LIMIT = 20000;
 export const TODO_NAME_LIMIT = 40;
 export const TODO_DESCRIPTION_LIMIT = 200;
+export const DEFAULT_WEEK_STARTS_ON = 1;
 
 // Files written before statuses had transitions carry `kind` and no `next`; zod drops `kind`.
 const statusSchema = z.object({
@@ -40,6 +42,10 @@ const cardSchema = z.object({
   doneAt: z.number().nullable().optional(),
   archivedAt: z.number().nullable().default(null),
   origin: z.enum(["jira"]).nullable().default(null),
+  dueDate: z.string().refine(isTodoDay).nullable().default(null),
+  startDate: z.string().refine(isTodoDay).nullable().default(null),
+  jiraParent: z.object({ key: z.string(), summary: z.string() }).nullable().default(null),
+  jiraParentChecked: z.boolean().default(false),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -55,6 +61,9 @@ export const todoBoardSchema = z
     columns: z.array(columnSchema).min(1),
     cards: z.array(cardSchema),
     sync: z.object({ jiraImportedAt: z.number().nullable() }).default({ jiraImportedAt: null }),
+    settings: z
+      .object({ weekStartsOn: z.number().int().min(0).max(6) })
+      .default({ weekStartsOn: DEFAULT_WEEK_STARTS_ON }),
   })
   .transform((raw): TodoBoard => {
     const ids = raw.statuses.map((status) => status.id);
@@ -76,5 +85,6 @@ export const todoBoardSchema = z
         doneAt: doneAt !== undefined ? doneAt : card.statusId === lastId ? card.updatedAt : null,
       })),
       sync: raw.sync,
+      settings: raw.settings,
     };
   });

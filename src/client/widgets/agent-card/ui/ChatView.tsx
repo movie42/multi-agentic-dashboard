@@ -7,6 +7,7 @@ import { chatQueryOptions } from "@/client/entities/session";
 import { formatClock } from "@/client/shared/lib/format";
 import { Markdown } from "@/client/shared/ui/Markdown";
 import { StatusLine } from "@/client/shared/ui/StatusLine";
+import { withoutLiveQuestion } from "../lib/chatSteps";
 import { SlackCopyButton } from "./SlackCopyButton";
 import { UiActionTarget, UiRow } from "./UiRow";
 
@@ -340,12 +341,14 @@ interface ChatViewProps {
   terminalHandle?: string | null;
   working: boolean;
   layout: ChatLayout;
+  /** A question card waiting for an answer is shown below the chat, so its transcript copy is hidden. */
+  liveQuestion?: boolean;
 }
 
-export function ChatView({ sessionId, terminalHandle = null, working, layout }: ChatViewProps) {
+export function ChatView({ sessionId, terminalHandle = null, working, layout, liveQuestion = false }: ChatViewProps) {
   const chat = useQuery(chatQueryOptions(sessionId));
   const isQueued = (step: ActivityStep) => step.kind === "prompt" && step.queued === true;
-  const steps = chat.data?.filter((step) => !isQueued(step)) ?? null;
+  const steps = chat.data ? withoutLiveQuestion(chat.data, liveQuestion).filter((step) => !isQueued(step)) : null;
   // Claude Code takes queued input as soon as it goes idle, so anything still listed then was pulled back or lost.
   const queued = working ? (chat.data?.filter(isQueued) ?? []) : [];
   const listRef = useRef<HTMLDivElement>(null);

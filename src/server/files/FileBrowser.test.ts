@@ -40,8 +40,22 @@ describe("FileBrowser", () => {
     ]);
   });
 
-  it("refuses a folder outside every worktree", async () => {
-    await expect(browser.list(path.dirname(root))).resolves.toEqual({ ok: false, status: 403 });
+  it("reads a file outside every worktree", async () => {
+    const outside = await realpath(await mkdtemp(path.join(tmpdir(), "file-browser-outside-")));
+    try {
+      await writeFile(path.join(outside, "shot.png"), Buffer.from([137, 80, 78, 71]));
+      await writeFile(path.join(outside, "note.txt"), "hi\n");
+      const image = await browser.read(path.join(outside, "shot.png"));
+      expect(image.ok && image.content.kind).toBe("image");
+      const raw = await browser.raw(path.join(outside, "shot.png"));
+      expect(raw.ok && raw.contentType).toBe("image/png");
+      const text = await browser.read(path.join(outside, "note.txt"));
+      expect(text.ok && text.content.kind).toBe("text");
+      const listed = await browser.list(outside);
+      expect(listed.ok && listed.entries.map((entry) => entry.name)).toEqual(["note.txt", "shot.png"]);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 
   it("answers 404 for a missing file", async () => {

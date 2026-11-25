@@ -26,11 +26,11 @@ function fakeServer(input: RequestInfo | URL, init?: RequestInit): Promise<Respo
   return Promise.resolve(new Response(JSON.stringify({ ok: false, error: "unexpected" })));
 }
 
-function renderPage() {
+function renderPage(now = 1) {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={1} modeOf={() => "company"} onAction={async () => undefined} onJumpToAgent={() => undefined} />
+      <TodoBoardPage repos={[]} agents={[]} worktrees={[]} now={now} modeOf={() => "company"} onAction={async () => undefined} onJumpToAgent={() => undefined} />
     </QueryClientProvider>,
   );
 }
@@ -51,9 +51,15 @@ function dataTransfer() {
 
 const column = (name: string) => screen.getByRole("region", { name });
 
+const SPRINT_KEY = "agent-control:todo-sprint";
+const VIEW_KEY = "agent-control:todo-view";
+
 beforeEach(() => {
   board = defaultBoard();
   posted = [];
+  window.localStorage.clear();
+  // Most tests predate sprints and make cards with no deadline, which only the 전체 scope shows.
+  window.localStorage.setItem(SPRINT_KEY, JSON.stringify(["all"]));
   vi.stubGlobal("fetch", vi.fn(fakeServer));
 });
 
@@ -217,5 +223,159 @@ describe("TodoBoardPage hub", () => {
     await waitFor(() => expect(posted).toContainEqual({ type: "card-restore", cardId: "c1" }));
     await user.keyboard("{Escape}");
     expect(await within(column("진행 중")).findByRole("button", { name: "지난 일" })).toBeTruthy();
+  });
+});
+
+describe("TodoBoardPage sprints", () => {
+  // 2026-11-25 is a Wednesday; with weeks starting Monday this sprint is 11/23–11/29.
+  const NOW = new Date(2026, 10, 25, 12).getTime();
+
+  function withCards(...cards: { title: string; dueDate?: string; startDate?: string; statusId?: string }[]) {
+    let n = 0;
+    board = cards.reduce(
+      (acc, card) => applyTodoOp(acc, { type: "card-create", ...card }, { now: 1, newId: () => `c${++n}-${card.title}` }).board,
+      board,
+    );
+  }
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("shows this sprint's cards on the kanban by default and switches to other sprints", async () => {
+    const user = userEvent.setup();
+    withCards({ title: "이번 주 일", dueDate: "2026-11-27" }, { title: "다음 주 일", dueDate: "2026-12-01" }, { title: "백로그 일" }, { title: "밀린 일", dueDate: "2026-11-18" });
+    renderPage(NOW);
+    expect(await screen.findByRole("button", { name: "이번 주 일" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "밀린 일" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "다음 주 일" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "백로그 일" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^백로그/ }));
+    expect(await screen.findByRole("button", { name: "백로그 일" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "이번 주 일" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^다음 주/ }));
+    expect(await screen.findByRole("button", { name: "다음 주 일" })).toBeTruthy();
+  });
+
+  it("gives a card added under this sprint the sprint's last day", async () => {
+    const user = userEvent.setup();
+    renderPage(NOW);
+    await user.click(await within(await screen.findByRole("region", { name: "할일" })).findByRole("button", { name: "+ 카드" }));
+    await user.type(screen.getByRole("textbox", { name: "새 카드 제목" }), "새 일{Enter}");
+    expect(posted[0]).toMatchObject({ type: "card-create", title: "새 일", dueDate: "2026-11-29" });
+    expect(await within(column("할일")).findByRole("button", { name: "새 일" })).toBeTruthy();
+  });
+
+  it("changes the weekday sprints start on", async () => {
+    const user = userEvent.setup();
+    renderPage(NOW);
+    await user.selectOptions(await screen.findByRole("combobox", { name: "스프린트 시작 요일" }), "3");
+    expect(posted[0]).toEqual({ type: "settings-update", weekStartsOn: 3 });
+  });
+
+  it("shows one sprint week as a timeline with backlog chips and overdue rows on top", async () => {
+    const user = userEvent.setup();
+    withCards({ title: "금요일 일", dueDate: "2026-11-27" }, { title: "백로그 일" }, { title: "지난 주 일", dueDate: "2026-11-18" });
+    renderPage(NOW);
+    await user.click(await screen.findByRole("button", { name: "일정" }));
+    expect(window.localStorage.getItem(VIEW_KEY)).toBe(JSON.stringify(["schedule"]));
+
+    const rows = await screen.findByRole("list", { name: "이 주 카드" });
+    const [first, second] = within(rows).getAllByRole("listitem");
+    expect(within(first as HTMLElement).getByRole("button", { name: "지난 주 일" })).toBeTruthy();
+    expect(within(first as HTMLElement).getByText("← 7일 지남 · 할일")).toBeTruthy();
+    expect(within(second as HTMLElement).getByRole("button", { name: "금요일 일" })).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "백로그" })).getByRole("button", { name: "백로그 일" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /이번 주로 넘기기/ }));
+    expect(posted.at(-1)).toEqual({ type: "cards-carry-over", cardIds: [board.cards.find((card) => card.title === "지난 주 일")?.id] });
+  });
+
+  it("goes back only as far as the earliest week holding a card", async () => {
+    const user = userEvent.setup();
+    withCards({ title: "지난 주 끝난 일", dueDate: "2026-11-18", statusId: "st-done" });
+    window.localStorage.setItem(VIEW_KEY, JSON.stringify(["schedule"]));
+    renderPage(NOW);
+    const back = await screen.findByRole("button", { name: "이전 주" });
+    await user.click(back);
+    expect(screen.getByRole("heading", { name: /지난 주/ })).toBeTruthy();
+    expect(within(screen.getByRole("list", { name: "이 주 카드" })).getByRole("button", { name: "지난 주 끝난 일" })).toBeTruthy();
+    expect((screen.getByRole("button", { name: "이전 주" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("resizes the title column and the row height by dragging their edges, and remembers both", async () => {
+    withCards({ title: "아주 긴 제목의 일", dueDate: "2026-11-25" });
+    window.localStorage.setItem(VIEW_KEY, JSON.stringify(["schedule"]));
+    renderPage(NOW);
+    const column = await screen.findByRole("separator", { name: "제목 칸 너비 조절" });
+    fireEvent.pointerDown(column, { button: 0, clientX: 100, clientY: 0 });
+    fireEvent.pointerMove(column, { clientX: 220, clientY: 0 });
+    fireEvent.pointerUp(column, { clientX: 220, clientY: 0 });
+    expect(window.localStorage.getItem("agent-control:todo-title-w")).toBe(JSON.stringify(["360"]));
+
+    const [row] = screen.getAllByRole("separator", { name: "줄 높이 조절" });
+    if (!row) throw new Error("no row resizer");
+    fireEvent.pointerDown(row, { button: 0, clientX: 0, clientY: 50 });
+    fireEvent.pointerMove(row, { clientX: 0, clientY: 94 });
+    fireEvent.pointerUp(row, { clientX: 0, clientY: 94 });
+    expect(window.localStorage.getItem("agent-control:todo-row-h")).toBe(JSON.stringify(["80"]));
+    expect(row.getAttribute("aria-valuenow")).toBe("80");
+
+    fireEvent.keyDown(row, { key: "ArrowUp" });
+    expect(window.localStorage.getItem("agent-control:todo-row-h")).toBe(JSON.stringify(["72"]));
+    fireEvent.doubleClick(column);
+    expect(window.localStorage.getItem("agent-control:todo-title-w")).toBe(JSON.stringify(["240"]));
+  });
+
+  it("stays on this week when no card is older", async () => {
+    window.localStorage.setItem(VIEW_KEY, JSON.stringify(["schedule"]));
+    renderPage(NOW);
+    expect(((await screen.findByRole("button", { name: "이전 주" })) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("drops a backlog chip on a day as its deadline and a row on the backlog to clear its dates", async () => {
+    const user = userEvent.setup();
+    withCards({ title: "정할 일" });
+    window.localStorage.setItem(VIEW_KEY, JSON.stringify(["schedule"]));
+    renderPage(NOW);
+    const chip = within(await screen.findByRole("region", { name: "백로그" })).getByRole("button", { name: "정할 일" });
+    expect(chip.getAttribute("data-todo-chip")).toBe(board.cards[0]?.id);
+
+    const transfer = dataTransfer();
+    fireEvent.dragStart(chip, { dataTransfer: transfer });
+    const thursday = screen.getByRole("listitem", { name: "11/26(목)" });
+    fireEvent.dragOver(thursday, { dataTransfer: transfer });
+    fireEvent.drop(thursday, { dataTransfer: transfer });
+    await waitFor(() => expect(posted.at(-1)).toEqual({ type: "card-update", cardId: board.cards[0]?.id, dueDate: "2026-11-26" }));
+
+    const row = await within(screen.getByRole("list", { name: "이 주 카드" })).findByRole("button", { name: "정할 일" });
+    const back = dataTransfer();
+    fireEvent.dragStart(row, { dataTransfer: back });
+    const backlog = screen.getByRole("region", { name: "백로그" });
+    fireEvent.dragOver(backlog, { dataTransfer: back });
+    fireEvent.drop(backlog, { dataTransfer: back });
+    await waitFor(() => expect(posted.at(-1)).toEqual({ type: "card-update", cardId: board.cards[0]?.id, startDate: null, dueDate: null }));
+
+    await user.click(within(screen.getByRole("region", { name: "백로그" })).getByRole("button", { name: "정할 일" }));
+    expect(((await screen.findByRole("textbox", { name: "카드 제목" })) as HTMLInputElement).value).toBe("정할 일");
+  });
+
+  it("drags a bar's end to move the deadline and a deadline mark's handle to add a start day", async () => {
+    withCards({ title: "기간 일", startDate: "2026-11-23", dueDate: "2026-11-24" }, { title: "점 일", dueDate: "2026-11-27" });
+    window.localStorage.setItem(VIEW_KEY, JSON.stringify(["schedule"]));
+    renderPage(NOW);
+    const schedule = await screen.findByRole("region", { name: "일정" });
+    // jsdom lays nothing out, so one day column is 1px wide here.
+    fireEvent.pointerDown(screen.getByLabelText("기간 일 마감일 바꾸기"), { clientX: 10, pointerId: 1 });
+    fireEvent.pointerMove(schedule, { clientX: 12, pointerId: 1 });
+    fireEvent.pointerUp(schedule, { clientX: 12, pointerId: 1 });
+    await waitFor(() => expect(posted.at(-1)).toEqual({ type: "card-update", cardId: board.cards[0]?.id, dueDate: "2026-11-26" }));
+
+    fireEvent.pointerDown(screen.getByLabelText("점 일 시작일 만들기"), { clientX: 10, pointerId: 2 });
+    fireEvent.pointerMove(schedule, { clientX: 6, pointerId: 2 });
+    fireEvent.pointerUp(schedule, { clientX: 6, pointerId: 2 });
+    await waitFor(() => expect(posted.at(-1)).toEqual({ type: "card-update", cardId: board.cards[1]?.id, startDate: "2026-11-23" }));
   });
 });

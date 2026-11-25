@@ -35,7 +35,7 @@ describe("TodoLinker", () => {
         {
           id: "c1", title: "로그인", memo: "", statusId: "st-todo", jira: [{ key: "AB-7", url: "u" }], links: [], sessionIds: [],
           ignoredSessionIds: [], repo: null, worktreePath: null, hidden: false, agentMovedAt: null, doneSuggestedAt: null,
-          pendingLaunch: null, doneAt: null, archivedAt: null, origin: "jira", createdAt: 0, updatedAt: 0,
+          pendingLaunch: null, doneAt: null, archivedAt: null, origin: "jira", dueDate: null, startDate: null, jiraParent: null, jiraParentChecked: false, createdAt: 0, updatedAt: 0,
         },
       ],
     });

@@ -48,6 +48,10 @@ function boardWithCard(): TodoBoard {
         doneAt: null,
         archivedAt: null,
         origin: null,
+        dueDate: null,
+        startDate: null,
+        jiraParent: null,
+        jiraParentChecked: false,
         createdAt: 0,
         updatedAt: 0,
       },
@@ -176,5 +180,10 @@ describe("describeAgentOp", () => {
     expect(describeAgentOp(board, { type: "card-create", title: "새 일", sessionIds: [S1] }, title)).toBe("새 카드 ‘새 일’ (할일 · 세션 1개)");
     expect(describeAgentOp(board, { type: "session-attach", cardId: "c1", sessionId: S1 }, title)).toBe("‘기존 카드’에 세션 ‘세션 제목’ 붙임");
     expect(describeAgentOp(board, { type: "card-delete", cardId: "c1" }, title)).toBe("‘기존 카드’ 삭제");
+    expect(describeAgentOp(board, { type: "card-update", cardId: "c1", dueDate: "2026-11-27" }, title)).toBe("‘기존 카드’ 수정: 마감일 → 2026-11-27");
+    expect(describeAgentOp(board, { type: "card-update", cardId: "c1", dueDate: null }, title)).toBe("‘기존 카드’ 수정: 마감일 → 없음");
+    expect(describeAgentOp(board, { type: "card-update", cardId: "c1", startDate: "2026-11-24", dueDate: "2026-11-27" }, title)).toBe(
+      "‘기존 카드’ 수정: 시작일 → 2026-11-24 · 마감일 → 2026-11-27",
+    );
   });
 });

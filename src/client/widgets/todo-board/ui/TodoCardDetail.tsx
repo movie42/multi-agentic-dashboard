@@ -143,7 +143,7 @@ export function TodoCardDetail({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
           <span className={FIELD_LABEL}>상태</span>
           <select
@@ -201,6 +201,48 @@ export function TodoCardDetail({
             ))}
           </select>
         </label>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`start-${card.id}`} className={FIELD_LABEL}>
+            시작일
+          </label>
+          <span className="flex items-center gap-2">
+            <input
+              id={`start-${card.id}`}
+              type="date"
+              value={card.startDate ?? ""}
+              max={card.dueDate ?? undefined}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => void update({ startDate: event.target.value || null })}
+              className={`${SELECT} min-w-0 flex-1`}
+            />
+            {card.startDate && (
+              <button type="button" onClick={() => void update({ startDate: null })} className={QUIET_LINK}>
+                지우기
+              </button>
+            )}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`due-${card.id}`} className={FIELD_LABEL}>
+            마감일
+          </label>
+          <span className="flex items-center gap-2">
+            <input
+              id={`due-${card.id}`}
+              type="date"
+              value={card.dueDate ?? ""}
+              min={card.startDate ?? undefined}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                void update(event.target.value ? { dueDate: event.target.value } : { dueDate: null, startDate: null })
+              }
+              className={`${SELECT} min-w-0 flex-1`}
+            />
+            {card.dueDate && (
+              <button type="button" onClick={() => void update({ dueDate: null, startDate: null })} className={QUIET_LINK}>
+                백로그로
+              </button>
+            )}
+          </span>
+        </div>
       </div>
 
       <section className="flex flex-col gap-1.5">

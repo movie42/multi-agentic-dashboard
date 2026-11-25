@@ -55,6 +55,9 @@ export async function POST(request: Request) {
   try {
     if (body.type === "open-artifact") {
       await execFileAsync("open", [await resolveTarget(body.target)]);
+    } else if (body.type === "reveal-in-finder") {
+      await stat(body.target);
+      await execFileAsync("open", ["-R", body.target]);
     } else if (body.type === "close-terminal") {
       await runner.close(body.terminalHandle);
       await services().terminalAliases.forget([body.terminalHandle]);

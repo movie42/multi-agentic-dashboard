@@ -1,0 +1,395 @@
+{
+  "id": "todo-sprint-timeline",
+  "title": "스프린트 일정 보기를 타임라인으로 — 시작일 · 스토리별 묶음 · 지난 주 경계",
+  "type": "기능 수정",
+  "branch": "main",
+  "links": [],
+  "stages": {
+    "grill": {
+      "status": "done",
+      "rounds": [
+        {
+          "id": "R1",
+          "askedAt": "11/25",
+          "from": "사용자 요청 — 시작일 · 덩어리 카드 · 하위 이슈 · 지난 주 스크롤 · 스프린트 단위 보기",
+          "questions": [
+            {
+              "id": "Q1",
+              "title": "일정 보기를 어떤 모양으로 바꿀까요?",
+              "intent": "지금은 주마다 요일 7줄에 큰 카드를 늘어놓아 한 주가 화면 여러 개를 차지하고, 카드가 언제 시작하는지는 보이지 않아요. 모양이 정해져야 시작일을 어떻게 넣고 끌지, 스크롤을 어디서 막을지가 따라 정해져요.",
+              "decision": "일정 보기는 스프린트 한 주를 한 화면에 보여 주는 타임라인으로 바꾼다. 요일 7칸이 화면 폭에 맞고 ‹ › 로 주를 넘기며, 카드는 한 줄짜리 행으로 시작~마감이 막대(시작일이 없으면 마감일에 ◆ 점)로 보인다. 막대 몸통을 끌면 기간째 옮겨지고 양 끝을 끌면 시작일 · 마감일이 바뀐다. 마감이 지난 미완료 카드는 이번 주 맨 위에 'N일 지남'으로 남고, 이전 주로는 카드가 있는 가장 이른 주까지만 넘어간다. 여러 주를 걸친 기간은 한 화면에 다 보이지 않는 대신, 한 칸이 넓어 끌기가 쉽다.",
+              "reason": {
+                "text": "스프린트가 한 주라 한 화면에 한 스프린트가 꼭 맞고, 요일 칸이 넓어 막대를 끌어 날짜를 바꾸기 쉽다.",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획 — 타임라인 화면 · 주 이동 · 끌기 Phase"
+            },
+            {
+              "id": "Q2",
+              "title": "지라 스토리의 하위 이슈는 어떻게 보일까요?",
+              "intent": "지금은 지라에서 가져올 때 이슈마다 카드가 따로 생겨, 스토리 COMP-603과 그 하위 이슈 COMP-644가 서로 상관없는 카드처럼 흩어져 있어요. 합치느냐 묶어 보이느냐에 따라 하위 이슈마다 상태 · 날짜 · 세션을 따로 둘 수 있는지가 갈려요.",
+              "decision": "지라 하위 이슈는 제 카드(상태 · 날짜 · 세션)를 그대로 두고, 일정 보기에서 스토리 줄 바로 밑에 들여 쓴 줄로 붙여 보인다. 이를 위해 지라에서 새 이슈를 가져올 때 부모 이슈 키를 한 번 읽어 카드에 저장한다(이슈당 약 1.5초, 한 번만). 스토리 카드가 보드에 없으면 스토리 이름만 있는 묶음 머리를 만들고, 칸반 카드에는 'COMP-603 하위' 표시를 붙인다.",
+              "reason": {
+                "text": "하위 이슈마다 담당 작업트리 · 세션 · 날짜가 다른 경우가 많아 카드는 남기고, 보이는 자리만 스토리 밑으로 모은다.",
+                "by": "recommended"
+              },
+              "appliedTo": "03 구현 계획 — 카드 부모 키 · 지라 가져오기 · 묶음 표시 Phase"
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "type": "text",
+          "title": "질문 없이 정한 것",
+          "html": "<ul><li>카드에 시작일(날짜 하나, 비워 둘 수 있음)을 더한다. 스프린트는 여전히 마감일이 든 주로 정한다.</li><li>지난 주로는 카드(끝난 카드 포함)가 있는 가장 이른 주까지만 갈 수 있다. 오늘 이전에 카드가 없으면 이번 주에서 멈춘다.</li><li>'마감일 없음' 카드는 옆의 백로그 목록에 두고, 요일 칸으로 끌어 놓으면 그날이 마감일이 된다.</li><li>칸반 보기와 스프린트 거르기는 그대로 둔다.</li></ul>"
+        }
+      ]
+    },
+    "tasks": {
+      "status": "done",
+      "summary": "P1–P4 완료",
+      "conclusion": [
+        {
+          "text": "카드에 시작일이 생겼고, 시작일이 마감일보다 늦으면 저장을 거절한다."
+        },
+        {
+          "text": "지라 카드는 가져오기 때 부모 스토리를 한 번 읽어 두고, 칸반 카드에 'COMP-603 하위' 표시가 붙는다."
+        },
+        {
+          "text": "일정 보기는 스프린트 한 주를 요일 7칸 타임라인으로 보여 준다. 시작일이 있으면 막대, 없으면 마감일에 ◆이고, 막대를 끌어 날짜를 바꾼다."
+        },
+        {
+          "text": "이번 주 맨 위에 밀린 카드가 'N일 지남'으로, 하위 이슈는 스토리 줄 밑에 들여 쓴 줄로 보인다. 이전 주로는 카드가 있는 가장 이른 주까지만 간다."
+        },
+        {
+          "text": "할일 에이전트도 시작일과 부모 스토리를 읽고 시작일을 고칠 수 있다."
+        }
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "P1 시작일 · 부모 이슈 (데이터)",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "카드에 시작일(startDate)과 지라 부모 이슈(jiraParent)를 더한다 — 예전 파일은 둘 다 비어 있고, 부모는 아직 안 읽은 것으로 읽힌다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/types.ts</code>, <code>src/common/todos/schema.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "카드 만들기 · 고치기에 시작일 — 시작일이 마감일보다 늦으면 거절한다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/ops.ts</code>"
+                ],
+                [
+                  "결정",
+                  "마감일을 지우는 고치기는 시작일을 함께 지우지 않는다. 일정 보기에서 백로그로 끌 때와 카드 상세의 [백로그로]는 둘 다 지운다. '이번 주로 넘기기'는 시작일도 같은 날수만큼 옮겨 기간을 지킨다."
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bun run test src/common/todos</code> 통과",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/todos/ops.test.ts</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "P2 지라 부모 이슈 읽기 (서버)",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "지라 카드마다 부모 이슈를 한 번 읽어 저장한다 — 부모가 에픽이면 묶지 않는다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/workflow/JiraInfo.ts</code>, <code>src/server/todos/TodoJiraImporter.ts</code>, <code>src/common/todos/jiraImport.ts</code>"
+                ],
+                [
+                  "결정",
+                  "부모는 <code>acli jira workitem view &lt;키&gt; --fields parent</code>로 읽는다(검색 명령은 parent 칸을 거절한다). 가져오기 한 번에 최대 20장만 묻고, 실패한 카드는 다음 가져오기에서 다시 묻는다. 부모가 에픽이면 묶지 않는다."
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bun run test src/server/todos</code> 통과",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/todos/TodoJiraImporter.test.ts</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "P3 타임라인 행 계산 (순수 함수)",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "한 주의 행 목록: 기간이 그 주에 걸친 카드, 이번 주면 밀린 카드를 맨 위에, 하위 이슈는 스토리 줄 밑에, 스토리 카드가 없으면 묶음 머리",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/model/timeline.ts</code>"
+                ],
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/model/timeline.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "밀린 스토리가 이번 주 하위 이슈를 거느리면, 맨 위 밀린 줄 하나로만 보이고 하위 이슈가 그 밑에 붙는다(리뷰에서 같은 스토리가 두 번 나오던 것을 고침)."
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "이전 주로 갈 수 있는 끝 — 카드(끝난 카드 포함)가 있는 가장 이른 주, 없으면 이번 주",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/model/timeline.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bun run test src/client/widgets/todo-board/model</code> 통과",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/model/timeline.test.ts</code>"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P4",
+          "title": "P4 타임라인 화면",
+          "items": [
+            {
+              "id": "P4-1",
+              "title": "일정 보기를 한 주 타임라인으로: ‹ › 주 이동, 요일 7칸 머리, 한 줄 행, 막대 · ◆ 점, 'N일 지남'",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/ui/TodoSchedule.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-2",
+              "title": "막대 끌기: 몸통은 기간째, 양 끝은 시작일 · 마감일, ◆ 왼쪽 손잡이로 시작일 만들기",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/ui/TodoSchedule.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "몸통이나 손잡이를 눌렀다가 날짜가 한 칸도 안 바뀐 채 놓으면 카드 상세를 연다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-3",
+              "title": "백로그 줄: 마감일 없는 카드를 요일 칸에 끌어 놓으면 그날이 마감일, 행을 백로그로 끌면 마감일 · 시작일을 지운다. 밀린 카드 넘기기 버튼은 이번 주 머리로",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/todo-board/ui/TodoSchedule.tsx</code>, <code>TodoBoardPage.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "백로그 줄은 화면 위에 고정된 칩 줄로 둔다(좁은 화면에서도 보이도록). 행 제목을 요일 칸에 끌어 놓으면 마감일이 그날로 가고, 시작일이 있으면 기간째 옮겨진다."
+                ]
+              ]
+            },
+            {
+              "id": "P4-4",
+              "title": "카드 상세에 시작일 칸, 칸반 카드에 'COMP-603 하위' 표시",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>TodoCardDetail.tsx</code>, <code>TodoCard.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-5",
+              "title": "할일 에이전트가 시작일 · 부모 이슈를 읽고 시작일을 고칠 수 있다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/todos/TodoAgent.ts</code>, <code>src/common/todos/agentTurn.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P4-V",
+              "title": "검증: <code>tsc --noEmit</code>, <code>bun run lint</code>, <code>bun run test</code> 통과, 데스크톱 앱에서 일정 보기 확인",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>TodoBoardPage.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "<code>tsc --noEmit</code> 통과, <code>bun run lint</code> 에러 0(기존 경고 9), <code>bun run test</code> 1097개 통과. 개발 서버(3111)에서 일정 보기가 한 주 타임라인으로 그려지는 것을 확인했다. 실제 보드에 쓰지 않으려고 화면 끌기는 테스트로만 확인했다."
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "done",
+      "summary": "완료",
+      "conclusion": [
+        {
+          "text": "타입 검사 · 린트 · 테스트가 통과했다(2026-11-25). 코드 리뷰 지적 5건을 고쳤다. PR 없음."
+        }
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "해당 없음 — 이 작업에는 SOT 맵(screen 단계)이 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행도, 서버 · 기획에 넘길 요청도 없다."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "/code-review medium 지적 7건 중 5건을 고쳤다: 부모를 못 읽는 카드가 앞 20장을 막아 뒤 카드가 영영 안 읽히던 것, 지라 가져오기 버튼이 부모 읽기 동안 최대 5분 기다리던 것(이제 가져오기 뒤 5개씩 나란히 따로 읽음), 밀린 스토리가 두 번 나오던 것, 마감일 칸을 비울 때 시작일이 남던 것, 마감일을 시작일보다 앞으로 고르면 거절되던 것(마감일 칸에 min)."
+                ],
+                [
+                  "결정",
+                  "고치지 않은 것: 칸반 기본 '이번 주'가 마감일 없는 카드를 숨기는 것(앞선 todo-sprint [[todo-sprint#R1-Q7]]에서 정함), <code>usePinnedHeight</code>가 CSS 변수를 쓰는 방식(todo-sprint 코드이고 <code>style={{}}</code>이 아님)."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "고친 뒤 <code>tsc --noEmit</code> 통과, <code>bun run lint</code> 에러 0(기존 경고 9), <code>bun run test</code> 1099개 통과."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "PR 없음 — main에서 작업했고 커밋 · PR은 사용자가 요청할 때 한다."
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ],
+      "ext": {
+        "hyunsu": {
+          "title": "옵시디언 기록",
+          "vault": "2026-11-25 · 업무일지, Agent Control 대시보드"
+        }
+      }
+    }
+  },
+  "intent": [
+    {
+      "text": "스프린트(한 주) 안에서 어떤 일이 언제 시작해 언제 끝나는지, 어느 날이 몰리고 비는지를 한 화면에서 읽는다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 2026-11-25, [[R1-Q1]]"
+    },
+    {
+      "text": "지라 스토리와 그 하위 이슈는 한 덩어리로 보인다.",
+      "state": "confirmed",
+      "basis": "사용자 요청 2026-11-25, [[R1-Q2]]"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "사용자가 답 한 번 뒤에는 질문 · 승인 멈춤 없이 구현하라고 했다(메모리 flow-implement-dont-grill)"
+    },
+    {
+      "stage": "done",
+      "stop": "PR 여부 확인",
+      "why": "사용자가 질문 · 승인 멈춤 없이 완료까지 진행하라고 했다(메모리 flow-implement-dont-grill). 커밋 · PR은 요청할 때 한다."
+    }
+  ],
+  "pruned": "2026-11-25"
+}
