@@ -22,6 +22,7 @@ const title = z
 
 export const actionRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("open-artifact"), target: z.string() }),
+  z.object({ type: z.literal("reveal-in-finder"), target: absolutePath }),
   z.object({ type: z.literal("close-terminal"), terminalHandle: z.string() }),
   z.object({ type: z.literal("close-terminals"), terminalHandles: z.array(z.string()).min(1).max(MAX_CLOSE_TERMINALS) }),
   z.object({ type: z.literal("resume-session"), sessionId, cwd: absolutePath, title: z.string() }),

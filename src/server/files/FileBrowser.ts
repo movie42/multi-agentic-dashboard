@@ -3,7 +3,6 @@ import { open, readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { DirEntry, FileContent, FileStat } from "@/common/files/types";
 import { isMissingPath } from "@/server/shared/ports";
-import { resolveWorktreeFile } from "./filePath";
 
 export const MAX_TEXT_BYTES = 400 * 1024;
 const SNIFF_BYTES = 8 * 1024;
@@ -150,13 +149,10 @@ export class FileBrowser {
     return { files: files.sort(), truncated: false };
   }
 
-  // A worktree created after the last board load is not in the cached list yet.
+  // Any local file opens: the proxy already refuses requests from other origins.
   private async resolve(requested: string): Promise<{ ok: true; file: string } | FileError> {
     try {
-      const cached = await resolveWorktreeFile(requested, await this.options.worktreePaths(), realpath);
-      if (cached.ok) return cached;
-      const fresh = await resolveWorktreeFile(requested, await this.options.worktreePaths({ fresh: true }), realpath);
-      return fresh.ok ? fresh : { ok: false, status: 403 };
+      return { ok: true, file: await realpath(path.resolve("/", requested)) };
     } catch (error) {
       if (isMissingPath(error)) return { ok: false, status: 404 };
       throw error;

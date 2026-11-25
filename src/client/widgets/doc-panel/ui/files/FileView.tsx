@@ -44,6 +44,14 @@ export function FileView({ file, active, root, className = "" }: FileViewProps) 
     }
   };
 
+  const revealInFinder = async () => {
+    try {
+      await postAction({ type: "reveal-in-finder", target: file });
+    } catch (error) {
+      toastError("reveal-in-finder", error, { file });
+    }
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.metaKey && event.code === "KeyF") {
       event.preventDefault();
@@ -78,6 +86,9 @@ export function FileView({ file, active, root, className = "" }: FileViewProps) 
             {markdownAsCode ? "미리보기" : "코드 보기"}
           </button>
         )}
+        <button type="button" onClick={() => void revealInFinder()} className={`shrink-0 ${LINK}`}>
+          폴더 열기
+        </button>
         <button type="button" onClick={() => void openInEditor()} className={`shrink-0 ${LINK}`}>
           에디터로 열기
         </button>

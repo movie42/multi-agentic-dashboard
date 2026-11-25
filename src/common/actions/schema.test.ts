@@ -27,6 +27,8 @@ describe("actionRequestSchema", () => {
     [{ type: "rename-session", sessionId: "nope", title: "t" }, false],
     [{ type: "bookmark-session", sessionId: SESSION, name: "n", cwd: "/c", memo: "x".repeat(501) }, false],
     [{ type: "open-artifact", target: "/f" }, true],
+    [{ type: "reveal-in-finder", target: "/tmp/a.png" }, true],
+    [{ type: "reveal-in-finder", target: "a.png" }, false],
     [{ type: "open-terminal", worktreePath: "/w" }, true],
     [{ type: "run-project-command", worktreePath: "/w", projectPath: "/p", name: "빌드" }, true],
     [{ type: "run-project-command", worktreePath: "/w", projectPath: "/p", name: "" }, false],
