@@ -2,8 +2,11 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { docLabel, fileLabel, isViewableDoc } from "../lib/docUrl";
 
+/** The one tab that shows the to-do agent conversation instead of a page or file. */
+export const TODO_AGENT_TAB = "agent-control:todo-agent";
+
 export interface DocTab {
-  kind: "doc" | "file";
+  kind: "doc" | "file" | "todo-agent";
   /** The page or file the tab was opened with; identifies the tab. */
   target: string;
   /** The page shown now, after links inside the document were followed. A file tab never moves. */
@@ -22,6 +25,7 @@ interface DocViewerState {
   active: string | null;
   open: (target: string) => void;
   openFile: (file: string, options: OpenFileOptions) => void;
+  openTodoAgent: () => void;
   pin: (target: string) => void;
   /** `null` shows whatever the panel puts before the tabs (the canvas session view). */
   activate: (target: string | null) => void;
@@ -55,6 +59,12 @@ export const useDocViewerStore = create<DocViewerState>()(
       const previewIndex = preview ? state.tabs.findIndex((other) => other.preview) : -1;
       if (previewIndex === -1) return { tabs: [...state.tabs, tab], active: file };
       return { tabs: state.tabs.map((other, index) => (index === previewIndex ? tab : other)), active: file };
+    }),
+  openTodoAgent: () =>
+    set((state) => {
+      if (state.tabs.some((tab) => tab.target === TODO_AGENT_TAB)) return { active: TODO_AGENT_TAB };
+      const tab: DocTab = { kind: "todo-agent", target: TODO_AGENT_TAB, current: TODO_AGENT_TAB, title: "할일 에이전트", preview: false };
+      return { tabs: [...state.tabs, tab], active: TODO_AGENT_TAB };
     }),
   pin: (target) =>
     set((state) => ({ tabs: state.tabs.map((tab) => (tab.target === target ? { ...tab, preview: false } : tab)) })),

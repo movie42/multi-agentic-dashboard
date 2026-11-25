@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { acceptsSessionDrag, droppedSessionId } from "@/client/entities/agent";
 import { useFileExplorerStore } from "@/client/features/browse-files";
+import { TodoAgentChat } from "@/client/features/talk-to-todo-agent";
 import { targetOfDocUrl, useDocViewerStore } from "@/client/features/view-doc";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
 import { FileTree } from "./files/FileTree";
@@ -300,7 +301,11 @@ export function DocPanel({ agents, lead }: DocPanelProps) {
           ))}
           {!lead && tabs.length === 0 && <p className="px-5 py-8 text-[13px] text-muted">트리에서 파일을 고르면 여기에 열려요.</p>}
           {tabs.map((tab) =>
-            tab.kind === "file" ? (
+            tab.kind === "todo-agent" ? (
+              <div key={tab.target} className={`absolute inset-0 ${tab.target === active ? "" : "invisible"}`}>
+                <TodoAgentChat />
+              </div>
+            ) : tab.kind === "file" ? (
               <FileView
                 key={tab.target}
                 file={tab.target}

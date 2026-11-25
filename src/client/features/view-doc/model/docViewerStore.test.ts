@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { openInPanel, useDocViewerStore } from "./docViewerStore";
+import { openInPanel, TODO_AGENT_TAB, useDocViewerStore } from "./docViewerStore";
 
 const A = "/w/docs/d/A/index.html";
 const B = "/w/docs/d/B/index.html";
@@ -74,5 +74,19 @@ describe("docViewerStore", () => {
       ["doc", A, false],
       ["file", "/w/notes/plan.md", false],
     ]);
+  });
+});
+
+describe("docViewerStore todo agent tab", () => {
+  beforeEach(() => useDocViewerStore.getState().closeAll());
+
+  it("opens the todo agent as one panel tab and focuses it when opened again", () => {
+    const { open, openTodoAgent } = useDocViewerStore.getState();
+    openTodoAgent();
+    open(A);
+    openTodoAgent();
+    const state = useDocViewerStore.getState();
+    expect(state.tabs.map((tab) => tab.kind)).toEqual(["todo-agent", "doc"]);
+    expect(state.active).toBe(TODO_AGENT_TAB);
   });
 });

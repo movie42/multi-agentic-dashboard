@@ -8,6 +8,8 @@ import { archivedCards, boardCards, firstStatusOfColumn, statusOf } from "@/comm
 import type { TodoBoard, TodoCard, TodoColumn as TodoColumnData } from "@/common/todos/types";
 import { sessionListQueryOptions } from "@/client/entities/session";
 import { todoBoardQueryOptions, todoJiraStatusQueryOptions, useJiraImport, useTodoOp } from "@/client/entities/todo";
+import { useTodoAgentStore } from "@/client/features/talk-to-todo-agent";
+import { useDocViewerStore } from "@/client/features/view-doc";
 import { useStoredList } from "@/client/shared/lib/useStoredList";
 import { errorMessage } from "@/client/shared/model/errorMessage";
 import { PendingButton } from "@/client/shared/ui/PendingButton";
@@ -15,12 +17,16 @@ import { cardContext, type ModeOf } from "../model/cardContext";
 import { NO_PROJECT, statusTone } from "../model/kinds";
 import { sessionLookup } from "../model/sessions";
 import type { ColumnMenuActions } from "./ColumnMenu";
-import { TodoAgentDialog } from "./TodoAgentDialog";
 import { TodoArchive } from "./TodoArchive";
 import { TodoCard as TodoCardView } from "./TodoCard";
 import { TodoCardDetail } from "./TodoCardDetail";
 import { TodoColumn } from "./TodoColumn";
 import { WorkflowEditor } from "./WorkflowEditor";
+
+function openTodoAgent(openSessionCount: number) {
+  useTodoAgentStore.getState().setSessionCount(openSessionCount);
+  useDocViewerStore.getState().openTodoAgent();
+}
 
 interface TodoBoardPageProps {
   repos: string[];
@@ -58,7 +64,7 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
   const [editingWorkflow, setEditingWorkflow] = useState(false);
   const [showHiddenColumns, setShowHiddenColumns] = useState(false);
   const [columnDraft, setColumnDraft] = useState<string | null>(null);
-  const [talking, setTalking] = useState(false);
+  const agentPending = useTodoAgentStore((state) => state.pending);
 
   const board: TodoBoard | undefined = boardQuery.data;
   const liveSessions = new Set(agents.flatMap((agent) => (agent.session ? [agent.session.id] : [])));
@@ -177,9 +183,13 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
           <button type="button" onClick={() => setEditingWorkflow(true)} className={PILL}>
             워크플로
           </button>
-          <button type="button" onClick={() => setTalking(true)} className={PILL}>
+          <button type="button" onClick={() => openTodoAgent(openSessionCount)} className={PILL}>
             할일 에이전트
-            {openSessionCount > 0 && <span className="ml-1.5 text-muted">{`· 새 세션 ${openSessionCount}`}</span>}
+            {agentPending ? (
+              <span className="ml-1.5 text-muted">· 답 기다리는 중</span>
+            ) : (
+              openSessionCount > 0 && <span className="ml-1.5 text-muted">{`· 새 세션 ${openSessionCount}`}</span>
+            )}
           </button>
           {hiddenColumns.length > 0 && (
             <span className="relative">
@@ -273,7 +283,6 @@ export function TodoBoardPage({ repos, agents, worktrees, now, modeOf, onAction,
           onClose={() => setShowArchive(false)}
         />
       )}
-      {talking && <TodoAgentDialog sessionCount={openSessionCount} onClose={() => setTalking(false)} />}
       {editingWorkflow && <WorkflowEditor board={board} onRun={run} onClose={() => setEditingWorkflow(false)} />}
     </>
   );

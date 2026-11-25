@@ -1,26 +1,11 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { AgentFailure, TodoAgentTurn } from "@/common/todos/agentTurn";
-import { sendTodoAgentMessage, todoKeys } from "@/client/entities/todo";
-import { errorMessage } from "@/client/shared/model/errorMessage";
-import { Modal } from "@/client/shared/ui/Modal";
+import type { AgentFailure } from "@/common/todos/agentTurn";
+import { todoKeys } from "@/client/entities/todo";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
-
-interface TodoAgentDialogProps {
-  sessionCount: number;
-  onClose: () => void;
-}
-
-type ChatLine =
-  | { id: number; role: "user" | "agent" | "note"; text: string }
-  | {
-      id: number;
-      role: "changes";
-      changes: string[];
-      failures: AgentFailure[];
-    };
+import { useTodoAgentStore } from "../model/todoAgentStore";
 
 const BUTTON = "rounded-md px-3 py-1.5 text-[13px] font-semibold disabled:opacity-40";
 
@@ -50,60 +35,49 @@ function ChangesLine({ changes, failures }: ChangesLineProps) {
   );
 }
 
-export function TodoAgentDialog({ sessionCount, onClose }: TodoAgentDialogProps) {
+export function TodoAgentChat() {
   const queryClient = useQueryClient();
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [lines, setLines] = useState<ChatLine[]>([]);
+  const { lines, pending, sessionCount, send: sendToStore, reset } = useTodoAgentStore();
   const [input, setInput] = useState("");
-  const nextLineId = useRef(0);
   const chatEnd = useRef<HTMLDivElement>(null);
 
-  const say = (role: "user" | "agent" | "note", text: string) => setLines((current) => [...current, { id: nextLineId.current++, role, text }]);
-  const showChanges = (changes: string[], failures: AgentFailure[]) =>
-    setLines((current) => [...current, { id: nextLineId.current++, role: "changes", changes, failures }]);
-
-  const receive = (turn: TodoAgentTurn) => {
-    setConversationId(turn.conversationId);
-    say("agent", turn.reply);
-    if (turn.changes.length > 0 || turn.failures.length > 0) showChanges(turn.changes, turn.failures);
-  };
-
-  const turn = useMutation({
-    mutationFn: sendTodoAgentMessage,
-    onSuccess: receive,
-    onError: (error) => say("note", `에이전트가 답하지 못했어요: ${errorMessage(error)}`),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: todoKeys.all }),
-  });
+  useEffect(() => {
+    void useTodoAgentStore.persist.rehydrate();
+  }, []);
 
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ block: "nearest" });
-  }, [lines.length, turn.isPending]);
+  }, [lines.length, pending]);
 
   const send = (text: string) => {
-    const message = text.trim();
-    if (!message || turn.isPending) return;
-    say("user", message);
+    if (!text.trim() || pending) return;
     setInput("");
-    turn.mutate({ conversationId, message });
+    sendToStore(text, { onSettled: () => void queryClient.invalidateQueries({ queryKey: todoKeys.all }) });
   };
 
   return (
-    <Modal label="할일 에이전트" onClose={onClose}>
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <h2 className="text-[18px] font-bold">할일 에이전트</h2>
-          <p className="mt-1 text-[12px] text-muted">열린 세션과 지난 세션을 찾아 읽고, 말한 대로 보드를 바로 바꿔요. 바꾼 내용은 대화에 남아요.</p>
-        </div>
-        <button type="button" aria-label="닫기" onClick={onClose} className="text-[18px] leading-none text-muted hover:text-fg">
-          ×
-        </button>
+    <div className="flex h-full flex-col">
+      <div className="flex items-start gap-3 px-5 pt-4">
+        <p className="flex-1 text-[12px] text-muted">
+          열린 세션과 지난 세션을 찾아 읽고, 말한 대로 보드를 바로 바꿔요. 다른 화면으로 가도 대화는 이어져요.
+        </p>
+        {lines.length > 0 && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={reset}
+            className="shrink-0 text-[12px] text-muted underline decoration-faint underline-offset-[3px] hover:text-fg disabled:opacity-40"
+          >
+            새 대화
+          </button>
+        )}
       </div>
 
-      <div className="flex flex-col gap-2 text-[13px]">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-5 py-4 text-[13px]">
         {lines.length === 0 && (
           <div className="flex flex-wrap gap-2">
             {startersOf(sessionCount).map((starter) => (
-              <button key={starter} type="button" onClick={() => send(starter)} className="rounded-full bg-tint px-3 py-1.5 text-muted hover:text-fg">
+              <button key={starter} type="button" onClick={() => send(starter)} className="rounded-full bg-tint px-3 py-1.5 text-left text-muted hover:text-fg">
                 {starter}
               </button>
             ))}
@@ -131,11 +105,11 @@ export function TodoAgentDialog({ sessionCount, onClose }: TodoAgentDialogProps)
             </p>
           );
         })}
-        {turn.isPending && <p className="self-start text-[12px] text-muted">에이전트가 세션을 찾아 읽는 중… (30초~1분)</p>}
+        {pending && <p className="self-start text-[12px] text-muted">에이전트가 세션을 찾아 읽는 중… (30초~1분)</p>}
         <div ref={chatEnd} />
       </div>
 
-      <div className="sticky -bottom-6 -mx-6 -mb-6 flex items-end gap-2 bg-bg px-6 pt-3 pb-6">
+      <div className="flex items-end gap-2 border-t border-hair px-5 pt-3 pb-4">
         <textarea
           aria-label="에이전트에게 말하기"
           rows={2}
@@ -151,10 +125,10 @@ export function TodoAgentDialog({ sessionCount, onClose }: TodoAgentDialogProps)
           className="flex-1 resize-none rounded-[10px] bg-tint px-3 py-2 text-[13px] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--faint)]"
         />
         <DictationButton onText={(text) => setInput(appendDictation(input, text))} className="mb-1" />
-        <button type="button" onClick={() => send(input)} disabled={turn.isPending || !input.trim()} className={`${BUTTON} bg-fg text-bg`}>
+        <button type="button" onClick={() => send(input)} disabled={pending || !input.trim()} className={`${BUTTON} bg-fg text-bg`}>
           보내기
         </button>
       </div>
-    </Modal>
+    </div>
   );
 }
