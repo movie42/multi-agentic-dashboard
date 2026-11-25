@@ -136,6 +136,25 @@
               ]
             },
             {
+              "id": "P2-4",
+              "title": "도구 행에 실행 결과 싣기 · MCP 도구 행에 호출 내용 요약",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/server/sessions/activitySteps.ts</code> <code>src/client/widgets/agent-card/ui/ChatView.tsx</code> <code>src/common/sessions/types.ts</code> <code>src/client/features/answer-permission/model/prDraft.test.ts</code> <code>src/server/sessions/__snapshots__/activitySteps.test.ts.snap</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>src/server/sessions/toolResults.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "결과는 1,500자까지만 실어요. 채팅이 2초마다 다시 읽히기 때문에 전부 실으면 응답이 너무 커져요."
+                ]
+              ]
+            },
+            {
               "id": "P2-V",
               "title": "검증: <code>bun run test</code> · <code>bunx tsc --noEmit</code> · <code>bun run lint</code> 통과, 스크린샷의 대화 기록에서 본문이 생각과 Bash 사이에 나옴",
               "done": true
