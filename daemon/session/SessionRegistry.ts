@@ -118,6 +118,15 @@ const TRUST_WINDOW = 4096;
 // Claude Code fires no Stop hook when Esc interrupts a turn; its only trace is this line on screen.
 const INTERRUPTED_LINE = /^\s*⎿\s+Interrupted\b/;
 const INTERRUPT_WATCH_MS = 5000;
+const COMPACT_PROMPT_LINE = /^\s*❯\s*\/compact\b/;
+// A /compact that ends without compacting sends no hook; its only trace is one of these lines under the command.
+const COMPACT_ENDED_LINE =
+  /^\s*⎿\s+(?:Not enough messages to compact|Conversation too long|Compaction (?:blocked|interrupted|canceled|cancelled|failed)|Failed to generate conversation summary|Error(?: during compaction| compacting)?\b)/;
+
+export function compactEndedOnScreen(lines: string[]): boolean {
+  const asked = lines.findLastIndex((line) => COMPACT_PROMPT_LINE.test(line));
+  return asked !== -1 && lines.slice(asked + 1).some((line) => COMPACT_ENDED_LINE.test(line));
+}
 const MODE_CHECK_MS = 300;
 const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
 
@@ -311,7 +320,7 @@ export class SessionRegistry {
     if (signal.permissionMode) this.#setPermissionMode(entry, signal.permissionMode);
     if (signal.event === "PreCompact") entry.compacting = signal.compactTrigger === "manual";
     const endsCompact = entry.compacting && signal.event === "SessionStart" && signal.sessionSource === "compact";
-    if (endsCompact) entry.compacting = false;
+    if (signal.event === "SessionStart" || signal.event === "UserPromptSubmit" || signal.event === "Stop") entry.compacting = false;
     this.#apply(entry, { ...signal, endsCompact });
     return true;
   }
@@ -392,6 +401,7 @@ export class SessionRegistry {
       this.#apply(entry, { event: "trust-prompt" });
     }
     if (entry.interruptWatchUntil > this.#options.now()) void this.#checkInterrupt(entry);
+    if (entry.compacting) void this.#checkCompact(entry);
     if (entry.session.kind === "claude" && (entry.session.status === "idle" || entry.menuOpen)) void this.#checkMenu(entry);
     if (entry.session.kind === "claude" && !entry.modeCheck) {
       entry.modeCheck = setTimeout(() => void this.#checkMode(entry), MODE_CHECK_MS);
@@ -429,6 +439,13 @@ export class SessionRegistry {
     if (entry.session.status !== "working" || !lines.some((line) => INTERRUPTED_LINE.test(line))) return;
     entry.interruptWatchUntil = 0;
     this.#apply(entry, { event: "interrupt" });
+  }
+
+  async #checkCompact(entry: Entry): Promise<void> {
+    const lines = await entry.screen.lines();
+    if (!entry.compacting || !compactEndedOnScreen(lines)) return;
+    entry.compacting = false;
+    this.#apply(entry, { event: "compact-ended" });
   }
 
   /**

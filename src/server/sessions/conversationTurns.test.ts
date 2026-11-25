@@ -42,4 +42,14 @@ describe("turnsOf", () => {
     expect(turns).toHaveLength(TURN_LIMIT);
     expect(turns[0]?.prompt).toBe("q5");
   });
+
+  it("takes a progress note recorded as a narration block as the answer so far", () => {
+    const turns = turnsOf([
+      user("u1", "지금 측정하는건 뭐지?"),
+      assistant([{ type: "thinking", thinking: "I'm looking at the flows.", signature: "CAQS/ggKEAgUGAI4AUIIdGhpbmtpbmcSDNIL+FPi18lN6Dz18xoM" }]),
+      assistant([{ type: "thinking", thinking: "flow 3개를 확인 중입니다.\n\n", signature: "CAQS3AkKEQgUGAI4AUIJbmFycmF0aW9uEgyUmL2sU9iUnb/dZnwa" }]),
+      assistant([{ type: "tool_use", id: "t1", name: "Bash", input: {} }]),
+    ]);
+    expect(turns[0]?.answer).toBe("flow 3개를 확인 중입니다.");
+  });
 });

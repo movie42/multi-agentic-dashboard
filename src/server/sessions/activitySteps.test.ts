@@ -261,3 +261,62 @@ describe("chatItemsOf render_ui", () => {
     expect(chat).toMatchObject([{ kind: "tool", name: "mcp__agent-control__render_ui" }]);
   });
 });
+
+// Records copied from a real Claude Code 2.1.331 transcript, with the text shortened and the signature cut to its head.
+const THINKING_SIGNATURE = "CAQS/ggKEAgUGAI4AUIIdGhpbmtpbmcSDNIL+FPi18lN6Dz18xoMDiNg1KtnlsxBa5LL";
+const NARRATION_SIGNATURE = "CAQS3AkKEQgUGAI4AUIJbmFycmF0aW9uEgyUmL2sU9iUnb/dZnwaDOMY9KcHdNCalXtC";
+
+describe("what the terminal prints besides answers and tool calls", () => {
+  const assistant = (uuid: string, block: Record<string, unknown>) =>
+    JSON.stringify({ type: "assistant", uuid, isSidechain: false, thinkingDisplay: "summarized", message: { role: "assistant", content: [block] } });
+  const turn = [
+    JSON.stringify({ type: "user", uuid: "u1", message: { content: "지금 측정하는건 뭐지?" } }),
+    assistant("a1", { type: "thinking", thinking: "I'm looking at the 1:1 inquiry Maestro flows.", signature: THINKING_SIGNATURE }),
+    assistant("a2", { type: "thinking", thinking: "손잡이 변경으로 손댄 1:1 문의 flow 3개를 펼친 폴드에서 확인 중이며 원인을 찾겠습니다.\n\n", signature: NARRATION_SIGNATURE }),
+    assistant("a3", { type: "tool_use", id: "t1", name: "Bash", input: { command: "maestro hierarchy" } }),
+  ];
+
+  it("shows the progress note Claude writes between tool calls as an answer, and its thinking as thinking", () => {
+    expect(chatItemsOf(turn)).toMatchObject([
+      { kind: "prompt", text: "지금 측정하는건 뭐지?" },
+      { kind: "thinking", id: "a1:0", text: "I'm looking at the 1:1 inquiry Maestro flows." },
+      { kind: "text", id: "a2:0", text: "손잡이 변경으로 손댄 1:1 문의 flow 3개를 펼친 폴드에서 확인 중이며 원인을 찾겠습니다." },
+      { kind: "tool", name: "Bash" },
+    ]);
+  });
+
+  it("keeps the progress note in the short activity list, without the thinking", () => {
+    expect(stepsOf(turn).map((step) => step.kind)).toEqual(["prompt", "text", "tool"]);
+  });
+
+  it("skips a thinking block Claude Code recorded without its text", () => {
+    const chat = chatItemsOf([assistant("a1", { type: "thinking", thinking: "", signature: THINKING_SIGNATURE })]);
+    expect(chat).toEqual([]);
+  });
+
+  it("shows the notices Claude Code prints itself: a recap, a notice, a scheduled wake-up and a finished background task", () => {
+    const system = (uuid: string, subtype: string, content: string) => JSON.stringify({ type: "system", uuid, subtype, content, isMeta: false });
+    const chat = chatItemsOf([
+      system("s1", "away_summary", "Android 빌드가 아직 돌고 있습니다. (turn off recaps in /config)"),
+      system("s2", "informational", "Compacted while idle, before the prompt cache expired"),
+      system("s3", "scheduled_task_fire", "Claude resuming /loop wakeup (Nov 19 10:54am)"),
+      JSON.stringify({
+        type: "user",
+        uuid: "n1",
+        origin: { kind: "task-notification" },
+        message: {
+          content:
+            '<task-notification>\n<task-id>b472g8a8p</task-id>\n<status>completed</status>\n<summary>Background command "Wait until fold inner display turns on" completed (exit code 0)</summary>\n</task-notification>',
+        },
+      }),
+      system("s4", "turn_duration", ""),
+    ]);
+    expect(chat).toMatchObject([
+      { kind: "output", text: "Android 빌드가 아직 돌고 있습니다. (turn off recaps in /config)", error: false },
+      { kind: "output", text: "Compacted while idle, before the prompt cache expired", error: false },
+      { kind: "output", text: "Claude resuming /loop wakeup (Nov 19 10:54am)", error: false },
+      { kind: "output", text: 'Background command "Wait until fold inner display turns on" completed (exit code 0)', error: false },
+    ]);
+    expect(chat).toHaveLength(4);
+  });
+});

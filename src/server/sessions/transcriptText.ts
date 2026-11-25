@@ -12,15 +12,26 @@ export function parseEntry(line: string): TranscriptEntry | null {
   }
 }
 
+// Claude Code prints the progress note it writes between tool calls as an answer, yet records it as a
+// `thinking` block. Only the opaque signature tells the two apart: its first bytes spell the block's kind.
+export function isNarration(signature: unknown): boolean {
+  return typeof signature === "string" && Buffer.from(signature.slice(0, 64), "base64").includes("narration");
+}
+
+function spokenText(block: unknown): string | null {
+  if (typeof block !== "object" || block === null || !("type" in block)) return null;
+  if (block.type === "text" && "text" in block && typeof block.text === "string") return block.text;
+  if (block.type === "thinking" && "thinking" in block && typeof block.thinking === "string" && "signature" in block && isNarration(block.signature)) {
+    return block.thinking;
+  }
+  return null;
+}
+
 export function textOf(content: unknown): string | null {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return null;
   const text = content
-    .flatMap((block: unknown) =>
-      typeof block === "object" && block !== null && "type" in block && block.type === "text" && "text" in block && typeof block.text === "string"
-        ? [block.text]
-        : [],
-    )
+    .flatMap((block: unknown) => spokenText(block) ?? [])
     .join("\n")
     .trim();
   return text || null;

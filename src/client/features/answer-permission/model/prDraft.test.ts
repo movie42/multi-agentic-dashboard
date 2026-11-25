@@ -10,6 +10,7 @@ const write = (id: string, path: string, content: string): ActivityStep => ({
   summary: path,
   detail: null,
   document: { path, content },
+  result: null,
   status: "ok",
 });
 

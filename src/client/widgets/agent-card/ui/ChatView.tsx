@@ -167,7 +167,7 @@ function ToolRow({ step }: ToolRowProps) {
       {step.at && <span className="shrink-0 text-faint tabular-nums opacity-0 group-hover/tool:opacity-100">{formatClock(step.at)}</span>}
     </>
   );
-  if (!step.detail) return <li className="group/tool flex items-baseline gap-2 px-2 py-0.5 font-mono text-[12px]">{line}</li>;
+  if (!step.detail && !step.result) return <li className="group/tool flex items-baseline gap-2 px-2 py-0.5 font-mono text-[12px]">{line}</li>;
   return (
     <li>
       <details className="group/tool">
@@ -179,8 +179,19 @@ function ToolRow({ step }: ToolRowProps) {
             <Markdown text={step.document.content} />
           </div>
         ) : (
-          <pre className="mx-2 mt-1 mb-2 max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap">
-            {step.detail}
+          step.detail && (
+            <pre className="mx-2 mt-1 mb-2 max-h-72 overflow-auto rounded-lg bg-tint-2 px-3 py-2 font-mono text-[12px] leading-relaxed whitespace-pre-wrap">
+              {step.detail}
+            </pre>
+          )
+        )}
+        {step.result && (
+          <pre
+            className={`mx-2 mb-2 max-h-72 overflow-auto border-l-2 border-hair px-3 py-1 font-mono text-[12px] leading-relaxed whitespace-pre-wrap ${
+              step.status === "error" ? "text-accent" : "text-muted"
+            }`}
+          >
+            {step.result}
           </pre>
         )}
       </details>
@@ -286,6 +297,16 @@ function ChatRow({ step, copyable }: ChatRowProps) {
         >
           {step.text}
         </pre>
+      </li>
+    );
+  }
+  if (step.kind === "thinking") {
+    return (
+      <li className="flex gap-2 py-1 text-[13px] leading-relaxed text-muted">
+        <span aria-hidden className="shrink-0 text-faint">
+          ∴
+        </span>
+        <p className="min-w-0 whitespace-pre-wrap">{step.text}</p>
       </li>
     );
   }

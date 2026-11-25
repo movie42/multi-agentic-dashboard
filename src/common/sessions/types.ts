@@ -48,6 +48,8 @@ export type ActivityStep =
   /** `queued`: typed while Claude was busy and not taken in yet. */
   | { kind: "prompt"; id: string; at: number | null; text: string; queued?: true }
   | { kind: "text"; id: string; at: number | null; text: string }
+  /** What Claude thought before answering; the terminal prints it dimmed above the answer. */
+  | { kind: "thinking"; id: string; at: number | null; text: string }
   /** Output Claude Code printed itself — a local slash command or a `!` shell command — not the model. */
   | { kind: "output"; id: string; at: number | null; text: string; error: boolean }
   | {
@@ -59,6 +61,8 @@ export type ActivityStep =
       detail: string | null;
       /** A markdown file as it stood after this Write/Edit, so the chat can render it instead of raw JSON. */
       document: ToolDocument | null;
+      /** What the call printed, cut short; null until it returns, when it printed nothing, or outside the chat. */
+      result: string | null;
       status: ToolStatus;
     }
   /** An AskUserQuestion call with the answers the user picked, null until they answer. */
