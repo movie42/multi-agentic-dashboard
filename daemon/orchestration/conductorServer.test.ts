@@ -58,53 +58,45 @@ const until = async (check: () => boolean) => {
 };
 
 describe("conductor over the runner server", () => {
-  it("launches a conductor, opens a worker through MCP, and routes reports and delegated permissions", async () => {
+  it("launches a conductor, opens a worker without permission prompts through MCP, and routes its reports back", async () => {
     const { runner, sent, commands, post, call, sessions } = setup();
     await listen(runner);
 
-    const launched = await (
-      await post("/sessions", { cwd: folder, prompt: "plan", conductor: { scope: { kind: "project", root: folder, paths: [], projects: [folder] }, grants: ["build"] } })
-    ).json();
+    const launched = await (await post("/sessions", { cwd: folder, prompt: "plan", conductor: { scope: { kind: "project", root: folder, paths: [], projects: [folder] } } })).json();
     const conductorId: string = launched.session.id;
     expect(commands[0]?.args).toEqual(["conductor"]);
     expect(launched.session.orchestration.conductor.scope.projects).toEqual([folder]);
 
     const init = await (await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })).json();
     expect(init.result.serverInfo.name).toBe("agent-control");
+    expect(init.result.instructions).toContain("report");
+    expect(init.result.instructions).not.toContain("permission");
     const listed = await (await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", id: 2, method: "tools/list" })).json();
-    expect(listed.result.tools.map((tool: { name: string }) => tool.name)).toEqual(expect.arrayContaining(["start_session", "render_ui"]));
+    const tools = listed.result.tools.map((tool: { name: string }) => tool.name);
+    expect(tools).toEqual(expect.arrayContaining(["start_session", "render_ui"]));
+    expect(tools).not.toContain("answer_permission");
     expect((await post(`/mcp/${conductorId}`, { jsonrpc: "2.0", method: "notifications/initialized" })).status).toBe(202);
 
     expect((await call(conductorId, "start_session", { cwd: "/somewhere/else", prompt: "x" })).isError).toBe(true);
     const started = await call(conductorId, "start_session", { cwd: folder, prompt: "run the tests" });
     expect(started.isError).toBe(false);
-    const workerId = (await sessions()).find((session) => session.id !== conductorId)?.id ?? "";
-    expect((await sessions()).find((session) => session.id === workerId)?.orchestration?.parentId).toBe(conductorId);
+    const worker = (await sessions()).find((session) => session.id !== conductorId);
+    const workerId = worker?.id ?? "";
+    expect(worker?.orchestration?.parentId).toBe(conductorId);
+    expect(worker?.permissionMode).toBe("bypassPermissions");
 
     await post(`/hooks/${conductorId}/Stop`, {});
-    const permission = post(`/hooks/${workerId}/PermissionRequest`, { tool_name: "Bash", tool_input: { command: "bun run test" } });
+    const response = await post(`/hooks/${workerId}/PermissionRequest`, { tool_name: "AskUserQuestion", tool_input: { questions: [{ question: "어느 브랜치로 할까요?", header: "브랜치", options: [{ label: "main" }, { label: "develop" }] }] } });
+    expect(await response.json()).toEqual({});
     await until(() => sent.length > 0);
-    expect(sent[0]?.id).toBe(conductorId);
-    const requestId = /request_id: "([^"]+)"/.exec(sent[0]?.text ?? "")?.[1] ?? "";
-    expect((await call(conductorId, "answer_permission", { session_id: workerId, request_id: requestId, decision: "allow" })).text).toBe("Allowed.");
-    expect(await (await permission).json()).toMatchObject({ hookSpecificOutput: { decision: { behavior: "allow" } } });
+    expect(sent[0]).toEqual({ id: conductorId, text: expect.stringContaining(`세션 ${workerId}`) });
+    expect(sent[0]?.text).toContain("사람의 답을 기다려요");
 
     await post(`/hooks/${conductorId}/UserPromptSubmit`, {});
     await post(`/hooks/${conductorId}/Stop`, {});
     await post(`/hooks/${workerId}/Stop`, { last_assistant_message: "all 12 tests pass" });
     await until(() => sent.length > 1);
     expect(sent[1]).toEqual({ id: conductorId, text: expect.stringContaining("all 12 tests pass") });
-  });
-
-  it("lets a person through when the request is outside the delegated bundles", async () => {
-    const { runner, sent, post, call, sessions } = setup();
-    await listen(runner);
-    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "project", root: folder, paths: [], projects: [folder] }, grants: [] } })).json();
-    await call(launched.session.id, "start_session", { cwd: folder, prompt: "x" });
-    const workerId = (await sessions()).find((session) => session.id !== launched.session.id)?.id ?? "";
-    const response = await post(`/hooks/${workerId}/PermissionRequest`, { tool_name: "Bash", tool_input: { command: "git push" } });
-    expect(await response.json()).toEqual({});
-    expect(sent).toEqual([]);
   });
 
   it("gives a session that is not a conductor only render_ui", async () => {
@@ -120,7 +112,7 @@ describe("conductor over the runner server", () => {
   it("holds a worktree request until the dashboard settles it", async () => {
     const { runner, sent, post, call, sessions } = setup();
     await listen(runner);
-    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [] }, grants: [] } })).json();
+    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [] } } })).json();
     const id: string = launched.session.id;
     expect((await call(id, "request_worktree", { branch: "feat/split", reason: "parallel work" })).isError).toBe(false);
     const request = (await sessions())[0]?.orchestration?.conductor?.worktreeRequest;
@@ -133,7 +125,7 @@ describe("conductor over the runner server", () => {
     const { runner, post, call, sessions } = setup();
     await listen(runner);
     const launched = await (
-      await post("/sessions", { cwd: "/", conductor: { scope: { kind: "app", root: "/", paths: [], projects: [] }, grants: [], knownProjects: [folder] } })
+      await post("/sessions", { cwd: "/", conductor: { scope: { kind: "app", root: "/", paths: [], projects: [] }, knownProjects: [folder] } })
     ).json();
     const id: string = launched.session.id;
     expect(launched.session.cwd).toBe("/tmp/agent-control-test-conductor");
@@ -154,16 +146,16 @@ describe("conductor over the runner server", () => {
   it("makes a worktree conductor's request in its own project even when it has another project", async () => {
     const { runner, post, call, sessions } = setup();
     await listen(runner);
-    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [], projects: ["/other"] }, grants: [] } })).json();
+    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [], projects: ["/other"] } } })).json();
     const id: string = launched.session.id;
     expect((await call(id, "request_worktree", { branch: "feat/x", reason: "r" })).isError).toBe(false);
     expect((await sessions())[0]?.orchestration?.conductor?.worktreeRequest?.project).toBeNull();
   });
 
-  it("lists its worktrees, opens the first worker in a requested worktree, and can deny a delegated request", async () => {
-    const { runner, registry, post, call, sessions } = setup();
+  it("lists its worktrees and opens the first worker in a requested worktree without permission prompts", async () => {
+    const { runner, post, call, sessions } = setup();
     await listen(runner);
-    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [] }, grants: ["build"] } })).json();
+    const launched = await (await post("/sessions", { cwd: folder, conductor: { scope: { kind: "worktree", root: folder, paths: [] } } })).json();
     const id: string = launched.session.id;
     expect(JSON.parse((await call(id, "list_worktrees", {})).text)).toEqual([{ path: folder, sessions: 0 }]);
 
@@ -174,14 +166,6 @@ describe("conductor over the runner server", () => {
     const worker = (await sessions()).find((session) => session.id !== id);
     expect(worker?.orchestration?.parentId).toBe(id);
     expect(worker?.orchestration?.links).toEqual([expect.objectContaining({ kind: "report", to: id })]);
-
-    const workerId = worker?.id ?? "";
-    const permission = post(`/hooks/${workerId}/PermissionRequest`, { tool_name: "Bash", tool_input: { command: "bun run build" } });
-    await until(() => registry.get(workerId)?.permission !== null);
-    const held = (await sessions()).find((session) => session.id === workerId)?.permission;
-    expect(held?.delegatedTo).toBe(id);
-    const requestId = held?.id ?? "";
-    expect((await call(id, "answer_permission", { session_id: workerId, request_id: requestId, decision: "deny" })).text).toBe("Denied.");
-    expect(await (await permission).json()).toMatchObject({ hookSpecificOutput: { decision: { behavior: "deny" } } });
+    expect(worker?.permissionMode).toBe("bypassPermissions");
   });
 });

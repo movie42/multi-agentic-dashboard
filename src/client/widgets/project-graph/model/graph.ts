@@ -69,6 +69,8 @@ export interface GraphEdge {
 
 export interface ProjectGraph {
   conductors: GraphNode[];
+  /** Each conductor's workers by conductor id, including workers on other projects' boards. */
+  conducted: Map<string, AgentCard[]>;
   /** Other projects' worktrees that sessions here have routes to. */
   ports: GraphPort[];
   clusters: GraphCluster[];
@@ -137,6 +139,12 @@ export function buildGraph(
     if (node.outside?.repo) addRoute(node.agent, { nodeId: node.id, direction: "home", count: 1 });
   }
   const conductors = [...nodes.values()].filter((node) => node.kind === "conductor");
+  const conducted = new Map(
+    conductors.flatMap((node) => {
+      const workers = everyAgent.filter((agent) => agent.parentId === node.id);
+      return workers.length > 0 ? [[node.id, workers] as const] : [];
+    }),
+  );
   const clusters: GraphCluster[] = worktrees.map((worktree) => ({
     id: clusterId(worktree.worktreeId),
     worktree,
@@ -191,7 +199,7 @@ export function buildGraph(
       });
     }
   }
-  return { conductors, ports: [...ports.values()], clusters, nodes, reserved, runs: shownRuns, edges };
+  return { conductors, conducted, ports: [...ports.values()], clusters, nodes, reserved, runs: shownRuns, edges };
 }
 
 /** Lines touching one session, for the side panel. */

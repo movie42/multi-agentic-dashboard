@@ -48,8 +48,6 @@ const conductorSession = (worktreeRequest: PendingWorktree | null, projectReques
       links: [],
       conductor: {
         scope: { kind: "worktree", root: "/p/app-a", paths: ["/p/app-a", "/p/app-a1"], projects: [] },
-        grants: [],
-        rules: [],
         knownProjects: [],
         worktreeRequest: worktreeRequest ? { project: null, ...worktreeRequest, reason: "r", prompt: null, requestedAt: 1 } : null,
         projectRequest: projectRequest ? { ...projectRequest, reason: "r", requestedAt: 1 } : null,
@@ -60,13 +58,12 @@ const conductorSession = (worktreeRequest: PendingWorktree | null, projectReques
 describe("launchConductor", () => {
   it("launches with the scope computed from the board", async () => {
     const { deps, runner } = setup();
-    await launchConductor(deps, { worktreePath: "/p/app-a", prompt: " plan ", scope: "worktree", grants: ["edit"], projects: ["/p/web", "/p/unknown"] });
+    await launchConductor(deps, { worktreePath: "/p/app-a", prompt: " plan ", scope: "worktree", projects: ["/p/web", "/p/unknown"] });
     expect(runner.launch).toHaveBeenCalledWith({
       cwd: "/p/app-a",
       prompt: "plan",
       conductor: {
         scope: { kind: "worktree", root: "/p/app-a", paths: ["/p/app-a", "/p/app-a1"], projects: ["/p/web"] },
-        grants: ["edit"],
         knownProjects: ["/p/app", "/p/web"],
       },
     });
@@ -74,15 +71,15 @@ describe("launchConductor", () => {
 
   it("keeps a project conductor's scope as projects, so later worktrees count", async () => {
     const { deps, runner } = setup();
-    await launchConductor(deps, { worktreePath: "/p/app", prompt: "", scope: "project", grants: [], projects: ["/p/web"] });
+    await launchConductor(deps, { worktreePath: "/p/app", prompt: "", scope: "project", projects: ["/p/web"] });
     expect(runner.launch).toHaveBeenCalledWith(expect.objectContaining({ conductor: expect.objectContaining({ scope: { kind: "project", root: "/p/app", paths: [], projects: ["/p/app", "/p/web"] } }) }));
   });
 
   it("launches an app conductor with the chosen projects and refuses one with none", async () => {
     const { deps, runner } = setup();
-    await launchConductor(deps, { worktreePath: null, prompt: "", scope: "app", grants: [], projects: ["/p/web"] });
+    await launchConductor(deps, { worktreePath: null, prompt: "", scope: "app", projects: ["/p/web"] });
     expect(runner.launch).toHaveBeenCalledWith(expect.objectContaining({ conductor: expect.objectContaining({ scope: { kind: "app", root: "/", paths: [], projects: ["/p/web"] } }) }));
-    await expect(launchConductor(deps, { worktreePath: null, prompt: "", scope: "app", grants: [], projects: [] })).rejects.toThrow("프로젝트");
+    await expect(launchConductor(deps, { worktreePath: null, prompt: "", scope: "app", projects: [] })).rejects.toThrow("프로젝트");
   });
 });
 

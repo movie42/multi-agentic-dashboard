@@ -54,17 +54,17 @@ function setup(ids: string[] = ["c", "a", "b"]) {
 describe("Orchestration records", () => {
   it("marks a conductor and shows the delegate line as the worker's parent", () => {
     const { orchestration, sessions } = setup();
-    orchestration.addConductor("c", { scope, grants: ["edit"], knownProjects: [] });
+    orchestration.addConductor("c", { scope, knownProjects: [] });
     orchestration.connect("c", "a", "delegate");
     const [conductor, worker] = orchestration.decorate([sessions.get("c")!, sessions.get("a")!]);
-    expect(conductor?.orchestration?.conductor?.grants).toEqual(["edit"]);
+    expect(conductor?.orchestration?.conductor?.scope).toEqual(scope);
     expect(conductor?.orchestration?.links.map((link) => link.to)).toEqual(["a"]);
     expect(worker?.orchestration?.parentId).toBe("c");
   });
 
   it("saves under the conversation id a restart resumes with and reads it back", () => {
     const { orchestration, sessions } = setup();
-    orchestration.addConductor("c", { scope, grants: ["build"], knownProjects: [] });
+    orchestration.addConductor("c", { scope, knownProjects: [] });
     orchestration.connect("a", "c", "report");
     sessions.set("a", session("a", { conversationId: "a2" }));
     const saved = JSON.parse(JSON.stringify(orchestration.snapshot([...sessions.values()])));
@@ -75,7 +75,7 @@ describe("Orchestration records", () => {
 
   it("drops conductors and lines whose sessions are gone", () => {
     const { orchestration } = setup();
-    orchestration.addConductor("c", { scope, grants: [], knownProjects: [] });
+    orchestration.addConductor("c", { scope, knownProjects: [] });
     orchestration.connect("c", "a", "delegate");
     orchestration.prune(new Set(["c"]));
     expect(orchestration.links()).toEqual([]);
@@ -88,7 +88,7 @@ describe("Orchestration records", () => {
 
   it("checks scope by folder, not by string prefix", async () => {
     const { orchestration } = setup();
-    orchestration.addConductor("c", { scope: { kind: "worktree", root: "/repo/app", paths: ["/repo/app"], projects: [] }, grants: [], knownProjects: [] });
+    orchestration.addConductor("c", { scope: { kind: "worktree", root: "/repo/app", paths: ["/repo/app"], projects: [] }, knownProjects: [] });
     expect(await orchestration.inScope("c", "/repo/app/src")).toBe(true);
     expect(await orchestration.inScope("c", "/repo/app-other")).toBe(false);
   });
@@ -96,7 +96,7 @@ describe("Orchestration records", () => {
   it("reads a project's worktrees each time, so worktrees made later are in scope", async () => {
     const worktrees = new Map([["/repo", ["/repo"]]]);
     const orchestration = new Orchestration({ get: () => null, send: () => {}, onChange: () => {}, worktreesOf: async (project) => worktrees.get(project) ?? [project] });
-    orchestration.addConductor("c", { scope: { kind: "app", root: "/data/conductor", paths: [], projects: ["/repo"] }, grants: [], knownProjects: [] });
+    orchestration.addConductor("c", { scope: { kind: "app", root: "/data/conductor", paths: [], projects: ["/repo"] }, knownProjects: [] });
     expect(await orchestration.inScope("c", "/wt/repo-b")).toBe(false);
     worktrees.set("/repo", ["/repo", "/wt/repo-b"]);
     expect(await orchestration.inScope("c", "/wt/repo-b")).toBe(true);
@@ -104,13 +104,13 @@ describe("Orchestration records", () => {
   });
 
   it("reads conductors saved before scopes kept projects as covering their own project", () => {
-    const parsed = parseSavedOrchestration({ conductors: { c: { scope: { kind: "project", root: "/repo", paths: ["/repo", "/repo-a"] }, grants: [], rules: [] } }, links: [] });
+    const parsed = parseSavedOrchestration({ conductors: { c: { scope: { kind: "project", root: "/repo", paths: ["/repo", "/repo-a"] }, rules: [] } }, links: [] });
     expect(parsed.conductors.c?.scope.projects).toEqual(["/repo"]);
   });
 
   it("widens the scope by a project once the person allows it, and tells the conductor", async () => {
     const { orchestration, sent } = setup();
-    orchestration.addConductor("c", { scope, grants: [], knownProjects: ["/other"] });
+    orchestration.addConductor("c", { scope, knownProjects: ["/other"] });
     const request = orchestration.requestProject("c", { path: "/other", reason: "shared types" });
     expect(orchestration.conductor("c")?.projectRequest?.path).toBe("/other");
     expect(orchestration.settleProject("c", request?.id ?? "", "/other")).toMatchObject({ path: "/other" });
@@ -261,7 +261,7 @@ describe("Orchestration rules", () => {
 
   it("tells the conductor what happened to its worktree request and widens its scope", () => {
     const { orchestration, sent } = setup();
-    orchestration.addConductor("c", { scope, grants: [], knownProjects: [] });
+    orchestration.addConductor("c", { scope, knownProjects: [] });
     const request = orchestration.requestWorktree("c", { project: null, branch: "feat/x", base: null, reason: "split work", prompt: null });
     expect(orchestration.conductor("c")?.worktreeRequest?.branch).toBe("feat/x");
     expect(orchestration.settleWorktree("c", request?.id ?? "", "/elsewhere/feat-x")).toMatchObject({ branch: "feat/x" });

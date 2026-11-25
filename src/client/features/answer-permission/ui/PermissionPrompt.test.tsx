@@ -130,12 +130,4 @@ describe("PermissionPrompt drawn with A2UI", () => {
     await userEvent.click(screen.getByRole("button", { name: /다시 묻지 않기 · Bash\(rm:\*\)/ }));
     expect(post).toHaveBeenCalledWith(expect.objectContaining({ answer: { behavior: "allow", suggestionIndex: 0 } }));
   });
-
-  it("delegates to the conductor", async () => {
-    post.mockResolvedValue();
-    render(<PermissionPrompt terminalHandle="s1" permission={tool} delegable />);
-    await userEvent.click(screen.getByRole("button", { name: "앞으로 지휘자에게 맡기기" }));
-    expect(post).toHaveBeenCalledWith({ type: "delegate-permission", terminalHandle: "s1", requestId: "req-1" });
-    expect(await screen.findByText(/지휘자에게 넘겼어요/)).toBeTruthy();
-  });
 });

@@ -22,10 +22,6 @@ export interface OrchestrationLink {
 
 export const MAX_TRIPS = 3;
 
-/** Permission groups a person hands to a conductor when creating it. `git push` is never in one. */
-export const GRANT_BUNDLES = ["edit", "build", "commit"] as const;
-export type GrantBundle = (typeof GRANT_BUNDLES)[number];
-
 /** `app`: opened outside any project, running in its own empty folder. */
 export const CONDUCTOR_SCOPE_KINDS = ["app", "project", "worktree"] as const;
 export type ConductorScopeKind = (typeof CONDUCTOR_SCOPE_KINDS)[number];
@@ -38,13 +34,6 @@ export interface ConductorScope {
   paths: string[];
   /** Project folders whose every worktree is in scope, read from git each time so later worktrees count too. */
   projects: string[];
-}
-
-/** A permission a person added from a worker's permission card ("앞으로 지휘자에게 맡기기"). */
-export interface DelegatedRule {
-  toolName: string;
-  /** For Bash, the command prefix the rule covers; null covers every call of the tool. */
-  prefix: string | null;
 }
 
 export interface WorktreeRequest {
@@ -70,8 +59,6 @@ export interface ProjectRequest {
 
 export interface Conductor {
   scope: ConductorScope;
-  grants: GrantBundle[];
-  rules: DelegatedRule[];
   /** Projects on the dashboard when it started, so it can name one in request_project. */
   knownProjects: string[];
   worktreeRequest: WorktreeRequest | null;
@@ -89,7 +76,6 @@ export interface SessionOrchestration {
 
 export interface ConductorLaunch {
   scope: ConductorScope;
-  grants: GrantBundle[];
   knownProjects: string[];
 }
 

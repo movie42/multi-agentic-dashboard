@@ -56,10 +56,6 @@ export class RunnerClient {
     });
   }
 
-  async delegatePermission(id: string, requestId: string): Promise<void> {
-    await this.call(`/sessions/${encodeURIComponent(id)}/delegate`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ requestId }) });
-  }
-
   async connect(from: string, to: string, kind: LinkKind, prompt: string | null): Promise<void> {
     await this.call("/links", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ from, to, kind, prompt }) });
   }

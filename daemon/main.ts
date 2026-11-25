@@ -229,14 +229,11 @@ runner.server.listen(port, "127.0.0.1", () => {
   const requests = restoreRequestsOf(saved).map((request) => {
     const id = request.launch.resumeSessionId;
     const conductor = id ? orchestration.conductor(id) : null;
-    const parent = id ? orchestration.parentOf(id) : null;
-    const askPermissions = parent !== null && orchestration.isConductor(parent);
     return {
       ...request,
       launch: {
         ...request.launch,
-        ...(conductor ? { conductor: { scope: conductor.scope, grants: conductor.grants, knownProjects: conductor.knownProjects } } : {}),
-        ...(askPermissions ? { askPermissions } : {}),
+        ...(conductor ? { conductor: { scope: conductor.scope, knownProjects: conductor.knownProjects } } : {}),
         ...(id ? runs.launchOptionsOf(id) : {}),
       },
     };

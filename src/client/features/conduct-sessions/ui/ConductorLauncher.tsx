@@ -2,14 +2,13 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { GRANT_BUNDLES, type ConductorScopeKind, type GrantBundle } from "@/common/orchestration/types";
+import type { ConductorScopeKind } from "@/common/orchestration/types";
 import { boardQueryOptions } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
 import { Spinner } from "@/client/shared/ui/Spinner";
 import { appendDictation, DictationButton } from "@/client/shared/ui/DictationButton";
 
-export const GRANT_LABEL: Record<GrantBundle, string> = { edit: "파일 편집", build: "테스트 · 빌드 명령", commit: "git 커밋" };
 export const SCOPE_LABEL: Record<ConductorScopeKind, string> = { app: "고른 프로젝트들", project: "프로젝트 전체", worktree: "이 워크트리와 하위 워크트리" };
 
 type LaunchResult = { kind: "idle" } | { kind: "sent" } | { kind: "error" };
@@ -27,7 +26,6 @@ interface ConductorLauncherProps {
 
 export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onLaunched = onClose }: ConductorLauncherProps) {
   const [prompt, setPrompt] = useState("");
-  const [grants, setGrants] = useState<GrantBundle[]>(["edit", "build"]);
   const { data: board } = useQuery({ ...boardQueryOptions(), refetchInterval: false });
   const worktrees = board?.worktrees ?? [];
   const ownProject = worktrees.find((worktree) => worktree.path === worktreePath)?.projectPath ?? null;
@@ -40,7 +38,7 @@ export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onL
   const needsProject = scope === "app" && projects.length === 0;
   const [result, dispatch, sending] = useActionState<LaunchResult>(async () => {
     try {
-      await postAction({ type: "launch-conductor", worktreePath, prompt, scope, grants, projects });
+      await postAction({ type: "launch-conductor", worktreePath, prompt, scope, projects });
       onLaunched();
       return { kind: "sent" };
     } catch (error) {
@@ -49,8 +47,6 @@ export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onL
     }
   }, { kind: "idle" });
 
-  const toggle = (grant: GrantBundle) =>
-    setGrants((current) => (current.includes(grant) ? current.filter((item) => item !== grant) : [...current, grant]));
   const toggleProject = (path: string) =>
     setPicked(projects.includes(path) ? projects.filter((item) => item !== path) : [...projects, path]);
   const launch = () => {
@@ -73,16 +69,7 @@ export function ConductorLauncher({ worktreePath, scope, scopeName, onClose, onL
       />
         <DictationButton onText={(text) => setPrompt((current) => appendDictation(current, text))} className="mb-1" />
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
-        <span className="text-muted">맡길 권한</span>
-        {GRANT_BUNDLES.map((grant) => (
-          <label key={grant} className="inline-flex items-center gap-1">
-            <input type="checkbox" checked={grants.includes(grant)} onChange={() => toggle(grant)} />
-            {GRANT_LABEL[grant]}
-          </label>
-        ))}
-        <span className="text-muted">· git push는 맡기지 않아요</span>
-      </div>
+      <p className="text-[12px] text-muted">지휘자가 연 세션은 권한 확인 없이 일하고, 턴이 끝날 때마다 지휘자에게 보고해요.</p>
       {choices.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
           <span className="mr-1 text-muted">{scope === "app" ? "맡길 프로젝트" : "함께 맡길 프로젝트"}</span>

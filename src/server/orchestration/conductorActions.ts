@@ -1,6 +1,6 @@
 import "server-only";
 import type { WorktreeSummary } from "@/common/board/types";
-import type { ConductorScopeKind, GrantBundle } from "@/common/orchestration/types";
+import type { ConductorScopeKind } from "@/common/orchestration/types";
 import type { RunnerLaunchRequest, RunnerSession } from "@/common/runner/types";
 import type { CreatedWorktree, CreateWorktreeInput } from "@/server/projects/WorktreeActions";
 import { boardProjects, conductorScope, projectOfFolder, worktreeNameFor } from "./conductorScope";
@@ -23,7 +23,6 @@ export interface LaunchConductorInput {
   worktreePath: string | null;
   prompt: string;
   scope: ConductorScopeKind;
-  grants: GrantBundle[];
   /** Other project folders handed to it at the start. */
   projects: string[];
 }
@@ -38,7 +37,7 @@ export async function launchConductor(deps: ConductorActionDeps, input: LaunchCo
     // The daemon runs an app conductor in its own folder and ignores this cwd.
     cwd: input.worktreePath ?? scope.root,
     ...(prompt ? { prompt } : {}),
-    conductor: { scope, grants: input.grants, knownProjects: boardProjects(worktrees) },
+    conductor: { scope, knownProjects: boardProjects(worktrees) },
   });
 }
 

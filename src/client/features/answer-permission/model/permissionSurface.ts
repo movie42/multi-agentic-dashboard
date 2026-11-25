@@ -71,12 +71,10 @@ function suggestionButtons(suggestions: RunnerPermissionSuggestion[]): Component
 
 interface PermissionSurfaceOptions {
   denying: boolean;
-  /** The session was handed out by a conductor, so this kind of request can be delegated to it. */
-  delegable: boolean;
 }
 
-/** A tool permission request as an A2UI surface; its actions are allow, allowSuggestion, openDeny, cancelDeny, deny and delegate. */
-export function permissionSurface(permission: RunnerPermission, { denying, delegable }: PermissionSurfaceOptions): A2uiMessage[] {
+/** A tool permission request as an A2UI surface; its actions are allow, allowSuggestion, openDeny, cancelDeny and deny. */
+export function permissionSurface(permission: RunnerPermission, { denying }: PermissionSurfaceOptions): A2uiMessage[] {
   const title = text("title", `**${escapeMarkdown(`${permission.toolName} 실행 허락이 필요해요`)}**`);
   const controls: Component[] = denying
     ? [
@@ -92,17 +90,10 @@ export function permissionSurface(permission: RunnerPermission, { denying, deleg
         ...button("openDeny", "거부", "openDeny"),
       ];
   const extras: Component[] = denying ? [] : suggestionButtons(permission.suggestions);
-  const delegation: Component[] = denying
-    ? []
-    : permission.delegatedTo
-      ? [text("delegation", "지휘자가 먼저 판단하는 중이에요. 여기서 답해도 돼요.", "caption")]
-      : delegable
-        ? button("delegation", "앞으로 지휘자에게 맡기기", "delegate", { variant: "borderless" })
-        : [];
-  const children = ["title", "input", "controls", ...(extras.length > 0 ? ["suggestions"] : []), ...(delegation.length > 0 ? ["delegation"] : [])];
+  const children = ["title", "input", "controls", ...(extras.length > 0 ? ["suggestions"] : [])];
   return surface(
     PERMISSION_SURFACE,
-    [{ id: "root", component: "Column", children }, title, ...inputView(permission.toolInput), ...controls, ...extras, ...delegation],
+    [{ id: "root", component: "Column", children }, title, ...inputView(permission.toolInput), ...controls, ...extras],
     denying ? { reason: "" } : null,
   );
 }

@@ -701,16 +701,6 @@ export function CanvasStage(props: CanvasStageProps) {
     props.onContextMenu(hit, toWorld(event.clientX, event.clientY), { x: event.clientX, y: event.clientY });
   };
 
-  const delegatedTo = (id: string) => [
-    ...new Set(
-      graph.edges
-        .filter((edge) => edge.kind === "delegate" && edge.from === id)
-        .flatMap((edge) => graph.nodes.get(edge.to)?.agent.worktreeName ?? []),
-    ),
-  ];
-  const reportsTo = (id: string) =>
-    graph.edges.filter((edge) => edge.kind === "report" && edge.to === id)
-      .length;
   const cursor = panning
     ? "cursor-grabbing"
     : spaceHeld || (tool === "hand" && !connecting)
@@ -821,9 +811,7 @@ export function CanvasStage(props: CanvasStageProps) {
                     node={node}
                     now={now}
                     selected={selectedIds.has(node.id)}
-                    delegatedTo={delegatedTo(node.id)}
-                    reports={reportsTo(node.id)}
-                    routed={graph.ports.some((port) => port.routes.some((route) => route.nodeId === node.id))}
+                    workers={graph.conducted.get(node.id) ?? []}
                     roomy={size.h > NODE_SIZE.h}
                   />
                 </foreignObject>

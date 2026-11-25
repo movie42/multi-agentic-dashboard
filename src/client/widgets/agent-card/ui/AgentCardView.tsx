@@ -443,7 +443,7 @@ export function AgentCardView({
         </div>
       )}
 
-      {agent.orchestration && terminalHandle && <OrchestrationPanel terminalHandle={terminalHandle} orchestration={agent.orchestration} />}
+      {agent.orchestration && terminalHandle && <OrchestrationPanel agentId={agent.id} terminalHandle={terminalHandle} orchestration={agent.orchestration} />}
 
       {agent.permission && terminalHandle && (
         <div data-jump-focus>
@@ -452,7 +452,6 @@ export function AgentCardView({
             terminalHandle={terminalHandle}
             permission={agent.permission}
             sessionId={agent.session?.id ?? null}
-            delegable={agent.parentId !== null}
           />
         </div>
       )}

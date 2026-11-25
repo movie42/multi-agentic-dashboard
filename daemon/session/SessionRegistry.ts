@@ -56,7 +56,6 @@ export interface CommandRequest {
   prompt?: string;
   resumeSessionId?: string;
   conductor?: boolean;
-  askPermissions?: boolean;
   model?: string;
   effort?: string;
   judge?: boolean;
@@ -184,7 +183,6 @@ export class SessionRegistry {
     const id = resumeSessionId ?? this.#options.newId();
     const now = this.#options.now();
     const conductor = kind === "claude" && request.conductor !== undefined;
-    const askPermissions = kind === "claude" && request.askPermissions === true;
     const claude = kind === "claude";
     const command = this.#options.commandFor({
       id,
@@ -192,7 +190,6 @@ export class SessionRegistry {
       prompt,
       resumeSessionId,
       ...(conductor ? { conductor } : {}),
-      ...(askPermissions ? { askPermissions } : {}),
       ...(claude && request.model ? { model: request.model } : {}),
       ...(claude && request.effort ? { effort: request.effort } : {}),
       ...(claude && request.judge ? { judge: true } : {}),
@@ -217,7 +214,7 @@ export class SessionRegistry {
         model: running?.session.model ?? null,
         contextPercent: null,
         effort: running?.session.effort ?? null,
-        permissionMode: claude && !askPermissions ? "bypassPermissions" : null,
+        permissionMode: claude ? "bypassPermissions" : null,
         conversationId: null,
         permission: null,
         orchestration: null,
@@ -338,7 +335,7 @@ export class SessionRegistry {
     return true;
   }
 
-  holdPermission(id: string, input: PermissionRequestInput, delegatedTo: string | null = null): Promise<PermissionHookOutput> {
+  holdPermission(id: string, input: PermissionRequestInput): Promise<PermissionHookOutput> {
     const entry = this.#entries.get(id);
     if (!entry || entry.session.status === "exited") return Promise.resolve({});
     this.#releasePermission(entry, {});
@@ -348,7 +345,7 @@ export class SessionRegistry {
       entry.held = { settle: resolve, timer };
       entry.session = {
         ...entry.session,
-        permission: { id: this.#options.newId(), receivedAt: this.#options.now(), ...input, ...(delegatedTo ? { delegatedTo } : {}) },
+        permission: { id: this.#options.newId(), receivedAt: this.#options.now(), ...input },
       };
       this.#changed();
     });

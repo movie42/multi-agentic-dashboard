@@ -21,9 +21,9 @@ describe("commandFor", () => {
     expect(command.args.filter((arg) => arg === "--mcp-config")).toHaveLength(1);
   });
 
-  it("keeps permission prompts for a conductor's worker", () => {
-    const command = commandFor({ id: "s1", kind: "claude", askPermissions: true }, environment);
-    expect(command.args).not.toContain("--permission-mode");
+  it("runs every Claude session, a conductor's workers included, without permission prompts", () => {
+    const command = commandFor({ id: "s1", kind: "claude" }, environment);
+    expect(command.args[command.args.indexOf("--permission-mode") + 1]).toBe("bypassPermissions");
   });
 
   it("passes the first prompt after --, so a prompt starting with a dash is not read as a flag", () => {

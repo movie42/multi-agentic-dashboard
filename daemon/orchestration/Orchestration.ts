@@ -1,11 +1,9 @@
 import {
   CONDUCTOR_SCOPE_KINDS,
-  GRANT_BUNDLES,
   LINK_KINDS,
   MAX_TRIPS,
   type Conductor,
   type ConductorLaunch,
-  type DelegatedRule,
   type LinkKind,
   type OrchestrationLink,
   type ProjectRequest,
@@ -57,16 +55,8 @@ function conductorOf(value: unknown): Conductor | null {
   if (!kind || typeof scope.root !== "string") return null;
   // Saved before scopes were kept per project: a project conductor covered its own project.
   const projects = Array.isArray(scope.projects) ? strings(scope.projects) : kind === "project" ? [scope.root] : [];
-  const grants = strings(raw.grants).flatMap((grant) => GRANT_BUNDLES.filter((bundle) => bundle === grant));
-  const rules = (Array.isArray(raw.rules) ? raw.rules : []).flatMap((item: unknown): DelegatedRule[] => {
-    const rule = record(item);
-    if (!rule || typeof rule.toolName !== "string") return [];
-    return [{ toolName: rule.toolName, prefix: typeof rule.prefix === "string" ? rule.prefix : null }];
-  });
   return {
     scope: { kind, root: scope.root, paths: strings(scope.paths), projects },
-    grants,
-    rules,
     knownProjects: strings(raw.knownProjects),
     worktreeRequest: null,
     projectRequest: null,
@@ -121,6 +111,10 @@ export function delegateText(from: RunnerSession, prompt: string): string {
 
 export function revisedText(from: RunnerSession, prompt: string): string {
   return `[Agent Control] 세션 ${from.id} (${from.cwd})이 맡긴 일을 고쳤어요. 앞서 받은 내용 대신 아래 내용으로 이어서 해 주세요.\n\n${prompt.trim()}`;
+}
+
+export function waitingText(from: RunnerSession, toolName: string): string {
+  return `[Agent Control] 맡긴 세션 ${from.id} (${from.cwd})이 사람의 답을 기다려요 (${toolName}). 사람이 대시보드에서 답하면 이어서 일하고 보고가 와요.`;
 }
 
 export function watchText(from: RunnerSession, logUrl: string): string {
@@ -219,8 +213,6 @@ export class Orchestration {
   addConductor(id: string, launch: ConductorLaunch): Conductor {
     const conductor: Conductor = {
       scope: launch.scope,
-      grants: [...launch.grants],
-      rules: [],
       knownProjects: [...launch.knownProjects],
       worktreeRequest: null,
       projectRequest: null,
@@ -228,15 +220,6 @@ export class Orchestration {
     this.#conductors.set(id, conductor);
     this.#deps.onChange();
     return conductor;
-  }
-
-  addRule(conductorId: string, rule: DelegatedRule): boolean {
-    const conductor = this.#conductors.get(conductorId);
-    if (!conductor) return false;
-    if (conductor.rules.some((item) => item.toolName === rule.toolName && item.prefix === rule.prefix)) return true;
-    this.#conductors.set(conductorId, { ...conductor, rules: [...conductor.rules, rule] });
-    this.#deps.onChange();
-    return true;
   }
 
   addScopePath(conductorId: string, folder: string): boolean {

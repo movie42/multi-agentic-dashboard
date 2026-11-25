@@ -1,6 +1,5 @@
 import { isAbsolute } from "node:path";
-import type { RunnerLaunchRequest, RunnerPermissionAnswer, RunnerSession } from "../../src/common/runner/types.ts";
-import { isDelegated } from "./grants.ts";
+import type { RunnerLaunchRequest, RunnerSession } from "../../src/common/runner/types.ts";
 import { isWithin, type Orchestration } from "./Orchestration.ts";
 
 export const MCP_SERVER_NAME = "agent-control";
@@ -11,7 +10,6 @@ export interface ConductorToolDeps {
   list: () => RunnerSession[];
   get: (id: string) => RunnerSession | null;
   launch: (request: RunnerLaunchRequest) => RunnerSession;
-  answerPermission: (id: string, requestId: string, answer: RunnerPermissionAnswer) => boolean;
   isDirectory: (path: string) => Promise<boolean>;
 }
 
@@ -37,7 +35,7 @@ export const CONDUCTOR_TOOLS: ToolDefinition[] = [
   },
   {
     name: "list_sessions",
-    description: "List the Agent Control sessions inside your scope: id, folder, status (idle/working/waiting/exited), who delegated it, and pending permission requests.",
+    description: "List the Agent Control sessions inside your scope: id, folder, status (idle/working/waiting/exited) and who delegated it.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -105,30 +103,16 @@ export const CONDUCTOR_TOOLS: ToolDefinition[] = [
       required: ["project", "reason"],
     },
   },
-  {
-    name: "answer_permission",
-    description:
-      "Answer a permission request a worker forwarded to you. 'allow' approves it, 'deny' refuses it when it clearly does not fit the work you handed out, 'pass' leaves it to the person — use it whenever you are not sure.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        session_id: str("Worker session id"),
-        request_id: str("Permission request id from the forwarded message"),
-        decision: { type: "string", enum: ["allow", "deny", "pass"] },
-      },
-      required: ["session_id", "request_id", "decision"],
-    },
-  },
 ];
 
 export function conductorInstructions(): string {
   return [
     "You are a conductor session in Agent Control. You plan the work and hand it to worker sessions with the agent-control MCP tools instead of doing it all yourself.",
-    "- start_session opens a worker in a worktree inside your scope; it reports its last answer back to you whenever it finishes a turn.",
-    "- Messages that start with [Agent Control] come from the dashboard daemon (worker reports, forwarded permission requests, worktree results), not from the person.",
+    "- start_session opens a worker in a worktree inside your scope. Workers run without asking for approval and report their last answer back to you whenever they finish a turn.",
+    "- Messages that start with [Agent Control] come from the dashboard daemon (worker reports, notices that a worker waits on the person's answer, worktree and project results), not from the person.",
+    "- After handing out work, end your turn and wait for the reports; decide the next step from each report. read_result shows a worker's status and last answer.",
     "- list_projects and list_worktrees show the projects and folders you may open sessions in. Worktrees a person adds later count too.",
     "- Need another project? Use request_project; the person confirms it first.",
-    "- Forwarded permission requests: answer with answer_permission. Allow only what fits the work you handed out, deny what clearly does not, and pass it to the person when unsure.",
     "- Need a new worktree? Use request_worktree; the person confirms it first. Give it a prompt and a worker opens there once it exists.",
   ].join("\n");
 }
@@ -150,7 +134,8 @@ function summary(session: RunnerSession, deps: ConductorToolDeps) {
     kind: session.kind,
     status: session.status,
     delegatedBy: deps.orchestration.parentOf(session.id),
-    permission: session.permission ? { request_id: session.permission.id, tool: session.permission.toolName } : null,
+    /** A question or tool approval only the person can answer, by tool name. */
+    waitingForPerson: session.permission?.toolName ?? null,
   };
 }
 
@@ -188,7 +173,7 @@ export async function callConductorTool(conductorId: string, name: string, args:
         return fail(`${cwd || "(empty)"} is outside your scope. Allowed folders: ${folders.join(", ")}. Use request_worktree for a new worktree or request_project for another project.`);
       }
       if (!(await deps.isDirectory(cwd))) return fail(`${cwd} does not exist.`);
-      const worker = deps.launch({ cwd, prompt, askPermissions: true });
+      const worker = deps.launch({ cwd, prompt });
       orchestration.connect(conductorId, worker.id, "delegate");
       orchestration.connect(worker.id, conductorId, "report");
       return ok(`Started worker ${worker.id} in ${cwd}. It will report back when it finishes a turn.`);
@@ -241,22 +226,6 @@ export async function callConductorTool(conductorId: string, name: string, args:
       if (!(await deps.isDirectory(project))) return fail(`${project} does not exist.`);
       orchestration.requestProject(conductorId, { path: project, reason });
       return ok("Asked the person on the dashboard. You will get a message when they confirm or decline.");
-    }
-    case "answer_permission": {
-      const target = inScopeSession(arg(args, "session_id"));
-      const permission = target?.permission;
-      if (!target || !permission || permission.id !== arg(args, "request_id")) return fail("That permission request is no longer pending.");
-      if (orchestration.parentOf(target.id) !== conductorId) return fail("Only the conductor that delegated this worker can answer.");
-      const decision = arg(args, "decision");
-      if (decision === "deny") {
-        const denied = deps.answerPermission(target.id, permission.id, { behavior: "deny", message: "The conductor declined this request." });
-        return denied ? ok("Denied.") : fail("That permission request is no longer pending.");
-      }
-      if (decision !== "allow") return ok("Left to the person.");
-      const input = { toolName: permission.toolName, toolInput: permission.toolInput, suggestions: permission.suggestions };
-      if (!isDelegated(conductor, input)) return fail("This request is outside what the person delegated to you; it stays with the person.");
-      const answered = deps.answerPermission(target.id, permission.id, { behavior: "allow", suggestionIndex: null });
-      return answered ? ok("Allowed.") : fail("That permission request is no longer pending.");
     }
     default:
       return fail(`Unknown tool ${name}.`);

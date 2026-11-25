@@ -2,28 +2,26 @@ import { mkdir, stat } from "node:fs/promises";
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import type { DaemonInfo } from "../src/common/appStatus/types.ts";
-import { CONDUCTOR_SCOPE_KINDS, GRANT_BUNDLES, LINK_KINDS, type ConductorLaunch } from "../src/common/orchestration/types.ts";
+import { CONDUCTOR_SCOPE_KINDS, LINK_KINDS, type ConductorLaunch } from "../src/common/orchestration/types.ts";
 import {
   RUNNER_HOOK_EVENTS,
   type RunnerHookEvent,
   type RunnerLaunchRequest,
-  type RunnerSession,
   type SessionsMessage,
   type TerminalClientMessage,
   type TerminalServerMessage,
 } from "../src/common/runner/types.ts";
 import { callerOf } from "./guard.ts";
 import { handleMcpMessage, type ConductorToolDeps } from "./orchestration/conductorMcp.ts";
-import { describePermission, isDelegated, ruleFor } from "./orchestration/grants.ts";
 import { lastAnswerOf } from "./orchestration/lastAnswer.ts";
-import type { Orchestration } from "./orchestration/Orchestration.ts";
+import { waitingText, type Orchestration } from "./orchestration/Orchestration.ts";
 import { handleJudgeMessage } from "./templates/judgeMcp.ts";
 import { handleUiMessage, withUiTool } from "./ui/uiMcp.ts";
 import { templateOf } from "../src/common/templates/types.ts";
 import type { TemplateRuns } from "./templates/TemplateRuns.ts";
 import type { TemplateStore } from "./templates/TemplateStore.ts";
 import { DICTATION_HANDLE, type Dictation } from "./session/Dictation.ts";
-import { answerOf, permissionInputOf, type PermissionRequestInput } from "./session/permissions.ts";
+import { answerOf, permissionInputOf } from "./session/permissions.ts";
 import { parseStatusLine } from "./session/statusLine.ts";
 import type { SessionRegistry } from "./session/SessionRegistry.ts";
 
@@ -59,7 +57,6 @@ const SESSION_ID = /^[A-Za-z0-9-]{1,64}$/;
 const HOOK_PATH = /^\/hooks\/([^/]+)\/([A-Za-z]+)$/;
 const STATUSLINE_PATH = /^\/statusline\/([^/]+)$/;
 const PERMISSION_PATH = /^\/sessions\/([^/]+)\/permission$/;
-const DELEGATE_PATH = /^\/sessions\/([^/]+)\/delegate$/;
 const MCP_PATH = /^\/mcp\/([^/]+)$/;
 const LINK_PATH = /^\/links\/([^/]+)$/;
 const LINK_RESUME_PATH = /^\/links\/([^/]+)\/resume$/;
@@ -107,14 +104,12 @@ export function conductorLaunchOf(value: unknown): ConductorLaunch | null {
   const kind = CONDUCTOR_SCOPE_KINDS.find((item) => item === field(scope, "kind"));
   const root = field(scope, "root");
   const paths = field(scope, "paths");
-  const grants = field(value, "grants");
   if (!kind) return null;
   if (typeof root !== "string" || !root.startsWith("/") || !Array.isArray(paths)) return null;
   const folders = absoluteFolders(paths);
   return {
     // A worktree conductor's own folder is always in reach; a project or app conductor reaches folders through its projects.
     scope: { kind, root, paths: kind !== "worktree" || folders.includes(root) ? folders : [root, ...folders], projects: [...new Set(absoluteFolders(field(scope, "projects")))] },
-    grants: Array.isArray(grants) ? GRANT_BUNDLES.filter((bundle) => grants.includes(bundle)) : [],
     knownProjects: absoluteFolders(field(value, "knownProjects")),
   };
 }
@@ -133,14 +128,6 @@ function launchRequestOf(body: unknown): RunnerLaunchRequest | null {
     ...(typeof resumeSessionId === "string" && SESSION_ID.test(resumeSessionId) ? { resumeSessionId } : {}),
     ...(conductor && kind !== "shell" ? { conductor } : {}),
   };
-}
-
-export function forwardedPermissionText(worker: RunnerSession, requestId: string, input: PermissionRequestInput): string {
-  return [
-    `[Agent Control] 맡긴 세션 ${worker.id} (${worker.cwd})이 권한을 요청했어요.`,
-    `요청: ${describePermission(input)}`,
-    `맡긴 일에 맞으면 answer_permission(session_id: "${worker.id}", request_id: "${requestId}", decision: "allow"), 아니면 decision: "pass"로 사람에게 넘겨 주세요.`,
-  ].join("\n");
 }
 
 export function pasteOf(text: string): string {
@@ -190,15 +177,7 @@ export function createRunnerServer({
     list: () => registry.list(),
     get: (id) => registry.get(id),
     launch: (request) => registry.launch(request),
-    answerPermission: (id, requestId, answer) => registry.answerPermission(id, requestId, answer),
     isDirectory,
-  };
-
-  /** The conductor that should see this worker's request first, when it falls inside what a person delegated. */
-  const delegateOf = (id: string, input: PermissionRequestInput): string | null => {
-    const parent = orchestration.parentOf(id);
-    const conductor = parent ? orchestration.conductor(parent) : null;
-    return parent && conductor && isDelegated(conductor, input) ? parent : null;
   };
 
   const respond = (response: http.ServerResponse, origin: string | undefined, status: number, body: unknown) => {
@@ -237,15 +216,16 @@ export function createRunnerServer({
       if (hook && request.method === "POST" && hook[2] === "PermissionRequest") {
         const id = decodeURIComponent(hook[1] ?? "");
         const input = permissionInputOf(await readBody(request));
-        const delegate = input ? delegateOf(id, input) : null;
-        if (!input || (watchers.size === 0 && !delegate)) {
+        // Workers run without permission prompts, so a request that still arrives waits on the person; its conductor hears so instead of waiting for a report.
+        const parent = orchestration.parentOf(id);
+        const worker = registry.get(id);
+        if (input && parent && worker && orchestration.isConductor(parent)) orchestration.deliver(parent, waitingText(worker, input.toolName), null);
+        if (!input || watchers.size === 0) {
           respond(response, undefined, 200, {});
           return;
         }
-        const pending = registry.holdPermission(id, input, delegate);
-        const worker = registry.get(id);
-        const requestId = worker?.permission?.id ?? null;
-        if (delegate && worker && requestId) orchestration.deliver(delegate, forwardedPermissionText(worker, requestId, input), null);
+        const pending = registry.holdPermission(id, input);
+        const requestId = registry.get(id)?.permission?.id ?? null;
         const onClose = () => {
           if (requestId && !response.writableEnded) registry.cancelPermission(id, requestId);
         };
@@ -387,27 +367,6 @@ export function createRunnerServer({
         return;
       }
 
-      const delegate = DELEGATE_PATH.exec(url.pathname);
-      if (delegate && request.method === "POST") {
-        const id = decodeURIComponent(delegate[1] ?? "");
-        const worker = registry.get(id);
-        const permission = worker?.permission;
-        const parent = orchestration.parentOf(id);
-        if (!worker || !permission || permission.id !== field(await readBody(request), "requestId") || !parent) {
-          respond(response, origin, 409, { ok: false, error: "지휘자에게 맡길 수 있는 권한 요청이 아니에요." });
-          return;
-        }
-        const input = { toolName: permission.toolName, toolInput: permission.toolInput, suggestions: permission.suggestions };
-        const rule = ruleFor(input);
-        if (!rule || !orchestration.addRule(parent, rule)) {
-          respond(response, origin, 409, { ok: false, error: "이 요청은 지휘자에게 맡길 수 없어요." });
-          return;
-        }
-        orchestration.deliver(parent, forwardedPermissionText(worker, permission.id, input), null);
-        respond(response, origin, 200, { ok: true });
-        return;
-      }
-
       const worktreeRequest = WORKTREE_REQUEST_PATH.exec(url.pathname);
       if (worktreeRequest && request.method === "POST") {
         const body = await readBody(request);
@@ -419,7 +378,7 @@ export function createRunnerServer({
         const settled =
           typeof requestId === "string" ? orchestration.settleWorktree(conductorId, requestId, folder, typeof error === "string" ? error : undefined) : null;
         if (settled?.prompt && folder) {
-          const worker = registry.launch({ cwd: folder, prompt: settled.prompt, askPermissions: true });
+          const worker = registry.launch({ cwd: folder, prompt: settled.prompt });
           orchestration.connect(conductorId, worker.id, "delegate");
           orchestration.connect(worker.id, conductorId, "report");
         }

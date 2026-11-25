@@ -45,7 +45,7 @@ const link = (kind: OrchestrationLink["kind"], from: string, to: string): Orches
   createdAt: 0,
 });
 
-const conductor = { scope: { kind: "project" as const, root: "/p/shop", paths: [], projects: ["/p/shop"] }, grants: [], rules: [], knownProjects: [], worktreeRequest: null, projectRequest: null };
+const conductor = { scope: { kind: "project" as const, root: "/p/shop", paths: [], projects: ["/p/shop"] }, knownProjects: [], worktreeRequest: null, projectRequest: null };
 
 function renderCanvas(agents: AgentCard[], onAction = vi.fn(async () => {}), elsewhere: { everyAgent?: AgentCard[]; onOpenElsewhere?: (repo: string, worktreeId: string) => void } = {}) {
   const client = new QueryClient();
@@ -127,6 +127,18 @@ describe("ProjectCanvas", () => {
     fireEvent.pointerDown(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
     fireEvent.pointerUp(box, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
     expect(screen.getByTestId("card").textContent).toBe("일꾼");
+  });
+
+  it("names the sessions a conductor conducts in its box, and leaves the box quiet when it conducts none", () => {
+    renderCanvas([
+      agentCard({ id: "c", worktreeId: "/p/shop", title: "코디네이터", orchestration: { conductor, parentId: null, links: [link("delegate", "c", "w")] } }),
+      agentCard({ id: "idle", worktreeId: "/p/shop", title: "빈 코디", orchestration: { conductor, parentId: null, links: [] } }),
+      agentCard({ id: "w", worktreeId: "/p/shop-a", worktreeName: "shop-a", title: "테스트 고치기", parentId: "c", orchestration: { conductor: null, parentId: "c", links: [link("report", "w", "c")] } }),
+    ]);
+    const lead = document.querySelector('[data-node="c"]')!;
+    expect(lead.textContent).toContain("테스트 고치기");
+    expect(lead.textContent).not.toContain("shop-a");
+    expect(document.querySelector('[data-node="idle"]')!.textContent).not.toContain("맡긴 세션");
   });
 
   it("stacks each clicked session as its own panel tab and switches between them", () => {

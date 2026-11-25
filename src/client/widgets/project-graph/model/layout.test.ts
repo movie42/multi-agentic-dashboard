@@ -37,8 +37,6 @@ function orchestration(overrides: Partial<SessionOrchestration>): SessionOrchest
 
 const conductor = {
   scope: { kind: "project" as const, root: "/p/shop", paths: [], projects: ["/p/shop"] },
-  grants: [],
-  rules: [],
   knownProjects: [],
   worktreeRequest: null,
   projectRequest: null,
@@ -68,6 +66,16 @@ describe("buildGraph", () => {
     expect(graph.conductors.map((node) => node.id)).toEqual(["c"]);
     expect(graph.clusters[0]?.nodeIds).toEqual([]);
     expect(graph.edges.map((edge) => edge.kind)).toEqual(["delegate", "report"]);
+  });
+
+  it("keeps the sessions each conductor conducts, the ones on another project's board too", () => {
+    const lead = agentCard({ id: "c", worktreeId: "/p/shop", orchestration: orchestration({ conductor, links: [link("delegate", "c", "w"), link("delegate", "c", "far")] }) });
+    const here = agentCard({ id: "w", worktreeId: "/p/shop-a", parentId: "c", orchestration: orchestration({ parentId: "c" }) });
+    const far = agentCard({ id: "far", repo: "web", worktreeId: "/p/web", parentId: "c", orchestration: orchestration({ parentId: "c" }) });
+    const loose = agentCard({ id: "loose", worktreeId: "/p/shop-a" });
+    const graph = buildGraph([lead, here, loose], [worktree("/p/shop"), worktree("/p/shop-a")], [], [], [lead, here, loose, far]);
+    expect(graph.conducted.get("c")?.map((agent) => agent.id)).toEqual(["w", "far"]);
+    expect(graph.conducted.has("loose")).toBe(false);
   });
 
   it("draws fork lines between clusters and overlap lines with their files", () => {

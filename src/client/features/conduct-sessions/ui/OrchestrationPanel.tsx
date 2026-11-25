@@ -1,11 +1,14 @@
 "use client";
 
 import { startTransition, useActionState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { ActionRequest } from "@/common/actions/schema";
 import type { Conductor, OrchestrationLink, ProjectRequest, SessionOrchestration, WorktreeRequest } from "@/common/orchestration/types";
+import { boardQueryOptions } from "@/client/entities/board";
 import { postAction } from "@/client/shared/api/actions";
 import { toastError } from "@/client/shared/model/toastStore";
-import { GRANT_LABEL, SCOPE_LABEL } from "./ConductorLauncher";
+import { ConductedSessions } from "./ConductedSessions";
+import { SCOPE_LABEL } from "./ConductorLauncher";
 const LINK_LABEL: Record<OrchestrationLink["kind"], string> = { delegate: "맡김", report: "끝나면 보고", next: "끝나면 다음", watch: "터미널 연결" };
 
 const PRIMARY =
@@ -117,13 +120,25 @@ function PausedLinkRow({ link }: PausedLinkRowProps) {
   );
 }
 
+interface ConductorWorkersProps {
+  conductorId: string;
+}
+
+function ConductorWorkers({ conductorId }: ConductorWorkersProps) {
+  // The dashboard already polls the board; this only reads the shared cache.
+  const { data: board } = useQuery({ ...boardQueryOptions(), refetchInterval: false });
+  return <ConductedSessions workers={(board?.agents ?? []).filter((agent) => agent.parentId === conductorId)} />;
+}
+
 interface OrchestrationPanelProps {
+  /** The session this card shows, which is the conductor id when it is one. */
+  agentId: string;
   terminalHandle: string;
   orchestration: SessionOrchestration;
 }
 
-/** What a person must see or settle on a session's card: its conductor role, a worktree request, stopped lines. */
-export function OrchestrationPanel({ terminalHandle, orchestration }: OrchestrationPanelProps) {
+/** What a person must see or settle on a session's card: its conductor role and workers, a worktree request, stopped lines. */
+export function OrchestrationPanel({ agentId, terminalHandle, orchestration }: OrchestrationPanelProps) {
   const { conductor, links } = orchestration;
   const paused = links.filter((link) => link.paused);
   if (!conductor && paused.length === 0) return null;
@@ -131,11 +146,10 @@ export function OrchestrationPanel({ terminalHandle, orchestration }: Orchestrat
     <div className="flex flex-col gap-2">
       {conductor && (
         <p className="text-[12px] text-muted">
-          지휘자 · {SCOPE_LABEL[conductor.scope.kind]} ({reachOf(conductor)}) · 맡긴 권한{" "}
-          {conductor.grants.length > 0 ? conductor.grants.map((grant) => GRANT_LABEL[grant]).join(", ") : "없음"}
-          {conductor.rules.length > 0 && ` + 규칙 ${conductor.rules.length}개`}
+          지휘자 · {SCOPE_LABEL[conductor.scope.kind]} ({reachOf(conductor)})
         </p>
       )}
+      {conductor && <ConductorWorkers conductorId={agentId} />}
       {conductor?.projectRequest && <ProjectRequestRow key={conductor.projectRequest.id} terminalHandle={terminalHandle} request={conductor.projectRequest} />}
       {conductor?.worktreeRequest && <WorktreeRequestRow key={conductor.worktreeRequest.id} terminalHandle={terminalHandle} request={conductor.worktreeRequest} />}
       {paused.map((link) => (

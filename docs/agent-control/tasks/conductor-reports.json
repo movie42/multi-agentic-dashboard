@@ -1,0 +1,319 @@
+{
+  "id": "conductor-reports",
+  "title": "지휘자가 지휘하는 세션 보이기 · 일꾼은 권한 확인 없이 열고 보고만 받기",
+  "type": "기능 수정",
+  "branch": "main",
+  "links": [
+    {
+      "label": "지금 동작 정리",
+      "url": "../conductor-current-behavior.md"
+    }
+  ],
+  "stages": {
+    "tasks": {
+      "status": "done",
+      "summary": "구현 끝",
+      "conclusion": [
+        "지휘자 세션 패널에 '지휘하는 세션 n' 목록이 생겼고, 누르면 그 세션이 오른쪽 패널 탭으로 열려요. 지휘하는 세션이 없으면 목록이 안 보여요.",
+        "캔버스 지휘자 상자는 워크트리 이름 대신 지휘하는 세션의 상태 점과 제목을 최대 3개 보여 주고, 없으면 비워 둬요.",
+        "지휘자가 연 일꾼은 bypassPermissions로 열리고, 권한 위임(맡길 권한 묶음, 권한 포워딩, answer_permission, '앞으로 지휘자에게 맡기기')은 없어졌어요. 지휘자는 일꾼의 턴마다 오는 보고만 받아요.",
+        "데몬 코드가 바뀌어서 데몬을 다시 시작해야 반영돼요. 화면은 앱 다시 빌드(bun run desktop) 뒤에 보여요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "id": "P1",
+          "title": "P1 · 데몬: 일꾼 권한 확인 없이 열기, 권한 위임 걷어내기",
+          "items": [
+            {
+              "id": "P1-1",
+              "title": "지휘자가 여는 일꾼(start_session, 워크트리 승인 후 자동 실행, 재시작 복원)을 bypassPermissions로 열고 askPermissions 옵션을 없앤다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/conductorMcp.ts</code> <code>daemon/server.ts</code> <code>daemon/main.ts</code> <code>daemon/session/command.ts</code> <code>daemon/session/SessionRegistry.ts</code> <code>src/common/runner/types.ts</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>daemon/orchestration/conductorServer.test.ts</code> <code>daemon/session/command.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "이미 떠 있는 일꾼은 데몬을 다시 시작해야 bypassPermissions로 바뀌어요. 재시작 때 복원되는 일꾼도 이제 권한 확인 없이 열려요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-2",
+              "title": "권한 포워딩·answer_permission·위임 규칙 라우트와 grants 판정을 지운다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code> <code>daemon/orchestration/grants.ts</code> <code>daemon/orchestration/Orchestration.ts</code>"
+                ],
+                [
+                  "결정",
+                  "권한 요청 훅은 이제 대시보드가 열려 있을 때만 사람 카드로 보류하고, 지휘자에게는 보내지 않아요. 남는 경우는 질문 도구처럼 bypass에서도 사람이 답해야 하는 요청뿐이에요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-3",
+              "title": "지휘자 안내문을 '일꾼은 확인 없이 일하고 턴마다 보고한다, 보고를 기다려 다음 일을 정한다'로 바꾼다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/orchestration/conductorMcp.ts</code>"
+                ],
+                [
+                  "결정",
+                  "list_sessions는 권한 요청 id 대신 사람이 답해야 하는 도구 이름(waitingForPerson)만 알려 줘요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-5",
+              "title": "일꾼이 사람의 답을 기다리기 시작하면 지휘자에게 알린다 (코드 리뷰 지적)",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>daemon/server.ts</code> <code>daemon/orchestration/Orchestration.ts</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>daemon/orchestration/conductorServer.test.ts</code>"
+                ],
+                [
+                  "결정",
+                  "질문 도구처럼 bypass에서도 사람이 답해야 하는 요청이 오면, 지휘자는 보고 대신 '사람의 답을 기다려요' 알림을 받아요. 지휘자가 대신 답하는 도구는 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "P1-4",
+              "title": "공용 타입에서 GrantBundle·DelegatedRule·Conductor.grants/rules·RunnerPermission.delegatedTo를 지운다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/orchestration/types.ts</code> <code>src/common/runner/types.ts</code> <code>src/common/runner/schema.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P1-V",
+              "title": "검증: <code>bun test daemon</code> · <code>bunx tsc --noEmit</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P2",
+          "title": "P2 · 앱 서버: 지휘자 실행과 액션",
+          "items": [
+            {
+              "id": "P2-1",
+              "title": "launch-conductor에서 grants를 빼고 delegate-permission 액션을 지운다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/common/actions/schema.ts</code> <code>app/api/actions/route.ts</code> <code>src/server/runner/RunnerClient.ts</code> <code>src/server/orchestration/conductorActions.ts</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P2-V",
+              "title": "검증: <code>bun run test src/server</code> · <code>bunx tsc --noEmit</code>",
+              "done": true
+            }
+          ]
+        },
+        {
+          "type": "checklist",
+          "id": "P3",
+          "title": "P3 · 화면",
+          "items": [
+            {
+              "id": "P3-1",
+              "title": "지휘자 시작 폼에서 '맡길 권한' 줄을 지우고 '일꾼은 권한 확인 없이 일하고 끝나면 보고해요' 안내로 바꾼다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/conduct-sessions/ui/ConductorLauncher.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-2",
+              "title": "지휘자 패널에 '지휘하는 세션' 목록: 상태 · 제목 · 프로젝트/워크트리 · 마지막 줄, 누르면 그 세션을 패널 탭으로 연다. 없으면 숨김",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/conduct-sessions/ui/OrchestrationPanel.tsx</code>"
+                ],
+                [
+                  "재사용",
+                  "<code>requestDock</code> (세션을 캔버스 패널 탭으로 여는 기존 요청) · <code>displayStateOf</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>src/client/features/conduct-sessions/ui/ConductedSessions.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "마지막 줄은 두 줄까지만 보여 줘요. 보고 본문이 길어도 목록이 밀리지 않게 하려는 것이에요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-3",
+              "title": "캔버스 지휘자 상자: 워크트리 칩 대신 지휘하는 세션(상태 점 + 제목, 3개 넘으면 '외 n'), 없으면 빈 칸",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/widgets/project-graph/ui/NodeBox.tsx</code> <code>CanvasStage.tsx</code> <code>ProjectCanvas.tsx</code>"
+                ],
+                [
+                  "테스트",
+                  "<code>src/client/widgets/project-graph/model/layout.test.ts</code> <code>src/client/widgets/project-graph/ui/ProjectCanvas.test.tsx</code>"
+                ],
+                [
+                  "결정",
+                  "'보고 n' 칩도 지웠어요. 일꾼마다 보고 선이 하나씩이라 일꾼 수와 같은 숫자였어요. 다른 프로젝트 캔버스로 가는 포트(↗)는 일꾼이 그 캔버스에 없을 때 길을 알려 주므로 그대로 둬요."
+                ]
+              ]
+            },
+            {
+              "id": "P3-4",
+              "title": "권한 카드에서 '앞으로 지휘자에게 맡기기'와 '지휘자가 먼저 판단하는 중' 문구를 지운다",
+              "done": true,
+              "rows": [
+                [
+                  "파일",
+                  "<code>src/client/features/answer-permission/model/permissionSurface.ts</code> <code>ui/PermissionPrompt.tsx</code> <code>src/client/widgets/agent-card/ui/AgentCardView.tsx</code>"
+                ]
+              ]
+            },
+            {
+              "id": "P3-V",
+              "title": "검증: <code>bun run test</code> · <code>bunx tsc --noEmit</code> · <code>bun run lint</code>",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "테스트 189파일 1124개 통과, tsc 통과, lint 오류 0(경고는 원래 있던 것). 개발 서버(3150)에서 전체 캔버스 지휘자 상자와 패널 목록, 일꾼 클릭으로 탭이 열리는 것까지 확인"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "done": {
+      "status": "ask",
+      "summary": "PR 여부 확인 전",
+      "conclusion": [
+        "코드 리뷰 지적 2건을 고쳤고 테스트 · 타입 검사 · 린트를 다시 통과했어요.",
+        "커밋 · PR은 사용자 확인 뒤에 해요."
+      ],
+      "blocks": [
+        {
+          "type": "checklist",
+          "title": "PR 전",
+          "items": [
+            {
+              "id": "D1",
+              "title": "SOT 맵 근거를 실제 코드 파일:줄로 바꿈",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "screen 단계가 없는 태스크라 바꿀 SOT 근거가 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "D2",
+              "title": "남은 Computed · 계산 행을 서버 · 기획 요청으로 정리",
+              "done": true,
+              "rows": [
+                [
+                  "결정",
+                  "남은 계산 행이나 서버 · 기획 요청이 없어요."
+                ]
+              ]
+            },
+            {
+              "id": "D3",
+              "title": "<code>/code-review</code> — 크리티컬한 지적을 고침",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "/code-review medium 지적 5건 — 고침 2건: 사람 답을 기다리는 일꾼 알림, 패널 목록의 보드 중복 폴링(refetchInterval: false)."
+                ],
+                [
+                  "결정",
+                  "일꾼이 bypass로 돌면 git push · rm -r · sudo 차단이 없어진다는 지적은 고치지 않았어요. 사용자가 요청한 동작이고, 사람이 직접 연 세션도 이미 bypass예요."
+                ],
+                [
+                  "결정",
+                  "재시작 때 복원되는 기존 일꾼도 bypass로 바뀌는 것, 종료된 일꾼이 10분 동안 칩에 남는 것은 그대로 둬요."
+                ]
+              ]
+            },
+            {
+              "id": "D4",
+              "title": "고친 뒤 typecheck · lint · test 다시 통과 (04 검증이 있으면 그것도 완료)",
+              "done": true,
+              "rows": [
+                [
+                  "결과",
+                  "테스트 189파일 1124개 통과, tsc 통과, lint 오류 0. flow check는 테스트 행의 실패 커밋이 없다고 알려요 — 커밋 요청 전이라 red 단계를 커밋으로 남기지 않았어요."
+                ]
+              ]
+            },
+            {
+              "id": "D5",
+              "title": "PR — <code>/git-pr</code>로 만들거나, 안 만들면 결론에 기록",
+              "done": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "title": "서버 · 기획에 요청할 것",
+          "html": "없어요"
+        }
+      ]
+    }
+  },
+  "intent": [
+    {
+      "text": "지휘자를 보는 사람이 그 지휘자가 지금 어떤 세션을 지휘하는지 바로 알 수 있게 한다.",
+      "state": "confirmed",
+      "basis": "사용자 피드백 1·2 (2026-11-25)"
+    },
+    {
+      "text": "지휘자가 연 일꾼은 권한 확인 없이 일하고, 지휘자는 권한을 대신 판단하지 않고 일꾼의 보고만 받는다.",
+      "state": "confirmed",
+      "basis": "사용자 피드백 3 (2026-11-25)"
+    }
+  ],
+  "skipped": [
+    {
+      "stage": "tasks",
+      "stop": "계획 승인",
+      "why": "이 저장소에서 사용자는 질문·승인 정지 없이 구현까지 가길 원함 (flow-implement-dont-grill)"
+    }
+  ]
+}

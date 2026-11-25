@@ -39,23 +39,6 @@ function useSend(terminalHandle: string, requestId: string) {
   return { status, send, locked };
 }
 
-type DelegateResult = { kind: "idle" } | { kind: "sent" } | { kind: "error"; message: string };
-
-/** Adds this kind of request to the conductor's delegated rules and hands the current one to it. */
-function useDelegate(terminalHandle: string, requestId: string) {
-  const [result, dispatch, sending] = useActionState<DelegateResult>(async (previous) => {
-    if (previous.kind === "sent") return previous;
-    try {
-      await postAction({ type: "delegate-permission", terminalHandle, requestId });
-      return { kind: "sent" };
-    } catch (error) {
-      toastError("permission", error);
-      return { kind: "error", message: error instanceof Error ? error.message : String(error) };
-    }
-  }, { kind: "idle" });
-  return { delegated: result.kind === "sent", sending, delegate: () => startTransition(() => dispatch()) };
-}
-
 interface StatusLineProps {
   status: SendStatus;
 }
@@ -71,13 +54,8 @@ interface PromptBodyProps {
   permission: RunnerPermission;
 }
 
-interface ToolPromptProps extends PromptBodyProps {
-  delegable: boolean;
-}
-
-function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) {
+function ToolPrompt({ terminalHandle, permission }: PromptBodyProps) {
   const { status, send, locked } = useSend(terminalHandle, permission.id);
-  const { delegated, sending: delegating, delegate } = useDelegate(terminalHandle, permission.id);
   const [denying, setDenying] = useState(false);
 
   const onAction = (action: UiAction) => {
@@ -86,17 +64,11 @@ function ToolPrompt({ terminalHandle, permission, delegable }: ToolPromptProps) 
     else if (action.name === "openDeny") setDenying(true);
     else if (action.name === "cancelDeny") setDenying(false);
     else if (action.name === "deny") send({ behavior: "deny", message: typeof action.context.reason === "string" ? action.context.reason.trim() : "" });
-    else if (action.name === "delegate") delegate();
   };
 
   return (
     <>
-      <A2uiView
-        messages={permissionSurface(permission, { denying, delegable: delegable && !delegated })}
-        onAction={onAction}
-        locked={locked || delegating}
-      />
-      {delegated && <p className="text-[12px] text-muted">지휘자에게 넘겼어요. 지휘자가 판단하지 못하면 여기 그대로 남아요.</p>}
+      <A2uiView messages={permissionSurface(permission, { denying })} onAction={onAction} locked={locked} />
       <StatusLine status={status} />
     </>
   );
@@ -134,18 +106,16 @@ interface PermissionPromptProps {
   permission: RunnerPermission;
   /** Claude session id, used to find the PR body draft a "create this PR?" question refers to. */
   sessionId?: string | null;
-  /** The session was handed out by a conductor, so this kind of request can be delegated to it. */
-  delegable?: boolean;
 }
 
-export function PermissionPrompt({ terminalHandle, permission, sessionId = null, delegable = false }: PermissionPromptProps) {
+export function PermissionPrompt({ terminalHandle, permission, sessionId = null }: PermissionPromptProps) {
   const questions = questionsOf(permission);
   return (
     <div data-permission-prompt className="flex flex-col gap-2.5 rounded-[10px] bg-bg p-3 shadow-[inset_0_0_0_1.5px_var(--st-ask)]">
       {questions.length > 0 ? (
         <QuestionPrompt terminalHandle={terminalHandle} permission={permission} questions={questions} sessionId={sessionId} />
       ) : (
-        <ToolPrompt terminalHandle={terminalHandle} permission={permission} delegable={delegable} />
+        <ToolPrompt terminalHandle={terminalHandle} permission={permission} />
       )}
     </div>
   );

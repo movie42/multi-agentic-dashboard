@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CONDUCTOR_SCOPE_KINDS, GRANT_BUNDLES, LINK_KINDS } from "../orchestration/types";
+import { CONDUCTOR_SCOPE_KINDS, LINK_KINDS } from "../orchestration/types";
 import { BOOKMARK_MEMO_LIMIT, SESSION_ID, TITLE_LIMIT } from "../sessions/limits";
 
 export const MAX_PROMPT = 8000;
@@ -79,10 +79,8 @@ export const actionRequestSchema = z.discriminatedUnion("type", [
     worktreePath: absolutePath.nullable(),
     prompt: z.string().max(MAX_PROMPT),
     scope: z.enum(CONDUCTOR_SCOPE_KINDS),
-    grants: z.array(z.enum(GRANT_BUNDLES)),
     projects: z.array(absolutePath).default([]),
   }),
-  z.object({ type: z.literal("delegate-permission"), terminalHandle: z.string(), requestId: z.string() }),
   z.object({
     type: z.literal("connect-sessions"),
     from: z.string().min(1),

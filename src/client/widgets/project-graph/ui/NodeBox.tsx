@@ -33,6 +33,8 @@ export function nodeTitle(agent: AgentCard): string {
   return agent.session?.title ?? agent.title ?? agent.prompt?.split("\n")[0] ?? (agent.agentType === "shell" ? "터미널" : "제목 없음");
 }
 
+const MAX_WORKER_CHIPS = 3;
+
 const SCOPE_TAG: Record<ConductorScopeKind, string> = { app: "앱", project: "프로젝트", worktree: "워크트리" };
 
 const SHELL_TONE: Record<ShellStatus["kind"], { tone: string; dot: string }> = {
@@ -57,17 +59,14 @@ interface NodeBoxProps {
   node: GraphNode;
   now: number;
   selected: boolean;
-  /** Worktree names this conductor handed work to. */
-  delegatedTo: string[];
-  reports: number;
-  /** Has a route to another project's worktree, drawn as a port on the canvas. */
-  routed: boolean;
+  /** The sessions this conductor conducts, on this board or another project's. */
+  workers: AgentCard[];
   /** Resized taller than the default, so the last message gets every line that fits. */
   roomy?: boolean;
 }
 
 /** One session on the canvas: state, elapsed time, title and the last message line. */
-export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roomy = false }: NodeBoxProps) {
+export function NodeBox({ node, now, selected, workers, roomy = false }: NodeBoxProps) {
   const { agent, outside } = node;
   const { restOf } = useRestOverrides();
   const state = stateOf(agent, restOf);
@@ -96,15 +95,17 @@ export function NodeBox({ node, now, selected, delegatedTo, reports, routed, roo
       </p>
       <p className="truncate text-[14px] leading-snug font-bold text-canvas-card-ink">{nodeTitle(agent)}</p>
       {conductor ? (
-        <p className="flex min-w-0 flex-wrap gap-1 text-[11px] leading-none">
-          {delegatedTo.map((name) => (
-            <span key={name} className="truncate rounded-[5px] bg-now/10 px-1.5 py-1 text-now">
-              → {name}
-            </span>
-          ))}
-          {reports > 0 && <span className="rounded-[5px] bg-now/10 px-1.5 py-1 text-now">보고 {reports}</span>}
-          {delegatedTo.length === 0 && reports === 0 && !routed && <span className="py-1 text-canvas-card-soft">아직 맡긴 세션이 없어요</span>}
-        </p>
+        workers.length > 0 && (
+          <p className="flex min-w-0 flex-wrap gap-1 text-[11px] leading-none" title={workers.map(nodeTitle).join("\n")}>
+            {workers.slice(0, MAX_WORKER_CHIPS).map((worker) => (
+              <span key={worker.id} className="flex max-w-40 min-w-0 items-center gap-1 rounded-[5px] bg-now/10 px-1.5 py-1 text-canvas-card-ink">
+                <span className={`size-1.5 shrink-0 rounded-full ${stateOf(worker, restOf).dot}`} />
+                <span className="truncate">{nodeTitle(worker)}</span>
+              </span>
+            ))}
+            {workers.length > MAX_WORKER_CHIPS && <span className="py-1 text-canvas-card-soft">외 {workers.length - MAX_WORKER_CHIPS}</span>}
+          </p>
+        )
       ) : (
         <p className={`text-[12px] text-canvas-card-soft ${roomy ? "min-h-0 flex-1 overflow-hidden leading-relaxed break-words whitespace-pre-line" : "truncate"}`}>
           {detailOf(agent)}

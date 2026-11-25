@@ -115,8 +115,6 @@ export async function POST(request: Request) {
       await services().conductors.answerWorktreeRequest(body.terminalHandle, body.requestId, body.approve);
     } else if (body.type === "answer-project-request") {
       await services().conductors.answerProjectRequest(body.terminalHandle, body.requestId, body.approve);
-    } else if (body.type === "delegate-permission") {
-      await runner.delegatePermission(body.terminalHandle, body.requestId);
     } else if (body.type === "connect-sessions") {
       await runner.connect(body.from, body.to, body.kind, body.prompt?.trim() || null);
     } else if (body.type === "unlink-sessions") {

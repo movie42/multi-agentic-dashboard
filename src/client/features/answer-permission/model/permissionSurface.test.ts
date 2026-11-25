@@ -16,7 +16,7 @@ const components = (messages: ReturnType<typeof permissionSurface>) =>
 
 describe("permissionSurface", () => {
   it("builds a valid surface with allow, deny, the command and each suggestion", () => {
-    const messages = permissionSurface(tool, { denying: false, delegable: false });
+    const messages = permissionSurface(tool, { denying: false });
     expect(validateUiMessages(messages).ok).toBe(true);
     const json = components(messages);
     expect(json).toContain("rm -rf dist");
@@ -28,7 +28,7 @@ describe("permissionSurface", () => {
   });
 
   it("swaps the buttons for a reason field while denying", () => {
-    const messages = permissionSurface(tool, { denying: true, delegable: false });
+    const messages = permissionSurface(tool, { denying: true });
     expect(validateUiMessages(messages).ok).toBe(true);
     const json = components(messages);
     expect(json).toContain("거부 사유 (Claude에게 전달돼요)");
@@ -37,11 +37,11 @@ describe("permissionSurface", () => {
     expect(json).not.toContain("다시 묻지 않기");
   });
 
-  it("shows a plan as markdown and offers delegation when the session has a conductor", () => {
+  it("shows a plan as markdown with no conductor delegation", () => {
     const plan: RunnerPermission = { ...tool, toolName: "ExitPlanMode", toolInput: { plan: "## 계획\n- 하나" }, suggestions: [] };
-    const json = components(permissionSurface(plan, { denying: false, delegable: true }));
+    const json = components(permissionSurface(plan, { denying: false }));
     expect(json).toContain("## 계획");
-    expect(json).toContain('"name":"delegate"');
-    expect(components(permissionSurface({ ...plan, delegatedTo: "c1" }, { denying: false, delegable: true }))).toContain("지휘자가 먼저 판단하는 중이에요");
+    expect(json).not.toContain('"name":"delegate"');
+    expect(json).not.toContain("지휘자");
   });
 });
