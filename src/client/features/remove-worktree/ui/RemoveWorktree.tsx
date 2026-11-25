@@ -15,11 +15,11 @@ interface RemoveWorktreeProps {
   worktree: WorktreeSummary;
   /** Agent sessions attached to the worktree; removal closes their terminals. */
   sessionCount: number;
-  /** Called when the user backs out of the confirm step. */
+  /** Called when the user backs out of the confirm step or dismisses the finished one. */
   onCancel: () => void;
 }
 
-/** The confirm-and-remove step; whoever offers 워크트리 삭제 mounts it when the user picks that action. */
+/** The confirm-and-remove step shown inside the removal modal. */
 export function RemoveWorktree({ worktree, sessionCount, onCancel }: RemoveWorktreeProps) {
   const [step, setStep] = useState<Step>({ kind: "confirm" });
 
@@ -38,7 +38,7 @@ export function RemoveWorktree({ worktree, sessionCount, onCancel }: RemoveWorkt
 
   if (step.kind === "removing") {
     return (
-      <p className="mt-3 flex items-center gap-1.5 text-[12px] text-muted">
+      <p className="flex items-center gap-1.5 text-[12px] text-muted">
         <Spinner />
         {step.force ? "강제로 지우는 중" : "지우는 중"}
       </p>
@@ -46,12 +46,19 @@ export function RemoveWorktree({ worktree, sessionCount, onCancel }: RemoveWorkt
   }
 
   if (step.kind === "removed") {
-    return <p className="mt-3 text-[12px] text-muted">지웠어요. 몇 초 안에 보드에서 사라져요.</p>;
+    return (
+      <div className="flex items-center justify-between gap-2 text-[12px]">
+        <p className="text-muted">지웠어요. 몇 초 안에 보드에서 사라져요.</p>
+        <button type="button" onClick={onCancel} className="rounded-full px-2.5 py-0.5 text-muted hover:text-fg">
+          닫기
+        </button>
+      </div>
+    );
   }
 
   const failed = step.kind === "failed";
   return (
-    <div className="mt-3 flex flex-col gap-2 rounded-[8px] bg-tint p-2.5 text-[12px]">
+    <div className="flex flex-col gap-2 rounded-[8px] bg-tint p-2.5 text-[12px]">
       {failed ? (
         <p className="break-all text-accent">지우지 못했어요: {step.message}</p>
       ) : (

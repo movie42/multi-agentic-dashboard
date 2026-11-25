@@ -20,6 +20,7 @@ import { AgentCardView, requestJump, type CardProgress, type CardSurface, type C
 import { foldWorkers, groupAgents, needsInput, openSessionWindow, type FoldedAgents } from "@/client/entities/agent";
 import { InputAlerts } from "@/client/widgets/input-alerts";
 import { CommandPalette } from "@/client/widgets/command-palette";
+import { RemoveWorktreeHost } from "@/client/features/remove-worktree";
 import { ProjectCommandHost } from "@/client/features/run-project-command";
 import { FeatureGroup } from "@/client/widgets/feature-group";
 import { FocusChips, FocusToggle } from "@/client/features/focus-projects";
@@ -449,6 +450,7 @@ export function Dashboard({ initialBoard = null }: DashboardProps) {
         onOpenSessions={prefs.openSessions}
       />
       <ProjectCommandHost />
+      <RemoveWorktreeHost />
       <PromptColorSync />
       <CanvasColorSync />
       <CanvasItemColorStyle />

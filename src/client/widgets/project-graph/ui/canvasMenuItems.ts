@@ -2,6 +2,7 @@ import { MAX_CLOSE_TERMINALS, type ActionRequest } from "@/common/actions/schema
 import { gitGraphHref } from "@/client/entities/git-graph";
 import { intentDiffHref } from "@/client/entities/intent-diff";
 import { openWorkspaceWindow, requestWorktreeAction, type PanelWorktreeAction } from "@/client/entities/workspace";
+import { requestRemoveWorktree } from "@/client/features/remove-worktree";
 import { openSessionWindow, restChoices, type RestOverrides } from "@/client/entities/agent";
 import { controlRun, removeRun } from "@/client/entities/runner";
 import type { TemplateRun } from "@/common/templates/types";
@@ -311,7 +312,7 @@ export function menuFor(target: MenuTarget, context: MenuContext): MenuContent |
         ],
         state: bulk?.state,
         arrange: bulk?.arrange,
-        danger: [...(bulk?.danger ?? []), !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => inPanel("remove") }],
+        danger: [...(bulk?.danger ?? []), !worktree.isMain && { label: "워크트리 삭제", danger: true, run: () => requestRemoveWorktree(worktree, sessions.length) }],
       }),
       colors: colorsOf([{ scope: "worktree", id: worktree.worktreeId }], `워크트리 · ${worktree.name}`, context),
     };

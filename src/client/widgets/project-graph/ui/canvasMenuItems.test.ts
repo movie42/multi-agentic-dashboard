@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { useRemoveWorktreeRequest } from "@/client/features/remove-worktree";
 import { openWindow } from "@/client/shared/lib/openWindow";
 import type { WorktreeSummary } from "@/common/board/types";
 import type { TemplateRun } from "@/common/templates/types";
@@ -128,6 +129,16 @@ describe("menuFor", () => {
     expect(labels(open?.items ?? []).slice(0, 2)).toEqual(["워크트리 열기", "새 창에서 열기"]);
     open?.items[1]?.run();
     expect(vi.mocked(openWindow)).toHaveBeenCalledWith("/?repo=shop&worktree=%2Fp%2Fshop-a", expect.objectContaining({ width: expect.any(Number) }), "board:shop:/p/shop-a");
+  });
+
+  it("asks to remove a worktree in place, without switching to it", () => {
+    useRemoveWorktreeRequest.setState({ request: null });
+    const onOpenWorktree = vi.fn();
+    const cluster = graph.clusters.find((entry) => entry.worktree.path === "/p/shop-a")!;
+    const items = menuFor({ kind: "cluster", id: cluster.id }, context({ onOpenWorktree }))?.groups.flatMap((group) => group.items) ?? [];
+    items.find((item) => item.label === "워크트리 삭제")?.run();
+    expect(onOpenWorktree).not.toHaveBeenCalled();
+    expect(useRemoveWorktreeRequest.getState().request).toEqual({ worktree: cluster.worktree, sessionCount: 2 });
   });
 
   // The swatch row on top of the menu paints; its '직접' button opens the full editor.

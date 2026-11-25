@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import type { MenuPoint } from "@/client/shared/ui/ContextMenu";
 
 /** Worktree actions whose form lives in the worktree panel, so another screen can only ask for them. */
-export type PanelWorktreeAction = "worktree" | "remove";
+export type PanelWorktreeAction = "worktree";
 
 type Payload = { kind: "menu"; at: MenuPoint } | { kind: "action"; action: PanelWorktreeAction };
 

@@ -22,7 +22,7 @@ import { openWorkspaceWindow, useWorktreeMenuRequest } from "@/client/entities/w
 import { requestCommandManage, requestCommandRun, useProjectCommands } from "@/client/entities/project-commands";
 import { ConductorLauncher } from "@/client/features/conduct-sessions";
 import { PendingLaunchRows } from "@/client/features/launch-agent";
-import { RemoveWorktree } from "@/client/features/remove-worktree";
+import { requestRemoveWorktree } from "@/client/features/remove-worktree";
 import { WorktreeNameForm } from "@/client/features/rename-worktree";
 import { useFileExplorerStore } from "@/client/features/browse-files";
 import { ACTION_ICONS } from "@/client/shared/ui/ActionIcons";
@@ -95,7 +95,6 @@ export function WorktreePanel({
   onAction,
 }: WorktreePanelProps) {
   const [editingName, setEditingName] = useState(false);
-  const [removing, setRemoving] = useState(false);
   // Shown until the next poll brings the new display name back.
   const [savedName, setSavedName] = useState<{ value: string; replaces: string } | null>(null);
   const shownName = savedName && savedName.replaces === worktree.name ? savedName.value : worktree.name;
@@ -186,7 +185,7 @@ export function WorktreePanel({
             label: "워크트리 삭제",
             description: "이 워크트리를 지워요. 브랜치는 남아요",
             danger: true,
-            run: () => setRemoving(true),
+            run: () => requestRemoveWorktree(worktree, all.length),
           },
         ]),
   ];
@@ -398,7 +397,6 @@ export function WorktreePanel({
             </button>
           ))}
         </div>
-        {removing && <RemoveWorktree worktree={worktree} sessionCount={all.length} onCancel={() => setRemoving(false)} />}
         {menu && (
           <ContextMenu at={menu.at} label={`${worktree.name} 워크트리 메뉴`} onClose={closeMenu} widthClass="w-60">
             {menu.confirmingCloseAll ? (
